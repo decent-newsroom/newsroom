@@ -946,7 +946,7 @@ class AuthorController extends AbstractController
 
                     if ($cachedIsEmpty) {
                         $templateData = match($tab) {
-                            //'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
+                            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
                             'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                             'highlights' => $this->getHighlightsTabData($pubkey, $em),
                             'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
@@ -980,7 +980,7 @@ class AuthorController extends AbstractController
                 } else {
                     // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
                     $templateData = match($tab) {
-                        //'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
+                        'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
                         'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                         'highlights' => $this->getHighlightsTabData($pubkey, $em),
                         'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
@@ -1163,25 +1163,38 @@ class AuthorController extends AbstractController
         }
 
         // Fallback when magazine projection is missing: inspect publication-index events.
-        $allIndices = $em->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+        // Prefilter to type=magazine indexes authored by others via the idx_event_tags_gin
+        // GIN index (tags @> ...), rather than loading every kind-30040 event globally —
+        // the latter was a full-table scan and the main cause of slow overview builds.
+        $rows = $em->getConnection()->executeQuery(
+            "SELECT e.pubkey, e.tags, e.created_at
+             FROM   event e
+             WHERE  e.kind = :kind
+               AND  e.pubkey != :pubkey
+               AND  e.tags @> :magazineType::jsonb
+             ORDER BY e.created_at DESC
+             LIMIT 200",
+            [
+                'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                'pubkey' => $pubkey,
+                'magazineType' => '[["type","magazine"]]',
+            ],
+        )->fetchAllAssociative();
+
         $featuredBySlug = [];
 
-        foreach ($allIndices as $event) {
-            if (!$event instanceof Event || $event->getPubkey() === $pubkey) {
-                continue;
-            }
-
-            $tags = $event->getTags();
-            $isMagType = false;
+        foreach ($rows as $row) {
+            $tags = is_string($row['tags']) ? (json_decode($row['tags'], true) ?? []) : ($row['tags'] ?? []);
             $isTopLevel = false;
             $hasContributor = false;
+            $slug = null;
 
             foreach ($tags as $tag) {
-                if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
-                    $isMagType = true;
+                if (($tag[0] ?? '') === 'd' && isset($tag[1])) {
+                    $slug = (string) $tag[1];
                 }
 
-                if (($tag[0] ?? '') === 'a' && !$isTopLevel) {
+                if (($tag[0] ?? '') === 'a') {
                     $parts = explode(':', $tag[1] ?? '', 3);
                     if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
                         $isTopLevel = true;
@@ -1194,44 +1207,37 @@ class AuthorController extends AbstractController
                 }
             }
 
-            if (!$isMagType || !$isTopLevel || !$hasContributor) {
+            if (!$isTopLevel || !$hasContributor || $slug === null || $slug === '') {
                 continue;
             }
 
-            $slug = $event->getSlug();
-            if ($slug === null) {
-                continue;
-            }
+            $createdAt = (int) $row['created_at'];
+            if (!isset($featuredBySlug[$slug]) || $createdAt > $featuredBySlug[$slug]['createdAt']) {
+                $title = null;
+                $summary = null;
+                $image = null;
+                foreach ($tags as $tag) {
+                    switch ($tag[0] ?? '') {
+                        case 'title': $title = $tag[1] ?? null; break;
+                        case 'summary': $summary = $tag[1] ?? null; break;
+                        case 'image': $image = $tag[1] ?? null; break;
+                    }
+                }
 
-            if (!isset($featuredBySlug[$slug]) || $event->getCreatedAt() > $featuredBySlug[$slug]->getCreatedAt()) {
-                $featuredBySlug[$slug] = $event;
+                $featuredBySlug[$slug] = [
+                    'slug' => $slug,
+                    'title' => $title,
+                    'summary' => $summary,
+                    'image' => $image,
+                    'createdAt' => $createdAt,
+                    'featured' => true,
+                ];
             }
         }
 
-        return array_values(array_map(function (Event $event) {
-            $title = null;
-            $summary = null;
-            $image = null;
-
-            foreach ($event->getTags() as $tag) {
-                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
-                    $title = $tag[1];
-                }
-                if (($tag[0] ?? '') === 'summary' && isset($tag[1])) {
-                    $summary = $tag[1];
-                }
-                if (($tag[0] ?? '') === 'image' && isset($tag[1])) {
-                    $image = $tag[1];
-                }
-            }
-
-            return [
-                'slug' => $event->getSlug(),
-                'title' => $title,
-                'summary' => $summary,
-                'image' => $image,
-                'featured' => true,
-            ];
+        return array_values(array_map(static function (array $item): array {
+            unset($item['createdAt']);
+            return $item;
         }, $featuredBySlug));
     }
 
