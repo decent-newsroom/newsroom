@@ -923,7 +923,17 @@ class AuthorController extends AbstractController
                 // to a day. The editor sidebar hits Postgres directly for the same
                 // reason — this keeps the two views consistent.
                 // Also bypass when the client explicitly signals a pending Mercure update.
-                $bypassCache = $isOwner || $request->query->has('refresh');
+                //
+                // The overview tab is the exception: its synchronous builder
+                // (getOverviewTabData) is disabled and it is populated exclusively by
+                // the async_profiles worker (RevalidateProfileCacheHandler::buildOverviewData).
+                // Bypassing the cache for overview would therefore always fall through to
+                // the empty `default => []` match arm below, hiding the owner's own
+                // magazines / reading lists / follow packs. Owners must read the
+                // worker-built cache like everyone else (stale-while-revalidate still
+                // dispatches a background rebuild, and the empty-payload guard below
+                // heals a cold or poisoned cache).
+                $bypassCache = ($isOwner || $request->query->has('refresh')) && $tab !== 'overview';
 
                 if (!$bypassCache && $cacheResult['isCached'] && $cacheResult['data'] !== null) {
                     // Guard against a poisoned empty cache: if the critical payload
