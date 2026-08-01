@@ -122,12 +122,16 @@ class RevalidateProfileCacheHandler
         // Get author's magazines
         $authorMagazines = $this->getAuthorMagazines($pubkey);
         $featuredMagazines = $this->getFeaturedMagazines($pubkey);
+        $authorReadingLists = $this->getAuthorReadingLists($pubkey);
+        $featuredReadingLists = $this->getFeaturedReadingLists($pubkey);
         $existingFollowPacks = $this->getAuthorFollowPacks($pubkey);
         $featuredInFollowPacks = $this->getFeaturedInFollowPacks($pubkey);
 
         return [
             'authorMagazines' => $authorMagazines,
             'featuredMagazines' => $featuredMagazines,
+            'authorReadingLists' => $authorReadingLists,
+            'featuredReadingLists' => $featuredReadingLists,
             'existingFollowPacks' => $existingFollowPacks,
             'featuredInFollowPacks' => $featuredInFollowPacks,
         ];
@@ -498,5 +502,144 @@ class RevalidateProfileCacheHandler
         }
 
         return array_values($featuredByCoordinate);
+    }
+
+    /**
+     * Get reading lists (flat kind 30040, type=reading-list) created by the given pubkey.
+     * Returns plain arrays for cache serialization.
+     */
+    private function getAuthorReadingLists(string $pubkey): array
+    {
+        $events = $this->em->getRepository(Event::class)->findBy(
+            ['kind' => KindsEnum::PUBLICATION_INDEX->value, 'pubkey' => $pubkey],
+            ['created_at' => 'DESC'],
+        );
+
+        $bySlug = [];
+        foreach ($events as $event) {
+            if (!$event instanceof Event) {
+                continue;
+            }
+
+            $type = null;
+            $hasNested = false;
+            foreach ($event->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'type' && isset($tag[1])) {
+                    $type = (string) $tag[1];
+                }
+                if (($tag[0] ?? '') === 'a' && isset($tag[1]) && str_starts_with((string) $tag[1], '30040:')) {
+                    $hasNested = true;
+                }
+            }
+            if ($type !== 'reading-list' || $hasNested) {
+                continue;
+            }
+
+            $slug = $event->getSlug();
+            if ($slug === null || $slug === '') {
+                continue;
+            }
+            if (!isset($bySlug[$slug]) || $event->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
+                $bySlug[$slug] = $event;
+            }
+        }
+
+        return array_values(array_map(function (Event $event) {
+            $title = null;
+            $summary = null;
+            $image = null;
+            foreach ($event->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'summary' && isset($tag[1])) {
+                    $summary = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'image' && isset($tag[1])) {
+                    $image = $tag[1];
+                }
+            }
+            return [
+                'slug' => $event->getSlug(),
+                'title' => $title,
+                'summary' => $summary,
+                'image' => $image,
+                'pubkey' => $event->getPubkey(),
+                'createdAt' => $event->getCreatedAt(),
+            ];
+        }, $bySlug));
+    }
+
+    /**
+     * Get reading lists authored by others that feature at least one article by $pubkey.
+     * Detection is coordinate-based (article 'a' tags), so it works retroactively.
+     */
+    private function getFeaturedReadingLists(string $pubkey): array
+    {
+        $conn = $this->em->getConnection();
+
+        $sql = "
+            SELECT e.pubkey, e.tags, e.created_at
+            FROM   event e
+            WHERE  e.kind = :kind
+              AND  e.pubkey != :pubkey
+              AND  EXISTS (
+                       SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                       WHERE  tag->>0 = 'type' AND tag->>1 = 'reading-list'
+                   )
+              AND  EXISTS (
+                       SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                       WHERE  tag->>0 = 'a'
+                         AND  (tag->>1 LIKE :coord23 OR tag->>1 LIKE :coord24)
+                   )
+            ORDER BY e.created_at DESC
+            LIMIT 50
+        ";
+
+        $rows = $conn->executeQuery($sql, [
+            'kind'    => KindsEnum::PUBLICATION_INDEX->value,
+            'pubkey'  => $pubkey,
+            'coord23' => '30023:' . $pubkey . ':%',
+            'coord24' => '30024:' . $pubkey . ':%',
+        ])->fetchAllAssociative();
+
+        $byCoordinate = [];
+        foreach ($rows as $row) {
+            $tags = is_string($row['tags']) ? (json_decode($row['tags'], true) ?? []) : $row['tags'];
+
+            $slug = null;
+            $title = null;
+            $summary = null;
+            $image = null;
+            foreach ($tags as $tag) {
+                switch ($tag[0] ?? '') {
+                    case 'd': $slug = $tag[1] ?? null; break;
+                    case 'title': $title = $tag[1] ?? null; break;
+                    case 'summary': $summary = $tag[1] ?? null; break;
+                    case 'image': $image = $tag[1] ?? null; break;
+                }
+            }
+
+            if ($slug === null || $slug === '') {
+                continue;
+            }
+
+            $coordinate = $row['pubkey'] . ':' . $slug;
+            if (isset($byCoordinate[$coordinate])) {
+                continue;
+            }
+
+            $byCoordinate[$coordinate] = [
+                'slug' => $slug,
+                'title' => $title,
+                'summary' => $summary,
+                'image' => $image,
+                'pubkey' => $row['pubkey'],
+                'createdAt' => (int) $row['created_at'],
+                'featured' => true,
+            ];
+        }
+
+        return array_values($byCoordinate);
     }
 }

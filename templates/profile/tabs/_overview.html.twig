@@ -110,6 +110,113 @@
             </div>
         {% endif %}
 
+        {# Reading Lists Section #}
+        {% if authorReadingLists|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="w-container">
+                    {% for item in authorReadingLists %}
+                        {% set listSlug = item.slug|default(null) %}
+                        {% if listSlug %}
+                            <article class="card article-card reading-list-card{% if not item.image|default(null) %} article-card--text-only{% endif %}">
+                                <div class="article-card__body">
+                                    <div class="article-card__content">
+                                        <div class="metadata">
+                                            <span>
+                                                {{ 'text.by'|trans }}
+                                                <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                                            </span>
+                                            {% if item.createdAt is defined and item.createdAt %}
+                                                <span>
+                                                    <time datetime="{{ item.createdAt|date('c') }}">{{ item.createdAt|date('M j, Y') }}</time>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="card-sources reading-list-card__sources">
+                                            <span class="source-badge source-badge--category">Reading list</span>
+                                        </div>
+
+                                        <h2 class="card-title line-clamp-5">
+                                            <a class="article-card__title-link" href="{{ path('reading-list', {npub: item.pubkey|hex_to_npub, slug: listSlug}) }}" data-turbo-frame="_top">{{ item.title }}</a>
+                                        </h2>
+
+                                        {% if item.summary is defined and item.summary %}
+                                            <p class="lede line-clamp-5">{{ item.summary }}</p>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if item.image|default(null) %}
+                                        <figure class="article-card__media reading-list-card__media">
+                                            <img
+                                                src="{{ item.image }}"
+                                                alt="{{ 'card.coverImageAlt'|trans({'%title%': item.title}) }}"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                        </figure>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {# Featured in Reading Lists Section #}
+        {% if featuredReadingLists|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="w-container">
+                    {% for item in featuredReadingLists %}
+                        {% set listSlug = item.slug|default(null) %}
+                        {% if listSlug %}
+                            <article class="card article-card reading-list-card{% if not item.image|default(null) %} article-card--text-only{% endif %}">
+                                <div class="article-card__body">
+                                    <div class="article-card__content">
+                                        <div class="metadata">
+                                            <span>
+                                                {{ 'text.by'|trans }}
+                                                <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                                            </span>
+                                            {% if item.createdAt is defined and item.createdAt %}
+                                                <span>
+                                                    <time datetime="{{ item.createdAt|date('c') }}">{{ item.createdAt|date('M j, Y') }}</time>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="card-sources reading-list-card__sources">
+                                            <span class="source-badge source-badge--category">Featured in</span>
+                                            <span class="source-badge source-badge--category">Reading list</span>
+                                        </div>
+
+                                        <h2 class="card-title line-clamp-5">
+                                            <a class="article-card__title-link" href="{{ path('reading-list', {npub: item.pubkey|hex_to_npub, slug: listSlug}) }}" data-turbo-frame="_top">{{ item.title }}</a>
+                                        </h2>
+
+                                        {% if item.summary is defined and item.summary %}
+                                            <p class="lede line-clamp-5">{{ item.summary }}</p>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if item.image|default(null) %}
+                                        <figure class="article-card__media reading-list-card__media">
+                                            <img
+                                                src="{{ item.image }}"
+                                                alt="{{ 'card.coverImageAlt'|trans({'%title%': item.title}) }}"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                        </figure>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
         {# Follow Packs Section #}
         {% if existingFollowPacks|default([])|length > 0 %}
             <div class="overview-section">
@@ -208,7 +315,7 @@
         {% endif %}
 
         {# Empty state #}
-        {% if authorMagazines|default([])|length == 0 and existingFollowPacks|default([])|length == 0 and featuredMagazines|default([])|length == 0 and featuredInFollowPacks|default([])|length == 0 %}
+        {% if authorMagazines|default([])|length == 0 and existingFollowPacks|default([])|length == 0 and featuredMagazines|default([])|length == 0 and featuredInFollowPacks|default([])|length == 0 and authorReadingLists|default([])|length == 0 and featuredReadingLists|default([])|length == 0 %}
             <div class="no-content">
                 {% if isOwner|default(false) %}
                     <p>You are not publishing or featured in magazines or follow packs yet.</p>

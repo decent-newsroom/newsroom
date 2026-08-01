@@ -731,12 +731,48 @@ class ReadingListController extends AbstractController
             }
         }
 
+        // Add 'p' tags for the featured authors of the included articles so other
+        // clients (and our own coordinate-based detection) can attribute the list.
+        foreach ($this->extractArticleAuthorPubkeys($draft->articles) as $authorPubkey) {
+            $tags[] = ['p', $authorPubkey];
+        }
+
         return [
             'kind' => KindsEnum::PUBLICATION_INDEX->value,
             'created_at' => time(),
             'tags' => $tags,
             'content' => '',
         ];
+    }
+
+    /**
+     * Extract unique author pubkeys from article coordinates ("kind:pubkey:slug"),
+     * limited to longform (30023) and draft (30024) references.
+     *
+     * @param array<int, string> $coordinates
+     * @return array<int, string>
+     */
+    private function extractArticleAuthorPubkeys(array $coordinates): array
+    {
+        $authors = [];
+        foreach ($coordinates as $coordinate) {
+            if (!is_string($coordinate) || $coordinate === '') {
+                continue;
+            }
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [$kind, $authorPubkey] = $parts;
+            if (!in_array($kind, ['30023', '30024'], true) || $authorPubkey === '') {
+                continue;
+            }
+            if (!in_array($authorPubkey, $authors, true)) {
+                $authors[] = $authorPubkey;
+            }
+        }
+
+        return $authors;
     }
 
     private function slugifyWithRandom(string $title): string

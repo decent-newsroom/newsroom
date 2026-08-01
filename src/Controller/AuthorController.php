@@ -1079,6 +1079,9 @@ class AuthorController extends AbstractController
         $authorMagazines = $this->getAuthorMagazines($pubkey, $em);
         // Get magazines where author is featured as a contributor
         $featuredMagazines = $this->getFeaturedMagazines($pubkey, $em);
+        // Get author's reading lists and reading lists that feature their articles
+        $authorReadingLists = $this->getAuthorReadingLists($pubkey, $em);
+        $featuredReadingLists = $this->getFeaturedReadingLists($pubkey, $em);
 
         // Get existing follow packs for the author
         $existingFollowPacks = [];
@@ -1127,6 +1130,8 @@ class AuthorController extends AbstractController
         return [
             'authorMagazines' => $authorMagazines,
             'featuredMagazines' => $featuredMagazines,
+            'authorReadingLists' => $authorReadingLists,
+            'featuredReadingLists' => $featuredReadingLists,
             'existingFollowPacks' => array_slice(array_values($existingFollowPacks), 0, 10),
             'featuredInFollowPacks' => $featuredInFollowPacks,
         ];
@@ -1218,6 +1223,199 @@ class AuthorController extends AbstractController
                 'featured' => true,
             ];
         }, $featuredBySlug));
+    }
+
+    /**
+     * Extract the unique author pubkeys featured in a publication's article coordinates.
+     *
+     * Article coordinates use the form "kind:pubkey:slug"; the author pubkey is taken
+     * directly from each 'a' tag referencing a longform article (30023) or draft (30024).
+     * This is the single source of truth for coordinate-based featured-author detection
+     * and for injecting 'p' tags at creation time.
+     *
+     * @param array<int, array<int, string>> $tags
+     * @return array<int, string>
+     */
+    public static function extractFeaturedAuthorPubkeys(array $tags, ?string $excludePubkey = null): array
+    {
+        $authors = [];
+        foreach ($tags as $tag) {
+            if (($tag[0] ?? '') !== 'a' || !isset($tag[1])) {
+                continue;
+            }
+            $parts = explode(':', (string) $tag[1], 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [$kind, $authorPubkey] = $parts;
+            if (!in_array($kind, ['30023', '30024'], true)) {
+                continue;
+            }
+            if ($authorPubkey === '' || $authorPubkey === $excludePubkey) {
+                continue;
+            }
+            if (!in_array($authorPubkey, $authors, true)) {
+                $authors[] = $authorPubkey;
+            }
+        }
+
+        return $authors;
+    }
+
+    /**
+     * Whether a kind 30040 event is a flat reading list (type=reading-list, no nested
+     * 30040 category references).
+     */
+    private function isReadingListEvent(Event $event): bool
+    {
+        $type = null;
+        $hasNested = false;
+        foreach ($event->getTags() as $tag) {
+            if (($tag[0] ?? '') === 'type' && isset($tag[1])) {
+                $type = (string) $tag[1];
+            }
+            if (($tag[0] ?? '') === 'a' && isset($tag[1]) && str_starts_with((string) $tag[1], '30040:')) {
+                $hasNested = true;
+            }
+        }
+
+        return $type === 'reading-list' && !$hasNested;
+    }
+
+    /**
+     * Build a plain-array card representation of a reading-list event for the overview.
+     *
+     * @return array<string, mixed>
+     */
+    private function readingListCardData(Event $event): array
+    {
+        $title = null;
+        $summary = null;
+        $image = null;
+        foreach ($event->getTags() as $tag) {
+            match ($tag[0] ?? '') {
+                'title' => $title = $tag[1] ?? $title,
+                'summary' => $summary = $tag[1] ?? $summary,
+                'image' => $image = $tag[1] ?? $image,
+                default => null,
+            };
+        }
+
+        return [
+            'slug' => $event->getSlug(),
+            'title' => $title,
+            'summary' => $summary,
+            'image' => $image,
+            'pubkey' => $event->getPubkey(),
+            'createdAt' => $event->getCreatedAt(),
+        ];
+    }
+
+    /**
+     * Get reading lists (flat kind 30040, type=reading-list) created by the given pubkey.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function getAuthorReadingLists(string $pubkey, EntityManagerInterface $em): array
+    {
+        $events = $em->getRepository(Event::class)->findBy(
+            ['kind' => KindsEnum::PUBLICATION_INDEX->value, 'pubkey' => $pubkey],
+            ['created_at' => 'DESC'],
+        );
+
+        $bySlug = [];
+        foreach ($events as $event) {
+            if (!$event instanceof Event || !$this->isReadingListEvent($event)) {
+                continue;
+            }
+            $slug = $event->getSlug();
+            if ($slug === null || $slug === '') {
+                continue;
+            }
+            if (!isset($bySlug[$slug]) || $event->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
+                $bySlug[$slug] = $event;
+            }
+        }
+
+        return array_values(array_map(fn (Event $event) => $this->readingListCardData($event), $bySlug));
+    }
+
+    /**
+     * Get reading lists authored by others that feature at least one article by $pubkey.
+     *
+     * Detection is coordinate-based: a reading list features the author when any of its
+     * article 'a' tags references a 30023/30024 coordinate whose pubkey segment matches.
+     * This works retroactively for all existing lists without requiring a republish.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function getFeaturedReadingLists(string $pubkey, EntityManagerInterface $em): array
+    {
+        $conn = $em->getConnection();
+
+        $sql = "
+            SELECT e.pubkey, e.tags, e.created_at
+            FROM   event e
+            WHERE  e.kind = :kind
+              AND  e.pubkey != :pubkey
+              AND  EXISTS (
+                       SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                       WHERE  tag->>0 = 'type' AND tag->>1 = 'reading-list'
+                   )
+              AND  EXISTS (
+                       SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                       WHERE  tag->>0 = 'a'
+                         AND  (tag->>1 LIKE :coord23 OR tag->>1 LIKE :coord24)
+                   )
+            ORDER BY e.created_at DESC
+            LIMIT 50
+        ";
+
+        $rows = $conn->executeQuery($sql, [
+            'kind'    => KindsEnum::PUBLICATION_INDEX->value,
+            'pubkey'  => $pubkey,
+            'coord23' => '30023:' . $pubkey . ':%',
+            'coord24' => '30024:' . $pubkey . ':%',
+        ])->fetchAllAssociative();
+
+        $byCoordinate = [];
+        foreach ($rows as $row) {
+            $tags = is_string($row['tags']) ? (json_decode($row['tags'], true) ?? []) : $row['tags'];
+
+            $slug = null;
+            $title = null;
+            $summary = null;
+            $image = null;
+            foreach ($tags as $tag) {
+                switch ($tag[0] ?? '') {
+                    case 'd': $slug = $tag[1] ?? null; break;
+                    case 'title': $title = $tag[1] ?? null; break;
+                    case 'summary': $summary = $tag[1] ?? null; break;
+                    case 'image': $image = $tag[1] ?? null; break;
+                }
+            }
+
+            if ($slug === null || $slug === '') {
+                continue;
+            }
+
+            $coordinate = $row['pubkey'] . ':' . $slug;
+            if (isset($byCoordinate[$coordinate])) {
+                continue; // rows ordered DESC by created_at, newest revision wins
+            }
+
+            $byCoordinate[$coordinate] = [
+                'slug' => $slug,
+                'title' => $title,
+                'summary' => $summary,
+                'image' => $image,
+                'pubkey' => $row['pubkey'],
+                'createdAt' => (int) $row['created_at'],
+                'featured' => true,
+            ];
+        }
+
+        return array_values($byCoordinate);
     }
 
     /**
@@ -1556,6 +1754,18 @@ class AuthorController extends AbstractController
         foreach ($allIndices as $mag) {
             $slug = $mag->getSlug();
             if ($slug === null) {
+                continue;
+            }
+            // Exclude flat reading lists and magazine sub-categories; only standalone
+            // magazine indices belong in the "magazines" section.
+            $type = null;
+            foreach ($mag->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'type' && isset($tag[1])) {
+                    $type = (string) $tag[1];
+                    break;
+                }
+            }
+            if (in_array($type, ['reading-list', 'category'], true)) {
                 continue;
             }
             if (!isset($bySlug[$slug]) || $mag->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
@@ -1956,7 +2166,9 @@ class AuthorController extends AbstractController
             'overview' => empty($data['authorMagazines'])
                 && empty($data['existingFollowPacks'])
                 && empty($data['featuredMagazines'])
-                && empty($data['featuredInFollowPacks']),
+                && empty($data['featuredInFollowPacks'])
+                && empty($data['authorReadingLists'])
+                && empty($data['featuredReadingLists']),
             'media' => empty($data['mediaEvents']),
             'highlights' => empty($data['highlights']),
             'drafts' => empty($data['drafts']),

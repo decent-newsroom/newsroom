@@ -244,6 +244,7 @@ class MagazineWizardController extends AbstractController
         }
 
         $categoryEvents = [];
+        $magazineAuthorPubkeys = [];
         foreach ($draft->categories as $cat) {
             // Skip existing lists - they don't need new events
             if ($cat->isExistingList()) {
@@ -263,6 +264,14 @@ class MagazineWizardController extends AbstractController
             }
             if ($zapSplitHex) {
                 $tags[] = ['zap', $zapSplitHex, '', '100'];
+            }
+            // Featured-author 'p' tags derived from the category's article coordinates.
+            $categoryAuthors = $this->extractArticleAuthorPubkeys($cat->articles);
+            foreach ($categoryAuthors as $authorPubkey) {
+                $tags[] = ['p', $authorPubkey];
+                if (!in_array($authorPubkey, $magazineAuthorPubkeys, true)) {
+                    $magazineAuthorPubkeys[] = $authorPubkey;
+                }
             }
             $categoryEvents[] = [
                 'kind' => 30040,
@@ -315,6 +324,11 @@ class MagazineWizardController extends AbstractController
         // Add zap split to magazine event
         if ($zapSplitHex) {
             $magTags[] = ['zap', $zapSplitHex, '', '100'];
+        }
+
+        // Aggregate featured-author 'p' tags across all categories' articles.
+        foreach ($magazineAuthorPubkeys as $authorPubkey) {
+            $magTags[] = ['p', $authorPubkey];
         }
 
         $magazineEvent = [
@@ -861,6 +875,36 @@ class MagazineWizardController extends AbstractController
         $slug = trim(preg_replace('/-+/', '-', $slug) ?? '', '-');
         $rand = substr(bin2hex(random_bytes(4)), 0, 6);
         return $slug !== '' ? ($slug . '-' . $rand) : $rand;
+    }
+
+    /**
+     * Extract unique author pubkeys from article coordinates ("kind:pubkey:slug"),
+     * limited to longform (30023) and draft (30024) references.
+     *
+     * @param array<int, mixed> $coordinates
+     * @return array<int, string>
+     */
+    private function extractArticleAuthorPubkeys(array $coordinates): array
+    {
+        $authors = [];
+        foreach ($coordinates as $coordinate) {
+            if (!is_string($coordinate) || $coordinate === '') {
+                continue;
+            }
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [$kind, $authorPubkey] = $parts;
+            if (!in_array($kind, ['30023', '30024'], true) || $authorPubkey === '') {
+                continue;
+            }
+            if (!in_array($authorPubkey, $authors, true)) {
+                $authors[] = $authorPubkey;
+            }
+        }
+
+        return $authors;
     }
 
     /**

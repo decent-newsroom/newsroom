@@ -43,8 +43,23 @@ export default class extends Controller {
             }
         });
 
-        event.tags = (event.tags || []).filter((tag) => tag[0] !== 'a');
+        // Rebuild 'a' article tags and the derived featured-author 'p' tags so the
+        // signed event stays in sync as inputs are added/removed.
+        event.tags = (event.tags || []).filter((tag) => tag[0] !== 'a' && tag[0] !== 'p');
         coordinates.forEach((coordinate) => event.tags.push(['a', coordinate]));
+
+        const authors = [];
+        coordinates.forEach((coordinate) => {
+            const parts = coordinate.split(':');
+            if (parts.length < 3) {
+                return;
+            }
+            const [kind, pubkey] = parts;
+            if ((kind === '30023' || kind === '30024') && pubkey && !authors.includes(pubkey)) {
+                authors.push(pubkey);
+            }
+        });
+        authors.forEach((pubkey) => event.tags.push(['p', pubkey]));
 
         this.element.setAttribute(
             'data-nostr--nostr-single-sign-event-value',

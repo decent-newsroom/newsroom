@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Bug] Fixed reading lists never appearing on the author profile **Overview** tab: reading lists an author created and reading lists that feature their articles were excluded from both "featured" detection paths (the projected-`contributors` path only covers nested magazines, and the fallback filtered `type == 'magazine'`). The overview now has dedicated "Reading lists" and "Featured in reading lists" sections, resolved via coordinate-based detection (each article's `kind:pubkey:slug`) so existing lists surface retroactively without a republish. Reading-list and magazine (category + index) events now also emit featured-author `p` tags at creation time for cross-client interoperability.
 - [Copy] Removed the inaccurate "bypass quality gates" claim from Active Indexing marketing/help copy (subscription page, pricing `indexing.feature2` across all locales, `active-indexing:fetch` command help, and the feature doc), since active subscribers are not actually exempt from indexer QA. Now reads "Reliable, ongoing indexing".
 - [Bug] Fixed Active Indexing content never being fetched: `active-indexing:fetch` and `active-indexing:manage-subscriptions` were implemented but not scheduled in the crontab (only `active-indexing:check-receipts` ran). Added hourly cron entries so subscriber content is pulled from declared relays and subscription expiry/grace/role-revocation is processed.
 - [Bug] Fixed the misleading crontab comment claiming `active-indexing:check-receipts` handled expiry/grace transitions; it only matches zap receipts.
