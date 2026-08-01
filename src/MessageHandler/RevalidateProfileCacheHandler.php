@@ -373,6 +373,7 @@ class RevalidateProfileCacheHandler
                 'title' => $title,
                 'summary' => $summary,
                 'image' => $image,
+                'pubkey' => $event->getPubkey(),
             ];
         }, $bySlug));
     }

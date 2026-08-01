@@ -1229,6 +1229,7 @@ class AuthorController extends AbstractController
                     'title' => $title,
                     'summary' => $summary,
                     'image' => $image,
+                    'pubkey' => $row['pubkey'],
                     'createdAt' => $createdAt,
                     'featured' => true,
                 ];
@@ -1785,6 +1786,7 @@ class AuthorController extends AbstractController
                 'title' => $title,
                 'summary' => $summary,
                 'image' => $image,
+                'pubkey' => $event->getPubkey(),
             ];
         }, $bySlug));
     }
