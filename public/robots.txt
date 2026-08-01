@@ -24,11 +24,9 @@ Allow: /changelog
 Allow: /tos
 Allow: /mag/
 Allow: /p/
+Allow: /e/
 Allow: /list/
 Allow: /sitemap.xml
-
-# Crawl delay
-Crawl-delay: 1
 
 # Sitemap
 Sitemap: https://decentnewsroom.com/sitemap.xml
