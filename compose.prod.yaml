@@ -224,6 +224,22 @@ services:
       LOG_LEVEL: ${ESSAYIST_GATEWAY_LOG_LEVEL:-info}
 ###< strfry-essayist relay (prod overrides) ###
 
+###> mcp server (prod overrides) ###
+# The mcp profile is automatically enabled in production.
+# Not publicly exposed on a host port — Caddy reaches it as mcp:9000 over the
+# internal network and enforces the bearer token in frankenphp/Caddyfile
+# (reusing the chat subdomain via MCP_DOMAIN).
+  mcp:
+    profiles: !reset []
+    ports: !reset []
+    environment:
+      NEWSROOM_INTERNAL_API_BASE: ${NEWSROOM_INTERNAL_API_BASE:-http://php}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?INTERNAL_API_TOKEN must be set}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?MCP_AUTH_TOKEN must be set}
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT: 9000
+###< mcp server (prod overrides) ###
+
 volumes:
   caddy_data:
   caddy_config:

@@ -50,6 +50,9 @@ services:
         RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
         ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
         ESSAYIST_RELAY_DOMAIN: ${ESSAYIST_RELAY_DOMAIN:-essayist.localhost}
+        # Shared secret guarding the internal read-only article API
+        # (/internal/api/*) consumed by the standalone `mcp` service.
+        INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-changeme}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -260,6 +263,37 @@ services:
       MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
       RELAY_GATEWAY_ENABLED: "true"
+
+  # Standalone Model Context Protocol server exposing Decent Newsroom articles
+  # (read-only) to MCP clients. Independent image (./docker/mcp) that reaches article
+  # data ONLY through the newsroom internal read-only API (http://php/internal/api).
+  #
+  # Activate with: docker compose --profile mcp up -d
+  #
+  # Auth model (two layers):
+  #   - MCP client -> mcp:      bearer token MCP_AUTH_TOKEN, enforced at the edge
+  #                             (reverse proxy / Caddy) in front of this service.
+  #   - mcp -> newsroom app:    shared secret INTERNAL_API_TOKEN (X-Internal-Token).
+  #
+  # The published port is for local testing only; in production keep this service
+  # on the internal network behind a proxy that enforces the bearer token.
+  mcp:
+    build:
+      context: ./docker/mcp
+      dockerfile: Dockerfile
+    profiles: [mcp]
+    restart: unless-stopped
+    depends_on:
+      php:
+        condition: service_healthy
+    environment:
+      NEWSROOM_INTERNAL_API_BASE: ${NEWSROOM_INTERNAL_API_BASE:-http://php}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-changeme}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-changeme}
+      MCP_HTTP_HOST: ${MCP_HTTP_HOST:-0.0.0.0}
+      MCP_HTTP_PORT: ${MCP_HTTP_PORT:-9000}
+    ports:
+      - "${MCP_HTTP_PORT:-9000}:9000"
 
 ###> strfry relay ###
   strfry:

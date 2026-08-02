@@ -92,6 +92,28 @@
                 reverse_proxy essayist-gateway:7780
         }
 
+        # MCP server (reuses the idle `chat` subdomain) → mcp:9000, bearer-gated.
+        # The MCP SDK's HTTP transport has no built-in auth hook, so the bearer
+        # token is enforced here before proxying. Match on both Host and
+        # X-Forwarded-Host so it works whether Caddy terminates TLS or sits
+        # behind a reverse proxy. Configure: MCP_DOMAIN=chat.decentnewsroom.com
+        @mcpHost {
+            host {$MCP_DOMAIN:chat.localhost}
+        }
+        @mcpHostForwarded {
+            header X-Forwarded-Host {$MCP_DOMAIN:chat.localhost}
+        }
+        handle @mcpHost {
+            @mcpNoAuth not header Authorization "Bearer {$MCP_AUTH_TOKEN}"
+            respond @mcpNoAuth 401
+            reverse_proxy mcp:9000
+        }
+        handle @mcpHostForwarded {
+            @mcpNoAuthF not header Authorization "Bearer {$MCP_AUTH_TOKEN}"
+            respond @mcpNoAuthF 401
+            reverse_proxy mcp:9000
+        }
+
 	# ── Block scanner / attacker probe paths ─────────────────────────────────────
 	# Caddy responds immediately with 404; PHP is never invoked, no Symfony routing,
 	# no DB write, and no visit-tracking overhead.

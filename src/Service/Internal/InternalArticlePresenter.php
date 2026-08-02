@@ -41,21 +41,17 @@ class InternalArticlePresenter
             }
 
             $coordinate = $item['coordinate'];
-            if (isset($byCoordinate[$coordinate])) {
-                $existingTs = $byCoordinate[$coordinate]['_createdTs'] ?? 0;
-                if (($item['_createdTs'] ?? 0) <= $existingTs) {
-                    continue;
-                }
+            $ts = $article->getCreatedAt()?->getTimestamp() ?? 0;
+
+            if (isset($byCoordinate[$coordinate]) && $ts <= $byCoordinate[$coordinate]['ts']) {
+                continue;
             }
 
-            $byCoordinate[$coordinate] = $item;
+            $byCoordinate[$coordinate] = ['ts' => $ts, 'item' => $item];
         }
 
         return array_values(array_map(
-            static function (array $item): array {
-                unset($item['_createdTs']);
-                return $item;
-            },
+            static fn (array $entry): array => $entry['item'],
             $byCoordinate
         ));
     }
@@ -97,7 +93,6 @@ class InternalArticlePresenter
             'publishedAt' => $article->getPublishedAt()?->format(\DateTimeInterface::ATOM),
             'createdAt' => $article->getCreatedAt()?->format(\DateTimeInterface::ATOM),
             'url' => $this->buildUrl($pubkey, $slug),
-            '_createdTs' => $article->getCreatedAt()?->getTimestamp() ?? 0,
         ];
 
         if ($includeContent) {

@@ -1,0 +1,28 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use DecentNewsroom\Mcp\ServerFactory;
+use PhpMcp\Server\Transports\StreamableHttpServerTransport;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$host = getenv('MCP_HTTP_HOST') ?: '0.0.0.0';
+$port = (int) (getenv('MCP_HTTP_PORT') ?: '9000');
+
+// NOTE: bearer-token auth (MCP_AUTH_TOKEN) is enforced at the reverse proxy
+// (Caddy) in front of this service — the SDK's HTTP transport has no auth hook.
+// This process must therefore never be exposed directly to the public internet.
+try {
+    $server = ServerFactory::build();
+    $server->listen(new StreamableHttpServerTransport(
+        host: $host,
+        port: $port,
+        mcpPath: '/mcp',
+        enableJsonResponse: true,
+    ));
+} catch (\Throwable $e) {
+    fwrite(STDERR, '[CRITICAL] ' . $e->getMessage() . "\n");
+    exit(1);
+}

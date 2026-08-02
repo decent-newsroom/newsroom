@@ -1,8 +1,10 @@
 # CHANGELOG
 
 ## v0.0.49
-MCP.
 
+- [Feature] Wired the MCP server for production: `compose.prod.yaml` auto-enables the `mcp` service (`profiles: !reset []`) with no published host port (`ports: !reset []`), and `frankenphp/Caddyfile` routes the reused idle `chat.` subdomain (`MCP_DOMAIN`) to `mcp:9000` behind an `Authorization: Bearer {$MCP_AUTH_TOKEN}` gate. Added `INTERNAL_API_TOKEN`, `MCP_AUTH_TOKEN`, and `MCP_DOMAIN` to `.env.prod.local.template` and a first-deployment checklist to `documentation/MCP/mcp-server.md`.
+- [Feature] Added a standalone Model Context Protocol (MCP) server (`docker/mcp/` project, `--profile mcp` Docker service) exposing the Decent Newsroom article corpus read-only to AI clients over both stdio and streamable HTTP. It ships six tools (`search_articles`, `get_article`, `list_latest`, `list_by_author`, `list_by_topic`, `list_topics`) and a `dn://article/{coordinate}` resource template, reaching data only through a new token-guarded internal API rather than the database directly. See `documentation/MCP/mcp-server.md`.
+- [Feature] Added an internal read-only article API (`/internal/api/articles/*`) consumed by the MCP service, guarded by the `X-Internal-Token` shared secret (`InternalApiTokenSubscriber`, fails closed) and normalized through `InternalArticlePresenter`.
 
 ## v0.0.48
 

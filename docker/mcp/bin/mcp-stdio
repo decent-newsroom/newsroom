@@ -1,0 +1,33 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use DecentNewsroom\Mcp\ServerFactory;
+use PhpMcp\Server\Transports\StdioServerTransport;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Optional .env loading for local (non-Docker) usage.
+$envFile = __DIR__ . '/../.env';
+if (is_file($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        if ($line === '' || str_starts_with(ltrim($line), '#') || !str_contains($line, '=')) {
+            continue;
+        }
+        [$key, $value] = explode('=', $line, 2);
+        $key = trim($key);
+        if (getenv($key) === false) {
+            putenv($key . '=' . trim($value));
+        }
+    }
+}
+
+try {
+    $server = ServerFactory::build();
+    // STDOUT is reserved for JSON-RPC; handlers must never write to it.
+    $server->listen(new StdioServerTransport());
+} catch (\Throwable $e) {
+    fwrite(STDERR, '[CRITICAL] ' . $e->getMessage() . "\n");
+    exit(1);
+}
