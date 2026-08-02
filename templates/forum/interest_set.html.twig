@@ -32,5 +32,12 @@
             </div>
         {% endif %}
     </div>
+
+    {% if is_granted('ROLE_ADMIN') %}
+        <details class="my-3">
+            <summary>Raw event</summary>
+            <pre>{{ article.raw|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+        </details>
+    {% endif %}
 {% endblock %}
 
