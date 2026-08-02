@@ -16,7 +16,7 @@
                                                   {% if item.author is defined and item.author %}
                                                       {{ item.author }}
                                                   {% else %}
-                                                      <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                                                      <twig:Molecules:UserFromNpub :ident="item.pubkey|default(pubkey)" />
                                                   {% endif %}
                                               </span>
                                             <span>
@@ -70,7 +70,7 @@
                                                   {{ 'text.by'|trans }}
                                                   {% if item.author is defined and item.author %}
                                                       {{ item.author }}
-                                                  {% else %}
+                                                  {% elseif item.pubkey|default(null) %}
                                                       <twig:Molecules:UserFromNpub :ident="item.pubkey" />
                                                   {% endif %}
                                               </span>
@@ -123,7 +123,7 @@
                                         <div class="metadata">
                                             <span>
                                                 {{ 'text.by'|trans }}
-                                                <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                                                <twig:Molecules:UserFromNpub :ident="item.pubkey|default(pubkey)" />
                                             </span>
                                             {% if item.createdAt is defined and item.createdAt %}
                                                 <span>
@@ -176,7 +176,7 @@
                                         <div class="metadata">
                                             <span>
                                                 {{ 'text.by'|trans }}
-                                                <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                                                {% if item.pubkey|default(null) %}<twig:Molecules:UserFromNpub :ident="item.pubkey" />{% endif %}
                                             </span>
                                             {% if item.createdAt is defined and item.createdAt %}
                                                 <span>
