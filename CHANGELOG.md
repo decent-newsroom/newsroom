@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.49
+MCP.
+
+
 ## v0.0.48
 
 - [Bug] Fixed a 500 error rendering the author Overview tab (`UserFromNpub::mount(): Argument #1 ($ident) must be of type string, null given`) surfaced once the tab started rendering real data. The `getAuthorMagazines` Event-table fallback and the rewritten `getFeaturedMagazines` fallback returned magazine cards without a `pubkey` key, so the template passed `null` to `UserFromNpub`. Added `pubkey` to both magazine array shapes (controller + worker) and made all `UserFromNpub` usages in `_overview.html.twig` null-safe (own sections fall back to the profile owner's pubkey; featured sections skip the author line if pubkey is missing).
