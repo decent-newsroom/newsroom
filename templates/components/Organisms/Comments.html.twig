@@ -36,7 +36,7 @@
                     <div class="comment-parent-preview">
                         <small>
                             {% set parentMeta = authorsMetadata[parentPreview[item.id].pubkey] ?? null %}
-                            {% set parentName = parentMeta ? (parentMeta.display_name ?? parentMeta.name ?? parentPreview[item.id].pubkey[:8] ~ '…') : parentPreview[item.id].pubkey[:8] ~ '…' %}
+                            {% set parentName = parentMeta ? (parentMeta.display_name ?? parentMeta.name ?? (parentPreview[item.id].pubkey[:8] ~ '…')) : (parentPreview[item.id].pubkey[:8] ~ '…') %}
                             <span class="comment-parent-preview__author">{{ parentName }}:</span>
                             <span class="comment-parent-preview__text">{{ parentPreview[item.id].content }}</span>
                         </small>

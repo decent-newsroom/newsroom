@@ -27,6 +27,12 @@ class ArticleResources
     #[McpResourceTemplate(uriTemplate: 'dn://article/{coordinate}', mimeType: 'application/json')]
     public function article(string $coordinate): array
     {
+        // The URI template variable arrives percent-encoded (e.g. `30023%3A…`),
+        // so the colons that separate kind:pubkey:slug must be restored before
+        // the newsroom internal API can parse the coordinate. Decoding is
+        // idempotent for a well-formed coordinate, which contains no `%`.
+        $coordinate = rawurldecode($coordinate);
+
         $article = $this->client->getArticle($coordinate);
 
         if ($article === null) {

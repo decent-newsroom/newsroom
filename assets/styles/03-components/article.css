@@ -242,7 +242,8 @@ article .card {
     margin: 0;
 }
 
-.comments {
+.comments,
+.comments-list {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
