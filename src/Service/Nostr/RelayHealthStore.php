@@ -446,6 +446,53 @@ class RelayHealthStore
         }
     }
 
+    /**
+     * Bulk-reset ALL persisted relay health state.
+     *
+     * Deletes every `relay_health:*` hash (via SCAN, to avoid blocking Redis)
+     * and clears the `relay_muted_urls` set, so every relay starts from a clean
+     * slate. Filter-shape statistics (`relay_filter_stats:*`) are left intact.
+     *
+     * @return array{health_keys: int, muted: int} counts of deleted health
+     *         keys and the number of previously muted relays cleared.
+     */
+    public function resetAllHealth(): array
+    {
+        $healthKeys = 0;
+        $muted = 0;
+
+        try {
+            $iterator = null;
+            $pattern = self::KEY_PREFIX . '*';
+
+            do {
+                $keys = $this->redis->scan($iterator, $pattern, 100);
+                if ($keys !== false) {
+                    foreach ($keys as $key) {
+                        $this->redis->del($key);
+                        ++$healthKeys;
+                    }
+                }
+            } while ($iterator > 0);
+        } catch (\RedisException $e) {
+            $this->logger->warning('RelayHealthStore: failed to scan/delete relay_health keys during reset', ['error' => $e->getMessage()]);
+        }
+
+        try {
+            $muted = (int) $this->redis->sCard(self::MUTED_SET);
+            $this->redis->del(self::MUTED_SET);
+        } catch (\RedisException $e) {
+            $this->logger->warning('RelayHealthStore: failed to clear muted set during reset', ['error' => $e->getMessage()]);
+        }
+
+        $this->logger->info('RelayHealthStore: bulk health reset', [
+            'health_keys' => $healthKeys,
+            'muted' => $muted,
+        ]);
+
+        return ['health_keys' => $healthKeys, 'muted' => $muted];
+    }
+
     // ----- internals -----
 
     private function key(string $relayUrl): string

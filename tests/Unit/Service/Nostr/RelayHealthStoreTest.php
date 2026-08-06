@@ -248,6 +248,64 @@ class RelayHealthStoreTest extends TestCase
         $store->recordFailure('wss://bad-relay.example.com');
     }
 
+    // --- Bulk reset ---
+
+    public function testResetAllHealthDeletesHealthKeysAndClearsMutedSet(): void
+    {
+        $redis = $this->createMock(\Redis::class);
+
+        // SCAN returns two health keys on the first pass, then ends (iterator = 0).
+        $redis->method('scan')->willReturnCallback(
+            function (&$iterator) {
+                if ($iterator === null) {
+                    $iterator = 0;
+                    return ['relay_health:wss://a.example.com', 'relay_health:wss://b.example.com'];
+                }
+                return false;
+            }
+        );
+
+        $deleted = [];
+        $redis->method('del')->willReturnCallback(function (string $key) use (&$deleted) {
+            $deleted[] = $key;
+            return 1;
+        });
+
+        $redis->method('sCard')->with('relay_muted_urls')->willReturn(3);
+
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->method('isConfiguredRelay')->willReturn(false);
+
+        $store = new RelayHealthStore($redis, new NullLogger(), $registry);
+        $result = $store->resetAllHealth();
+
+        $this->assertSame(2, $result['health_keys']);
+        $this->assertSame(3, $result['muted']);
+        $this->assertContains('relay_health:wss://a.example.com', $deleted);
+        $this->assertContains('relay_health:wss://b.example.com', $deleted);
+        $this->assertContains('relay_muted_urls', $deleted);
+    }
+
+    public function testResetAllHealthWithNothingStored(): void
+    {
+        $redis = $this->createMock(\Redis::class);
+        $redis->method('scan')->willReturnCallback(function (&$iterator) {
+            $iterator = 0;
+            return false;
+        });
+        $redis->method('sCard')->willReturn(0);
+        $redis->method('del')->willReturn(1);
+
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->method('isConfiguredRelay')->willReturn(false);
+
+        $store = new RelayHealthStore($redis, new NullLogger(), $registry);
+        $result = $store->resetAllHealth();
+
+        $this->assertSame(0, $result['health_keys']);
+        $this->assertSame(0, $result['muted']);
+    }
+
     // --- URL normalization consistency ---
 
     public function testKeyNormalizationIsCaseInsensitive(): void
