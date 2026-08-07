@@ -16,6 +16,7 @@ enum AuthorContentType: string
     case HIGHLIGHTS = 'highlights';
     case BOOKMARKS = 'bookmarks';
     case INTERESTS = 'interests';
+    case PUBLICATION = 'publication';
 
     /**
      * Get the Nostr kinds for this content type
@@ -36,6 +37,10 @@ enum AuthorContentType: string
                 KindsEnum::CURATION_PICTURES->value // 30006 - picture curation sets
             ],
             self::INTERESTS => [KindsEnum::INTERESTS->value],
+            self::PUBLICATION => [
+                KindsEnum::PUBLICATION_INDEX->value,
+                KindsEnum::PUBLICATION_CONTENT->value,
+            ],
         };
     }
 
