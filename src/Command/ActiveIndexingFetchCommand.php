@@ -41,6 +41,12 @@ class ActiveIndexingFetchCommand extends Command
     {
         $this
             ->addOption(
+                'force',
+                null,
+                InputOption::VALUE_NONE,
+                'Force fetch content from the users without time limit'
+            )
+            ->addOption(
                 'since-hours',
                 null,
                 InputOption::VALUE_OPTIONAL,
@@ -74,6 +80,7 @@ class ActiveIndexingFetchCommand extends Command
         $sinceHours = (int) $input->getOption('since-hours');
         $limit = $input->getOption('limit') ? (int) $input->getOption('limit') : null;
         $specificNpub = $input->getOption('npub');
+        $force = $input->getOption('force');
 
         $io->title('Active Indexing Content Fetch');
 
@@ -92,6 +99,10 @@ class ActiveIndexingFetchCommand extends Command
             }
         } else {
             $subscriptions = $this->activeIndexingService->getSubscriptionsNeedingFetch(60);
+            // get all subscriptions if force is used, regardless of last timestamp
+            if ($force) {
+                $subscriptions = $this->activeIndexingService->getActiveSubscriptions();
+            }
             if ($limit) {
                 $subscriptions = array_slice($subscriptions, 0, $limit);
             }
@@ -142,7 +153,7 @@ class ActiveIndexingFetchCommand extends Command
                 $this->messageBus->dispatch(new FetchAuthorContentMessage(
                     pubkey: $pubkeyHex,
                     contentTypes: AuthorContentType::publicTypes(),
-                    since: $since,
+                    since: $force? 0 : $since,
                     isOwner: false, // Only public content for indexing
                     relays: $relays
                 ));
