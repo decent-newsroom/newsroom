@@ -44,6 +44,7 @@
         "symfony/framework-bundle": "7.4.*",
         "symfony/html-sanitizer": "7.4.*",
         "symfony/http-foundation": "7.4.*",
+        "symfony/http-client": "7.4.*",
         "symfony/intl": "7.4.*",
         "symfony/mercure-bundle": "^0.4.2",
         "symfony/messenger": "7.4.*",

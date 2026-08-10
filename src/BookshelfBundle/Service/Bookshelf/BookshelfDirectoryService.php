@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Bookshelf;
+namespace DecentNewsroom\BookshelfBundle\Service\Bookshelf;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;

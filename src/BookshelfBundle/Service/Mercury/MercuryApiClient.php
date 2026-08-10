@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mercury;
+namespace DecentNewsroom\BookshelfBundle\Service\Mercury;
 
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;

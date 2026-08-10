@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mercury;
+namespace DecentNewsroom\BookshelfBundle\Service\Mercury;
 
 final class MercuryApiException extends \RuntimeException
 {

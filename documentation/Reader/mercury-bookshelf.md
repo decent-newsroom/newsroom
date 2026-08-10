@@ -38,11 +38,12 @@ Mercury wraps successful payloads in a top-level `data` property. The client val
 | File | Role |
 |---|---|
 | `src/BookshelfBundle/Controller/BookshelfController.php` | Search and full-book reader routes |
-| `src/Service/Mercury/MercuryApiClient.php` | Typed boundary for Mercury HTTP requests |
-| `src/Service/Mercury/MercuryBookService.php` | NKBIP-01 parsing, revision deduplication, and chapter ordering |
-| `templates/pages/bookshelf.html.twig` | Search and result inventory |
-| `templates/bookshelf/read.html.twig` | Continuous book reader |
-| `templates/bookshelf-layout.html.twig` | Bookshelf application shell |
+| `src/BookshelfBundle/Service/Mercury/MercuryApiClient.php` | Typed boundary for Mercury HTTP requests |
+| `src/BookshelfBundle/Service/Mercury/MercuryBookService.php` | NKBIP-01 parsing, revision deduplication, and chapter ordering |
+| `src/BookshelfBundle/Resources/views/pages/bookshelf.html.twig` | Search and result inventory |
+| `src/BookshelfBundle/Resources/views/bookshelf/read.html.twig` | Continuous book reader |
+| `src/BookshelfBundle/Resources/views/bookshelf-layout.html.twig` | Bookshelf application shell |
+| `src/BookshelfBundle/Resources/translations/messages.{locale}.yaml` | Bookshelf translations for supported locales |
 | `assets/styles/04-pages/bookshelf.css` | Flat Bookshelf and reader presentation |
 
 ## Configuration
@@ -67,19 +68,19 @@ The Mercury relay WebSocket endpoints are not used by this feature. All discover
 
 ## Bundle boundary and remaining host dependencies
 
-The bundle now owns the Bookshelf-specific DI configuration, route resource, and
-the migrated catalogue controller. The following dependencies intentionally
+The bundle now owns the Bookshelf-specific DI configuration, route resource,
+Mercury services, catalogue controller, templates, and translations. The following dependencies intentionally
 remain in the host application and are integration points rather than hidden
 bundle configuration:
 
 | Dependency | Current location | Why it remains host-owned |
 |---|---|---|
-| Mercury and directory service implementations | `src/Service/Mercury/`, `src/Service/Bookshelf/` | They still use the host `Event` entity/repository and are registered from the bundle service resource as a transitional boundary |
+| Directory persistence adapter | `src/BookshelfBundle/Service/Bookshelf/BookshelfDirectoryService.php` | The bundle-owned implementation still uses the host `Event` entity/repository; this is the remaining persistence coupling to replace with a host-provided contract for standalone use |
 | Directory persistence | `App\Entity\Event`, `App\Repository\EventRepository`, `App\Enum\KindsEnum` | Local Nostr event storage is application-specific |
 | Reader conversion | `decent-newsroom/asciidoc-html` (`AsciiDocConverter`) | Shared Composer library registered by the bundle |
 | User/navigation context | `App\Helper\NavigationBuilderTrait`, `App\Util\NostrKeyUtil` | Controllers currently use the host's authentication and navigation conventions |
 | My Books publishing | `App\Service\GenericEventProjector`, `App\Service\Nostr\NostrClient`, `App\Service\Nostr\UserRelayListService` | Persistence, relay selection, and publishing are host infrastructure |
-| Templates and UI resources | `templates/`, `translations/`, `assets/` | They extend the host shell, use host Twig components and translation catalogs, and are managed by the host AssetMapper |
+| UI integration | `assets/styles/04-pages/bookshelf.css`, host Twig shell/components | The stylesheet remains host-managed by AssetMapper; bundle templates extend `app-shell.html.twig` and use host Twig components |
 | Route and bundle bootstrap | `config/routes.yaml`, `config/bundles.php` | Symfony application bootstrap must import the bundle routes and register the bundle |
 | Runtime endpoint override | `MERCURY_API_BASE_URL` | Environment values are supplied by each host; the bundle provides the default and binding |
 
@@ -88,7 +89,7 @@ When `BookshelfBundle` is extracted into its own Composer package, that package
 must declare the same library in its own `require` section.
 
 The bundle therefore still depends on the application's `App\` namespace for
-service implementations, persistence, Nostr infrastructure, rendering,
+directory service implementation, persistence, Nostr infrastructure, rendering,
 authentication/navigation, and UI integration. Removing those dependencies
 requires contracts and host adapters; this migration deliberately records them
 without changing behavior.

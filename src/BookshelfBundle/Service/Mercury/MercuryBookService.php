@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mercury;
-
-use App\Enum\KindsEnum;
+namespace DecentNewsroom\BookshelfBundle\Service\Mercury;
 
 final class MercuryBookService
 {
+    private const PUBLICATION_INDEX_KIND = 30040;
+    private const PUBLICATION_CONTENT_KIND = 30041;
     private const MAX_SEARCH_RESULTS = 40;
     private const MAX_CHAPTERS = 500;
 
@@ -192,7 +192,7 @@ final class MercuryBookService
      */
     private function mapIndexEvent(array $event): ?array
     {
-        if ((int) ($event['kind'] ?? 0) !== KindsEnum::PUBLICATION_INDEX->value) {
+        if ((int) ($event['kind'] ?? 0) !== self::PUBLICATION_INDEX_KIND) {
             return null;
         }
 
@@ -211,7 +211,7 @@ final class MercuryBookService
 
         return [
             'id' => $id,
-            'coordinate' => sprintf('%d:%s:%s', KindsEnum::PUBLICATION_INDEX->value, $pubkey, $identifier),
+            'coordinate' => sprintf('%d:%s:%s', self::PUBLICATION_INDEX_KIND, $pubkey, $identifier),
             'pubkey' => $pubkey,
             'identifier' => $identifier,
             'title' => $this->firstTagValue($tags, 'title') ?? $identifier,
@@ -246,7 +246,7 @@ final class MercuryBookService
             }
 
             $parts = explode(':', $tag[1], 3);
-            if (count($parts) !== 3 || (int) $parts[0] !== KindsEnum::PUBLICATION_CONTENT->value) {
+            if (count($parts) !== 3 || (int) $parts[0] !== self::PUBLICATION_CONTENT_KIND) {
                 continue;
             }
 
@@ -283,7 +283,7 @@ final class MercuryBookService
     private function indexChapterEvents(array $events, array &$eventsById, array &$eventsByCoordinate): void
     {
         foreach ($events as $event) {
-            if ((int) ($event['kind'] ?? 0) !== KindsEnum::PUBLICATION_CONTENT->value) {
+            if ((int) ($event['kind'] ?? 0) !== self::PUBLICATION_CONTENT_KIND) {
                 continue;
             }
 
@@ -296,7 +296,7 @@ final class MercuryBookService
             }
 
             $eventsById[$id] = $event;
-            $coordinate = sprintf('%d:%s:%s', KindsEnum::PUBLICATION_CONTENT->value, $pubkey, $identifier);
+            $coordinate = sprintf('%d:%s:%s', self::PUBLICATION_CONTENT_KIND, $pubkey, $identifier);
             $current = $eventsByCoordinate[$coordinate] ?? null;
             if ($current === null || (int) ($event['created_at'] ?? 0) > (int) ($current['created_at'] ?? 0)) {
                 $eventsByCoordinate[$coordinate] = $event;

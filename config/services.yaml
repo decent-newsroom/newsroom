@@ -105,8 +105,6 @@ services:
             - '../src/ExpressionBundle/DependencyInjection/'
             - '../src/ExpressionBundle/ExpressionBundle.php'
             - '../src/NostrKernelBundle/'
-            - '../src/Service/Bookshelf/'
-            - '../src/Service/Mercury/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

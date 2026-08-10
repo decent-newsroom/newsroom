@@ -1,4 +1,4 @@
-{% extends 'bookshelf-layout.html.twig' %}
+{% extends '@Bookshelf/bookshelf-layout.html.twig' %}
 
 {% block title %}
     {% if book %}{{ book.title }}{% else %}{{ 'bookshelf.not_available'|trans }}{% endif %} | {{ 'bookshelf.heading'|trans }}

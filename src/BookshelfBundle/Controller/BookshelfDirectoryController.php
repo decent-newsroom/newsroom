@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Controller\Reader;
+namespace DecentNewsroom\BookshelfBundle\Controller;
 
 use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
-use App\Service\Bookshelf\BookshelfDirectoryService;
 use App\Service\GenericEventProjector;
-use App\Service\Mercury\MercuryApiException;
-use App\Service\Mercury\MercuryBookService;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
+use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
@@ -47,7 +47,7 @@ final class BookshelfDirectoryController extends AbstractController
             $available = false;
         }
 
-        return $this->render('bookshelf/my_books.html.twig', [
+        return $this->render('@Bookshelf/bookshelf/my_books.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav(true),
             'books' => $books,
             'available' => $available,
