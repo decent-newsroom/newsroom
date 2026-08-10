@@ -76,7 +76,7 @@ bundle configuration:
 | Dependency | Current location | Why it remains host-owned |
 |---|---|---|
 | Directory persistence adapter | `src/BookshelfBundle/Service/Bookshelf/BookshelfDirectoryService.php` | The bundle-owned implementation still uses the host `Event` entity/repository; this is the remaining persistence coupling to replace with a host-provided contract for standalone use |
-| Directory persistence | `App\Entity\Event`, `App\Repository\EventRepository`, `App\Enum\KindsEnum` | Local Nostr event storage is application-specific |
+| Directory persistence | `App\Entity\Event`, `App\Repository\EventRepository` | Local Nostr event storage is application-specific; event-kind values are now defined by the bundle-local `DecentNewsroom\BookshelfBundle\Enum\KindsEnum` |
 | Reader conversion | `decent-newsroom/asciidoc-html` (`AsciiDocConverter`) | Shared Composer library registered by the bundle |
 | User/navigation context | `App\Helper\NavigationBuilderTrait`, `App\Util\NostrKeyUtil` | Controllers currently use the host's authentication and navigation conventions |
 | My Books publishing | `App\Service\GenericEventProjector`, `App\Service\Nostr\NostrClient`, `App\Service\Nostr\UserRelayListService` | Persistence, relay selection, and publishing are host infrastructure |

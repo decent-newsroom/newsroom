@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace DecentNewsroom\BookshelfBundle\Controller;
 
-use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Service\GenericEventProjector;
+use DecentNewsroom\BookshelfBundle\Enum\KindsEnum;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;

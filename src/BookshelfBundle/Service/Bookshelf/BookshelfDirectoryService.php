@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace DecentNewsroom\BookshelfBundle\Service\Bookshelf;
 
 use App\Entity\Event;
-use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
+use DecentNewsroom\BookshelfBundle\Enum\KindsEnum;
 
 final class BookshelfDirectoryService
 {
