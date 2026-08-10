@@ -6,7 +6,7 @@ use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
-use App\Util\AsciiDoc\AsciiDocConverter;
+use AsciiDocConverter;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
 use App\Util\CommonMark\NostrSchemeExtension\NostrPrefetchedData;
 use App\Util\CommonMark\NostrSchemeExtension\NostrSchemeExtension;

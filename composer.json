@@ -12,6 +12,7 @@
         "ext-openssl": "*",
         "ext-redis": "*",
         "ext-simplexml": "*",
+        "decent-newsroom/asciidoc-html": "^0.1.0",
         "doctrine/dbal": "^4.2",
         "doctrine/doctrine-bundle": "^2.13",
         "doctrine/doctrine-migrations-bundle": "^3.3",
@@ -84,6 +85,7 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/",
+            "DecentNewsroom\\BookshelfBundle\\": "src/BookshelfBundle/",
             "DecentNewsroom\\NostrKernelBundle\\": "src/NostrKernelBundle/"
         }
     },

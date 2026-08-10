@@ -37,7 +37,7 @@ Mercury wraps successful payloads in a top-level `data` property. The client val
 
 | File | Role |
 |---|---|
-| `src/Controller/Reader/BookshelfController.php` | Search and full-book reader routes |
+| `src/BookshelfBundle/Controller/BookshelfController.php` | Search and full-book reader routes |
 | `src/Service/Mercury/MercuryApiClient.php` | Typed boundary for Mercury HTTP requests |
 | `src/Service/Mercury/MercuryBookService.php` | NKBIP-01 parsing, revision deduplication, and chapter ordering |
 | `templates/pages/bookshelf.html.twig` | Search and result inventory |
@@ -47,11 +47,51 @@ Mercury wraps successful payloads in a top-level `data` property. The client val
 
 ## Configuration
 
+Bookshelf owns its service configuration in `src/BookshelfBundle`:
+
+| File | Responsibility |
+|---|---|
+| `src/BookshelfBundle/DependencyInjection/Configuration.php` | Defines the `bookshelf.mercury_api_base_url` option |
+| `src/BookshelfBundle/DependencyInjection/BookshelfExtension.php` | Applies the default and exposes the processed URL as a container parameter |
+| `src/BookshelfBundle/Resources/config/services.yaml` | Binds `$mercuryApiBaseUrl` and registers the Bookshelf/Mercury services |
+
 | Parameter | Default | Description |
 |---|---|---|
 | `MERCURY_API_BASE_URL` | `https://mercury-relay.imwald.eu` | Mercury REST API origin |
 
+`MERCURY_API_BASE_URL` is an optional host-provided environment override. The
+default endpoint and the scalar argument binding no longer live in the
+application-wide `config/services.yaml`.
+
 The Mercury relay WebSocket endpoints are not used by this feature. All discovery and content reads go through REST.
+
+## Bundle boundary and remaining host dependencies
+
+The bundle now owns the Bookshelf-specific DI configuration, route resource, and
+the migrated catalogue controller. The following dependencies intentionally
+remain in the host application and are integration points rather than hidden
+bundle configuration:
+
+| Dependency | Current location | Why it remains host-owned |
+|---|---|---|
+| Mercury and directory service implementations | `src/Service/Mercury/`, `src/Service/Bookshelf/` | They still use the host `Event` entity/repository and are registered from the bundle service resource as a transitional boundary |
+| Directory persistence | `App\Entity\Event`, `App\Repository\EventRepository`, `App\Enum\KindsEnum` | Local Nostr event storage is application-specific |
+| Reader conversion | `decent-newsroom/asciidoc-html` (`AsciiDocConverter`) | Shared Composer library registered by the bundle |
+| User/navigation context | `App\Helper\NavigationBuilderTrait`, `App\Util\NostrKeyUtil` | Controllers currently use the host's authentication and navigation conventions |
+| My Books publishing | `App\Service\GenericEventProjector`, `App\Service\Nostr\NostrClient`, `App\Service\Nostr\UserRelayListService` | Persistence, relay selection, and publishing are host infrastructure |
+| Templates and UI resources | `templates/`, `translations/`, `assets/` | They extend the host shell, use host Twig components and translation catalogs, and are managed by the host AssetMapper |
+| Route and bundle bootstrap | `config/routes.yaml`, `config/bundles.php` | Symfony application bootstrap must import the bundle routes and register the bundle |
+| Runtime endpoint override | `MERCURY_API_BASE_URL` | Environment values are supplied by each host; the bundle provides the default and binding |
+
+The application currently requires `decent-newsroom/asciidoc-html` directly.
+When `BookshelfBundle` is extracted into its own Composer package, that package
+must declare the same library in its own `require` section.
+
+The bundle therefore still depends on the application's `App\` namespace for
+service implementations, persistence, Nostr infrastructure, rendering,
+authentication/navigation, and UI integration. Removing those dependencies
+requires contracts and host adapters; this migration deliberately records them
+without changing behavior.
 
 ## Limits and failure behaviour
 

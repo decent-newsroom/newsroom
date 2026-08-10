@@ -2,7 +2,7 @@
 
 namespace App\Tests\Util\AsciiDoc;
 
-use App\Util\AsciiDoc\AsciiDocConverter;
+use AsciiDocConverter;
 use PHPUnit\Framework\TestCase;
 
 class AsciiDocConverterTest extends TestCase
@@ -338,5 +338,4 @@ ASCIIDOC;
         $this->assertStringNotContainsString('<cite>', $result); // No source provided
     }
 }
-
 

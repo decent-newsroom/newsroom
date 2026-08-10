@@ -8,9 +8,9 @@ The application supports **AsciiDoc** in addition to Markdown for article and ch
 
 | Component | File |
 |-----------|------|
-| AsciiDoc converter | `src/Util/AsciiDoc/AsciiDocConverter.php` |
+| AsciiDoc converter | `decent-newsroom/asciidoc-html` (`AsciiDocConverter`) |
 | Main converter | `src/Util/CommonMark/Converter.php` |
-| Tests | `tests/Util/AsciiDoc/AsciiDocConverterTest.php` |
+| Tests | Package tests plus `tests/Util/AsciiDoc/AsciiDocConverterTest.php` |
 
 ## Format Detection
 
