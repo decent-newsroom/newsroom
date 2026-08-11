@@ -9,7 +9,8 @@ use App\Message\StartRelayFeedMessage;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\UserMuteListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use App\Util\RelayUrlNormalizer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -37,11 +38,11 @@ use Symfony\Component\Routing\Attribute\Route;
 class RelayFeedController extends AbstractController
 {
     #[Route('/relay-feed', name: 'relay_feed_index', methods: ['GET'])]
-    public function index(RelayRegistry $relays, NostrKeyUtil $keyUtil): Response
+    public function index(RelayRegistry $relays): Response
     {
         return $this->render('relay_feed/index.html.twig', [
             'allowed_relays' => $this->allowedRelays($relays),
-            'recipients'     => $this->recipients($keyUtil),
+            'recipients'     => $this->recipients(),
         ]);
     }
 
@@ -57,7 +58,6 @@ class RelayFeedController extends AbstractController
         RelayFeedBufferService $buffer,
         MessageBusInterface $bus,
         RelayRegistry $relays,
-        NostrKeyUtil $keyUtil,
     ): Response {
         $relayUrl    = trim((string) $request->get('relay_url', ''));
         $allowed     = $this->allowedRelays($relays);
@@ -76,7 +76,7 @@ class RelayFeedController extends AbstractController
                 'error'          => 'relay_feed.error_not_allowed',
                 'relay_url'      => $relayUrl,
                 'allowed_relays' => $allowed,
-                'recipients'     => $this->recipients($keyUtil),
+                'recipients'     => $this->recipients(),
             ]);
         }
 
@@ -119,7 +119,7 @@ class RelayFeedController extends AbstractController
 //        $user = $this->getUser();
 //        if ($user !== null) {
 //            try {
-//                $pubkeyHex    = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+//                $pubkeyHex    = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
 //                $mutedPubkeys = $muteListService->getMutedPubkeys($pubkeyHex);
 //            } catch (\Throwable) {
 //                // Non-critical — proceed without user mutes
@@ -168,11 +168,11 @@ class RelayFeedController extends AbstractController
     }
 
     /** @return string[] */
-    private function recipients(NostrKeyUtil $keyUtil): array
+    private function recipients(): array
     {
         return [
-            $keyUtil->npubToHex('npub1ez09adke4vy8udk3y2skwst8q5chjgqzym9lpq4u58zf96zcl7kqyry2lz'),
-            $keyUtil->npubToHex('npub1636uujeewag8zv8593lcvdrwlymgqre6uax4anuq3y5qehqey05sl8qpl4'),
+            (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ('npub1ez09adke4vy8udk3y2skwst8q5chjgqzym9lpq4u58zf96zcl7kqyry2lz')),
+            (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ('npub1636uujeewag8zv8593lcvdrwlymgqre6uax4anuq3y5qehqey05sl8qpl4')),
         ];
     }
 
@@ -190,7 +190,6 @@ class RelayFeedController extends AbstractController
         ));
     }
 }
-
 
 
 

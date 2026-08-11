@@ -6,7 +6,8 @@ use App\Dto\SearchFilters;
 use App\Enum\KindsEnum;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Search\ArticleSearchInterface;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -137,9 +138,9 @@ final class SearchComponent extends AbstractController
         }
 
         // Check if the query is a Nostr identifier and handle redirect
-        $nostrType = NostrKeyUtil::getNostrIdentifierType($this->query);
+        $nostrType = (static function (string $identifier): ?string { $id = trim($identifier); if (str_starts_with($id, 'nostr:')) { $id = substr($id, 6); } foreach (['npub1' => 'npub', 'naddr1' => 'naddr', 'nevent1' => 'nevent', 'note1' => 'note', 'nprofile1' => 'nprofile', 'nsec1' => 'nsec'] as $prefix => $type) { if (str_starts_with($id, $prefix)) { return $type; } } return null; })((string) ($this->query));
         if ($nostrType !== null) {
-            $identifier = NostrKeyUtil::normalizeNostrIdentifier($this->query);
+            $identifier = (static function (string $identifier): string { $identifier = trim($identifier); if (str_starts_with($identifier, 'nostr:')) { return substr($identifier, 6); } return $identifier; })((string) ($this->query));
             $this->logger->info('Detected Nostr identifier, redirecting', ['type' => $nostrType, 'identifier' => $identifier]);
 
             // Route based on identifier type
@@ -238,13 +239,13 @@ final class SearchComponent extends AbstractController
         $authorHex = null;
         if (!empty($this->filterAuthor)) {
             $author = trim($this->filterAuthor);
-            if (NostrKeyUtil::isNpub($author)) {
+            if (str_starts_with(strtolower(trim((string) ($author))), 'npub1')) {
                 try {
-                    $authorHex = NostrKeyUtil::npubToHex($author);
+                    $authorHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($author));
                 } catch (\InvalidArgumentException) {
                     // keep null — invalid npub is ignored
                 }
-            } elseif (NostrKeyUtil::isHexPubkey($author)) {
+            } elseif (PublicKey::fromHex(strtolower(trim((string) ($author)))) !== null) {
                 $authorHex = $author;
             }
             // If it's a plain name, we leave authorHex null (name search not supported yet)

@@ -4,7 +4,8 @@ namespace App\Controller\Api;
 
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -58,7 +59,7 @@ class NotePublishController extends AbstractController
 
         // Resolve write relays
         try {
-            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $relays = $this->userRelayListService->getRelaysForPublishing($pubkeyHex);
         } catch (\Exception $e) {
             $this->logger->warning('Failed to get user relays for note publish', ['error' => $e->getMessage()]);

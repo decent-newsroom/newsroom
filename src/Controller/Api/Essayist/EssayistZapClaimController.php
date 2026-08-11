@@ -6,7 +6,8 @@ namespace App\Controller\Api\Essayist;
 
 use App\Entity\EssayistZapClaim;
 use App\Service\Essayist\EssayistZapClaimService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -85,7 +86,7 @@ class EssayistZapClaimController extends AbstractController
 
             // Convert sponsor npub to hex
             try {
-                $sponsorHex = NostrKeyUtil::npubToHex($sponsorNpub);
+                $sponsorHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($sponsorNpub));
             } catch (\Throwable $e) {
                 return $this->json(
                     ['error' => 'Invalid sponsor npub: ' . $e->getMessage()],
@@ -102,7 +103,7 @@ class EssayistZapClaimController extends AbstractController
                 );
             }
 
-            $payerHex = NostrKeyUtil::npubToHex($payerNpub);
+            $payerHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($payerNpub));
 
             // Check for duplicates
             if ($zapReceiptEventId) {

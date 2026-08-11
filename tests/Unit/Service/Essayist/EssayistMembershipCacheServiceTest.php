@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Essayist;
 
 use App\Service\Essayist\EssayistMembershipCacheService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -18,7 +19,7 @@ final class EssayistMembershipCacheServiceTest extends TestCase
     {
         // Deterministic hex pubkey used in tests.
         $hex  = str_repeat('a1', 32);
-        $npub = NostrKeyUtil::hexToNpub($hex);
+        $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($hex));
         return [$npub, $hex];
     }
 

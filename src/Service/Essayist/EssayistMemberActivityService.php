@@ -10,7 +10,8 @@ use App\Enum\RolesEnum;
 use App\Repository\EventRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Nostr\NostrLinkParser;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use nostriphant\NIP19\Bech32;
 
 /**
@@ -48,12 +49,12 @@ final class EssayistMemberActivityService
         $memberPubkeys = [];
         foreach ($members as $member) {
             $npub = (string) ($member->getNpub() ?? '');
-            if ($npub === '' || !NostrKeyUtil::isNpub($npub)) {
+            if ($npub === '' || !str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 continue;
             }
 
             try {
-                $memberPubkeys[] = NostrKeyUtil::npubToHex($npub);
+                $memberPubkeys[] = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
             } catch (\Throwable) {
                 // Skip malformed npubs silently.
             }

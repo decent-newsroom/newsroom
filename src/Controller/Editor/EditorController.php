@@ -19,7 +19,8 @@ use App\Service\Nostr\UserRelayListService;
 use App\Service\ReplaceableEventCleanupService;
 use App\Service\UserRolePromoter;
 use App\Util\CommonMark\Converter;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use App\Enum\AuthorContentType;
 use App\Message\FetchAuthorContentMessage;
 use App\Message\RevalidateProfileCacheMessage;
@@ -443,7 +444,7 @@ class EditorController extends AbstractController
                 } else {
                     // Fallback to UserRelayListService (stale-while-revalidate)
                     try {
-                        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                         $relays = $userRelayListService->getRelaysForPublishing($pubkeyHex);
                     } catch (\Exception $e) {
                         $logger->warning('Failed to get user relays, using fallbacks', ['error' => $e->getMessage()]);
@@ -813,7 +814,7 @@ class EditorController extends AbstractController
         $isAdmin = $this->isGranted('ROLE_ADMIN');
         $isOwner = false;
         try {
-            $viewerHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $viewerHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $isOwner = $article->getPubkey() !== null && hash_equals($article->getPubkey(), $viewerHex);
         } catch (\Throwable $e) {
             // npub conversion failure: only admin override remains.

@@ -6,7 +6,8 @@ use App\Repository\ArticleRepository;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -156,7 +157,7 @@ class ArticleBroadcastController extends AbstractController
                 }
                 // Fallback to UserRelayListService
                 try {
-                    $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                     $relays = $this->userRelayListService->getRelaysForPublishing($pubkeyHex);
                 } catch (\Exception $e) {
                     $this->logger->warning('Failed to get user relays, using fallbacks', ['error' => $e->getMessage()]);
@@ -230,7 +231,7 @@ class ArticleBroadcastController extends AbstractController
                     ], 401);
                 }
                 try {
-                    $userPubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $userPubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 } catch (\Exception $e) {
                     return new JsonResponse([
                         'success' => false,

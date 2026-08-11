@@ -10,7 +10,8 @@ use App\Form\RoleType;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\MutedPubkeysService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -423,8 +424,8 @@ class RoleController extends AbstractController
         $npubToHex = [];
         foreach ($users as $user) {
             $npub = $user->getNpub();
-            if (NostrKeyUtil::isNpub($npub)) {
-                $hex = NostrKeyUtil::npubToHex($npub);
+            if (str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
+                $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
                 $hexPubkeys[] = $hex;
                 $npubToHex[$npub] = $hex;
             }

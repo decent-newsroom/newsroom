@@ -6,7 +6,8 @@ namespace App\Service\Search;
 
 use App\Entity\User;
 use App\Service\Nostr\Nip05VerificationService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 
 /**
@@ -105,7 +106,7 @@ class Nip05AwareUserSearch implements UserSearchInterface
                 return null;
             }
 
-            $npub = NostrKeyUtil::hexToNpub($result['pubkey']);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($result['pubkey']));
 
             // Try to find a full profile in DB/ES first
             $users = $this->inner->findByNpubs([$npub], 1);

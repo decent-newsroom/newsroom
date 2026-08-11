@@ -10,7 +10,7 @@ use AsciiDocConverter;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
 use App\Util\CommonMark\NostrSchemeExtension\NostrPrefetchedData;
 use App\Util\CommonMark\NostrSchemeExtension\NostrSchemeExtension;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Exception\CommonMarkException;
 use League\CommonMark\Extension\Autolink\AutolinkExtension;
@@ -54,7 +54,6 @@ class Converter implements MarkdownConverterInterface
     public function __construct(
         private readonly RedisCacheService $redisCacheService,
         private readonly TwigEnvironment $twig,
-        private readonly NostrKeyUtil $nostrKeyUtil,
         private readonly ArticleFactory $articleFactory,
         private readonly AsciiDocConverter $asciidocConverter,
         private readonly EventRepository $eventRepository,
@@ -865,7 +864,7 @@ class Converter implements MarkdownConverterInterface
         $env->addExtension(new SmartPunctExtension());
         $env->addExtension(new EmbedExtension());
         $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
-        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrKeyUtil, $this->prefetchedData));
+        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->prefetchedData));
         $env->addExtension(new RawImageLinkExtension());
         $env->addExtension(new AutolinkExtension());
 
@@ -1064,7 +1063,7 @@ class Converter implements MarkdownConverterInterface
                 $decoded = new Bech32($bech);
                 switch ($decoded->type) {
                     case 'npub':
-                        $hex = $this->nostrKeyUtil->npubToHex($bech);
+                        $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($bech));
                         $pubkeyHexes[$hex] = 1;
                         break;
                     case 'nprofile':
@@ -1249,7 +1248,7 @@ class Converter implements MarkdownConverterInterface
         switch ($decoded->type) {
             case 'npub': {
                 try {
-                    $hex = $this->nostrKeyUtil->npubToHex($bechEncoded);
+                    $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($bechEncoded));
                 } catch (\Throwable) {
                     // Invalid bech32 checksum or malformed npub in content.
                     // Don't fail the whole article rendering/processing; just return the raw text.
@@ -1268,7 +1267,7 @@ class Converter implements MarkdownConverterInterface
                 $obj     = $decoded->data;
                 $hex     = $obj->pubkey;
                 try {
-                    $npub = $this->nostrKeyUtil->hexToNpub($hex);
+                    $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($hex));
                 } catch (\Throwable) {
                     // Shouldn't happen, but keep processing resilient.
                     return $this->e($bechEncoded);
@@ -1408,7 +1407,7 @@ class Converter implements MarkdownConverterInterface
                 }
                 switch ($tag[0]) {
                     case 'p':
-                        if (NostrKeyUtil::isHexPubkey($tag[1])) {
+                        if (PublicKey::fromHex(strtolower(trim((string) ($tag[1])))) !== null) {
                             $pubkeyHexes[$tag[1]] = 1;
                         }
                         break;
@@ -1420,7 +1419,7 @@ class Converter implements MarkdownConverterInterface
                     case 'a':
                         // Format: "kind:pubkey:d-tag"
                         $parts = explode(':', $tag[1], 3);
-                        if (count($parts) === 3 && NostrKeyUtil::isHexPubkey($parts[1])) {
+                        if (count($parts) === 3 && PublicKey::fromHex(strtolower(trim((string) ($parts[1])))) !== null) {
                             $naddrCoords[$tag[1]] = 1;
                             $pubkeyHexes[$parts[1]] = 1;
                         }
@@ -1439,7 +1438,7 @@ class Converter implements MarkdownConverterInterface
                     $decoded = new Bech32($bech);
                     switch ($decoded->type) {
                         case 'npub':
-                            $hex = $this->nostrKeyUtil->npubToHex($bech);
+                            $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($bech));
                             $pubkeyHexes[$hex] = 1;
                             break;
                         case 'nprofile':

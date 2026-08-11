@@ -9,7 +9,8 @@ use App\Entity\User;
 use App\Enum\UpdateSourceTypeEnum;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Update\UpdateAccessService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
@@ -97,7 +98,7 @@ final class SubscribeButton
         }
 
         try {
-            $npub = NostrKeyUtil::hexToNpub($this->pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($this->pubkey));
         } catch (\InvalidArgumentException) {
             $npub = null;
         }

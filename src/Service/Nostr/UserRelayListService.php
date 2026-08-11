@@ -8,7 +8,8 @@ use App\Entity\UserRelayList;
 use App\Enum\KindsEnum;
 use App\Enum\RelayPurpose;
 use App\Repository\UserRelayListRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use App\Util\RelayUrlNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
@@ -884,7 +885,7 @@ class UserRelayListService
     private function toHex(string $pubkeyOrNpub): string
     {
         return str_starts_with($pubkeyOrNpub, 'npub1')
-            ? NostrKeyUtil::npubToHex($pubkeyOrNpub)
+            ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($pubkeyOrNpub))
             : $pubkeyOrNpub;
     }
 

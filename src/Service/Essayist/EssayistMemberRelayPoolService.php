@@ -8,7 +8,8 @@ use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
 use App\Repository\UserRelayListRepository;
 use App\Service\Nostr\RelayHealthStore;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 
@@ -78,12 +79,12 @@ final class EssayistMemberRelayPoolService
         $memberPubkeys = [];
         foreach ($members as $member) {
             $npub = (string) ($member->getNpub() ?? '');
-            if ($npub === '' || !NostrKeyUtil::isNpub($npub)) {
+            if ($npub === '' || !str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 continue;
             }
 
             try {
-                $memberPubkeys[] = NostrKeyUtil::npubToHex($npub);
+                $memberPubkeys[] = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
             } catch (\Throwable) {
                 // Skip malformed values quietly; membership row can still be valid.
             }

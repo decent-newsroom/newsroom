@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Dto;
 
+
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 /**
  * Data Transfer Object for Nostr user profile metadata (kind:0).
  * Ensures consistent structure across the application.
@@ -67,7 +69,7 @@ class UserMetadata
      */
     public static function createDefault(string $pubkeyHex): self
     {
-        $npub = \App\Util\NostrKeyUtil::hexToNpub($pubkeyHex);
+        $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkeyHex));
         $defaultName = substr($npub, 5, 4) . '…' . substr($npub, -4);
 
         return new self(name: $defaultName);

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Essayist;
 
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -78,11 +79,11 @@ final class EssayistMembershipCacheService
 
     private function npubToHex(string $npub): ?string
     {
-        if (!NostrKeyUtil::isNpub($npub)) {
+        if (!str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
             return null;
         }
         try {
-            return NostrKeyUtil::npubToHex($npub);
+            return (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         } catch (\InvalidArgumentException) {
             return null;
         }

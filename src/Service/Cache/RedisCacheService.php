@@ -10,7 +10,8 @@ use App\Enum\KindsEnum;
 use App\Repository\UserEntityRepository;
 use App\Service\Nostr\NostrClient;
 use App\Service\ProfileUpdateDispatcher;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
@@ -69,7 +70,7 @@ class RedisCacheService
      */
     public function getMetadata(string $pubkey): UserMetadata
     {
-        if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+        if (!PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
             throw new \InvalidArgumentException('getMetadata expects hex pubkey');
         }
         $cacheKey = $this->getUserCacheKey($pubkey);
@@ -96,7 +97,7 @@ class RedisCacheService
 
         // Cache miss: Try to get metadata from database first
         try {
-            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
             $user = $this->userRepository->findOneBy(['npub' => $npub]);
 
             if ($user && $this->hasUsableUserMetadata($user)) {
@@ -131,7 +132,7 @@ class RedisCacheService
     public function getMultipleMetadata(array $pubkeys): array
     {
         foreach ($pubkeys as $pubkey) {
-            if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+            if (!PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
                 throw new \InvalidArgumentException('getMultipleMetadata expects all hex pubkeys');
             }
         }
@@ -172,13 +173,13 @@ class RedisCacheService
         // Try to fetch missed pubkeys from database
         if (!empty($missedPubkeys)) {
             try {
-                $npubs = array_map(fn($pk) => NostrKeyUtil::hexToNpub($pk), $missedPubkeys);
+                $npubs = array_map(fn($pk) => (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pk)), $missedPubkeys);
                 $users = $this->userRepository->findByNpubs($npubs);
 
                 $foundPubkeys = [];
                 foreach ($users as $user) {
                     if ($this->hasUsableUserMetadata($user)) {
-                        $pubkey = NostrKeyUtil::npubToHex($user->getNpub());
+                        $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getNpub()));
                         $result[$pubkey] = UserMetadata::fromUserEntity($user);
                         $foundPubkeys[] = $pubkey;
                     }

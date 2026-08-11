@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\UserEntityRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -39,12 +40,12 @@ class ListMutedPubkeysCommand extends Command
         $pubkeys = [];
         foreach ($this->userRepository->findMutedUsers() as $user) {
             $npub = $user->getNpub();
-            if ($npub === null || ! NostrKeyUtil::isNpub($npub)) {
+            if ($npub === null || ! str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 continue;
             }
 
             try {
-                $pubkeys[] = NostrKeyUtil::npubToHex($npub);
+                $pubkeys[] = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
             } catch (\Throwable) {
                 // Skip unparseable npubs silently to keep output clean.
             }

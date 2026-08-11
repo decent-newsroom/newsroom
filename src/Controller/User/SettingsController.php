@@ -20,7 +20,8 @@ use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\PublicationSubdomainService;
 use App\Service\VanityNameService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -67,7 +68,7 @@ class SettingsController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $npub = $user->getUserIdentifier();
-        $pubkeyHex = NostrKeyUtil::npubToHex($npub);
+        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
 
         // Load all user context events from DB (for the Events tab)
         $events = $this->loadUserEvents($pubkeyHex);
@@ -144,7 +145,7 @@ class SettingsController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
 
         // Match the Tip modal: load the freshest kind 10133 event first, then
         // fall back to the persisted DB snapshot when no live event can be resolved.
@@ -412,7 +413,7 @@ class SettingsController extends AbstractController
             /** @var User $user */
             $user = $this->getUser();
             $npub = $user->getUserIdentifier();
-            $pubkeyHex = NostrKeyUtil::npubToHex($npub);
+            $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
 
             $messageBus->dispatch(new UpdateRelayListMessage($pubkeyHex, fullSync: true));
 
@@ -763,7 +764,7 @@ class SettingsController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $npub = $user->getUserIdentifier();
-        $pubkey = NostrKeyUtil::npubToHex($npub);
+        $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
 
         // Load kind 3 follows for suggestions
         $followsEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::FOLLOWS->value);
@@ -929,7 +930,7 @@ class SettingsController extends AbstractController
             // Ensure the pubkey matches the authenticated user
             /** @var User $user */
             $user = $this->getUser();
-            $userPubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $userPubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             if ($parts[1] !== $userPubkey) {
                 return new JsonResponse(['error' => 'Coordinate pubkey does not match authenticated user'], 403);
             }
@@ -959,7 +960,7 @@ class SettingsController extends AbstractController
         $coordinate = $user->getFollowPackCoordinate();
 
         // Also load the user's existing follow packs from DB
-        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         $followPacks = $this->eventRepository->createQueryBuilder('e')
             ->where('e.pubkey = :pubkey')
             ->andWhere('e.kind = :kind')

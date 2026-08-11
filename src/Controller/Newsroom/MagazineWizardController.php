@@ -15,7 +15,8 @@ use App\Service\Nostr\NostrClient;
 use App\Service\PublicationSubdomainService;
 use App\Service\ReadingListManager;
 use App\Service\UserRolePromoter;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -237,7 +238,7 @@ class MagazineWizardController extends AbstractController
         $zapSplitHex = null;
         if ($draft->zapSplitNpub) {
             try {
-                $zapSplitHex = NostrKeyUtil::npubToHex($draft->zapSplitNpub);
+                $zapSplitHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($draft->zapSplitNpub));
             } catch (\Throwable $e) {
                 $zapSplitHex = null;
             }
@@ -685,7 +686,7 @@ class MagazineWizardController extends AbstractController
         foreach ($tags as $t) {
             if (is_array($t) && ($t[0] ?? null) === 'zap' && isset($t[1])) {
                 try {
-                    $draft->zapSplitNpub = NostrKeyUtil::hexToNpub((string)$t[1]);
+                    $draft->zapSplitNpub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ((string)$t[1]));
                 } catch (\Throwable $e) {
                     // If hex-to-npub conversion fails, skip
                 }

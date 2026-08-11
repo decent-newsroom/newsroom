@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Entity\User;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -149,7 +150,7 @@ class RelayAuthController extends AbstractController
         }
 
         try {
-            $userPubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $userPubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Invalid user identity'], Response::HTTP_BAD_REQUEST);
         }

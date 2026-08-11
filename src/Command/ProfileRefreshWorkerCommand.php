@@ -4,7 +4,8 @@ namespace App\Command;
 
 use App\Repository\UserEntityRepository;
 use App\Service\ProfileUpdateDispatcher;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -146,12 +147,12 @@ class ProfileRefreshWorkerCommand extends Command
                 try {
                     $npub = $user->getNpub();
 
-                    if (!NostrKeyUtil::isNpub($npub)) {
+                    if (!str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                         $this->logger->warning('Invalid npub format', ['npub' => $npub]);
                         continue;
                     }
 
-                    $pubkeyHex = NostrKeyUtil::npubToHex($npub);
+                    $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
                     $pubkeysBatch[] = $pubkeyHex;
                 } catch (\Exception $e) {
                     $this->logger->warning('Failed to convert npub to hex', [

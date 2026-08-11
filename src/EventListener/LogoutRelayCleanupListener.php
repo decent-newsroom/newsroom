@@ -7,7 +7,8 @@ namespace App\EventListener;
 use App\Entity\User;
 use App\Service\Nostr\Nip46SessionService;
 use App\Service\Nostr\RelayGatewayClient;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Security\Http\Event\LogoutEvent;
@@ -35,11 +36,11 @@ class LogoutRelayCleanupListener
             }
 
             $npub = $user->getNpub();
-            if (!$npub || !NostrKeyUtil::isNpub($npub)) {
+            if (!$npub || !str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 return;
             }
 
-            $hex = NostrKeyUtil::npubToHex($npub);
+            $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
 
             // Always clear NIP-46 session on logout (irrespective of gateway flag)
             $this->nip46Sessions->remove($hex);

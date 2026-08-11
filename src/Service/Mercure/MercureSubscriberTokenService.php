@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mercure;
 
 use App\Entity\User;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 /**
  * Mints short-lived HS256 JWTs for Mercure *subscribers*, scoped to each user's
@@ -47,7 +47,7 @@ class MercureSubscriberTokenService
             return null;
         }
         try {
-            $hex = NostrKeyUtil::npubToHex($npub);
+            $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         } catch (\Throwable) {
             return null;
         }

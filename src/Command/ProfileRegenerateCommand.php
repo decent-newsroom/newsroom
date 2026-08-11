@@ -8,7 +8,8 @@ use App\Message\FetchAuthorContentMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -49,14 +50,14 @@ class ProfileRegenerateCommand extends Command
         $identifier = trim($input->getArgument('identifier'));
 
         // Resolve to hex pubkey
-        if (NostrKeyUtil::isNpub($identifier)) {
+        if (str_starts_with(strtolower(trim((string) ($identifier))), 'npub1')) {
             try {
-                $pubkey = NostrKeyUtil::npubToHex($identifier);
+                $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($identifier));
             } catch (\InvalidArgumentException $e) {
                 $io->error('Invalid npub: ' . $e->getMessage());
                 return Command::FAILURE;
             }
-        } elseif (NostrKeyUtil::isHexPubkey($identifier)) {
+        } elseif (PublicKey::fromHex(strtolower(trim((string) ($identifier)))) !== null) {
             $pubkey = $identifier;
         } else {
             $io->error('Identifier must be a valid npub or 64-character hex pubkey.');

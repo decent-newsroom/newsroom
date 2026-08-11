@@ -6,7 +6,8 @@ namespace App\Twig\Components\Molecules;
 
 use App\Entity\Article;
 use App\Entity\User;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
@@ -56,7 +57,7 @@ final class ArticleActionsDropdown
             return false;
         }
         try {
-            return hash_equals($pubkey, NostrKeyUtil::npubToHex($user->getUserIdentifier()));
+            return hash_equals($pubkey, (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier())));
         } catch (\Throwable) {
             return false;
         }
@@ -82,7 +83,7 @@ final class ArticleActionsDropdown
             return false;
         }
         try {
-            return hash_equals($pubkey, NostrKeyUtil::npubToHex($user->getUserIdentifier()));
+            return hash_equals($pubkey, (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier())));
         } catch (\Throwable) {
             return false;
         }

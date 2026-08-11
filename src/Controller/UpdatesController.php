@@ -14,7 +14,8 @@ use App\Repository\UpdateRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Update\UpdateAccessService;
 use App\Service\UpdateProService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Nip19\Nip19Helper;
@@ -285,16 +286,16 @@ class UpdatesController extends AbstractController
      */
     private function parseIdentifier(string $raw): array
     {
-        $raw = NostrKeyUtil::normalizeNostrIdentifier($raw);
+        $raw = (static function (string $identifier): string { $identifier = trim($identifier); if (str_starts_with($identifier, 'nostr:')) { return substr($identifier, 6); } return $identifier; })((string) ($raw));
 
         // Hex pubkey
-        if (NostrKeyUtil::isHexPubkey($raw)) {
+        if (PublicKey::fromHex(strtolower(trim((string) ($raw)))) !== null) {
             return [UpdateSourceTypeEnum::NPUB, $raw, null];
         }
 
         // npub1…
-        if (NostrKeyUtil::isNpub($raw)) {
-            return [UpdateSourceTypeEnum::NPUB, NostrKeyUtil::npubToHex($raw), $raw];
+        if (str_starts_with(strtolower(trim((string) ($raw))), 'npub1')) {
+            return [UpdateSourceTypeEnum::NPUB, (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($raw)), $raw];
         }
 
         // naddr1…

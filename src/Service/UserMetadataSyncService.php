@@ -6,7 +6,8 @@ use App\Entity\User;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -30,12 +31,12 @@ class UserMetadataSyncService
             $npub = $user->getNpub();
 
             // Convert npub to hex pubkey
-            if (!NostrKeyUtil::isNpub($npub)) {
+            if (!str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 $this->logger->warning("Invalid npub format for user: {$npub}");
                 return false;
             }
 
-            $hexPubkey = NostrKeyUtil::npubToHex($npub);
+            $hexPubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
             $metadata = $this->redisCacheService->getMetadata($hexPubkey);
 
             if ($metadata === null) {
@@ -97,13 +98,13 @@ class UserMetadataSyncService
                     $npub = $user->getNpub();
 
                     // Convert npub to hex pubkey
-                    if (!NostrKeyUtil::isNpub($npub)) {
+                    if (!str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                         $stats['errors']++;
                         $this->logger->warning("Invalid npub format for user: {$npub}");
                         continue;
                     }
 
-                    $hexPubkey = NostrKeyUtil::npubToHex($npub);
+                    $hexPubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
                     $metadata = $this->redisCacheService->getMetadata($hexPubkey);
 
                     if ($metadata === null) {

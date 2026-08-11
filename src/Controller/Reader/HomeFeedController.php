@@ -22,7 +22,8 @@ use App\Service\MutedPubkeysService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ContentSearchService;
 use App\Service\UserMuteListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -76,7 +77,7 @@ class HomeFeedController extends AbstractController
         $user = $this->getUser();
         if ($user) {
             try {
-                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
             } catch (\Throwable) {
                 // Non-critical — proceed without user mutes
@@ -133,7 +134,7 @@ class HomeFeedController extends AbstractController
             $authorPubkeys = [];
             foreach ($articles as $article) {
                 $pk = $article->getPubkey();
-                if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+                if ($pk && PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null) {
                     $authorPubkeys[] = $pk;
                 }
             }
@@ -176,7 +177,7 @@ class HomeFeedController extends AbstractController
         }
 
         try {
-            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable $e) {
             $logger->error('Failed to convert npub to hex for follows tab', ['error' => $e->getMessage()]);
             return $this->render('home/tabs/_follows.html.twig', [
@@ -256,7 +257,7 @@ class HomeFeedController extends AbstractController
 
         $interestTags = [];
         try {
-            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $interestTags = $nostrClient->getUserInterests($pubkey);
         } catch (\Throwable $e) {
             $logger->error('Failed to fetch interests for home tab', ['error' => $e->getMessage()]);
@@ -287,7 +288,7 @@ class HomeFeedController extends AbstractController
         $user = $this->getUser();
         if ($user) {
             try {
-                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
             } catch (\Throwable) {
                 // Non-critical
@@ -307,7 +308,7 @@ class HomeFeedController extends AbstractController
         $authorPubkeys = [];
         foreach ($articles as $article) {
             $pk = $article->getPubkey();
-            if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+            if ($pk && PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null) {
                 $authorPubkeys[] = $pk;
             }
         }
@@ -356,7 +357,7 @@ class HomeFeedController extends AbstractController
         $userMutedPubkeys = [];
         $pubkeyHex = null;
         try {
-            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
         } catch (\Throwable) {
             // Non-critical
@@ -476,7 +477,7 @@ class HomeFeedController extends AbstractController
         $authorPubkeys = [];
         foreach ($articlesArray as $article) {
             $pk = $article instanceof Article ? $article->getPubkey() : ($article->pubkey ?? '');
-            if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+            if ($pk && PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null) {
                 $authorPubkeys[] = $pk;
             }
         }
@@ -519,7 +520,7 @@ class HomeFeedController extends AbstractController
         $user = $this->getUser();
         if ($user) {
             try {
-                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
                 $excludedPubkeys = array_values(array_unique(array_merge($excludedPubkeys, $userMutedPubkeys)));
             } catch (\Throwable) {
@@ -677,7 +678,7 @@ class HomeFeedController extends AbstractController
         }
 
         try {
-            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable $e) {
             $logger->error('Activity feed tab: failed to convert npub', ['error' => $e->getMessage()]);
             return $this->render('home/tabs/_activity_feed.html.twig', [

@@ -6,7 +6,8 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Service\Nostr\Nip46SessionService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -75,7 +76,7 @@ class Nip46SessionController extends AbstractController
         }
 
         try {
-            $userPubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $userPubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable $e) {
             $this->logger->warning('Nip46SessionController: failed to parse user pubkey', ['error' => $e->getMessage()]);
             return new JsonResponse(['error' => 'Invalid user identity'], Response::HTTP_BAD_REQUEST);

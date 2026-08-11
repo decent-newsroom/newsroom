@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Internal;
 
 use App\Entity\Article;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -105,7 +106,7 @@ class InternalArticlePresenter
     private function encodeNpub(string $pubkey): ?string
     {
         try {
-            return NostrKeyUtil::hexToNpub($pubkey);
+            return (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
         } catch (\Throwable) {
             return null;
         }
@@ -114,7 +115,7 @@ class InternalArticlePresenter
     private function buildUrl(string $pubkey, string $slug): ?string
     {
         try {
-            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
 
             return $this->urlGenerator->generate(
                 'author-article-slug',

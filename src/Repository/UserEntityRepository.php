@@ -4,7 +4,8 @@ namespace App\Repository;
 
 use App\Entity\User;
 use App\Enum\RolesEnum;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception;
 use Doctrine\ORM\EntityManagerInterface;
@@ -146,8 +147,8 @@ class UserEntityRepository extends ServiceEntityRepository
         $userPubkeys = [];
         foreach ($featuredUsers as $user) {
             $npub = $user['npub'];
-            if (NostrKeyUtil::isNpub($npub)) {
-                $hex = NostrKeyUtil::npubToHex($npub);
+            if (str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
+                $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
                 $userPubkeys[$user['id']] = $hex;
             }
         }
@@ -301,8 +302,8 @@ class UserEntityRepository extends ServiceEntityRepository
 
         foreach ($mutedUsers as $user) {
             $npub = $user->getNpub();
-            if (NostrKeyUtil::isNpub($npub)) {
-                $pubkeys[] = NostrKeyUtil::npubToHex($npub);
+            if (str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
+                $pubkeys[] = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
             }
         }
 

@@ -3,7 +3,8 @@
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
 use App\Service\Cache\RedisCacheService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
 use League\CommonMark\Parser\InlineParserContext;
@@ -28,7 +29,6 @@ class NostrSchemeParser implements InlineParserInterface
 
     public function __construct(
         private readonly RedisCacheService $redisCacheService,
-        private readonly NostrKeyUtil      $keyUtil,
         private readonly ?NostrPrefetchedData $prefetchedData = null,
     )
     {
@@ -54,7 +54,7 @@ class NostrSchemeParser implements InlineParserInterface
                 case 'npub':
                     /** @var NPub $object */
                     $object = $decoded->data;
-                    $hex = $this->keyUtil->npubToHex($bechEncoded);
+                    $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($bechEncoded));
                     if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($hex)) {
                         $profile = $this->prefetchedData->getMetadata($hex);
                     } else {

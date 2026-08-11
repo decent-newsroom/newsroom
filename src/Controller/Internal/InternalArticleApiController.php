@@ -7,7 +7,8 @@ namespace App\Controller\Internal;
 use App\Repository\ArticleRepository;
 use App\Service\Internal\InternalArticlePresenter;
 use App\Service\Search\ContentSearchService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -90,14 +91,14 @@ class InternalArticleApiController extends AbstractController
         }
 
         try {
-            $pubkeyHex = NostrKeyUtil::isNpub($author)
-                ? NostrKeyUtil::npubToHex($author)
+            $pubkeyHex = str_starts_with(strtolower(trim((string) ($author))), 'npub1')
+                ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($author))
                 : strtolower($author);
         } catch (\Throwable $e) {
             return $this->json(['error' => 'Invalid author: ' . $e->getMessage()], 400);
         }
 
-        if (!NostrKeyUtil::isHexPubkey($pubkeyHex)) {
+        if (!PublicKey::fromHex(strtolower(trim((string) ($pubkeyHex)))) !== null) {
             return $this->json(['error' => 'Invalid author. Expected hex pubkey or npub'], 400);
         }
 
@@ -163,7 +164,7 @@ class InternalArticleApiController extends AbstractController
         }
 
         [$kind, $pubkey, $slug] = $parts;
-        if (!ctype_digit($kind) || !NostrKeyUtil::isHexPubkey($pubkey) || $slug === '') {
+        if (!ctype_digit($kind) || !PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null || $slug === '') {
             return null;
         }
 

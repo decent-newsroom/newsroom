@@ -7,7 +7,8 @@ namespace App\Command;
 use App\Entity\Magazine;
 use App\Enum\KindsEnum;
 use App\Service\Cache\RedisViewStore;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -47,9 +48,9 @@ class DebugOverviewCommand extends Command
         $npubInput = (string) $input->getArgument('npub');
 
         try {
-            $pubkey = NostrKeyUtil::isHexPubkey($npubInput)
+            $pubkey = PublicKey::fromHex(strtolower(trim((string) ($npubInput)))) !== null
                 ? $npubInput
-                : NostrKeyUtil::npubToHex($npubInput);
+                : (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npubInput));
         } catch (\Throwable $e) {
             $io->error('Could not resolve to a hex pubkey: ' . $e->getMessage());
             return Command::FAILURE;

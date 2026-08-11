@@ -13,7 +13,8 @@ use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use App\Util\Nip10TagParser;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Exception;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data;
@@ -175,7 +176,7 @@ class EventController extends AbstractController
         }
 
         try {
-            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
         } catch (\Throwable $e) {
             $logger->warning('Failed to redirect publication index to reading list due to invalid pubkey', [
                 'pubkey' => $pubkey,
@@ -373,7 +374,7 @@ class EventController extends AbstractController
                     // The article controller already handles relay fetch fallback.
                     if ($naddrKind === KindsEnum::LONGFORM->value && $naddrPubkey !== '' && $naddrIdentifier !== '') {
                         try {
-                            $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
+                            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
 
                             return $this->redirectToRoute('author-article-slug', [
                                 'npub' => $npub,
@@ -397,7 +398,7 @@ class EventController extends AbstractController
                             ->getRepository(\App\Entity\Article::class)
                             ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
                         if ($articleEntity) {
-                            $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
+                            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
                             return $this->redirectToRoute('author-article-slug', [
                                 'npub' => $npub,
                                 'slug' => $naddrIdentifier,
@@ -435,7 +436,7 @@ class EventController extends AbstractController
                                 ->getRepository(\App\Entity\Article::class)
                                 ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
                             if ($articleEntity) {
-                                $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
+                                $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
                                 return $this->redirectToRoute('author-article-slug', [
                                     'npub' => $npub,
                                     'slug' => $naddrIdentifier,
@@ -527,7 +528,7 @@ class EventController extends AbstractController
                             ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
                         if ($articleEntity) {
                             $logger->info('Redirecting to article', ['identifier' => $naddrIdentifier]);
-                            $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
+                            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
                             return $this->redirectToRoute('author-article-slug', [
                                 'npub' => $npub,
                                 'slug' => $naddrIdentifier,
@@ -547,7 +548,7 @@ class EventController extends AbstractController
                         KindsEnum::CURATION_PICTURES->value,  // 30006
                     ];
                     if (in_array($naddrKind, $curationKinds, true)) {
-                        $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
+                        $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
                         $logger->info('Redirecting to curation set', [
                             'kind' => $naddrKind,
                             'npub' => $npub,

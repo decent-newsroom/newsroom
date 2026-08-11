@@ -5,7 +5,8 @@ namespace App\EventListener;
 use App\Entity\User;
 use App\Message\UpdateRelayListMessage;
 use App\Service\UserMetadataSyncService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -59,14 +60,14 @@ class UserMetadataSyncListener
         // since the last warm are handled by the now-persistent relay-auth controller.
         try {
             $npub = $user->getNpub();
-            if ($npub && NostrKeyUtil::isNpub($npub)) {
+            if ($npub && str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 $lastRefresh = $user->getLastMetadataRefresh();
                 $now = new \DateTimeImmutable();
                 $shouldSync = $lastRefresh === null
                     || ($now->getTimestamp() - $lastRefresh->getTimestamp()) > self::SYNC_THROTTLE_SECONDS;
 
                 if ($shouldSync) {
-                    $hex = NostrKeyUtil::npubToHex($npub);
+                    $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
                     // First sync (never refreshed before): full fetch without time restriction
                     // so replaceable events (kind 0, 3, 10002…) are fetched regardless of age.
                     // Subsequent syncs: only last 24 hours to reduce relay load.

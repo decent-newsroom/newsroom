@@ -6,7 +6,8 @@ namespace App\Controller\Api;
 
 use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -61,7 +62,7 @@ final class EssayistWriterPolicyController extends AbstractController
 
         // Convert hex pubkey to npub to query the user
         try {
-            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
         } catch (\InvalidArgumentException) {
             return new JsonResponse(['approved' => false, 'reason' => 'invalid pubkey']);
         }

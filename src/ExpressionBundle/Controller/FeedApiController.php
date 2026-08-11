@@ -16,7 +16,8 @@ use App\ExpressionBundle\Exception\UnresolvedVariableException;
 use App\ExpressionBundle\Exception\UnsupportedFeatureException;
 use App\ExpressionBundle\Service\ExpressionService;
 use App\Repository\EventRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -40,8 +41,8 @@ final class FeedApiController extends AbstractController
             // 1. Get authenticated user's hex pubkey
             $user = $this->getUser();
             $userIdentifier = $user->getUserIdentifier();
-            $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
-                ? NostrKeyUtil::npubToHex($userIdentifier)
+            $userPubkey = str_starts_with(strtolower(trim((string) ($userIdentifier))), 'npub1')
+                ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($userIdentifier))
                 : $userIdentifier;
 
             // 2. Decode naddr

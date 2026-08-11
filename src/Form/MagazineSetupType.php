@@ -6,7 +6,8 @@ namespace App\Form;
 
 use App\Dto\MagazineDraft;
 use App\Form\DataTransformer\CommaSeparatedToArrayTransformer;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -87,13 +88,13 @@ class MagazineSetupType extends AbstractType
                         if ($value === null || $value === '') {
                             return;
                         }
-                        if (!NostrKeyUtil::isNpub($value)) {
+                        if (!str_starts_with(strtolower(trim((string) ($value))), 'npub1')) {
                             $context->buildViolation('Must be a valid npub (starts with npub1).')
                                 ->addViolation();
                             return;
                         }
                         try {
-                            NostrKeyUtil::npubToHex($value);
+                            (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($value));
                         } catch (\Throwable $e) {
                             $context->buildViolation('Invalid npub: could not decode.')
                                 ->addViolation();

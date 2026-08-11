@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Service\Nostr\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -186,7 +187,7 @@ class DeletePubkeyEventsCommand extends Command
         // Try to decode npub
         if (str_starts_with($trimmed, 'npub1')) {
             try {
-                return NostrKeyUtil::npubToHex($trimmed);
+                return (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($trimmed));
             } catch (\Throwable) {
                 // Fall through to error
                 return null;

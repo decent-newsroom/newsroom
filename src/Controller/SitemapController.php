@@ -8,7 +8,8 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -80,7 +81,7 @@ class SitemapController extends AbstractController
             }
 
             try {
-                $npub = NostrKeyUtil::hexToNpub($pubkey);
+                $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
             } catch (\Throwable) {
                 continue;
             }

@@ -14,7 +14,8 @@ use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event as NostrEvent;
@@ -96,7 +97,7 @@ class EventControllerPublicationRedirectTest extends TestCase
         self::assertInstanceOf(RedirectResponse::class, $response);
         self::assertStringContainsString('/__redirect/reading-list', $response->getTargetUrl());
         self::assertStringContainsString('slug=' . rawurlencode($slug), $response->getTargetUrl());
-        self::assertStringContainsString('npub=' . rawurlencode(NostrKeyUtil::hexToNpub($pubkey)), $response->getTargetUrl());
+        self::assertStringContainsString('npub=' . rawurlencode((static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey))), $response->getTargetUrl());
     }
 
     public function testNaddrPublicationWithNestedChaptersRedirectsToReadingListPage(): void
@@ -133,7 +134,7 @@ class EventControllerPublicationRedirectTest extends TestCase
         self::assertInstanceOf(RedirectResponse::class, $response);
         self::assertStringContainsString('/__redirect/reading-list', $response->getTargetUrl());
         self::assertStringContainsString('slug=' . rawurlencode($slug), $response->getTargetUrl());
-        self::assertStringContainsString('npub=' . rawurlencode(NostrKeyUtil::hexToNpub($pubkey)), $response->getTargetUrl());
+        self::assertStringContainsString('npub=' . rawurlencode((static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey))), $response->getTargetUrl());
     }
 
     public function testNaddrPublicationWithNestedWikiRedirectsToReadingListPage(): void
@@ -170,7 +171,7 @@ class EventControllerPublicationRedirectTest extends TestCase
         self::assertInstanceOf(RedirectResponse::class, $response);
         self::assertStringContainsString('/__redirect/reading-list', $response->getTargetUrl());
         self::assertStringContainsString('slug=' . rawurlencode($slug), $response->getTargetUrl());
-        self::assertStringContainsString('npub=' . rawurlencode(NostrKeyUtil::hexToNpub($pubkey)), $response->getTargetUrl());
+        self::assertStringContainsString('npub=' . rawurlencode((static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey))), $response->getTargetUrl());
     }
 
     private function makeController(): EventController

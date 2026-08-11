@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\UserEntityRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -142,13 +143,13 @@ class DeleteMutedEventsCommand extends Command
         $pubkeys = [];
         foreach ($this->userRepository->findMutedUsers() as $user) {
             $npub = $user->getNpub();
-            if ($npub === null || ! NostrKeyUtil::isNpub($npub)) {
+            if ($npub === null || ! str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 $io->warning(sprintf('Skipping muted user #%s with invalid npub: %s', $user->getId(), $npub ?? '(null)'));
                 continue;
             }
 
             try {
-                $pubkeys[] = NostrKeyUtil::npubToHex($npub);
+                $pubkeys[] = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
             } catch (\Throwable) {
                 $io->warning(sprintf('Skipping muted user #%s: could not decode npub %s', $user->getId(), $npub));
             }

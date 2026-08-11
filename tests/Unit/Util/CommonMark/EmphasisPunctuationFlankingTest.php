@@ -6,7 +6,6 @@ namespace App\Tests\Unit\Util\CommonMark;
 
 use App\Service\Cache\RedisCacheService;
 use App\Util\CommonMark\Converter;
-use App\Util\NostrKeyUtil;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -31,9 +30,6 @@ class EmphasisPunctuationFlankingTest extends TestCase
 
         $redisProp = $ref->getProperty('redisCacheService');
         $redisProp->setValue($this->converter, $this->createMock(RedisCacheService::class));
-
-        $keyProp = $ref->getProperty('nostrKeyUtil');
-        $keyProp->setValue($this->converter, $this->createMock(NostrKeyUtil::class));
 
         $prefetchProp = $ref->getProperty('prefetchedData');
         $prefetchProp->setValue($this->converter, null);
@@ -85,5 +81,4 @@ class EmphasisPunctuationFlankingTest extends TestCase
         $this->assertStringContainsString('<strong>bold text</strong>', $html);
     }
 }
-
 

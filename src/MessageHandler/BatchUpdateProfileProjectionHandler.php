@@ -7,7 +7,8 @@ use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -89,7 +90,7 @@ class BatchUpdateProfileProjectionHandler
         // Process each pubkey
         foreach ($pubkeys as $pubkeyHex) {
             try {
-                $npub = NostrKeyUtil::hexToNpub($pubkeyHex);
+                $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkeyHex));
                 $user = $this->userRepository->findOneBy(['npub' => $npub]);
 
                 if (!$user) {

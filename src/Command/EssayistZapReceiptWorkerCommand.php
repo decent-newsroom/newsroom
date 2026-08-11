@@ -10,7 +10,8 @@ use App\Enum\RolesEnum;
 use App\Repository\EventRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Essayist\EssayistMembershipService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -63,9 +64,9 @@ final class EssayistZapReceiptWorkerCommand extends Command
         $memberHexSet = [];
         foreach ($members as $member) {
             $npub = $member->getNpub();
-            if ($npub && NostrKeyUtil::isNpub($npub)) {
+            if ($npub && str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
                 try {
-                    $memberHexSet[NostrKeyUtil::npubToHex($npub)] = true;
+                    $memberHexSet[(static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub))] = true;
                 } catch (\Throwable) {
                 }
             }
@@ -166,7 +167,7 @@ final class EssayistZapReceiptWorkerCommand extends Command
             }
             switch ($tag[0]) {
                 case 'p':
-                    if (NostrKeyUtil::isHexPubkey((string) $tag[1])) {
+                    if (PublicKey::fromHex(strtolower(trim((string) ((string) $tag[1])))) !== null) {
                         $sponsor = (string) $tag[1];
                     }
                     break;
@@ -188,7 +189,7 @@ final class EssayistZapReceiptWorkerCommand extends Command
 
         // Payer pubkey comes from the embedded zap request (NIP-57).
         $payer = null;
-        if (is_array($request) && isset($request['pubkey']) && NostrKeyUtil::isHexPubkey((string) $request['pubkey'])) {
+        if (is_array($request) && isset($request['pubkey']) && PublicKey::fromHex(strtolower(trim((string) ((string) $request['pubkey'])))) !== null) {
             $payer = (string) $request['pubkey'];
         }
 

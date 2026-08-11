@@ -3,7 +3,8 @@
 namespace App\Twig\Components\Molecules;
 
 use App\Service\Cache\RedisCacheService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
@@ -23,12 +24,12 @@ final class UserFromNpub
     public function mount(string $ident, $user = null): void
     {
         $this->user = $user;
-        if (NostrKeyUtil::isHexPubkey($ident)) {
+        if (PublicKey::fromHex(strtolower(trim((string) ($ident)))) !== null) {
             $this->pubkey = $ident;
-            $this->npub = NostrKeyUtil::hexToNpub($ident);
-        } elseif (NostrKeyUtil::isNpub($ident)) {
+            $this->npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($ident));
+        } elseif (str_starts_with(strtolower(trim((string) ($ident))), 'npub1')) {
             $this->npub = $ident;
-            $this->pubkey = NostrKeyUtil::npubToHex($ident);
+            $this->pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($ident));
         } else {
             throw new \InvalidArgumentException('UserFromNpub expects npub or hex pubkey');
         }

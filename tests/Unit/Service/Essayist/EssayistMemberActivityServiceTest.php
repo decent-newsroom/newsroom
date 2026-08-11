@@ -10,7 +10,8 @@ use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Essayist\EssayistMemberActivityService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use PHPUnit\Framework\TestCase;
 
 final class EssayistMemberActivityServiceTest extends TestCase
@@ -38,7 +39,7 @@ final class EssayistMemberActivityServiceTest extends TestCase
 
         $memberHex = str_repeat('a1', 32);
         $member = new User();
-        $member->setNpub(NostrKeyUtil::hexToNpub($memberHex));
+        $member->setNpub((static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($memberHex)));
 
         $userRepository->expects($this->once())
             ->method('findByRoleWithQuery')

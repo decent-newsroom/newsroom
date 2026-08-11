@@ -10,7 +10,8 @@ use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\MutedPubkeysService;
 use App\Service\Nostr\NostrClient;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -135,7 +136,7 @@ class MediaDiscoveryController extends AbstractController
         }
 
         try {
-            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable $e) {
             $logger->error('Failed to convert npub to hex for media follows tab', ['error' => $e->getMessage()]);
             return $this->render('media/tabs/_follows.html.twig', [
@@ -218,7 +219,7 @@ class MediaDiscoveryController extends AbstractController
 
         $interestTags = [];
         try {
-            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $interestTags = $nostrClient->getUserInterests($pubkey);
         } catch (\Throwable $e) {
             $logger->error('Failed to fetch interests for media interests tab', ['error' => $e->getMessage()]);

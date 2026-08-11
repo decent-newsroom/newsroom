@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Media;
 
 use App\Entity\MediaPostCache;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -33,7 +34,7 @@ class UserMediaController extends AbstractController
         $offset = max($request->query->getInt('offset', 0), 0);
 
         try {
-            $hexPubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $hexPubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable) {
             return new JsonResponse(['posts' => [], 'total' => 0, 'limit' => $limit, 'offset' => $offset]);
         }

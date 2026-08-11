@@ -23,7 +23,8 @@ use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ContentSearchService;
 use App\Util\CommonMark\Converter;
 use App\Util\ForumTopics;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Psr\Cache\CacheItemPoolInterface;
@@ -488,7 +489,7 @@ class DefaultController extends AbstractController
         $interestSets = [];
         if ($user !== null) {
             try {
-                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $interests = $nostrClient->getUserInterests($pubkeyHex);
                 $hasInterests = !empty($interests);
                 $interestSets = $nostrClient->getUserInterestSets($pubkeyHex);
@@ -542,7 +543,7 @@ class DefaultController extends AbstractController
         $user = $this->getUser();
         if ($user) {
             try {
-                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
             } catch (\Throwable) {
                 // Non-critical — proceed without user mutes
@@ -603,7 +604,7 @@ class DefaultController extends AbstractController
             $authorPubkeys = [];
             foreach ($articles as $article) {
                 $pk = $article->getPubkey();
-                if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+                if ($pk && PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null) {
                     $authorPubkeys[] = $pk;
                 }
             }
@@ -645,7 +646,7 @@ class DefaultController extends AbstractController
         $user = $this->getUser();
         if ($user) {
             try {
-                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
             } catch (\Throwable) {
                 // Non-critical — proceed without user mutes
@@ -708,7 +709,7 @@ class DefaultController extends AbstractController
             $authorPubkeys = [];
             foreach ($articles as $article) {
                 $pk = $article->getPubkey();
-                if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+                if ($pk && PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null) {
                     $authorPubkeys[] = $pk;
                 }
             }
@@ -773,8 +774,8 @@ class DefaultController extends AbstractController
         $pubkeys = [];
         foreach ($featuredUsers as $user) {
             $npub = $user->getNpub();
-            if (NostrKeyUtil::isNpub($npub)) {
-                $pubkeys[] = NostrKeyUtil::npubToHex($npub);
+            if (str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
+                $pubkeys[] = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
             }
         }
 
@@ -811,7 +812,7 @@ class DefaultController extends AbstractController
     ): Response
     {
         try {
-            $pubkey = NostrKeyUtil::npubToHex($npub);
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException('Invalid npub.');
         }
@@ -2376,7 +2377,7 @@ class DefaultController extends AbstractController
         // decoded data contains hex pubkey directly or nested
         $pubkey = $decoded['pubkey'] ?? ($decoded[0] ?? null);
 
-        if (!$pubkey || !NostrKeyUtil::isHexPubkey($pubkey)) {
+        if (!$pubkey || !PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
             $logger->warning('Profile preview: invalid or missing pubkey', ['decoded' => $decoded]);
             if ($this->isGranted('ROLE_ADMIN')) {
                 return new Response('<div class="alert alert-warning">Invalid profile identifier.</div>', 200);
@@ -2385,7 +2386,7 @@ class DefaultController extends AbstractController
         }
 
         try {
-            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
             $metadata = $redisCacheService->getMetadata($pubkey);
             $user = $metadata->toStdClass();
 
@@ -2396,7 +2397,7 @@ class DefaultController extends AbstractController
             ]);
         } catch (\Exception $e) {
             $logger->error('Failed to load profile preview', ['pubkey' => $pubkey, 'error' => $e->getMessage()]);
-            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
             return $this->render('components/Molecules/ProfilePreview.html.twig', [
                 'user' => null,
                 'npub' => $npub,

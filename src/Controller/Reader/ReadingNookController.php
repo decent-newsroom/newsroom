@@ -13,7 +13,8 @@ use App\Helper\NavigationBuilderTrait;
 use App\Repository\EventRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Cache\RedisCacheService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -76,7 +77,7 @@ final class ReadingNookController extends AbstractController
 
         /** @var User $user */
 
-        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         $events = $this->loadOwnedEvents($em, $pubkeyHex);
 
         $items = [
@@ -365,7 +366,7 @@ final class ReadingNookController extends AbstractController
         }
 
         try {
-            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
         } catch (\Throwable) {
             return null;
         }
@@ -461,11 +462,11 @@ final class ReadingNookController extends AbstractController
     ): ?string {
         if ($type === UpdateSourceTypeEnum::NPUB) {
             try {
-                $pubkey = NostrKeyUtil::isNpub($sourceValue)
-                    ? NostrKeyUtil::npubToHex($sourceValue)
+                $pubkey = str_starts_with(strtolower(trim((string) ($sourceValue))), 'npub1')
+                    ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($sourceValue))
                     : $sourceValue;
 
-                if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+                if (!PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
                     return null;
                 }
 

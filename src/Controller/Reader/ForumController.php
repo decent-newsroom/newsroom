@@ -14,7 +14,8 @@ use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\Search\ContentSearchService;
 use App\Util\ForumTopics;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 use Psr\Log\LoggerInterface;
@@ -103,7 +104,7 @@ class ForumController extends AbstractController
 
         $currentInterestTags = [];
         try {
-            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $currentInterestTags = $nostrClient->getUserInterests($pubkey);
         } catch (\Throwable) {
         }
@@ -159,7 +160,7 @@ class ForumController extends AbstractController
             return $this->redirectToRoute('my_interests');
         }
 
-        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         $event = $eventRepository->findByNaddr(KindsEnum::INTEREST_SETS->value, $pubkeyHex, $dTag);
         if (!$event instanceof StoredEvent) {
             throw $this->createNotFoundException('Interest set not found.');
@@ -188,7 +189,7 @@ class ForumController extends AbstractController
             return $this->redirectToRoute('my_interests');
         }
 
-        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         $sets = $nostrClient->getUserInterestSets($pubkeyHex);
         $set = null;
         foreach ($sets as $s) {
@@ -304,7 +305,7 @@ class ForumController extends AbstractController
             $user = $this->getUser();
             if ($user) {
                 try {
-                    $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                     $interests = $nostrClient->getUserInterests($pubkey);
                     if (!empty($interests)) {
                         $allTags = array_map('strtolower', array_values($interests));
@@ -401,7 +402,7 @@ class ForumController extends AbstractController
         }
 
         try {
-            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $event = $eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::INTERESTS->value);
 
             return new JsonResponse([
@@ -565,7 +566,7 @@ class ForumController extends AbstractController
     private function buildUserInterests(User $user, NostrClient $nostrClient, ContentSearchService $contentSearch, ?array $prefetchedInterests = null): ?array
     {
         try {
-            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $interests = $prefetchedInterests ?? $nostrClient->getUserInterests($pubkey);
 
             $counts = [];

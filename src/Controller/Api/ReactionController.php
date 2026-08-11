@@ -8,7 +8,8 @@ use App\Enum\KindsEnum;
 use App\Message\PublishReactionMessage;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event as NostrEvent;
@@ -51,7 +52,7 @@ final class ReactionController extends AbstractController
         $user = $this->getUser();
         if ($user !== null) {
             try {
-                $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $liked = (bool) $conn->executeQuery(
                     "SELECT 1
                      FROM event e

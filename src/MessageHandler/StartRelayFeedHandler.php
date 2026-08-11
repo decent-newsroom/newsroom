@@ -8,7 +8,8 @@ use App\Message\StartRelayFeedMessage;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\RelayRegistry;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
@@ -235,7 +236,7 @@ final class StartRelayFeedHandler
 
         $npub = '';
         try {
-            $npub = NostrKeyUtil::hexToNpub((string) $pubkey);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ((string) $pubkey));
         } catch (\Throwable) {
             // Non-fatal; UI falls back to short hex pubkey
         }

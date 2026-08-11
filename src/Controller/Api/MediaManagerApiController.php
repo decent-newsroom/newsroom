@@ -10,7 +10,6 @@ use App\Service\Media\MediaPublisher;
 use App\Service\Media\MediaRelayQueryService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -363,4 +362,3 @@ class MediaManagerApiController extends AbstractController
         }
     }
 }
-

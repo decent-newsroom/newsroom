@@ -7,7 +7,8 @@ namespace App\Twig\Components\Atoms;
 use App\Dto\UserMetadata;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Essayist\EssayistFeedService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
@@ -35,7 +36,7 @@ final class LatestEssayistArticles
 
         // Resolve author display names from Redis
         $pubkeys = array_unique(array_column($cards, 'pubkey'));
-        $pubkeys = array_values(array_filter($pubkeys, fn (string $pk): bool => NostrKeyUtil::isHexPubkey($pk)));
+        $pubkeys = array_values(array_filter($pubkeys, fn (string $pk): bool => PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null));
 
         $authorsMetadata = [];
         if (!empty($pubkeys)) {

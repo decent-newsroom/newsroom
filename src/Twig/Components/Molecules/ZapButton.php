@@ -11,7 +11,8 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\LNURLResolver;
 use App\Service\Nostr\NostrSigner;
 use App\Service\QRGenerator;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -177,11 +178,11 @@ final class ZapButton
         }
 
         $userNpub = (string) ($user->getNpub() ?? '');
-        if (!NostrKeyUtil::isNpub($userNpub)) {
+        if (!str_starts_with(strtolower(trim((string) ($userNpub))), 'npub1')) {
             return;
         }
 
-        $payerHex = NostrKeyUtil::npubToHex($userNpub);
+        $payerHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($userNpub));
         if (!hash_equals($claim->getPayerPubkey(), $payerHex)) {
             return;
         }
@@ -204,15 +205,15 @@ final class ZapButton
         }
 
         $userNpub = (string) ($user->getNpub() ?? '');
-        if (!NostrKeyUtil::isNpub($userNpub)) {
+        if (!str_starts_with(strtolower(trim((string) ($userNpub))), 'npub1')) {
             return;
         }
 
         $sponsorHex = $this->recipientPubkey;
         if (str_starts_with($sponsorHex, 'npub1')) {
-            $sponsorHex = NostrKeyUtil::npubToHex($sponsorHex);
+            $sponsorHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($sponsorHex));
         }
-        if (!NostrKeyUtil::isHexPubkey($sponsorHex)) {
+        if (!PublicKey::fromHex(strtolower(trim((string) ($sponsorHex)))) !== null) {
             return;
         }
 
@@ -223,7 +224,7 @@ final class ZapButton
             return;
         }
 
-        $payerHex = NostrKeyUtil::npubToHex($userNpub);
+        $payerHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($userNpub));
         $claim = $this->essayistZapClaimService->createClaim(
             user: $user,
             payerPubkeyHex: $payerHex,

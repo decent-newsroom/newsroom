@@ -14,7 +14,8 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 use Psr\Log\LoggerInterface;
@@ -184,7 +185,7 @@ class ExpressionController extends AbstractController
         EventRepository $eventRepository,
     ): Response {
         try {
-            $pubkey = NostrKeyUtil::npubToHex($npub);
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException('Invalid npub.');
         }
@@ -205,8 +206,8 @@ class ExpressionController extends AbstractController
         if ($user) {
             $userIdentifier = $user->getUserIdentifier();
             try {
-                $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
-                    ? NostrKeyUtil::npubToHex($userIdentifier)
+                $userPubkey = str_starts_with(strtolower(trim((string) ($userIdentifier))), 'npub1')
+                    ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($userIdentifier))
                     : $userIdentifier;
             } catch (\Throwable) {}
         }
@@ -245,7 +246,7 @@ class ExpressionController extends AbstractController
         MessageBusInterface $messageBus,
     ): Response {
         try {
-            $pubkey = NostrKeyUtil::npubToHex($npub);
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException('Invalid npub.');
         }
@@ -293,8 +294,8 @@ class ExpressionController extends AbstractController
         }
 
         $userIdentifier = $user->getUserIdentifier();
-        $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
-            ? NostrKeyUtil::npubToHex($userIdentifier)
+        $userPubkey = str_starts_with(strtolower(trim((string) ($userIdentifier))), 'npub1')
+            ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($userIdentifier))
             : $userIdentifier;
 
         // Try cache first — if warm, render immediately

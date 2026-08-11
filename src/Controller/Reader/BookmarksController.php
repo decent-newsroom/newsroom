@@ -12,7 +12,8 @@ use App\Repository\EventRepository;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -51,7 +52,7 @@ class BookmarksController extends AbstractController
             return $this->redirectToRoute('home');
         }
 
-        $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         [$bookmarks, $syncing] = $this->loadBookmarks($pubkey, $em, $userRelayListService, $bus);
 
         // Batch-resolve all 'e'-type bookmark items from the DB in one query
@@ -90,7 +91,7 @@ class BookmarksController extends AbstractController
             return new JsonResponse(['error' => 'Not authenticated'], 401);
         }
 
-        $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
 
         $event = $em->getRepository(Event::class)
             ->createQueryBuilder('e')
@@ -157,7 +158,7 @@ class BookmarksController extends AbstractController
                 return new JsonResponse(['error' => 'Invalid bookmark list event kind'], 400);
             }
 
-            $authenticatedPubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $authenticatedPubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             if (!hash_equals($authenticatedPubkey, (string) $signedEvent['pubkey'])) {
                 return new JsonResponse(['error' => 'Signed event does not belong to the authenticated user'], 403);
             }

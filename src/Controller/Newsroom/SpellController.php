@@ -11,7 +11,8 @@ use App\ExpressionBundle\Service\ExpressionService;
 use App\Message\EvaluateSpellMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NEvent;
 use Pagerfanta\Adapter\ArrayAdapter;
@@ -84,8 +85,8 @@ final class SpellController extends AbstractController
         }
 
         $userIdentifier = $user->getUserIdentifier();
-        $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
-            ? NostrKeyUtil::npubToHex($userIdentifier)
+        $userPubkey = str_starts_with(strtolower(trim((string) ($userIdentifier))), 'npub1')
+            ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($userIdentifier))
             : $userIdentifier;
 
         $cachedResults = $expressionService->getCachedSpellResults($spell, $userPubkey);

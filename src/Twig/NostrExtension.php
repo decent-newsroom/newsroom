@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 
@@ -28,7 +29,7 @@ class NostrExtension extends AbstractExtension
         }
 
         try {
-            return NostrKeyUtil::npubToHex($npub);
+            return (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         } catch (\Throwable) {
             return '';
         }
@@ -41,7 +42,7 @@ class NostrExtension extends AbstractExtension
         }
 
         try {
-            return NostrKeyUtil::hexToNpub($hex);
+            return (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($hex));
         } catch (\Throwable) {
             return '';
         }

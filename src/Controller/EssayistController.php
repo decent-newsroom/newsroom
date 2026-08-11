@@ -25,7 +25,8 @@ use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\UserProfileService;
 use App\Service\UserMuteListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -165,8 +166,8 @@ class EssayistController extends AbstractController
         $npubToHex  = [];
         foreach ($members as $member) {
             $npub = $member->getNpub();
-            if ($npub && NostrKeyUtil::isNpub($npub)) {
-                $hex                = NostrKeyUtil::npubToHex($npub);
+            if ($npub && str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
+                $hex                = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
                 $hexPubkeys[]       = $hex;
                 $npubToHex[$npub]   = $hex;
             }
@@ -176,18 +177,18 @@ class EssayistController extends AbstractController
         // ── Resolve viewer's follow set (kind:3) for "follows first" sorting ──
         $followSet = [];
         try {
-            $viewerHex = NostrKeyUtil::npubToHex($viewer->getUserIdentifier());
+            $viewerHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($viewer->getUserIdentifier()));
             $followsEvent = $eventRepository->findLatestByPubkeyAndKind($viewerHex, KindsEnum::FOLLOWS->value);
             if ($followsEvent !== null) {
                 foreach ($followsEvent->getTags() as $tag) {
-                    if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1]) && NostrKeyUtil::isHexPubkey($tag[1])) {
+                    if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1]) && PublicKey::fromHex(strtolower(trim((string) ($tag[1])))) !== null) {
                         $followSet[$tag[1]] = true;
                     }
                 }
             } else {
                 // Fallback: ask the profile service (network).
                 foreach ($userProfileService->getFollows($viewerHex) as $hex) {
-                    if (NostrKeyUtil::isHexPubkey($hex)) {
+                    if (PublicKey::fromHex(strtolower(trim((string) ($hex)))) !== null) {
                         $followSet[$hex] = true;
                     }
                 }
@@ -248,9 +249,9 @@ class EssayistController extends AbstractController
         $coverageThrough = \App\Service\Essayist\EssayistMembershipService::endOfNextMonth(new \DateTimeImmutable('now'));
 
         $claimsToAttest = [];
-        if (NostrKeyUtil::isNpub((string) $viewer->getNpub())) {
+        if (str_starts_with(strtolower(trim((string) ((string) $viewer->getNpub()))), 'npub1')) {
             try {
-                $viewerHex = NostrKeyUtil::npubToHex((string) $viewer->getNpub());
+                $viewerHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ((string) $viewer->getNpub()));
                 $claimsToAttest = $claimRepository->findPendingForSponsorPubkey($viewerHex);
             } catch (\Throwable $e) {
                 $logger->debug('Essayist members: failed loading pending attestation claims', ['error' => $e->getMessage()]);
@@ -344,7 +345,7 @@ class EssayistController extends AbstractController
         $authorsMetadata = [];
         if (!empty($articles)) {
             $pubkeys = array_unique(array_column($articles, 'pubkey'));
-            $pubkeys = array_filter($pubkeys, fn (string $pk): bool => NostrKeyUtil::isHexPubkey($pk));
+            $pubkeys = array_filter($pubkeys, fn (string $pk): bool => PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null);
             if (!empty($pubkeys)) {
                 $raw = $redisCacheService->getMultipleMetadata(array_values($pubkeys));
                 foreach ($raw as $pk => $meta) {
@@ -444,7 +445,7 @@ class EssayistController extends AbstractController
                         $std  = $meta ? ($meta instanceof UserMetadata ? $meta->toStdClass() : $meta) : null;
                         $featuredPackMembers[] = [
                             'pubkey'      => $hex,
-                            'npub'        => NostrKeyUtil::hexToNpub($hex),
+                            'npub'        => (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($hex)),
                             'displayName' => $std?->display_name ?? $std?->name ?? '',
                             'picture'     => $std?->picture ?? '',
                             'nip05'       => (is_array($std?->nip05 ?? '') ? ($std->nip05[0] ?? '') : ($std?->nip05 ?? '')),
@@ -455,7 +456,7 @@ class EssayistController extends AbstractController
                     if (count($parts) === 3) {
                         $featuredPackInfo = [
                             'coordinate' => $packSource->getCoordinate(),
-                            'npub'       => NostrKeyUtil::hexToNpub($parts[1]),
+                            'npub'       => (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($parts[1])),
                             'dtag'       => $parts[2],
                         ];
                     }
@@ -534,7 +535,7 @@ class EssayistController extends AbstractController
 
         $pubkeyHex = null;
         try {
-            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable $e) {
             $logger->error('EssayistHome: failed to convert npub', ['error' => $e->getMessage()]);
         }
@@ -826,7 +827,7 @@ class EssayistController extends AbstractController
      */
     private function resolveMetadata(array $pubkeys, RedisCacheService $redisCacheService): array
     {
-        $pubkeys = array_values(array_unique(array_filter($pubkeys, fn (string $pk): bool => NostrKeyUtil::isHexPubkey($pk))));
+        $pubkeys = array_values(array_unique(array_filter($pubkeys, fn (string $pk): bool => PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null)));
         if (empty($pubkeys)) {
             return [];
         }

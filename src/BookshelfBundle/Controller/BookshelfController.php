@@ -9,7 +9,8 @@ use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use AsciiDocConverter;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -145,7 +146,7 @@ final class BookshelfController extends AbstractController
         $user = $this->getUser();
 
         if ($user !== null) {
-            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
             $tags = $directoryService->getEditableTagsForUser($pubkey);
             foreach ($directoryService->extractBookReferences($tags) as $reference) {
                 if ($reference['coordinate'] !== null) {

@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Replace `NostrKeyUtil` utility with `PublicKey` value object from `innis/nostr-core` for key validation and conversion.
 - [Improvement] Moved Bookshelf Mercury endpoint defaults, configuration processing, and scalar service binding into `BookshelfBundle`; documented the remaining host application integration dependencies.
 - [Improvement] Replaced the in-repository AsciiDoc implementation with the independently installable `decent-newsroom/asciidoc-html` Composer library and registered it through `BookshelfBundle`.
 - [Improvement] Removed the duplicate application-level `BookshelfController`; `/bookshelf` and `/bookshelf/{id}` are now served exclusively by `BookshelfBundle`.

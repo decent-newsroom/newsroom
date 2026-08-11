@@ -10,7 +10,8 @@ use App\Repository\UserEntityRepository;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -62,7 +63,7 @@ class UpdateProfileProjectionHandler
 
         try {
             // Convert to npub for user lookup
-            $npub = NostrKeyUtil::hexToNpub($pubkeyHex);
+            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkeyHex));
 
             // Get or create user
             $user = $this->userRepository->findOneBy(['npub' => $npub]);

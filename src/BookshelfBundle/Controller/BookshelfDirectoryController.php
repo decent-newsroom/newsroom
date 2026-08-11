@@ -12,7 +12,8 @@ use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,7 +36,7 @@ final class BookshelfDirectoryController extends AbstractController
         $user = $this->getUser();
         \assert($user !== null);
 
-        $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         $directoryTags = $directoryService->getEditableTagsForUser($pubkey);
         $references = $directoryService->extractBookReferences($directoryTags);
         $available = true;
@@ -109,7 +110,7 @@ final class BookshelfDirectoryController extends AbstractController
 
         $user = $this->getUser();
         \assert($user !== null);
-        $authenticatedPubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $authenticatedPubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         if (!is_string($signedEvent['pubkey']) || !hash_equals($authenticatedPubkey, strtolower($signedEvent['pubkey']))) {
             return $this->json(
                 ['error' => 'Signed event does not belong to the authenticated user.'],

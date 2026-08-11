@@ -9,7 +9,8 @@ use App\Entity\User;
 use App\Enum\RolesEnum;
 use App\Repository\EssayistMembershipRepository;
 use App\Repository\UserEntityRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -88,7 +89,7 @@ final class EssayistMembershipService
             return null;
         }
 
-        if (!NostrKeyUtil::isHexPubkey($payerPubkeyHex) || !NostrKeyUtil::isHexPubkey($contributedToPubkeyHex)) {
+        if (!PublicKey::fromHex(strtolower(trim((string) ($payerPubkeyHex)))) !== null || !PublicKey::fromHex(strtolower(trim((string) ($contributedToPubkeyHex)))) !== null) {
             return null;
         }
 
@@ -100,7 +101,7 @@ final class EssayistMembershipService
         $paidAt ??= new \DateTimeImmutable('now');
 
         // Find or create the payer's User row.
-        $payerNpub = NostrKeyUtil::hexToNpub($payerPubkeyHex);
+        $payerNpub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($payerPubkeyHex));
         $user      = $this->userRepository->findOneBy(['npub' => $payerNpub]);
         if ($user === null) {
             $user = new User();

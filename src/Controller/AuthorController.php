@@ -20,7 +20,8 @@ use App\Repository\ArticleRepository;
 // NOTE: This controller uses ArticleRepository directly (bypasses search service)
 // to ensure article tabs are accurate regardless of Elasticsearch index lag.
 use App\Service\VanityNameService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Pagerfanta\Adapter\ArrayAdapter;
@@ -89,7 +90,6 @@ class AuthorController extends AbstractController
     #[Route('/p/{npub}/lists', name: 'author-reading-lists', requirements: ['npub' => '^npub1.*'])]
     public function readingLists(string $npub = null, string $vanity = null,
                                 EntityManagerInterface $em,
-                                NostrKeyUtil $keyUtil,
                                 LoggerInterface $logger): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-reading-lists');
@@ -100,7 +100,7 @@ class AuthorController extends AbstractController
         $npub = $resolved['npub'];
 
         // Convert npub to hex pubkey
-        $pubkey = $keyUtil->npubToHex($npub);
+        $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         $logger->info(sprintf('Reading list: pubkey=%s', $pubkey));
         // Find reading lists by pubkey, kind 30040 directly from database
         $repo = $em->getRepository(Event::class);
@@ -146,7 +146,6 @@ class AuthorController extends AbstractController
     #[Route('/p/{npub}/list/{slug}', name: 'reading-list', requirements: ['npub' => '^npub1.*'])]
     public function readingList(string $slug, string $npub = null, string $vanity = null,
                                 EntityManagerInterface $em,
-                                NostrKeyUtil $keyUtil,
                                 LoggerInterface $logger): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-reading-list', ['slug' => $slug]);
@@ -157,7 +156,7 @@ class AuthorController extends AbstractController
         $npub = $resolved['npub'];
 
         // Convert npub to hex pubkey
-        $pubkey = $keyUtil->npubToHex($npub);
+        $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
         $logger->info(sprintf('Reading list: pubkey=%s, slug=%s', $pubkey, $slug));
 
         $cacheKey = 'author_reading_list_' . md5($pubkey . ':' . $slug);

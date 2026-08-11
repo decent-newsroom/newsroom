@@ -10,7 +10,8 @@ use App\Repository\UserEntityRepository;
 use App\Repository\UserRelayListRepository;
 use App\Service\Essayist\EssayistMemberRelayPoolService;
 use App\Service\Nostr\RelayHealthStore;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -55,10 +56,10 @@ final class EssayistMemberRelayPoolServiceTest extends TestCase
         $memberHexB = str_repeat('b2', 32);
 
         $memberA = new User();
-        $memberA->setNpub(NostrKeyUtil::hexToNpub($memberHexA));
+        $memberA->setNpub((static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($memberHexA)));
 
         $memberB = new User();
-        $memberB->setNpub(NostrKeyUtil::hexToNpub($memberHexB));
+        $memberB->setNpub((static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($memberHexB)));
 
         $userRepository->expects($this->once())
             ->method('findByRoleWithQuery')

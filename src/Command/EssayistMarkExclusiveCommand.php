@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\ArticleRepository;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -67,15 +68,15 @@ final class EssayistMarkExclusiveCommand extends Command
         }
 
         try {
-            $pubkey = NostrKeyUtil::isNpub($author)
-                ? NostrKeyUtil::npubToHex($author)
+            $pubkey = str_starts_with(strtolower(trim((string) ($author))), 'npub1')
+                ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($author))
                 : $author;
         } catch (\Throwable $e) {
             $io->error('Could not resolve author identifier: ' . $e->getMessage());
             return Command::INVALID;
         }
 
-        if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+        if (!PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
             $io->error('Author must be an npub or 64-char hex pubkey.');
             return Command::INVALID;
         }

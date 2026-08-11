@@ -4,7 +4,8 @@ namespace App\Security;
 
 use App\Entity\User;
 use App\Service\ProfileUpdateDispatcher;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
@@ -81,7 +82,7 @@ readonly class UserDTOProvider implements UserProviderInterface
                         'last_refresh' => $lastRefresh->format(\DateTimeInterface::ATOM),
                     ]);
                 } else {
-                    $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                     $this->profileUpdateDispatcher->dispatch($pubkey);
                 }
             } catch (\Throwable $e) {
@@ -136,7 +137,7 @@ readonly class UserDTOProvider implements UserProviderInterface
 
         // Convert npub to hex for async profile update
         try {
-            $pubkey = NostrKeyUtil::npubToHex($identifier);
+            $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($identifier));
 
             // Only dispatch profile projection update on login if metadata is
             // stale. Prevents duplicate work with refreshUser() and avoids

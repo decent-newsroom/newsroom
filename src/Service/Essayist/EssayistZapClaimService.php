@@ -10,7 +10,8 @@ use App\Entity\User;
 use App\Repository\EssayistZapClaimRepository;
 use App\Repository\EventRepository;
 use App\Util\Bolt11PaymentVerifier;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 
 /**
@@ -90,11 +91,11 @@ final class EssayistZapClaimService
         }
 
         $recipientNpub = (string) ($recipient->getNpub() ?? '');
-        if (!NostrKeyUtil::isNpub($recipientNpub)) {
+        if (!str_starts_with(strtolower(trim((string) ($recipientNpub))), 'npub1')) {
             return false;
         }
 
-        $recipientHex = NostrKeyUtil::npubToHex($recipientNpub);
+        $recipientHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($recipientNpub));
         if (!hash_equals($claim->getSponsorPubkey(), $recipientHex)) {
             return false;
         }

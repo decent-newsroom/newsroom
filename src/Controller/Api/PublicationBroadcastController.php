@@ -10,7 +10,8 @@ use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -180,7 +181,7 @@ final class PublicationBroadcastController extends AbstractController
                 }
 
                 try {
-                    $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                     $relays = $this->userRelayListService->getRelaysForPublishing($pubkeyHex);
                 } catch (Throwable $e) {
                     $this->logger->warning('Failed to resolve user relays for publication broadcast, using fallback relays', [

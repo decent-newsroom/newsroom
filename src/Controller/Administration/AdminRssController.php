@@ -12,7 +12,6 @@ use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\RSS\RssFeedService;
-use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Twig\Components\Molecules;
 
 use App\Service\Essayist\EssayistZapClaimService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -105,8 +106,8 @@ final class EssayistClaimZapButton extends AbstractController
                 return;
             }
 
-            $payerHex   = NostrKeyUtil::npubToHex($payerNpub);
-            $sponsorHex = NostrKeyUtil::npubToHex($this->sponsorNpub);
+            $payerHex   = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($payerNpub));
+            $sponsorHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($this->sponsorNpub));
 
             $claim = $this->claimService->createClaim(
                 user: $user,

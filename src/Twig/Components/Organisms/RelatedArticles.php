@@ -5,7 +5,8 @@ namespace App\Twig\Components\Organisms;
 use App\Entity\Article;
 use App\Service\Nostr\NostrClient;
 use App\Service\Search\ContentSearchService;
-use App\Util\NostrKeyUtil;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
@@ -75,7 +76,7 @@ final class RelatedArticles
         // For logged-in users, intersect article tags with their interests
         if ($user) {
             try {
-                $hex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $hex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
                 $interests = $this->nostrClient->getUserInterests($hex);
 
                 if (!empty($interests)) {
