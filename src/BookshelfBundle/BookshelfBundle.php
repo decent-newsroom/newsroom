@@ -7,7 +7,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 /**
  * BookshelfBundle
  *
- * TODO: describe what this bundle does.
+ * Nostr-based bookshelf and e-reader.
  */
 class BookshelfBundle extends Bundle
 {
