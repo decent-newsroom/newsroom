@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Entity\User;
-use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+use App\Service\Nostr\NostrIdentityService;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -34,6 +34,7 @@ class RelayAuthController extends AbstractController
         private readonly \Redis $redis,
         private readonly HubInterface $hub,
         private readonly LoggerInterface $logger,
+        private readonly NostrIdentityService $nostrIdentity,
     ) {}
 
 
@@ -150,7 +151,7 @@ class RelayAuthController extends AbstractController
         }
 
         try {
-            $userPubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
+            $userPubkeyHex = $this->nostrIdentity->toHex((string) $user->getUserIdentifier());
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Invalid user identity'], Response::HTTP_BAD_REQUEST);
         }
@@ -222,4 +223,3 @@ class RelayAuthController extends AbstractController
         return new JsonResponse(['status' => 'ok', 'resent' => $resent]);
     }
 }
-

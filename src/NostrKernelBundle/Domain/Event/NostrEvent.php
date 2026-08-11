@@ -57,7 +57,7 @@ final readonly class NostrEvent
     public function toArray(): array
     {
         return [
-            'id' => $this->id->toString(),
+            'id' => $this->id?->toString(),
             'pubkey' => $this->pubkey->toHex(),
             'created_at' => $this->createdAt,
             'kind' => $this->kind->value(),
@@ -67,4 +67,3 @@ final readonly class NostrEvent
         ];
     }
 }
-

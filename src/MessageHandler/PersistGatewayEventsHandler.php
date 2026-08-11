@@ -11,6 +11,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\EventDeletionService;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\Nostr\NostrEventIngressGuard;
 use App\Service\ReplaceableEventCleanupService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -37,6 +38,7 @@ final class PersistGatewayEventsHandler
         private readonly DeletedEventRepository $deletedEventRepository,
         private readonly EventDeletionService $eventDeletionService,
         private readonly LoggerInterface $logger,
+        private readonly NostrEventIngressGuard $eventIngressGuard,
     ) {}
 
     public function __invoke(PersistGatewayEventsMessage $message): void
@@ -99,6 +101,7 @@ final class PersistGatewayEventsHandler
             }
 
             try {
+                $this->eventIngressGuard->normalizeArray($rawEvent);
                 $entity = $this->buildEntity($rawEvent);
                 $this->entityManager->persist($entity);
 
@@ -193,4 +196,3 @@ final class PersistGatewayEventsHandler
         }
     }
 }
-

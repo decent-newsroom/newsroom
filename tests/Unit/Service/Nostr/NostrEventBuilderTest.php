@@ -9,7 +9,10 @@ use App\Dto\MediaAttachment;
 use App\Dto\ZapSplit;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
+use App\Service\Nostr\NostrIdentityService;
 use App\Service\Nostr\NostrEventBuilder;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
 use PHPUnit\Framework\TestCase;
 
 class NostrEventBuilderTest extends TestCase
@@ -18,7 +21,12 @@ class NostrEventBuilderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->builder = new NostrEventBuilder();
+        $identity = new NostrIdentityService(
+            $this->createMock(Nip19DecoderInterface::class),
+            $this->createMock(Nip19EncoderInterface::class),
+        );
+
+        $this->builder = new NostrEventBuilder($identity);
     }
 
     public function testBuildBasicTags(): void
@@ -280,4 +288,3 @@ class NostrEventBuilderTest extends TestCase
         }
     }
 }
-

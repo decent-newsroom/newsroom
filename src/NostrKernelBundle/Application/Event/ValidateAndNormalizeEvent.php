@@ -6,6 +6,7 @@ namespace DecentNewsroom\NostrKernelBundle\Application\Event;
 
 use DecentNewsroom\NostrKernelBundle\Contract\Event\EventKindClassifierInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Event\EventNormalizerInterface;
+use DecentNewsroom\NostrKernelBundle\Contract\Event\EventSignatureVerifierInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Event\EventValidatorInterface;
 use DecentNewsroom\NostrKernelBundle\Domain\Event\EventId;
 use DecentNewsroom\NostrKernelBundle\Domain\Event\EventSignature;
@@ -19,6 +20,7 @@ final readonly class ValidateAndNormalizeEvent implements EventNormalizerInterfa
     public function __construct(
         private EventValidatorInterface $validator,
         private EventKindClassifierInterface $kindClassifier,
+        private EventSignatureVerifierInterface $signatureVerifier,
         private bool $strictValidation = true,
         private int $allowFutureEventsSeconds = 300,
         private bool $verifySignatures = true,
@@ -59,7 +61,20 @@ final readonly class ValidateAndNormalizeEvent implements EventNormalizerInterfa
             throw new InvalidNostrEvent('Event validation failed: ' . \implode('; ', $result->errors()));
         }
 
+        if ($event->createdAt() > \time() + $this->allowFutureEventsSeconds) {
+            throw new InvalidNostrEvent('Event timestamp is too far in the future.');
+        }
+
+        if (!$this->allowProtectedEvents && $event->tags()->allByName('-') !== []) {
+            throw new InvalidNostrEvent('Protected events are not allowed.');
+        }
+
+        if ($this->verifySignatures) {
+            if ($event->signature() === null || !$this->signatureVerifier->verify($event)) {
+                throw new InvalidNostrEvent('Event signature verification failed.');
+            }
+        }
+
         return $event;
     }
 }
-

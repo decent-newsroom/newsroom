@@ -8,16 +8,13 @@ use App\Dto\AdvancedMetadata;
 use App\Dto\MediaAttachment;
 use App\Dto\ZapSplit;
 use App\Entity\Article;
-use nostriphant\NIP19\Bech32;
-use swentel\nostr\Key\Key;
+use DecentNewsroom\NostrKernelBundle\Domain\Nip19\Nip19Type;
 
 class NostrEventBuilder
 {
-    private Key $key;
-
-    public function __construct()
-    {
-        $this->key = new Key();
+    public function __construct(
+        private readonly NostrIdentityService $identity,
+    ) {
     }
 
     /**
@@ -162,20 +159,7 @@ class NostrEventBuilder
      */
     public function convertToHex(string $pubkey): string
     {
-        if (str_starts_with($pubkey, 'npub1')) {
-            try {
-                return $this->key->convertToHex($pubkey);
-            } catch (\Exception $e) {
-                throw new \InvalidArgumentException('Invalid npub format: ' . $e->getMessage());
-            }
-        }
-
-        // Validate hex format
-        if (!preg_match('/^[0-9a-f]{64}$/i', $pubkey)) {
-            throw new \InvalidArgumentException('Invalid pubkey format. Must be hex (64 chars) or npub');
-        }
-
-        return strtolower($pubkey);
+        return $this->identity->toHex($pubkey);
     }
 
     /**
@@ -241,74 +225,63 @@ class NostrEventBuilder
             $bech = substr($match, 6); // strip 'nostr:'
 
             try {
-                $decoded = new Bech32($bech);
+                $decoded = $this->identity->decode($bech);
+                $data = $decoded->data();
             } catch (\Throwable) {
                 continue;
             }
 
-            switch ($decoded->type) {
-                case 'npub':
-                    try {
-                        $hex = $this->key->convertToHex($bech);
-                        if (!isset($seenP[$hex])) {
-                            $seenP[$hex] = true;
-                            $tags[] = ['p', $hex];
-                        }
-                    } catch (\Throwable) {
-                        // Skip invalid npub
+            switch ($decoded->type()) {
+                case Nip19Type::NPUB:
+                    $hex = $this->identity->toHex($bech);
+                    if (!isset($seenP[$hex])) {
+                        $seenP[$hex] = true;
+                        $tags[] = ['p', $hex];
                     }
                     break;
 
-                case 'nprofile':
-                    /** @var \nostriphant\NIP19\Data\NProfile $data */
-                    $data = $decoded->data;
-                    $hex = $data->pubkey;
+                case Nip19Type::NPROFILE:
+                    $hex = $this->identity->toHex($bech);
                     if (!isset($seenP[$hex])) {
                         $seenP[$hex] = true;
-                        $relay = $data->relays[0] ?? '';
+                        $relay = $data['relays'][0] ?? '';
                         $tags[] = ['p', $hex, $relay];
                     }
                     break;
 
-                case 'note':
-                    /** @var \nostriphant\NIP19\Data\Note $data */
-                    $data = $decoded->data;
-                    $id = $data->id;
+                case Nip19Type::NOTE:
+                    $id = $data['event_id'] ?? '';
                     if (!isset($seenE[$id])) {
                         $seenE[$id] = true;
                         $tags[] = ['e', $id, '', 'mention'];
                     }
                     break;
 
-                case 'nevent':
-                    /** @var \nostriphant\NIP19\Data\NEvent $data */
-                    $data = $decoded->data;
-                    $id = $data->id;
+                case Nip19Type::NEVENT:
+                    $id = $data['event_id'] ?? '';
                     if (!isset($seenE[$id])) {
                         $seenE[$id] = true;
-                        $relay = $data->relays[0] ?? '';
+                        $relay = $data['relays'][0] ?? '';
                         $tags[] = ['e', $id, $relay, 'mention'];
                     }
                     // Also add p tag for the event author if present
-                    if (!empty($data->author) && !isset($seenP[$data->author])) {
-                        $seenP[$data->author] = true;
-                        $tags[] = ['p', $data->author];
+                    if (!empty($data['author']) && !isset($seenP[$data['author']])) {
+                        $seenP[$data['author']] = true;
+                        $tags[] = ['p', $data['author']];
                     }
                     break;
 
-                case 'naddr':
-                    /** @var \nostriphant\NIP19\Data\NAddr $data */
-                    $data = $decoded->data;
-                    $coord = $data->kind . ':' . $data->pubkey . ':' . $data->identifier;
+                case Nip19Type::NADDR:
+                    $coord = $data['kind'] . ':' . $data['pubkey'] . ':' . $data['identifier'];
                     if (!isset($seenA[$coord])) {
                         $seenA[$coord] = true;
-                        $relay = $data->relays[0] ?? '';
+                        $relay = $data['relays'][0] ?? '';
                         $tags[] = ['a', $coord, $relay];
                     }
                     // Also add p tag for the naddr author
-                    if (!empty($data->pubkey) && !isset($seenP[$data->pubkey])) {
-                        $seenP[$data->pubkey] = true;
-                        $tags[] = ['p', $data->pubkey];
+                    if (!empty($data['pubkey']) && !isset($seenP[$data['pubkey']])) {
+                        $seenP[$data['pubkey']] = true;
+                        $tags[] = ['p', $data['pubkey']];
                     }
                     break;
             }
@@ -317,4 +290,3 @@ class NostrEventBuilder
         return $tags;
     }
 }
-

@@ -10,6 +10,7 @@ use App\Message\FanOutUpdateMessage;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\Nostr\NostrEventIngressGuard;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\ArticlePublicationIndexer;
 use App\Service\Nostr\Projector\RelayDiscoveryEventProjector;
@@ -44,6 +45,7 @@ class GenericEventProjector
         private readonly RelayDiscoveryEventProjector $relayDiscoveryProjector,
         private readonly ArticlePublicationIndexer $publicationIndexer,
         private readonly HighlightProjector $highlightProjector,
+        private readonly NostrEventIngressGuard $eventIngressGuard,
     ) {
     }
 
@@ -76,6 +78,8 @@ class GenericEventProjector
         if (!isset($event->id) || !isset($event->kind)) {
             throw new \InvalidArgumentException('Invalid event: missing required fields (id, kind)');
         }
+
+        $this->eventIngressGuard->normalizeObject($event);
 
         // Check if event already exists
         $existing = $this->eventRepository->find($event->id);

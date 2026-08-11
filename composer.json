@@ -93,7 +93,7 @@
     "autoload-dev": {
         "psr-4": {
             "App\\Tests\\": "tests/",
-            "DecentNewsroom\\NostrKernelBundle\\Tests\\": "tests/NostrKernelBundle/"
+            "DecentNewsroom\\NostrKernelBundle\\Tests\\": "src/NostrKernelBundle/Tests/"
         }
     },
     "replace": {
