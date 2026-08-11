@@ -6,7 +6,7 @@ namespace App\Controller\Newsroom;
 
 use App\Dto\UserMetadata;
 use App\Enum\KindsEnum;
-use App\ExpressionBundle\Service\ExpressionService;
+use DecentNewsroom\ExpressionBundle\Service\ExpressionService;
 use App\Helper\NavigationBuilderTrait;
 use App\Message\EvaluateExpressionMessage;
 use App\Repository\EventRepository;

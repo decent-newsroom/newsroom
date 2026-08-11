@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
-use App\ExpressionBundle\Logging\LoggerSwitch;
-use App\ExpressionBundle\Logging\MercureProgressLogger;
-use App\ExpressionBundle\Logging\TeeLogger;
-use App\ExpressionBundle\Service\ExpressionService;
+use DecentNewsroom\ExpressionBundle\Logging\LoggerSwitch;
+use DecentNewsroom\ExpressionBundle\Logging\MercureProgressLogger;
+use DecentNewsroom\ExpressionBundle\Logging\TeeLogger;
+use DecentNewsroom\ExpressionBundle\Service\ExpressionService;
 use App\Message\EvaluateSpellMessage;
 use App\Repository\EventRepository;
 use Psr\Log\LoggerInterface;

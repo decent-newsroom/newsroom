@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
 use App\Repository\EventRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -11,7 +12,7 @@ use swentel\nostr\Nip19\Nip19Helper;
  * Nostr events
  */
 #[ORM\Entity(repositoryClass: EventRepository::class)]
-class Event
+class Event implements EventInterface
 {
     #[ORM\Id]
     #[ORM\Column(length: 225)]

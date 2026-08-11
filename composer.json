@@ -11,6 +11,13 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "packages/expression-bundle",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "require": {
@@ -23,6 +30,7 @@
         "ext-simplexml": "*",
         "decent-newsroom/asciidoc-html": "^0.1.0",
         "decent-newsroom/nostr-kernel-bundle": "@dev",
+        "decent-newsroom/expression-bundle": "@dev",
         "doctrine/dbal": "^4.2",
         "doctrine/doctrine-bundle": "^2.13",
         "doctrine/doctrine-migrations-bundle": "^3.3",
@@ -33,6 +41,7 @@
         "endroid/qr-code": "6.0.*",
         "endroid/qr-code-bundle": "6.0.0",
         "friendsofsymfony/elastica-bundle": "^6.5",
+        "innis/nostr-client": "^0.1.7",
         "innis/nostr-core": "*",
         "laminas/laminas-diactoros": "^3.6",
         "league/commonmark": "^2.7",
@@ -53,8 +62,8 @@
         "symfony/form": "7.4.*",
         "symfony/framework-bundle": "7.4.*",
         "symfony/html-sanitizer": "7.4.*",
-        "symfony/http-foundation": "7.4.*",
         "symfony/http-client": "7.4.*",
+        "symfony/http-foundation": "7.4.*",
         "symfony/intl": "7.4.*",
         "symfony/mercure-bundle": "^0.4.2",
         "symfony/messenger": "7.4.*",

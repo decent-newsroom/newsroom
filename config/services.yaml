@@ -102,8 +102,6 @@ services:
             - '../src/Kernel.php'
             - '../src/UnfoldBundle/DependencyInjection/'
             - '../src/UnfoldBundle/UnfoldBundle.php'
-            - '../src/ExpressionBundle/DependencyInjection/'
-            - '../src/ExpressionBundle/ExpressionBundle.php'
             - '../src/BookshelfBundle/'
 
     # add more service definitions when explicit configuration is needed
@@ -418,66 +416,31 @@ services:
             $excludedPubkeys: '%newsroom.latest_articles.excluded_pubkeys%'
             $excludeBotProfiles: '%newsroom.latest_articles.exclude_bot_profiles%'
 
-    # ExpressionBundle service bindings
-    App\ExpressionBundle\Controller\FeedApiController:
-        tags: ['controller.service_arguments']
-
-    App\ExpressionBundle\Runner\ExpressionRunner:
-        arguments:
-            $operationIterable: !tagged_iterator 'expression.operation'
-            $expressionMaxExecutionTime: '%expression.max_execution_time%'
-
-    App\ExpressionBundle\Runner\Operation\ScoreOperation:
-        arguments:
-            $normalizerIterable: !tagged_iterator 'expression.normalizer'
-        tags: ['expression.operation']
-
-    App\ExpressionBundle\Runner\Operation\AllFilterOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\AnyFilterOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\NoneFilterOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\SortOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\SliceOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\DistinctOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\UnionOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\IntersectOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\DifferenceOperation:
-        tags: ['expression.operation']
-
-    # NIP-GX traversal operations
-    App\ExpressionBundle\Runner\Operation\ParentOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\ChildOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\AncestorOperation:
-        tags: ['expression.operation']
-    App\ExpressionBundle\Runner\Operation\DescendantOperation:
-        tags: ['expression.operation']
-
-    App\ExpressionBundle\Runner\Normalizer\IdentityNormalizer:
-        tags: ['expression.normalizer']
-    App\ExpressionBundle\Runner\Normalizer\RecencyNormalizer:
-        tags: ['expression.normalizer']
-    App\ExpressionBundle\Runner\Normalizer\LogNormalizer:
-        tags: ['expression.normalizer']
-    App\ExpressionBundle\Runner\Normalizer\InNormalizer:
-        tags: ['expression.normalizer']
-    App\ExpressionBundle\Runner\Normalizer\ContainsCiNormalizer:
-        tags: ['expression.normalizer']
-    App\ExpressionBundle\Runner\Normalizer\CountNormalizer:
-        tags: ['expression.normalizer']
-
-    App\ExpressionBundle\Service\FeedCacheService:
+    # ExpressionBundle host integration
+    DecentNewsroom\ExpressionBundle\Service\FeedCacheService:
         arguments:
             $cache: '@npub.cache'
             $expressionCacheTtl: '%expression.cache_ttl%'
 
-    App\ExpressionBundle\Source\SourceResolverInterface:
-        alias: App\ExpressionBundle\Source\SourceResolver
+    DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface:
+        alias: App\Expression\ExpressionEventStore
+
+    DecentNewsroom\ExpressionBundle\Contract\LongformEventProviderInterface:
+        alias: App\Expression\ExpressionLongformEventProvider
+
+    DecentNewsroom\ExpressionBundle\Contract\RelaySelectorInterface:
+        alias: App\Expression\ExpressionRelaySelector
+
+    DecentNewsroom\ExpressionBundle\Contract\UserRelayProviderInterface:
+        alias: App\Expression\ExpressionUserRelayProvider
+
+    DecentNewsroom\ExpressionBundle\Contract\RelayEventClientInterface:
+        alias: DecentNewsroom\ExpressionBundle\Infrastructure\InnisRelayEventClient
+
+    Innis\Nostr\Client\Application\Port\NostrClientInterface:
+        factory: ['Innis\Nostr\Client\Infrastructure\Factory\NostrClientFactory', 'create']
+        arguments:
+            - '@logger'
+
+    Innis\Nostr\Core\Domain\Service\Bech32EncoderInterface:
+        class: Innis\Nostr\Core\Infrastructure\Adapter\Bech32EncoderAdapter

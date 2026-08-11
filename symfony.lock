@@ -1,4 +1,7 @@
 {
+    "decent-newsroom/expression-bundle": {
+        "version": "dev-main"
+    },
     "decent-newsroom/nostr-kernel-bundle": {
         "version": "dev-main"
     },
@@ -49,6 +52,9 @@
             "version": "5.0",
             "ref": "46c9cd2c1e07f0fcfd97e96f12b03b2e0845c4cd"
         }
+    },
+    "decent-newsroom/expression-bundle": {
+        "version": "dev-main"
     },
     "nyholm/psr7": {
         "version": "1.8",

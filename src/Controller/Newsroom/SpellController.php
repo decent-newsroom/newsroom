@@ -7,7 +7,7 @@ namespace App\Controller\Newsroom;
 use App\Dto\UserMetadata;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\ExpressionBundle\Service\ExpressionService;
+use DecentNewsroom\ExpressionBundle\Service\ExpressionService;
 use App\Message\EvaluateSpellMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;

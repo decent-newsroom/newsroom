@@ -54,7 +54,7 @@ flooding the hub during tight per-item loops.
 
 The wiring is:
 
-- `App\ExpressionBundle\Logging\LoggerSwitch` is bound as the PSR-3
+- `DecentNewsroom\ExpressionBundle\Logging\LoggerSwitch` is bound as the PSR-3
   `LoggerInterface` for every bundle service (see
   `src/ExpressionBundle/Resources/config/services.yaml`). Its default
   delegate is the Monolog logger — sync call sites (API controllers, tests)
@@ -84,4 +84,3 @@ If no updates reach the browser:
 ## Timeout Behavior
 
 The Stimulus controller has a 60-second timeout. If no Mercure message arrives, it reloads the page. If the worker has finished by then, the cache will be warm and results render. If not, the loading page shows again (the worker is still processing).
-

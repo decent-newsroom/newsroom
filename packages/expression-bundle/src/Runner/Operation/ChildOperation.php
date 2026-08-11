@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DecentNewsroom\ExpressionBundle\Runner\Operation;
+
+use DecentNewsroom\ExpressionBundle\Exception\ArityException;
+use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
+use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
+use DecentNewsroom\ExpressionBundle\Model\Stage;
+use DecentNewsroom\ExpressionBundle\Runner\Traversal\TraversalResolver;
+
+/**
+ * NIP-GX `child` — one-hop downward traversal.
+ *
+ * Children of kind:1 and kind:1111 are emitted in ascending (created_at, id)
+ * order; children of kind:30040 are emitted in `a`-tag declaration order
+ * (this ordering is produced by TraversalResolver).
+ */
+final class ChildOperation implements OperationInterface
+{
+    public function __construct(
+        private readonly TraversalResolver $resolver,
+    ) {}
+
+    public function execute(array $inputs, Stage $stage, RuntimeContext $ctx): array
+    {
+        if (count($inputs) !== 1) {
+            throw new ArityException('child requires exactly 1 input');
+        }
+
+        // Batched reverse-index query: all children of every input item in
+        // one SQL round-trip per reference shape (e-tag + a-tag), instead of
+        // N queries. Subsequent children() calls hit the in-memory cache.
+        $this->resolver->prefetchForChildren($inputs[0]);
+
+        $result = [];
+        foreach ($inputs[0] as $item) {
+            foreach ($this->resolver->children($item) as $child) {
+                $result[] = $child;
+            }
+        }
+        return $result;
+    }
+}
+

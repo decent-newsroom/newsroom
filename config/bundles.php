@@ -21,4 +21,5 @@ return [
     Symfony\Bundle\MonologBundle\MonologBundle::class => ['all' => true],
     DecentNewsroom\NostrKernelBundle\NostrKernelBundle::class => ['all' => true],
     DecentNewsroom\BookshelfBundle\BookshelfBundle::class => ['all' => true],
+    DecentNewsroom\ExpressionBundle\ExpressionBundle::class => ['all' => true],
 ];
