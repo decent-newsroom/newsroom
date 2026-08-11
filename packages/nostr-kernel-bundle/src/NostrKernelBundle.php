@@ -10,6 +10,6 @@ class NostrKernelBundle extends Bundle
 {
     public function getPath(): string
     {
-        return \dirname(__DIR__) . '/NostrKernelBundle';
+        return __DIR__;
     }
 }

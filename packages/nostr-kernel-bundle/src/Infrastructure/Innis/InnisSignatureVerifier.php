@@ -8,10 +8,13 @@ use DecentNewsroom\NostrKernelBundle\Contract\Event\EventSignatureVerifierInterf
 use DecentNewsroom\NostrKernelBundle\Domain\Event\NostrEvent;
 use DecentNewsroom\NostrKernelBundle\Exception\InvalidNostrEvent;
 use Innis\Nostr\Core\Domain\Entity\Event as InnisEvent;
-use Innis\Nostr\Core\Infrastructure\Adapter\Secp256k1SignatureAdapter;
+use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
 
 final readonly class InnisSignatureVerifier implements EventSignatureVerifierInterface
 {
+    public function __construct(private SignatureServiceInterface $signatureService)
+    {
+    }
 
     /**
      * @param NostrEvent $event
@@ -23,7 +26,7 @@ final readonly class InnisSignatureVerifier implements EventSignatureVerifierInt
         try {
             $innisEvent = InnisEvent::fromArray($event->toArray());
 
-            return $innisEvent->verify(Secp256k1SignatureAdapter::create());
+            return $innisEvent->verify($this->signatureService);
         } catch (\Throwable $e) {
             throw new InvalidNostrEvent(
                 message: 'Failed to verify Nostr event signature through innis/nostr-core.',
@@ -32,4 +35,3 @@ final readonly class InnisSignatureVerifier implements EventSignatureVerifierInt
         }
    }
 }
-

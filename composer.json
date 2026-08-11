@@ -4,6 +4,15 @@
     "license": "MIT",
     "description": "A decentralised newsroom",
     "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/nostr-kernel-bundle",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "require": {
         "php": ">=8.3.13",
         "ext-ctype": "*",
@@ -13,6 +22,7 @@
         "ext-redis": "*",
         "ext-simplexml": "*",
         "decent-newsroom/asciidoc-html": "^0.1.0",
+        "decent-newsroom/nostr-kernel-bundle": "@dev",
         "doctrine/dbal": "^4.2",
         "doctrine/doctrine-bundle": "^2.13",
         "doctrine/doctrine-migrations-bundle": "^3.3",
@@ -86,14 +96,12 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/",
-            "DecentNewsroom\\BookshelfBundle\\": "src/BookshelfBundle/",
-            "DecentNewsroom\\NostrKernelBundle\\": "src/NostrKernelBundle/"
+            "DecentNewsroom\\BookshelfBundle\\": "src/BookshelfBundle/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "App\\Tests\\": "tests/",
-            "DecentNewsroom\\NostrKernelBundle\\Tests\\": "src/NostrKernelBundle/Tests/"
+            "App\\Tests\\": "tests/"
         }
     },
     "replace": {

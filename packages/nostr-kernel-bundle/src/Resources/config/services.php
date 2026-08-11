@@ -25,6 +25,14 @@ use DecentNewsroom\NostrKernelBundle\Infrastructure\Innis\InnisHttpAuthValidator
 use DecentNewsroom\NostrKernelBundle\Infrastructure\Innis\InnisNip19Decoder;
 use DecentNewsroom\NostrKernelBundle\Infrastructure\Innis\InnisNip19Encoder;
 use DecentNewsroom\NostrKernelBundle\Infrastructure\Innis\InnisSignatureVerifier;
+use Innis\Nostr\Core\Domain\Service\Bech32EncoderInterface;
+use Innis\Nostr\Core\Domain\Service\EventValidationService;
+use Innis\Nostr\Core\Domain\Service\EventValidationServiceInterface;
+use Innis\Nostr\Core\Domain\Service\NipComplianceValidator;
+use Innis\Nostr\Core\Domain\Service\NipComplianceValidatorInterface;
+use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
+use Innis\Nostr\Core\Infrastructure\Adapter\Bech32EncoderAdapter;
+use Innis\Nostr\Core\Infrastructure\Adapter\Secp256k1SignatureAdapter;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
@@ -57,6 +65,12 @@ return static function (ContainerConfigurator $container): void {
     $services->set(InnisNip19Encoder::class);
     $services->set(InnisHttpAuthValidator::class);
 
+    $services->set(Bech32EncoderAdapter::class);
+    $services->set(Secp256k1SignatureAdapter::class)
+        ->factory([Secp256k1SignatureAdapter::class, 'create']);
+    $services->set(NipComplianceValidator::class);
+    $services->set(EventValidationService::class);
+
     $services->alias(EventKindClassifierInterface::class, ClassifyEventKind::class);
     $services->alias(EventCoordinateResolverInterface::class, ResolveEventCoordinate::class);
     $services->alias(EventReferenceParserInterface::class, ParseEventReferences::class);
@@ -68,5 +82,8 @@ return static function (ContainerConfigurator $container): void {
     $services->alias(Nip19DecoderInterface::class, InnisNip19Decoder::class);
     $services->alias(Nip19EncoderInterface::class, InnisNip19Encoder::class);
     $services->alias(NostrHttpAuthValidatorInterface::class, InnisHttpAuthValidator::class);
+    $services->alias(Bech32EncoderInterface::class, Bech32EncoderAdapter::class);
+    $services->alias(SignatureServiceInterface::class, Secp256k1SignatureAdapter::class);
+    $services->alias(NipComplianceValidatorInterface::class, NipComplianceValidator::class);
+    $services->alias(EventValidationServiceInterface::class, EventValidationService::class);
 };
-

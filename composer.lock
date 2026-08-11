@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fdef30b8a3de2533764cf16cd1e749ef",
+    "content-hash": "b7125469e73762e7a3dd160a3e1dfeb6",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -407,6 +407,42 @@
                 "source": "https://github.com/decent-newsroom/asciidoc-html"
             },
             "time": "2026-08-10T13:09:10+00:00"
+        },
+        {
+            "name": "decent-newsroom/nostr-kernel-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/nostr-kernel-bundle",
+                "reference": "d9179501283b932c0df15af2ec157cda0fc379e0"
+            },
+            "require": {
+                "innis/nostr-core": "^0.3.17",
+                "php": "^8.3",
+                "symfony/framework-bundle": "^7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "DecentNewsroom\\NostrKernelBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DecentNewsroom\\NostrKernelBundle\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Reusable Symfony bundle for low-level Nostr event and identity concerns",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "dflydev/dot-access-data",
@@ -15611,7 +15647,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "decent-newsroom/nostr-kernel-bundle": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

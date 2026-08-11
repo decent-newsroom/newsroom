@@ -1,0 +1,24 @@
+{
+    "name": "decent-newsroom/nostr-kernel-bundle",
+    "description": "Reusable Symfony bundle for low-level Nostr event and identity concerns",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "innis/nostr-core": "^0.3.17",
+        "symfony/framework-bundle": "^7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "DecentNewsroom\\NostrKernelBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DecentNewsroom\\NostrKernelBundle\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    }
+}
