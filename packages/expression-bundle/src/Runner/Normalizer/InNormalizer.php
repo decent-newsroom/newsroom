@@ -49,7 +49,7 @@ final class InNormalizer implements NormalizerInterface
                 }
             } elseif ($this->isAddressReference($extraValue)) {
                 try {
-                    $expanded = $this->referenceResolver->resolveForDomain($extraValue, $domain);
+                    $expanded = $this->referenceResolver->resolveForDomain($extraValue, $domain, $ctx);
                     foreach ($expanded as $v) {
                         $comparisonSet[] = $v;
                     }
@@ -76,4 +76,3 @@ final class InNormalizer implements NormalizerInterface
         return (bool) preg_match('/^\d+:[a-fA-F0-9]{64}:.*$/', $value);
     }
 }
-

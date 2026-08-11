@@ -54,7 +54,7 @@ final class AddressSourceResolver
     }
 
     /**
-     * Dispatch an already-resolved Event by its kind, bypassing DB lookups.
+     * Dispatch an already-resolved Event by its kind, bypassing event lookups.
      *
      * @return NormalizedItem[]
      */

@@ -6,7 +6,8 @@ namespace DecentNewsroom\ExpressionBundle\Source;
 
 use DecentNewsroom\ExpressionBundle\Exception\InvalidArgumentException;
 use DecentNewsroom\ExpressionBundle\Exception\UnresolvedRefException;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 
 /**
  * Resolves NIP-FX `in` references for pubkey/tag domains.
@@ -14,25 +15,25 @@ use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
 final class ReferenceResolver
 {
     public function __construct(
-        private readonly EventStoreInterface $eventStore,
+        private readonly EventResolver $eventResolver,
         private readonly PubkeyListSourceResolver $pubkeyListSourceResolver,
     ) {}
 
     /**
      * @return string[] Expanded comparison values (pubkeys or tags)
      */
-    public function resolveForDomain(string $reference, string $domain): array
+    public function resolveForDomain(string $reference, string $domain, ?RuntimeContext $ctx = null): array
     {
         [$kind, $pubkey, $d] = explode(':', $reference, 3);
         $kind = (int) $kind;
 
         return match ($domain) {
             'pubkey' => match ($kind) {
-                3, 39089 => $this->extractPubkeysFromReference($kind, $pubkey, $d),
+                3, 39089 => $this->extractPubkeysFromReference($kind, $pubkey, $d, $ctx),
                 default => throw new InvalidArgumentException("Kind {$kind} not valid for pubkey domain"),
             },
             'tag' => match ($kind) {
-                30015 => $this->extractTagsFromInterestSet($reference),
+                30015 => $this->extractTagsFromInterestSet($reference, $ctx),
                 default => throw new InvalidArgumentException("Kind {$kind} not valid for tag domain"),
             },
             default => throw new InvalidArgumentException("Unknown reference domain: {$domain}"),
@@ -40,20 +41,20 @@ final class ReferenceResolver
     }
 
     /** @return string[] */
-    private function extractPubkeysFromReference(int $kind, string $pubkey, string $d): array
+    private function extractPubkeysFromReference(int $kind, string $pubkey, string $d, ?RuntimeContext $ctx): array
     {
         try {
-            return $this->pubkeyListSourceResolver->resolvePubkeysByAddress("{$kind}:{$pubkey}:{$d}");
+            return $this->pubkeyListSourceResolver->resolvePubkeysByAddress("{$kind}:{$pubkey}:{$d}", $ctx);
         } catch (UnresolvedRefException) {
             return [];
         }
     }
 
     /** @return string[] */
-    private function extractTagsFromInterestSet(string $reference): array
+    private function extractTagsFromInterestSet(string $reference, ?RuntimeContext $ctx): array
     {
         [$kind, $pubkey, $d] = explode(':', $reference, 3);
-        $event = $this->eventStore->findByNaddr((int) $kind, $pubkey, $d);
+        $event = $this->eventResolver->findByNaddr((int) $kind, $pubkey, $d, $ctx);
         if ($event === null) {
             return [];
         }

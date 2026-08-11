@@ -17,7 +17,8 @@ HTTP endpoint. Nostr transport is implemented with
   indexes.
 - Resolves event IDs, addresses, lists, pubkey lists, expressions, and kind
   `777` spells.
-- Uses the host event store first and falls back to Nostr relays when needed.
+- Uses relays directly and can optionally supplement them with a generic local
+  event store.
 - Builds a runtime context from contacts, interests, and optional user relay
   data.
 - Caches evaluated expression and spell results per user.
@@ -101,13 +102,13 @@ levels of nested expression traversal, and 30 seconds of evaluation time.
 ## Host integration
 
 The bundle is deliberately storage- and policy-agnostic. A consuming
-application must provide these contracts:
+application must provide the relay contracts and may optionally provide a
+generic local event store:
 
 | Contract | Responsibility |
 | --- | --- |
 | `EventInterface` | Scalar access to a Nostr event. |
-| `EventStoreInterface` | Local event lookup, filtering, and reference queries. |
-| `LongformEventProviderInterface` | Host-specific longform/article fallback used by traversal. |
+| `EventStoreInterface` | Optional generic local event lookup, filtering, and reference queries. |
 | `RelaySelectorInterface` | Default, content, author, and local-relay selection plus URL normalization. |
 | `RelayEventClientInterface` | Relay event fetching. The package includes `InnisRelayEventClient`. |
 | `UserRelayProviderInterface` | Optional per-user relay resolution for runtime context and relay probes. |
@@ -119,9 +120,6 @@ services:
     DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface:
         alias: App\Integration\ExpressionEventStore
 
-    DecentNewsroom\ExpressionBundle\Contract\LongformEventProviderInterface:
-        alias: App\Integration\ExpressionLongformEventProvider
-
     DecentNewsroom\ExpressionBundle\Contract\RelaySelectorInterface:
         alias: App\Integration\ExpressionRelaySelector
 
@@ -132,8 +130,10 @@ services:
         alias: App\Integration\ExpressionUserRelayProvider
 ```
 
-`UserRelayProviderInterface` is optional. Without it, evaluations still work
-using the host's default relay selection.
+`EventStoreInterface` and `UserRelayProviderInterface` are optional. Without a
+local event store, all event, list, filter, and traversal lookups use relays.
+Without a user relay provider, evaluations still work using the host's default
+relay selection.
 
 ### Nostr client and bech32 services
 
@@ -219,11 +219,9 @@ The response limit is capped at 500 events.
 
 1. `ExpressionService` creates a user runtime context.
 2. The parser converts the expression or spell into a pipeline.
-3. Source resolvers query the host event store first.
-4. Missing event data is fetched through the relay client when a relay
-   selection is available.
-5. The runner applies operations and traversal rules.
-6. The final `NormalizedItem[]` result is returned or cached.
+3. `EventResolver` queries the optional generic local store and relays.
+4. The runner applies operations and traversal rules.
+5. The final `NormalizedItem[]` result is returned or cached.
 
 The runtime context can include:
 

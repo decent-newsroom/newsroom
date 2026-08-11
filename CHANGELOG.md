@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Decoupled ExpressionBundle from longform/article providers; event, list, filter, traversal, and count resolution now use relays with an optional generic local event store.
 - [Improvement] Extracted the ExpressionBundle into the Composer package `decent-newsroom/expression-bundle`, replacing newsroom-specific Nostr dependencies with `innis/nostr-core` and `innis/nostr-client` integration contracts and host adapters.
 - [Bug] Declared the global `AsciiDocConverter` class explicitly in the Bookshelf service configuration.
 - [Improvement] Replace `NostrKeyUtil` utility with `PublicKey` value object from `innis/nostr-core` for key validation and conversion.

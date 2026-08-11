@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace DecentNewsroom\ExpressionBundle\Tests\Unit;
 
 use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Contract\RelayEventClientInterface;
+use DecentNewsroom\ExpressionBundle\Contract\RelaySelectorInterface;
 use DecentNewsroom\ExpressionBundle\Model\ArrayEvent;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
 use DecentNewsroom\ExpressionBundle\Source\PubkeyListSourceResolver;
 use PHPUnit\Framework\TestCase;
@@ -19,7 +22,7 @@ class PubkeyListSourceResolverTest extends TestCase
     protected function setUp(): void
     {
         $this->eventRepository = $this->createMock(EventStoreInterface::class);
-        $this->resolver = new PubkeyListSourceResolver($this->eventRepository, new NullLogger());
+        $this->resolver = new PubkeyListSourceResolver($this->eventResolver(), new NullLogger());
     }
 
     public function testResolveFollowPackReturnsUniquePubkeyItems(): void
@@ -77,6 +80,14 @@ class PubkeyListSourceResolverTest extends TestCase
             interests: [],
             now: 1_700_000_000,
         );
+    }
+
+    private function eventResolver(): EventResolver
+    {
+        $relayClient = $this->createMock(RelayEventClientInterface::class);
+        $relaySelector = $this->createMock(RelaySelectorInterface::class);
+
+        return new EventResolver($relayClient, $relaySelector, $this->eventRepository, new NullLogger());
     }
 
     private function makeEvent(string $id, int $kind, string $pubkey, array $tags): ArrayEvent

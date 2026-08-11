@@ -8,7 +8,7 @@ use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
 use DecentNewsroom\ExpressionBundle\Exception\UnresolvedRefException;
 use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
 use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -17,7 +17,7 @@ use Psr\Log\LoggerInterface;
 final class ListSourceResolver
 {
     public function __construct(
-        private readonly EventStoreInterface $eventStore,
+        private readonly EventResolver $eventResolver,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -30,20 +30,20 @@ final class ListSourceResolver
         $this->logger->debug('Resolving NIP-51 list by address', ['address' => $address, 'kind' => $kind]);
 
         // Find the list event
-        $listEvent = $this->eventStore->findByNaddr($kind, $pubkey, $d);
+        $listEvent = $this->eventResolver->findByNaddr($kind, $pubkey, $d, $ctx);
         if ($listEvent === null) {
             // For kind 10003 (bookmarks), use pubkey + kind lookup
-            $listEvent = $this->eventStore->findLatestByPubkeyAndKind($pubkey, $kind);
+            $listEvent = $this->eventResolver->findLatestByPubkeyAndKind($pubkey, $kind, $ctx);
         }
         if ($listEvent === null) {
             throw new UnresolvedRefException("List not found: {$address}");
         }
 
-        return $this->expandList($listEvent, $address);
+        return $this->expandList($listEvent, $address, $ctx);
     }
 
     /**
-     * Expand a list from an already-resolved Event (skips DB lookup).
+     * Expand a list from an already-resolved Event (skips event lookup).
      *
      * @return NormalizedItem[]
      */
@@ -52,11 +52,11 @@ final class ListSourceResolver
         $label = $listEvent->getId() ?: 'unknown';
         $this->logger->debug('Expanding list from pre-resolved event', ['eventId' => $label]);
 
-        return $this->expandList($listEvent, $label);
+        return $this->expandList($listEvent, $label, $ctx);
     }
 
     /** @return NormalizedItem[] */
-    private function expandList(EventInterface $listEvent, string $label): array
+    private function expandList(EventInterface $listEvent, string $label, RuntimeContext $ctx): array
     {
         $eventIds = [];
         $addresses = [];
@@ -78,7 +78,7 @@ final class ListSourceResolver
 
         // Resolve event IDs
         if (!empty($eventIds)) {
-            $events = $this->eventStore->findByIds($eventIds);
+            $events = $this->eventResolver->findByIds($eventIds, $ctx);
             foreach ($events as $event) {
                 $items[] = new NormalizedItem($event);
             }
@@ -88,7 +88,7 @@ final class ListSourceResolver
         foreach ($addresses as $addr) {
             $parts = explode(':', $addr, 3);
             if (count($parts) === 3) {
-                $event = $this->eventStore->findByNaddr((int) $parts[0], $parts[1], $parts[2]);
+                $event = $this->eventResolver->findByNaddr((int) $parts[0], $parts[1], $parts[2], $ctx);
                 if ($event !== null) {
                     $items[] = new NormalizedItem($event);
                 }

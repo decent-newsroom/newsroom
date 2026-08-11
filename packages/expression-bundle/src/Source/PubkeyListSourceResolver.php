@@ -8,7 +8,7 @@ use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
 use DecentNewsroom\ExpressionBundle\Exception\UnresolvedRefException;
 use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
 use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use DecentNewsroom\ExpressionBundle\Model\ArrayEvent;
 use Psr\Log\LoggerInterface;
 
@@ -19,14 +19,14 @@ use Psr\Log\LoggerInterface;
 final class PubkeyListSourceResolver
 {
     public function __construct(
-        private readonly EventStoreInterface $eventStore,
+        private readonly EventResolver $eventResolver,
         private readonly LoggerInterface $logger,
     ) {}
 
     /** @return NormalizedItem[] */
     public function resolve(string $address, RuntimeContext $ctx): array
     {
-        $listEvent = $this->resolveEventByAddress($address);
+        $listEvent = $this->resolveEventByAddress($address, $ctx);
 
         return $this->expandPubkeys($listEvent, $address);
     }
@@ -45,9 +45,9 @@ final class PubkeyListSourceResolver
      *
      * @return string[]
      */
-    public function resolvePubkeysByAddress(string $address): array
+    public function resolvePubkeysByAddress(string $address, ?RuntimeContext $ctx = null): array
     {
-        $listEvent = $this->resolveEventByAddress($address);
+        $listEvent = $this->resolveEventByAddress($address, $ctx);
 
         return $this->extractPubkeysFromEvent($listEvent);
     }
@@ -69,7 +69,7 @@ final class PubkeyListSourceResolver
         return array_values(array_unique($pubkeys));
     }
 
-    private function resolveEventByAddress(string $address): EventInterface
+    private function resolveEventByAddress(string $address, ?RuntimeContext $ctx = null): EventInterface
     {
         [$kind, $pubkey, $d] = explode(':', $address, 3);
         $kind = (int) $kind;
@@ -77,8 +77,8 @@ final class PubkeyListSourceResolver
         $this->logger->debug('Resolving pubkey list by address', ['address' => $address, 'kind' => $kind]);
 
         $listEvent = $kind === 3
-            ? $this->eventStore->findLatestByPubkeyAndKind($pubkey, 3)
-            : $this->eventStore->findByNaddr($kind, $pubkey, $d);
+            ? $this->eventResolver->findLatestByPubkeyAndKind($pubkey, 3, $ctx)
+            : $this->eventResolver->findByNaddr($kind, $pubkey, $d, $ctx);
 
         if ($listEvent === null) {
             throw new UnresolvedRefException("Pubkey list not found: {$address}");

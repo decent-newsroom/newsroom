@@ -7,11 +7,11 @@ namespace DecentNewsroom\ExpressionBundle\Source;
 use DecentNewsroom\ExpressionBundle\Exception\CycleException;
 use DecentNewsroom\ExpressionBundle\Exception\UnresolvedRefException;
 use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
 use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
 use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
 use DecentNewsroom\ExpressionBundle\Parser\ExpressionParser;
 use DecentNewsroom\ExpressionBundle\Runner\ExpressionRunner;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -20,7 +20,7 @@ use Psr\Log\LoggerInterface;
 final class ExpressionSourceResolver
 {
     public function __construct(
-        private readonly EventStoreInterface $eventStore,
+        private readonly EventResolver $eventResolver,
         private readonly ExpressionParser $parser,
         private readonly ExpressionRunner $runner,
         private readonly SourceResolverInterface $sourceResolver,
@@ -45,13 +45,13 @@ final class ExpressionSourceResolver
             'depth' => count($ctx->visitedExpressions),
         ]);
 
-        $event = $this->findExpression($address);
+        $event = $this->findExpression($address, $ctx);
 
         return $this->executeExpression($event, $address, $ctx);
     }
 
     /**
-     * Execute an expression from an already-resolved Event (skips DB lookup).
+     * Execute an expression from an already-resolved Event (skips event lookup).
      *
      * @return NormalizedItem[]
      */
@@ -102,11 +102,11 @@ final class ExpressionSourceResolver
         return $result;
     }
 
-    private function findExpression(string $address): EventInterface
+    private function findExpression(string $address, ?RuntimeContext $ctx = null): EventInterface
     {
         [$kind, $pubkey, $d] = explode(':', $address, 3);
 
-        $event = $this->eventStore->findByNaddr((int) $kind, $pubkey, $d);
+        $event = $this->eventResolver->findByNaddr((int) $kind, $pubkey, $d, $ctx);
         if ($event === null) {
             throw new UnresolvedRefException("Expression not found: {$address}");
         }

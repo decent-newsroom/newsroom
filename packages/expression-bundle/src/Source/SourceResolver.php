@@ -61,7 +61,7 @@ final class SourceResolver implements SourceResolverInterface
         // When an event ID resolves to a "container" kind (spell, expression, list),
         // delegate to AddressSourceResolver to expand it into its contents.
         // Uses resolveEvent() to pass the already-fetched Event directly,
-        // avoiding a DB re-lookup that would fail for relay-only events.
+        // avoiding a second lookup that would fail for relay-only events.
         if ($inputRef[0] === 'e' && count($items) === 1) {
             $item = $items[0];
             $kind = $item->getKind();

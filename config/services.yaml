@@ -425,9 +425,6 @@ services:
     DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface:
         alias: App\Expression\ExpressionEventStore
 
-    DecentNewsroom\ExpressionBundle\Contract\LongformEventProviderInterface:
-        alias: App\Expression\ExpressionLongformEventProvider
-
     DecentNewsroom\ExpressionBundle\Contract\RelaySelectorInterface:
         alias: App\Expression\ExpressionRelaySelector
 

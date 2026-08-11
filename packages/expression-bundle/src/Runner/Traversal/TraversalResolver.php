@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace DecentNewsroom\ExpressionBundle\Runner\Traversal;
 
 use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
-use DecentNewsroom\ExpressionBundle\Contract\LongformEventProviderInterface;
 use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 
 /**
  * NIP-GX graph traversal: resolves parent/child relations for supported kinds.
@@ -17,8 +16,8 @@ use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
  *   - kind:1111 (NIP-22 scoped comments via lowercase e/a/i tags; only e/a participate)
  *   - kind:30040 (NKBIP-01 publication indices; inclusion via a-tags in declaration order)
  *
- * Downward lookups are best-effort and DB-only (no relay fetches), consistent
- * with the "Best-effort semantics" section of NIP-GX and with NIP-FX `count`.
+ * Downward lookups are best-effort and use the bundle's generic event resolver,
+ * which can combine an optional local store with relay fetches.
  */
 final class TraversalResolver
 {
@@ -54,8 +53,7 @@ final class TraversalResolver
     private array $childrenCache = [];
 
     public function __construct(
-        private readonly EventStoreInterface $eventRepository,
-        private readonly LongformEventProviderInterface $longformEventProvider,
+        private readonly EventResolver $eventResolver,
     ) {}
 
     /**
@@ -291,7 +289,7 @@ final class TraversalResolver
     /** @return NormalizedItem[] */
     private function kind1Children(NormalizedItem $item): array
     {
-        $events = $this->eventRepository->findReferencingEvents(
+        $events = $this->eventResolver->findReferencingEvents(
             tagName: 'e',
             tagValue: $item->getId(),
             kinds: [1],
@@ -391,7 +389,7 @@ final class TraversalResolver
     {
         // Candidates: kind:1111 events with a lowercase `e` matching the item id,
         // plus (if the item is addressable) a lowercase `a` matching its coordinate.
-        $byId = $this->eventRepository->findReferencingEvents(
+        $byId = $this->eventResolver->findReferencingEvents(
             tagName: 'e',
             tagValue: $item->getId(),
             kinds: [1111],
@@ -401,7 +399,7 @@ final class TraversalResolver
         $byCoord = [];
         $coord = $item->getAddressableCoordinate();
         if ($coord !== null) {
-            $byCoord = $this->eventRepository->findReferencingEvents(
+            $byCoord = $this->eventResolver->findReferencingEvents(
                 tagName: 'a',
                 tagValue: $coord,
                 kinds: [1111],
@@ -461,7 +459,7 @@ final class TraversalResolver
             return [];
         }
 
-        $events = $this->eventRepository->findReferencingEvents(
+        $events = $this->eventResolver->findReferencingEvents(
             tagName: 'a',
             tagValue: $coord,
             kinds: [30040],
@@ -480,13 +478,10 @@ final class TraversalResolver
     }
 
     /**
-     * DB lookup with per-evaluation memoization.
+     * Event lookup with per-evaluation memoization.
      *
      * Returns the Event for this id, or null if not found.
      *
-     * Longform events may be stored outside the event table. On an event-table
-     * miss we consult the injected provider so traversal can still walk through
-     * or terminate at a longform article.
      */
     private function lookupById(string $id): ?EventInterface
     {
@@ -494,19 +489,14 @@ final class TraversalResolver
         if (array_key_exists($key, $this->eventCache)) {
             return $this->eventCache[$key] ?: null;
         }
-        $event = $this->eventRepository->findById($id);
-        if ($event === null) {
-            $event = $this->longformEventProvider->findByEventId($id);
-        }
+        $event = $this->eventResolver->findById($id);
         $this->eventCache[$key] = $event ?? false;
         return $event;
     }
 
     /**
-     * DB lookup with per-evaluation memoization, for addressable coordinates.
+     * Event lookup with per-evaluation memoization, for addressable coordinates.
      *
-     * Mirrors {@see lookupById()}: when the event table has no row at this
-     * coordinate and the coordinate is a longform kind, consult the provider.
      */
     private function lookupByCoord(string $coord): ?EventInterface
     {
@@ -520,19 +510,14 @@ final class TraversalResolver
             return null;
         }
         $kind = (int) $parts[0];
-        $event = $this->eventRepository->findByNaddr($kind, $parts[1], $parts[2]);
-        if ($event === null && ($kind === 30023 || $kind === 30024)) {
-            $events = $this->longformEventProvider->findByPubkeyAndSlugs($parts[1], [$parts[2]]);
-            $event = $events[0] ?? null;
-        }
+        $event = $this->eventResolver->findByNaddr($kind, $parts[1], $parts[2]);
         $this->eventCache[$key] = $event ?? false;
         return $event;
     }
 
     /**
      * Prefetch all upward references (parents + root hints) declared by the
-     * supplied items in two batched SQL round-trips (one for `e`/`E` event
-     * ids, one for `a`/`A` addressable coordinates).
+     * supplied items in batched generic event lookups.
      *
      * After this call, the per-item parent / root-hint lookups against these
      * items are guaranteed to hit the in-memory cache, collapsing O(N) DB
@@ -612,20 +597,9 @@ final class TraversalResolver
                 fn(string $id) => !array_key_exists('id:' . $id, $this->eventCache),
             ));
             if (!empty($needed)) {
-                $found = $this->eventRepository->findByIds($needed);
+                $found = $this->eventResolver->findByIds($needed);
                 foreach ($needed as $id) {
                     $this->eventCache['id:' . $id] = $found[$id] ?? false;
-                }
-                // Fallback for longform events stored outside the event table.
-                $missing = array_values(array_filter(
-                    $needed,
-                    fn(string $id) => !isset($found[$id]),
-                ));
-                foreach ($missing as $id) {
-                    $event = $this->longformEventProvider->findByEventId($id);
-                    if ($event !== null) {
-                        $this->eventCache['id:' . $id] = $event;
-                    }
                 }
             }
         }
@@ -636,62 +610,9 @@ final class TraversalResolver
                 fn(string $c) => !array_key_exists('a:' . $c, $this->eventCache),
             ));
             if (!empty($needed)) {
-                $found = $this->eventRepository->findByCoordinates($needed);
+                $found = $this->eventResolver->findByCoordinates($needed);
                 foreach ($needed as $c) {
                     $this->eventCache['a:' . $c] = $found[$c] ?? false;
-                }
-                // Fallback for longform coordinates stored outside the event table.
-                $this->fallbackCoordsToArticles(array_values(array_filter(
-                    $needed,
-                    fn(string $c) => !isset($found[$c]),
-                )));
-            }
-        }
-    }
-
-    /**
-     * For each unresolved longform coordinate, ask the provider and cache the
-     * result under its `a:` key so subsequent lookups hit memory.
-     *
-     * The provider owns the backing query and can choose the appropriate
-     * storage strategy for the host application.
-     *
-     * @param string[] $coordinates Each of the form "kind:pubkey:d"
-     */
-    private function fallbackCoordsToArticles(array $coordinates): void
-    {
-        if (empty($coordinates)) {
-            return;
-        }
-        $byPubkey = [];
-        foreach ($coordinates as $coord) {
-            $parts = explode(':', $coord, 3);
-            if (count($parts) !== 3 || !ctype_digit($parts[0])) {
-                continue;
-            }
-            $kind = (int) $parts[0];
-            if ($kind !== 30023 && $kind !== 30024) {
-                continue;
-            }
-            $byPubkey[$parts[1]][$coord] = $parts[2];
-        }
-        foreach ($byPubkey as $pubkey => $slugMap) {
-            $events = $this->longformEventProvider->findByPubkeyAndSlugs(
-                $pubkey,
-                array_values($slugMap),
-            );
-            $bySlug = [];
-            foreach ($events as $event) {
-                foreach ($event->getTags() as $tag) {
-                    if (($tag[0] ?? '') === 'd' && isset($tag[1])) {
-                        $bySlug[$tag[1]] = $event;
-                        break;
-                    }
-                }
-            }
-            foreach ($slugMap as $coord => $slug) {
-                if (isset($bySlug[$slug])) {
-                    $this->eventCache['a:' . $coord] = $bySlug[$slug];
                 }
             }
         }
@@ -764,7 +685,7 @@ final class TraversalResolver
                 fn(string $c) => !array_key_exists('a:' . $c, $this->eventCache),
             ));
             if (!empty($needed)) {
-                $found = $this->eventRepository->findByCoordinates($needed);
+                $found = $this->eventResolver->findByCoordinates($needed);
                 foreach ($needed as $c) {
                     $this->eventCache['a:' . $c] = $found[$c] ?? false;
                 }
@@ -773,7 +694,7 @@ final class TraversalResolver
 
         // kind:1 — batched reverse index: all kind:1 events that `e`-tag any of these ids.
         if (!empty($k1ParentIds)) {
-            $rows = $this->eventRepository->findReferencingEventsBatch(
+            $rows = $this->eventResolver->findReferencingEventsBatch(
                 tagName: 'e',
                 tagValues: array_keys($k1ParentIds),
                 kinds: [1],
@@ -806,7 +727,7 @@ final class TraversalResolver
         if (!empty($k1111Items)) {
             $byIdRows = [];
             if (!empty($k1111ParentIds)) {
-                $byIdRows = $this->eventRepository->findReferencingEventsBatch(
+                $byIdRows = $this->eventResolver->findReferencingEventsBatch(
                     tagName: 'e',
                     tagValues: array_keys($k1111ParentIds),
                     kinds: [1111],
@@ -815,7 +736,7 @@ final class TraversalResolver
             }
             $byCoordRows = [];
             if (!empty($k1111ParentCoords)) {
-                $byCoordRows = $this->eventRepository->findReferencingEventsBatch(
+                $byCoordRows = $this->eventResolver->findReferencingEventsBatch(
                     tagName: 'a',
                     tagValues: array_keys($k1111ParentCoords),
                     kinds: [1111],

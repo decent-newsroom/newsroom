@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace DecentNewsroom\ExpressionBundle\Tests\Unit;
 
 use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Contract\RelayEventClientInterface;
+use DecentNewsroom\ExpressionBundle\Contract\RelaySelectorInterface;
 use DecentNewsroom\ExpressionBundle\Model\ArrayEvent;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use DecentNewsroom\ExpressionBundle\Source\PubkeyListSourceResolver;
 use DecentNewsroom\ExpressionBundle\Source\ReferenceResolver;
 use PHPUnit\Framework\TestCase;
@@ -39,8 +42,14 @@ class ReferenceResolverTest extends TestCase
             ->with($owner, 3)
             ->willReturn($contacts);
 
-        $pubkeyListResolver = new PubkeyListSourceResolver($repo, new NullLogger());
-        $resolver = new ReferenceResolver($repo, $pubkeyListResolver);
+        $eventResolver = new EventResolver(
+            $this->createMock(RelayEventClientInterface::class),
+            $this->createMock(RelaySelectorInterface::class),
+            $repo,
+            new NullLogger(),
+        );
+        $pubkeyListResolver = new PubkeyListSourceResolver($eventResolver, new NullLogger());
+        $resolver = new ReferenceResolver($eventResolver, $pubkeyListResolver);
         $resolved = $resolver->resolveForDomain('3:' . $owner . ':', 'pubkey');
 
         $this->assertSame([$memberOne, $memberTwo], $resolved);

@@ -7,7 +7,7 @@ namespace DecentNewsroom\ExpressionBundle\Runner\Normalizer;
 use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
 use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
 use DecentNewsroom\ExpressionBundle\Model\Term;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 
 /**
  * Count referencing events by kind (engagement signals).
@@ -15,7 +15,7 @@ use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
 final class CountNormalizer implements NormalizerInterface
 {
     public function __construct(
-        private readonly EventStoreInterface $eventStore,
+        private readonly EventResolver $eventResolver,
     ) {}
 
     public function getName(): string { return 'count'; }
@@ -37,7 +37,7 @@ final class CountNormalizer implements NormalizerInterface
             $coordinate = "{$kind}:{$item->getPubkey()}:{$d}";
         }
 
-        return (float) $this->eventStore->countReferencingEvents(
+        return (float) $this->eventResolver->countReferencingEvents(
             eventId: $eventId,
             coordinate: $coordinate,
             kinds: $kinds,

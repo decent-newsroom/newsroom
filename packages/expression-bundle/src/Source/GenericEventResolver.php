@@ -8,7 +8,7 @@ use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
 use DecentNewsroom\ExpressionBundle\Exception\UnresolvedRefException;
 use DecentNewsroom\ExpressionBundle\Model\NormalizedItem;
 use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -18,7 +18,7 @@ use Psr\Log\LoggerInterface;
 final class GenericEventResolver
 {
     public function __construct(
-        private readonly EventStoreInterface $eventStore,
+        private readonly EventResolver $eventResolver,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -29,7 +29,7 @@ final class GenericEventResolver
 
         $this->logger->debug('Resolving generic event', ['address' => $address, 'kind' => (int) $kind]);
 
-        $event = $this->eventStore->findByNaddr((int) $kind, $pubkey, $d);
+        $event = $this->eventResolver->findByNaddr((int) $kind, $pubkey, $d, $ctx);
         if ($event === null) {
             throw new UnresolvedRefException("Event not found: {$address}");
         }

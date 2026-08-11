@@ -14,7 +14,7 @@ use DecentNewsroom\ExpressionBundle\Exception\UnknownOpException;
 use DecentNewsroom\ExpressionBundle\Exception\UnresolvedRefException;
 use DecentNewsroom\ExpressionBundle\Exception\UnresolvedVariableException;
 use DecentNewsroom\ExpressionBundle\Exception\UnsupportedFeatureException;
-use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use DecentNewsroom\ExpressionBundle\Service\ExpressionService;
 use Innis\Nostr\Core\Domain\Service\Bech32EncoderInterface;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
@@ -32,7 +32,7 @@ final class FeedApiController extends AbstractController
     public function evaluate(
         string $naddr,
         ExpressionService $expressionService,
-        EventStoreInterface $eventStore,
+        EventResolver $eventResolver,
         Bech32EncoderInterface $bech32Encoder,
         Request $request,
     ): JsonResponse {
@@ -54,8 +54,8 @@ final class FeedApiController extends AbstractController
             $pubkey = (string) ($data['pubkey'] ?? '');
             $identifier = (string) ($data['identifier'] ?? '');
 
-            // 3. Fetch expression event from DB
-            $expression = $eventStore->findByNaddr($kind, $pubkey, $identifier);
+            // 3. Fetch expression event from the optional local store or relays
+            $expression = $eventResolver->findByNaddr($kind, $pubkey, $identifier);
             if ($expression === null) {
                 return $this->errorResponse("Expression not found: {$kind}:{$pubkey}:{$identifier}", 404);
             }

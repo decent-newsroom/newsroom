@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace DecentNewsroom\ExpressionBundle\Tests\Unit;
 
 use DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface;
+use DecentNewsroom\ExpressionBundle\Contract\RelayEventClientInterface;
+use DecentNewsroom\ExpressionBundle\Contract\RelaySelectorInterface;
 use DecentNewsroom\ExpressionBundle\Model\ArrayEvent;
 use DecentNewsroom\ExpressionBundle\Model\RuntimeContext;
+use DecentNewsroom\ExpressionBundle\Service\EventResolver;
 use DecentNewsroom\ExpressionBundle\Source\AddressSourceResolver;
 use DecentNewsroom\ExpressionBundle\Source\ExpressionSourceResolver;
 use DecentNewsroom\ExpressionBundle\Source\GenericEventResolver;
@@ -21,7 +24,8 @@ class AddressSourceResolverTest extends TestCase
     public function testFollowPackAddressUsesPubkeyListResolver(): void
     {
         $eventRepository = $this->createMock(EventStoreInterface::class);
-        $pubkeyListResolver = new PubkeyListSourceResolver($eventRepository, new NullLogger());
+        $eventResolver = $this->eventResolver($eventRepository);
+        $pubkeyListResolver = new PubkeyListSourceResolver($eventResolver, new NullLogger());
 
         $followPack = $this->makeEvent('pack', 39089, str_repeat('aa', 32), [
             ['d', 'news-bots'],
@@ -52,7 +56,7 @@ class AddressSourceResolverTest extends TestCase
     public function testContactsEventUsesPubkeyListResolverExecuteEvent(): void
     {
         $eventRepository = $this->createMock(EventStoreInterface::class);
-        $pubkeyListResolver = new PubkeyListSourceResolver($eventRepository, new NullLogger());
+        $pubkeyListResolver = new PubkeyListSourceResolver($this->eventResolver($eventRepository), new NullLogger());
         $contactsEvent = $this->makeEvent('contacts', 3, str_repeat('aa', 32), [
             ['p', str_repeat('22', 32)],
         ]);
@@ -84,6 +88,16 @@ class AddressSourceResolverTest extends TestCase
             contacts: [],
             interests: [],
             now: 1_700_000_000,
+        );
+    }
+
+    private function eventResolver(EventStoreInterface $eventRepository): EventResolver
+    {
+        return new EventResolver(
+            $this->createMock(RelayEventClientInterface::class),
+            $this->createMock(RelaySelectorInterface::class),
+            $eventRepository,
+            new NullLogger(),
         );
     }
 
