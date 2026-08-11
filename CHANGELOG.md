@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Bug] Declared the global `AsciiDocConverter` class explicitly in the Bookshelf service configuration.
 - [Improvement] Replace `NostrKeyUtil` utility with `PublicKey` value object from `innis/nostr-core` for key validation and conversion.
 - [Bug] Excluded `BookshelfBundle` from the application service scan so Symfony does not load its bundle class twice.
 - [Improvement] Moved Bookshelf Mercury endpoint defaults, configuration processing, and scalar service binding into `BookshelfBundle`; documented the remaining host application integration dependencies.

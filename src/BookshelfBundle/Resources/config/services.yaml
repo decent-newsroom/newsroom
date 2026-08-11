@@ -11,4 +11,5 @@ services:
             - '../../DependencyInjection/'
             - '../../Entity/'
 
-    AsciiDocConverter: ~
+    AsciiDocConverter:
+        class: AsciiDocConverter
