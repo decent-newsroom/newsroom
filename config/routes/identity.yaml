@@ -1,0 +1,3 @@
+# IdentityBundle routes — authentication and identity-linking endpoints
+identity_bundle:
+    resource: '../../packages/identity-bundle/src/Resources/config/routes.yaml'

@@ -69,6 +69,19 @@ final readonly class NostrIdentityService
         return $this->encoder->encode($decoded);
     }
 
+    /**
+     * Encode a raw hex pubkey into its npub (bech32) representation.
+     */
+    public function encodeNpub(string $hexPubkey): string
+    {
+        $decoded = new DecodedNip19(
+            Nip19Type::NPUB,
+            ['pubkey' => (new Pubkey(\strtolower($hexPubkey)))->toHex()],
+        );
+
+        return $this->encoder->encode($decoded);
+    }
+
     private function normalizeIdentifier(string $identifier): string
     {
         $identifier = \strtolower(\trim($identifier));

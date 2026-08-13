@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
+use DecentNewsroom\IdentityBundle\Contract\IdentityOwnerInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\EquatableInterface;
@@ -14,15 +15,26 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 #[ORM\Entity(repositoryClass: UserEntityRepository::class)]
 #[ORM\Table(name: "app_user")]
-class User implements UserInterface, EquatableInterface
+class User implements UserInterface, EquatableInterface, IdentityOwnerInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(unique: true)]
+    #[ORM\Column(unique: true, nullable: true)]
     private ?string $npub = null;
+
+    /**
+     * Stable fallback Security identifier for accounts that don't (yet) have a
+     * linked Nostr identity — e.g. a user who signed up via email OTP, passkey,
+     * or OAuth only. Generated once at creation time (see IdentityBundle's
+     * AppIdentityBridge) and never reused. Existing npub-only accounts never
+     * get one; {@see getUserIdentifier()} always prefers `npub` when present so
+     * every pre-existing session/URL keyed by npub keeps working unchanged.
+     */
+    #[ORM\Column(type: Types::STRING, length: 36, unique: true, nullable: true)]
+    private ?string $localIdentifier = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private array $roles = [];
@@ -150,6 +162,18 @@ class User implements UserInterface, EquatableInterface
         $this->npub = $npub;
     }
 
+    public function getLocalIdentifier(): ?string
+    {
+        return $this->localIdentifier;
+    }
+
+    public function setLocalIdentifier(?string $localIdentifier): self
+    {
+        $this->localIdentifier = $localIdentifier;
+
+        return $this;
+    }
+
     #[\Deprecated]
     public function eraseCredentials(): void
     {
@@ -157,7 +181,20 @@ class User implements UserInterface, EquatableInterface
 
     public function getUserIdentifier(): string
     {
-        return $this->getNpub();
+        return $this->npub ?? $this->localIdentifier ?? throw new \LogicException(
+            'User has neither an npub nor a localIdentifier; cannot resolve a Security identifier.'
+        );
+    }
+
+    /**
+     * Opaque owner id used by DecentNewsroom\IdentityBundle to link identities
+     * to this user without a direct Doctrine relation. Stable across identity
+     * changes (unlike getUserIdentifier(), which may switch from a generated
+     * localIdentifier to npub once a Nostr identity is linked).
+     */
+    public function getIdentityOwnerId(): string
+    {
+        return (string) $this->id;
     }
 
     public function setMetadata(?object $metadata): void
@@ -312,6 +349,7 @@ class User implements UserInterface, EquatableInterface
         return [
             'id' => $this->id,
             'npub' => $this->npub,
+            'localIdentifier' => $this->localIdentifier,
             'roles' => $this->roles,
             'metadata' => $this->metadata,
             'relays' => $this->relays
@@ -322,6 +360,7 @@ class User implements UserInterface, EquatableInterface
     {
         $this->id = $data['id'] ?? null;
         $this->npub = $data['npub'] ?? null;
+        $this->localIdentifier = $data['localIdentifier'] ?? null;
         $this->roles = $data['roles'] ?? [];
         $this->metadata = $data['metadata'] ?? null;
         $this->relays = $data['relays'] ?? null;

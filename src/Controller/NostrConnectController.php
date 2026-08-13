@@ -9,7 +9,6 @@ use Random\RandomException;
 use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Attribute\Route;
 
 class NostrConnectController
 {
@@ -27,7 +26,6 @@ class NostrConnectController
      * @throws RandomException
      * @throws ValidationException
      */
-    #[Route('/nostr-connect/qr', name: 'nostr_connect_qr', methods: ['GET'])]
     public function qr(Request $request): JsonResponse
     {
         // Ephemeral key pair (client side session)

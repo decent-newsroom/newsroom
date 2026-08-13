@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
+use DecentNewsroom\IdentityBundle\Contract\Nip46AuthEventSignerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Encryption\Nip04;
 use swentel\nostr\Event\Event;
@@ -31,7 +32,7 @@ use Symfony\Component\Uid\Uuid;
  * Called from RelayGatewayCommand::handleAuthChallenge() when a stored NIP-46
  * session is found for the user.
  */
-class Nip46AuthSigner
+class Nip46AuthSigner implements Nip46AuthEventSignerInterface
 {
     public const DEFAULT_TIMEOUT = 15; // seconds
 

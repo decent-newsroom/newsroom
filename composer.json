@@ -7,6 +7,13 @@
     "repositories": [
         {
             "type": "path",
+            "url": "packages/identity-bundle",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
             "url": "packages/nostr-kernel-bundle",
             "options": {
                 "symlink": true
@@ -44,6 +51,7 @@
         "ext-simplexml": "*",
         "decent-newsroom/asciidoc-html": "^0.1.0",
         "decent-newsroom/bookshelf-bundle": "@dev",
+        "decent-newsroom/identity-bundle": "@dev",
         "decent-newsroom/nostr-client-bundle": "@dev",
         "decent-newsroom/nostr-kernel-bundle": "@dev",
         "decent-newsroom/expression-bundle": "@dev",

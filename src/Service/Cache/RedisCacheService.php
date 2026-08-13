@@ -70,7 +70,7 @@ class RedisCacheService
      */
     public function getMetadata(string $pubkey): UserMetadata
     {
-        if (!PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
+        if (PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) === null) {
             throw new \InvalidArgumentException('getMetadata expects hex pubkey');
         }
         $cacheKey = $this->getUserCacheKey($pubkey);
@@ -132,7 +132,7 @@ class RedisCacheService
     public function getMultipleMetadata(array $pubkeys): array
     {
         foreach ($pubkeys as $pubkey) {
-            if (!PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
+            if (PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) === null) {
                 throw new \InvalidArgumentException('getMultipleMetadata expects all hex pubkeys');
             }
         }
@@ -544,3 +544,4 @@ class RedisCacheService
     }
 
 }
+

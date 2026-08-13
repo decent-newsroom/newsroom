@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\Nostr\GatewayConnection;
-use App\Service\Nostr\Nip46AuthSigner;
-use App\Service\Nostr\Nip46SessionService;
+use DecentNewsroom\IdentityBundle\Service\Nostr\RemoteBunkerSignerStrategy;
+use DecentNewsroom\IdentityBundle\Service\NostrSignerStrategyRegistry;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayFilterStatsStore;
 use App\Service\Nostr\RelayUserActivityStore;
@@ -288,8 +288,7 @@ class RelayGatewayCommand extends Command
         private readonly RelayRegistry $relayRegistry,
         private readonly RelayHealthStore $healthStore,
         private readonly HubInterface $hub,
-        private readonly Nip46AuthSigner $nip46Signer,
-        private readonly Nip46SessionService $nip46Sessions,
+        private readonly NostrSignerStrategyRegistry $nostrSignerStrategies,
         private readonly LoggerInterface $logger,
         private readonly \App\ReadModel\RedisView\RedisRelayInfoView $relayInfoView,
         private readonly RelayUserActivityStore $userActivityStore,
@@ -1999,21 +1998,25 @@ class RelayGatewayCommand extends Command
             'pubkey' => substr($conn->pubkey, 0, 8) . '...',
         ]);
 
-        $session = $this->nip46Sessions->get($conn->pubkey);
+        $strategy = $this->nostrSignerStrategies->getByMethod(RemoteBunkerSignerStrategy::METHOD);
 
-        if ($session !== null) {
+        if ($strategy !== null && $strategy->supports($conn->pubkey)) {
             $this->logger->info('Gateway: found NIP-46 session — signing AUTH server-side', [
                 'relay' => $conn->relayUrl,
                 'pubkey' => substr($conn->pubkey, 0, 8) . '...',
             ]);
 
             $authRelayUrl = $this->resolveRelayUrlForAuth($conn->relayUrl);
-            $signedEvent  = $this->nip46Signer->signAuthEvent(
-                $conn->pubkey,
-                $authRelayUrl,
-                $challenge,
-                $session,
-            );
+            $signedEvent = $strategy->sign($conn->pubkey, [
+                'kind' => 22242,
+                'created_at' => time(),
+                'tags' => [
+                    ['relay', $authRelayUrl],
+                    ['challenge', $challenge],
+                ],
+                'content' => '',
+                'pubkey' => $conn->pubkey,
+            ]);
 
             if ($signedEvent !== null) {
                 // Send AUTH directly — no browser roundtrip needed

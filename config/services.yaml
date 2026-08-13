@@ -440,6 +440,23 @@ services:
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventPublisherInterface:
         alias: App\Bookshelf\BookshelfEventPublisher
 
+    # IdentityBundle host integration
+    DecentNewsroom\IdentityBundle\Contract\UserRepositoryBridgeInterface:
+        alias: App\Security\AppIdentityBridge
+
+    DecentNewsroom\IdentityBundle\Contract\SignerRelayProviderInterface:
+        alias: App\Service\Nostr\RelayRegistry
+
+    DecentNewsroom\IdentityBundle\Contract\Nip46AuthEventSignerInterface:
+        alias: App\Service\Nostr\Nip46AuthSigner
+
+    DecentNewsroom\IdentityBundle\Service\Nostr\Nip46SessionStore:
+        arguments:
+            $redis: '@Redis'
+            $encryptionKey: '%encryption_key%'
+
+    App\Security\AppIdentityBridge: ~
+
     # Innis\Nostr\Client\Application\Port\NostrClientInterface is now provided
     # by DecentNewsroom\NostrClientBundle (see config/packages/nostr_client.yaml),
     # which wires the same innis/nostr-client factory with configurable

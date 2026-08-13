@@ -1,0 +1,40 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    DecentNewsroom\IdentityBundle\Repository\UserIdentityLinkRepository: ~
+
+    DecentNewsroom\IdentityBundle\Service\IdentityLinkingService: ~
+
+    DecentNewsroom\IdentityBundle\Service\Nostr\Nip46SessionStore:
+        arguments:
+            $redis: '@Redis'
+            $encryptionKey: '%env(APP_ENCRYPTION_KEY)%'
+
+    DecentNewsroom\IdentityBundle\Service\Nostr\RemoteBunkerSignerStrategy:
+        tags:
+            - { name: identity.nostr_signer_strategy }
+
+    DecentNewsroom\IdentityBundle\Service\NostrSignerStrategyRegistry:
+        arguments:
+            $strategies: !tagged_iterator identity.nostr_signer_strategy
+
+    DecentNewsroom\IdentityBundle\Security\IdentityProvider\NostrIdentityProvider:
+        tags:
+            - { name: identity.provider }
+
+    DecentNewsroom\IdentityBundle\Security\Authenticator\NostrAuthenticator:
+        public: true
+
+    DecentNewsroom\IdentityBundle\Security\IdentityUserProvider:
+        public: true
+
+    DecentNewsroom\IdentityBundle\Controller\NostrConnectController:
+        tags: ['controller.service_arguments']
+
+    # Tag any host- or bundle-provided DecentNewsroom\IdentityBundle\Contract\IdentityProviderInterface
+    # implementation with `identity.provider` and any
+    # DecentNewsroom\IdentityBundle\Contract\NostrSignerStrategyInterface implementation with
+    # `identity.nostr_signer_strategy` to make it discoverable through this bundle's registries.

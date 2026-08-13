@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Entity\User;
-use App\Service\Nostr\Nip46SessionService;
+use DecentNewsroom\IdentityBundle\Service\Nostr\Nip46SessionStore;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
@@ -31,7 +31,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class Nip46SessionController extends AbstractController
 {
     public function __construct(
-        private readonly Nip46SessionService $sessionService,
+        private readonly Nip46SessionStore $sessionService,
         private readonly LoggerInterface $logger,
     ) {}
 

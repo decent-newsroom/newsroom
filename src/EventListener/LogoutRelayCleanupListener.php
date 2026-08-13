@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use App\Entity\User;
-use App\Service\Nostr\Nip46SessionService;
+use DecentNewsroom\IdentityBundle\Service\Nostr\Nip46SessionStore;
 use App\Service\Nostr\RelayGatewayClient;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
@@ -22,7 +22,7 @@ class LogoutRelayCleanupListener
 {
     public function __construct(
         private readonly RelayGatewayClient $gatewayClient,
-        private readonly Nip46SessionService $nip46Sessions,
+        private readonly Nip46SessionStore $nip46Sessions,
         private readonly LoggerInterface $logger,
         private readonly bool $gatewayEnabled = false,
     ) {}

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ab6b01bc20eaeec191eb0bf5335e93ed",
+    "content-hash": "b12f4fb6fce819d05cf1b5b882de7582",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1676,6 +1676,47 @@
                 "MIT"
             ],
             "description": "Reusable Symfony bundle for Nostr expression and spell evaluation",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "decent-newsroom/identity-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/identity-bundle",
+                "reference": "2049518f1ffecd2e33b1a41f945764b88814959f"
+            },
+            "require": {
+                "decent-newsroom/nostr-kernel-bundle": "@dev",
+                "doctrine/doctrine-bundle": "^2.13",
+                "doctrine/orm": "^3.3",
+                "endroid/qr-code": "^6.0",
+                "php": "^8.3",
+                "symfony/clock": "^7.4",
+                "symfony/framework-bundle": "^7.4",
+                "symfony/security-bundle": "^7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "DecentNewsroom\\IdentityBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DecentNewsroom\\IdentityBundle\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Extensible multi-method identity/authentication bundle: links Nostr, email OTP, passkey and OAuth identities to a single host application user",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -17234,6 +17275,7 @@
     "stability-flags": {
         "decent-newsroom/bookshelf-bundle": 20,
         "decent-newsroom/expression-bundle": 20,
+        "decent-newsroom/identity-bundle": 20,
         "decent-newsroom/nostr-client-bundle": 20,
         "decent-newsroom/nostr-kernel-bundle": 20
     },

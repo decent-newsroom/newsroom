@@ -13,10 +13,10 @@ security:
             stateless: false
             provider: user_dto_provider
             custom_authenticators:
-                - App\Security\NostrAuthenticator
+                - DecentNewsroom\IdentityBundle\Security\Authenticator\NostrAuthenticator
             logout:
                 path: /logout
-            entry_point: App\Security\NostrAuthenticator
+            entry_point: DecentNewsroom\IdentityBundle\Security\Authenticator\NostrAuthenticator
             access_denied_handler: App\Security\CustomAccessDeniedHandler
             # remember_me disabled until rememberme_token table exists on prod
             # remember_me:
@@ -42,3 +42,4 @@ security:
         # - { path: ^/search, roles: ROLE_USER }
         # - { path: ^/nzine, roles: ROLE_USER }
         # - { path: ^/profile, roles: ROLE_USER }
+

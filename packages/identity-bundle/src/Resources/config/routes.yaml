@@ -1,0 +1,5 @@
+identity_bundle_controllers:
+    resource:
+        path: ../../Controller/
+        namespace: DecentNewsroom\IdentityBundle\Controller
+    type: attribute
