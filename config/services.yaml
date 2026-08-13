@@ -102,7 +102,6 @@ services:
             - '../src/Kernel.php'
             - '../src/UnfoldBundle/DependencyInjection/'
             - '../src/UnfoldBundle/UnfoldBundle.php'
-            - '../src/BookshelfBundle/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -433,6 +432,13 @@ services:
 
     DecentNewsroom\ExpressionBundle\Contract\RelayEventClientInterface:
         alias: DecentNewsroom\ExpressionBundle\Infrastructure\InnisRelayEventClient
+
+    # BookshelfBundle host integration
+    DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface:
+        alias: App\Bookshelf\BookshelfEventStore
+
+    DecentNewsroom\BookshelfBundle\Contract\DirectoryEventPublisherInterface:
+        alias: App\Bookshelf\BookshelfEventPublisher
 
     Innis\Nostr\Client\Application\Port\NostrClientInterface:
         factory: ['Innis\Nostr\Client\Infrastructure\Factory\NostrClientFactory', 'create']

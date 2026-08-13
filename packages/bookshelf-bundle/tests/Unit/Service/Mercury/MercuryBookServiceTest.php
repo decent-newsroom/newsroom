@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Unit\Service\Mercury;
+namespace DecentNewsroom\BookshelfBundle\Tests\Unit\Service\Mercury;
 
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClient;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;

@@ -1,0 +1,35 @@
+{
+    "name": "decent-newsroom/bookshelf-bundle",
+    "description": "Reusable Symfony bundle for a Nostr-based bookshelf and e-reader backed by Mercury",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "decent-newsroom/asciidoc-html": "^0.1.0",
+        "innis/nostr-core": "^0.3.17",
+        "swentel/nostr-php": "^1.9",
+        "symfony/framework-bundle": "^7.4",
+        "symfony/http-client": "^7.4",
+        "symfony/http-foundation": "^7.4",
+        "symfony/security-bundle": "^7.4",
+        "symfony/twig-bundle": "^7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "DecentNewsroom\\BookshelfBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DecentNewsroom\\BookshelfBundle\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "extra": {
+        "symfony": {
+            "require": "7.4.*"
+        }
+    }
+}

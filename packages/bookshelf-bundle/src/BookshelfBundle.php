@@ -13,6 +13,6 @@ class BookshelfBundle extends Bundle
 {
     public function getPath(): string
     {
-        return \dirname(__DIR__) . '/BookshelfBundle';
+        return __DIR__;
     }
 }

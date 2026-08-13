@@ -18,6 +18,13 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "packages/bookshelf-bundle",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "require": {
@@ -29,6 +36,7 @@
         "ext-redis": "*",
         "ext-simplexml": "*",
         "decent-newsroom/asciidoc-html": "^0.1.0",
+        "decent-newsroom/bookshelf-bundle": "@dev",
         "decent-newsroom/nostr-kernel-bundle": "@dev",
         "decent-newsroom/expression-bundle": "@dev",
         "doctrine/dbal": "^4.2",
@@ -104,8 +112,7 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/",
-            "DecentNewsroom\\BookshelfBundle\\": "src/BookshelfBundle/"
+            "App\\": "src/"
         }
     },
     "autoload-dev": {

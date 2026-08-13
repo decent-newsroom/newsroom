@@ -4,9 +4,6 @@ controllers:
         namespace: App\Controller
     type: attribute
 
-bookshelf_bundle:
-    resource: ../src/BookshelfBundle/Resources/config/routes.yaml
-
 unfold_controllers:
     resource:
         path: ../src/UnfoldBundle/Controller/

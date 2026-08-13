@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Extracted `BookshelfBundle` into the Composer package `decent-newsroom/bookshelf-bundle`: added `Contract\DirectoryEventStoreInterface` and `Contract\DirectoryEventPublisherInterface` so the bundle no longer depends on `App\Entity\Event`, `App\Repository\EventRepository`, `App\Service\GenericEventProjector`, `App\Service\Nostr\NostrClient`, or `App\Service\Nostr\UserRelayListService` directly. The host now provides `App\Bookshelf\BookshelfEventStore` and `App\Bookshelf\BookshelfEventPublisher` adapters (wired in `config/services.yaml`), and `App\Entity\Event` implements the new `DirectoryEventInterface`. The bundle's `buildBookshelfNav()` navigation helper moved from the host's `NavigationBuilderTrait` into a bundle-owned `Navigation\BookshelfNavigationTrait`.
 - [Improvement] Decoupled ExpressionBundle from longform/article providers; event, list, filter, traversal, and count resolution now use relays with an optional generic local event store.
 - [Improvement] Extracted the ExpressionBundle into the Composer package `decent-newsroom/expression-bundle`, replacing newsroom-specific Nostr dependencies with `innis/nostr-core` and `innis/nostr-client` integration contracts and host adapters.
 - [Bug] Declared the global `AsciiDocConverter` class explicitly in the Bookshelf service configuration.

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "408174db850c0441f8076eeed5c74a87",
+    "content-hash": "cfb937f129a0b4d0f1e433af6306c59b",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1584,6 +1584,53 @@
                 "source": "https://github.com/decent-newsroom/asciidoc-html"
             },
             "time": "2026-08-10T13:09:10+00:00"
+        },
+        {
+            "name": "decent-newsroom/bookshelf-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/bookshelf-bundle",
+                "reference": "c1cdf47e24c6a83293a83cd38bb5356ed24ae5b3"
+            },
+            "require": {
+                "decent-newsroom/asciidoc-html": "^0.1.0",
+                "innis/nostr-core": "^0.3.17",
+                "php": "^8.3",
+                "swentel/nostr-php": "^1.9",
+                "symfony/framework-bundle": "^7.4",
+                "symfony/http-client": "^7.4",
+                "symfony/http-foundation": "^7.4",
+                "symfony/security-bundle": "^7.4",
+                "symfony/twig-bundle": "^7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5"
+            },
+            "type": "symfony-bundle",
+            "extra": {
+                "symfony": {
+                    "require": "7.4.*"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "DecentNewsroom\\BookshelfBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DecentNewsroom\\BookshelfBundle\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Reusable Symfony bundle for a Nostr-based bookshelf and e-reader backed by Mercury",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "decent-newsroom/expression-bundle",
@@ -17147,6 +17194,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
+        "decent-newsroom/bookshelf-bundle": 20,
         "decent-newsroom/expression-bundle": 20,
         "decent-newsroom/nostr-kernel-bundle": 20
     },
@@ -17162,5 +17210,5 @@
         "ext-simplexml": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

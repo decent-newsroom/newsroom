@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DecentNewsroom\BookshelfBundle\Controller;
 
-use App\Helper\NavigationBuilderTrait;
+use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
@@ -19,7 +19,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class BookshelfController extends AbstractController
 {
-    use NavigationBuilderTrait;
+    use BookshelfNavigationTrait;
 
     #[Route('/bookshelf', name: 'bookshelf', methods: ['GET'])]
     public function index(

@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace DecentNewsroom\BookshelfBundle\Controller;
 
-use App\Helper\NavigationBuilderTrait;
-use App\Service\GenericEventProjector;
+use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventPublisherInterface;
 use DecentNewsroom\BookshelfBundle\Enum\KindsEnum;
+use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
-use App\Service\Nostr\NostrClient;
-use App\Service\Nostr\UserRelayListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
@@ -25,7 +23,7 @@ use swentel\nostr\Event\Event as NostrEvent;
 
 final class BookshelfDirectoryController extends AbstractController
 {
-    use NavigationBuilderTrait;
+    use BookshelfNavigationTrait;
 
     #[Route('/bookshelf/my-books', name: 'bookshelf_my_books', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
@@ -64,9 +62,7 @@ final class BookshelfDirectoryController extends AbstractController
     public function publish(
         Request $request,
         BookshelfDirectoryService $directoryService,
-        GenericEventProjector $eventProjector,
-        UserRelayListService $userRelayListService,
-        NostrClient $nostrClient,
+        DirectoryEventPublisherInterface $eventPublisher,
         LoggerInterface $logger,
     ): JsonResponse {
         if (!$this->isCsrfTokenValid('bookshelf_directory', $request->headers->get('X-CSRF-TOKEN'))) {
@@ -141,10 +137,7 @@ final class BookshelfDirectoryController extends AbstractController
                 'content' => $event->getContent(),
                 'sig' => $event->getSignature(),
             ];
-            $eventProjector->projectEventFromNostrEvent($rawEvent, 'local');
-
-            $relays = $userRelayListService->getRelaysForPublishing($authenticatedPubkey);
-            $relayResults = $nostrClient->publishEvent($event, $relays, 10);
+            $successCount = $eventPublisher->publish($rawEvent, $authenticatedPubkey);
         } catch (\Throwable $exception) {
             $logger->error('Failed to publish bookshelf directory event.', [
                 'event_id' => $event->getId(),
@@ -156,13 +149,6 @@ final class BookshelfDirectoryController extends AbstractController
                 ['error' => 'The directory was saved locally but relay publishing failed.'],
                 Response::HTTP_BAD_GATEWAY,
             );
-        }
-
-        $successCount = 0;
-        foreach ($relayResults as $result) {
-            if ($result === true || (is_object($result) && ($result->type ?? null) === 'OK')) {
-                $successCount++;
-            }
         }
 
         return $this->json([

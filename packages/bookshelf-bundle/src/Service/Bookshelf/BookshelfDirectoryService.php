@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace DecentNewsroom\BookshelfBundle\Service\Bookshelf;
 
-use App\Entity\Event;
-use App\Repository\EventRepository;
+use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventInterface;
+use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface;
 use DecentNewsroom\BookshelfBundle\Enum\KindsEnum;
 
 final class BookshelfDirectoryService
@@ -14,13 +14,13 @@ final class BookshelfDirectoryService
     public const MAX_ITEMS = 500;
 
     public function __construct(
-        private readonly EventRepository $eventRepository,
+        private readonly DirectoryEventStoreInterface $eventStore,
     ) {
     }
 
-    public function getLatestForUser(string $pubkey): ?Event
+    public function getLatestForUser(string $pubkey): ?DirectoryEventInterface
     {
-        $events = $this->eventRepository->findAllByPubkeyAndKind(
+        $events = $this->eventStore->findAllByPubkeyAndKind(
             strtolower($pubkey),
             KindsEnum::DIRECTORY->value,
             50,

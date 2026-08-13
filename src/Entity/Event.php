@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventInterface;
 use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
 use App\Repository\EventRepository;
 use Doctrine\DBAL\Types\Types;
@@ -12,7 +13,7 @@ use swentel\nostr\Nip19\Nip19Helper;
  * Nostr events
  */
 #[ORM\Entity(repositoryClass: EventRepository::class)]
-class Event implements EventInterface
+class Event implements EventInterface, DirectoryEventInterface
 {
     #[ORM\Id]
     #[ORM\Column(length: 225)]

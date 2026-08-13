@@ -1,0 +1,3 @@
+# BookshelfBundle Routes — Nostr-based bookshelf and e-reader (Mercury-backed)
+bookshelf_bundle:
+    resource: '../../packages/bookshelf-bundle/src/Resources/config/routes.yaml'

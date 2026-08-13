@@ -112,30 +112,6 @@ trait NavigationBuilderTrait
     }
 
     /**
-     * Build the Mercury-backed Bookshelf navigation structure.
-     *
-     * @return array<int, array{label: string, items: array<int, array{label: string, route: string, icon: string}>}>
-     */
-    protected function buildBookshelfNav(bool $isAuthenticated = false): array
-    {
-        $sections = [
-            [
-                'label' => 'bookshelf.nav.library',
-                'items' => [
-                    ['label' => 'bookshelf.nav.search', 'route' => 'bookshelf', 'icon' => 'iconoir:search'],
-                    ...($isAuthenticated ? [[
-                        'label' => 'bookshelf.nav.my_books',
-                        'route' => 'bookshelf_my_books',
-                        'icon' => 'iconoir:bookmark-book',
-                    ]] : []),
-                ],
-            ],
-        ];
-
-        return $sections;
-    }
-
-    /**
      * Build the main global navigation structure.
      *
      * @param bool|null $isAuthenticated If null, checks $this->getUser() (only works when used in AbstractController)
