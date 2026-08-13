@@ -10,6 +10,7 @@ use App\Service\Nostr\UserRelayListService;
 use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventPublisherInterface;
 use swentel\nostr\Event\Event as NostrEvent;
 
+
 final class BookshelfEventPublisher implements DirectoryEventPublisherInterface
 {
     public function __construct(
