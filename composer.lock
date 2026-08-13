@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cfb937f129a0b4d0f1e433af6306c59b",
+    "content-hash": "ab6b01bc20eaeec191eb0bf5335e93ed",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1676,6 +1676,44 @@
                 "MIT"
             ],
             "description": "Reusable Symfony bundle for Nostr expression and spell evaluation",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "decent-newsroom/nostr-client-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/nostr-client-bundle",
+                "reference": "b96246d80efadb7cb4ebeb88c11038d0680869a9"
+            },
+            "require": {
+                "innis/nostr-client": "^0.1.7",
+                "innis/nostr-core": "^0.3.17",
+                "php": "^8.3",
+                "psr/log": "^3.0",
+                "symfony/framework-bundle": "^7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "DecentNewsroom\\NostrClientBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DecentNewsroom\\NostrClientBundle\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Reusable Symfony bundle wrapping innis/nostr-client (AMPHP-based async Nostr relay client) for DI-friendly relay connections, subscriptions and publishing",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -17196,6 +17234,7 @@
     "stability-flags": {
         "decent-newsroom/bookshelf-bundle": 20,
         "decent-newsroom/expression-bundle": 20,
+        "decent-newsroom/nostr-client-bundle": 20,
         "decent-newsroom/nostr-kernel-bundle": 20
     },
     "prefer-stable": true,
@@ -17210,5 +17249,5 @@
         "ext-simplexml": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

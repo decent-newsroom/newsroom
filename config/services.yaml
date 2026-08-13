@@ -440,10 +440,11 @@ services:
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventPublisherInterface:
         alias: App\Bookshelf\BookshelfEventPublisher
 
-    Innis\Nostr\Client\Application\Port\NostrClientInterface:
-        factory: ['Innis\Nostr\Client\Infrastructure\Factory\NostrClientFactory', 'create']
-        arguments:
-            - '@logger'
+    # Innis\Nostr\Client\Application\Port\NostrClientInterface is now provided
+    # by DecentNewsroom\NostrClientBundle (see config/packages/nostr_client.yaml),
+    # which wires the same innis/nostr-client factory with configurable
+    # connection/reconnect defaults instead of the hand-rolled definition
+    # previously here.
 
     Innis\Nostr\Core\Domain\Service\Bech32EncoderInterface:
         class: Innis\Nostr\Core\Infrastructure\Adapter\Bech32EncoderAdapter

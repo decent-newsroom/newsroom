@@ -25,6 +25,13 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "packages/nostr-client-bundle",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "require": {
@@ -37,6 +44,7 @@
         "ext-simplexml": "*",
         "decent-newsroom/asciidoc-html": "^0.1.0",
         "decent-newsroom/bookshelf-bundle": "@dev",
+        "decent-newsroom/nostr-client-bundle": "@dev",
         "decent-newsroom/nostr-kernel-bundle": "@dev",
         "decent-newsroom/expression-bundle": "@dev",
         "doctrine/dbal": "^4.2",

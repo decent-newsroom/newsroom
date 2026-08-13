@@ -5,6 +5,9 @@
     "decent-newsroom/expression-bundle": {
         "version": "dev-main"
     },
+    "decent-newsroom/nostr-client-bundle": {
+        "version": "dev-main"
+    },
     "decent-newsroom/nostr-kernel-bundle": {
         "version": "dev-main"
     },

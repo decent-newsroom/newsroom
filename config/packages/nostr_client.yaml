@@ -1,0 +1,7 @@
+nostr_client:
+  connection_timeout_seconds: 10
+  auto_reconnect: true
+  reconnect_initial_delay_ms: 500
+  reconnect_max_delay_ms: 60000
+  reconnect_max_attempts: 0
+  user_agent: null

@@ -137,8 +137,13 @@ relay selection.
 
 ### Nostr client and bech32 services
 
-`InnisRelayEventClient` uses the Innis client port. The host supplies the
-client factory and logger:
+`InnisRelayEventClient` uses the Innis client port
+(`Innis\Nostr\Client\Application\Port\NostrClientInterface`). The recommended
+way to supply it is `decent-newsroom/nostr-client-bundle`
+(`DecentNewsroom\NostrClientBundle`), which wires the same
+`innis/nostr-client` factory with configurable connection/reconnect defaults
+(see `documentation/Nostr/nostr-client-bundle.md` in the host repo). If that
+bundle is not installed, the host can wire the port manually instead:
 
 ```yaml
 services:
