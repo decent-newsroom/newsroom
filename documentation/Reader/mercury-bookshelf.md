@@ -35,26 +35,30 @@ Mercury wraps successful payloads in a top-level `data` property. The client val
 
 ### Key files
 
+`DecentNewsroom\BookshelfBundle` is a standalone Composer package consumed via
+a local path repository at `packages/bookshelf-bundle` (see
+`composer.json`'s `repositories` and `require` entries).
+
 | File | Role |
 |---|---|
-| `src/BookshelfBundle/Controller/BookshelfController.php` | Search and full-book reader routes |
-| `src/BookshelfBundle/Service/Mercury/MercuryApiClient.php` | Typed boundary for Mercury HTTP requests |
-| `src/BookshelfBundle/Service/Mercury/MercuryBookService.php` | NKBIP-01 parsing, revision deduplication, and chapter ordering |
-| `src/BookshelfBundle/Resources/views/pages/bookshelf.html.twig` | Search and result inventory |
-| `src/BookshelfBundle/Resources/views/bookshelf/read.html.twig` | Continuous book reader |
-| `src/BookshelfBundle/Resources/views/bookshelf-layout.html.twig` | Bookshelf application shell |
-| `src/BookshelfBundle/Resources/translations/messages.{locale}.yaml` | Bookshelf translations for supported locales |
+| `packages/bookshelf-bundle/src/Controller/BookshelfController.php` | Search and full-book reader routes |
+| `packages/bookshelf-bundle/src/Service/Mercury/MercuryApiClient.php` | Typed boundary for Mercury HTTP requests |
+| `packages/bookshelf-bundle/src/Service/Mercury/MercuryBookService.php` | NKBIP-01 parsing, revision deduplication, and chapter ordering |
+| `packages/bookshelf-bundle/src/Resources/views/pages/bookshelf.html.twig` | Search and result inventory |
+| `packages/bookshelf-bundle/src/Resources/views/bookshelf/read.html.twig` | Continuous book reader |
+| `packages/bookshelf-bundle/src/Resources/views/bookshelf-layout.html.twig` | Bookshelf application shell |
+| `packages/bookshelf-bundle/src/Resources/translations/messages.{locale}.yaml` | Bookshelf translations for supported locales |
 | `assets/styles/04-pages/bookshelf.css` | Flat Bookshelf and reader presentation |
 
 ## Configuration
 
-Bookshelf owns its service configuration in `src/BookshelfBundle`:
+Bookshelf owns its service configuration in `packages/bookshelf-bundle`:
 
 | File | Responsibility |
 |---|---|
-| `src/BookshelfBundle/DependencyInjection/Configuration.php` | Defines the `bookshelf.mercury_api_base_url` option |
-| `src/BookshelfBundle/DependencyInjection/BookshelfExtension.php` | Applies the default and exposes the processed URL as a container parameter |
-| `src/BookshelfBundle/Resources/config/services.yaml` | Binds `$mercuryApiBaseUrl` and registers the Bookshelf/Mercury services |
+| `packages/bookshelf-bundle/src/DependencyInjection/Configuration.php` | Defines the `bookshelf.mercury_api_base_url` option |
+| `packages/bookshelf-bundle/src/DependencyInjection/BookshelfExtension.php` | Applies the default and exposes the processed URL as a container parameter |
+| `packages/bookshelf-bundle/src/Resources/config/services.yaml` | Binds `$mercuryApiBaseUrl` and registers the Bookshelf/Mercury services |
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -66,33 +70,42 @@ application-wide `config/services.yaml`.
 
 The Mercury relay WebSocket endpoints are not used by this feature. All discovery and content reads go through REST.
 
-## Bundle boundary and remaining host dependencies
+## Bundle boundary and host integration
 
-The bundle now owns the Bookshelf-specific DI configuration, route resource,
-Mercury services, catalogue controller, templates, and translations. The following dependencies intentionally
-remain in the host application and are integration points rather than hidden
-bundle configuration:
+`decent-newsroom/bookshelf-bundle` is a self-contained Composer package. It
+owns its DI configuration, route resource, Mercury services, catalogue
+controller, templates, and translations, and depends only on Symfony
+components, `innis/nostr-core`, `swentel/nostr-php`, and
+`decent-newsroom/asciidoc-html` — never on the host application's `App\`
+namespace directly. Host-specific behaviour is provided through contracts in
+`DecentNewsroom\BookshelfBundle\Contract`:
+
+| Contract | Responsibility | Host adapter |
+|---|---|---|
+| `DirectoryEventStoreInterface` | Look up a user's own stored directory (kind `30045`) events by pubkey and kind | `App\Bookshelf\BookshelfEventStore` (wraps `App\Repository\EventRepository`) |
+| `DirectoryEventPublisherInterface` | Persist a signed directory event locally and publish it to the user's write relays | `App\Bookshelf\BookshelfEventPublisher` (wraps `App\Service\GenericEventProjector`, `App\Service\Nostr\NostrClient`, `App\Service\Nostr\UserRelayListService`) |
+
+Both adapters are aliased in the host's `config/services.yaml` under a
+"BookshelfBundle host integration" section. `App\Entity\Event` implements the
+bundle's `DirectoryEventInterface` (`getDTag()`, `getSlug()`, `getTags()`) so
+it can be returned directly from `BookshelfEventStore`.
+
+The bundle's own local navigation (`bookshelf`, `bookshelf_my_books` routes)
+is built by the bundle-owned `Navigation\BookshelfNavigationTrait`, used by
+its controllers instead of the host's `NavigationBuilderTrait`.
+
+Remaining host-owned integration points:
 
 | Dependency | Current location | Why it remains host-owned |
 |---|---|---|
-| Directory persistence adapter | `src/BookshelfBundle/Service/Bookshelf/BookshelfDirectoryService.php` | The bundle-owned implementation still uses the host `Event` entity/repository; this is the remaining persistence coupling to replace with a host-provided contract for standalone use |
-| Directory persistence | `App\Entity\Event`, `App\Repository\EventRepository` | Local Nostr event storage is application-specific; event-kind values are now defined by the bundle-local `DecentNewsroom\BookshelfBundle\Enum\KindsEnum` |
-| Reader conversion | `decent-newsroom/asciidoc-html` (`AsciiDocConverter`) | Shared Composer library registered by the bundle |
-| User/navigation context | `App\Helper\NavigationBuilderTrait`, `App\Util\NostrKeyUtil` | Controllers currently use the host's authentication and navigation conventions |
-| My Books publishing | `App\Service\GenericEventProjector`, `App\Service\Nostr\NostrClient`, `App\Service\Nostr\UserRelayListService` | Persistence, relay selection, and publishing are host infrastructure |
-| UI integration | `assets/styles/04-pages/bookshelf.css`, host Twig shell/components | The stylesheet remains host-managed by AssetMapper; bundle templates extend `app-shell.html.twig` and use host Twig components |
-| Route and bundle bootstrap | `config/routes.yaml`, `config/bundles.php` | Symfony application bootstrap must import the bundle routes and register the bundle |
+| User identity resolution | `Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey` + Symfony Security | Controllers resolve the authenticated npub via the host's security context |
+| UI integration | `assets/styles/04-pages/bookshelf.css`, host Twig shell/components | The stylesheet remains host-managed by AssetMapper; bundle templates extend `app-shell.html.twig` and use host Twig components (`SidebarNav`, `Atoms:PageHeading`, `components/UserMenu.html.twig`) |
+| Route and bundle bootstrap | `config/routes/bookshelf.yaml`, `config/bundles.php`, root `composer.json` path repository | Symfony application bootstrap must import the bundle routes, register the bundle, and require the package |
 | Runtime endpoint override | `MERCURY_API_BASE_URL` | Environment values are supplied by each host; the bundle provides the default and binding |
 
-The application currently requires `decent-newsroom/asciidoc-html` directly.
-When `BookshelfBundle` is extracted into its own Composer package, that package
-must declare the same library in its own `require` section.
-
-The bundle therefore still depends on the application's `App\` namespace for
-directory service implementation, persistence, Nostr infrastructure, rendering,
-authentication/navigation, and UI integration. Removing those dependencies
-requires contracts and host adapters; this migration deliberately records them
-without changing behavior.
+The package has its own `composer.json`, `phpunit.xml.dist`, and `tests/`
+directory (`packages/bookshelf-bundle/tests`) and can install and run its test
+suite independently of the host application.
 
 ## Limits and failure behaviour
 
