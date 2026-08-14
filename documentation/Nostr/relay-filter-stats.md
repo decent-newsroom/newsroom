@@ -5,8 +5,7 @@ Answers two operator questions:
 1. **What filters do we typically send to relays?**
 2. **Which filters take long to resolve?**
 
-The relay gateway (`src/Command/RelayGatewayCommand.php`) records per-REQ stats
-into Redis, keyed by a privacy-preserving "filter signature".
+The relay gateway (`DecentNewsroom\RelayGatewayBundle\Command\RelayGatewayCommand`) records per-REQ stats into Redis, keyed by a privacy-preserving "filter signature". A single logical gateway query may produce multiple REQs because the command expands multi-filter and multi-kind requests into sequential single-filter subscriptions.
 
 ## Where it lives
 
@@ -41,18 +40,16 @@ kinds=[10002];authors=N1;limit=1
 
 ## Hooks
 
-Recorded automatically by `RelayGatewayCommand`:
+Recorded automatically by `DecentNewsroom\RelayGatewayBundle\Command\RelayGatewayCommand`:
 
 | Hook | Method called | When |
 |---|---|---|
-| REQ sent | `recordRequest($relay, $sig)` | At pendingQueries registration |
-| EOSE received | `recordEose($relay, $sig, $latencyMs, $eventCount)` | In `completeQuery()` |
-| Relay sent CLOSED | `recordTimeout($relay, $sig)` | In `completeQueryWithError()` |
-| Deadline expired | `recordTimeout($relay, $sig)` | In `sweepTimedOutPending()` |
+| REQ sent | `recordRequest($relay, $sig)` | Before each decomposed single-filter `subscribe()` call |
+| EOSE received | `recordEose($relay, $sig, $latencyMs, $eventCount)` | When the collecting handler sees EOSE/CLOSED |
+| Deadline expired | `recordTimeout($relay, $sig)` | When a decomposed subscription consumes its allotted query deadline |
 
 The latency stored here is the same REQ→EOSE measurement that feeds
-`RelayHealthStore::recordSuccess($url, $ms)` — they originate from the same
-`pendingQueries[$subId]['startedAt']` timestamp, so per-relay `avg_latency_ms`
+`RelayHealthStore::recordSuccess($url, $ms)`, so per-relay `avg_latency_ms`
 in the relay health table and per-filter `avg_ms` here are directly comparable.
 
 ## Surfaces
@@ -107,4 +104,3 @@ signatures are safe to copy-paste in chat: they never identify a specific user.
 
 If they ask "which queries are slow on my side?" — sort by `avg` or `max` to
 see exactly which kinds + shapes are exceeding their EOSE budget.
-

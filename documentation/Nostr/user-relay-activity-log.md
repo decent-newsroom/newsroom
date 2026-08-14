@@ -31,14 +31,14 @@ The Redis Stream's natural ID (`<ms>-<seq>`) doubles as the timestamp — no sep
 
 ## Write hooks (gateway side)
 
-Wired into `App\Command\RelayGatewayCommand` at four points; only fires when `$conn->pubkey` is non-empty (i.e. user-keyed connections, not anonymous shared sockets):
+Wired through `DecentNewsroom\RelayGatewayBundle\Command\RelayGatewayCommand` and the host `App\RelayGateway\IdentityAuthChallengeSigner`; only user-keyed operations write entries. Anonymous shared sockets decline NIP-42 challenges and record auth-required state only in relay health diagnostics:
 
-1. **NIP-46 server-side AUTH success** — after `Nip46AuthSigner::signAuthEvent()` returns and the AUTH frame is sent to the relay → `auth / nip46 / ok`.
-2. **NIP-46 send failure** — `auth / nip46 / failed` with the exception message in `detail`. Also fires when `signAuthEvent` returns null (signer unreachable) so the user sees that the bunker fallback to Mercure was triggered.
-3. **NIP-07 Mercure roundtrip start** — when the challenge is published to `/relay-auth/{pubkey}` → `auth / nip07 / pending`. Becomes `ok` once `checkPendingAuths` reads the signed event back from Redis, or `failed` if the auth-timeout elapses with no signed event.
-4. **Publish OK** — every relay-side `["OK", id, accepted, message]` arriving on a user-keyed connection → `publish / status=ok|failed` with the event id and the relay's reason in `detail`.
+1. **NIP-46 server-side AUTH success** — after the IdentityBundle remote-signer strategy returns a signed kind 22242 event → `auth / nip46 / ok`.
+2. **NIP-46 signing failure** — `auth / nip46 / failed` with the exception message in `detail`; the gateway then falls back to the browser roundtrip.
+3. **NIP-07 Mercure roundtrip** — when the challenge is published to `/relay-auth/{pubkey}` → `auth / nip07 / pending`. It becomes `ok` when the signed event appears in Redis, or `failed` if the auth-timeout elapses with no signed event.
+4. **Publish result** — every user-keyed gateway publish records `publish / status=ok|failed` with the relay result in `detail`.
 
-System-traffic publishes (relay gateway warming, hydration workers using shared connections) don't touch the user activity log; their pubkey is null on the connection.
+System-traffic publishes and reads do not touch the user activity log; their gateway pubkey is null. These shared sockets no longer attempt ephemeral AUTH, so an auth-gated relay appears as relay health/auth status rather than as user activity.
 
 ## Read
 
@@ -69,4 +69,3 @@ The activity store is **not** cleared on logout today — entries simply roll of
 
 - This is not a transport-level packet log. Individual REQ/EOSE/EVENT frames are not recorded — they would dominate the stream and obscure the AUTH/publish signal that's actually useful.
 - This is not an admin tool. The admin counterpart for cross-user / per-relay diagnostics is `RelayHealthStore` and the existing `/admin/relay/...` dashboards.
-

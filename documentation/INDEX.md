@@ -10,6 +10,16 @@ This folder contains **project / product / feature documentation**.
 
 For public-facing onboarding content, use `docs-public/`. For environment setup and operations, use `docs/`.
 
+## Package Documentation
+
+Package-owned docs live with their Composer packages instead of this host documentation tree.
+
+- [BookshelfBundle](../packages/bookshelf-bundle/README.md) - reusable Mercury bookshelf and My Books directory bundle
+- [ExpressionBundle](../packages/expression-bundle/README.md) - NIP-EX/NIP-FX expression runner, spells, OpenAPI contract, and custom NIP drafts
+- [NostrClientBundle](../packages/nostr-client-bundle/README.md) - `innis/nostr-client` Symfony integration
+- [RelayGatewayBundle](../packages/relay-gateway-bundle/README.md) - Redis Stream relay gateway and pooled relay connections
+- [SigningBundle](../packages/signing-bundle/README.md) - NIP-46/NIP-42 signing orchestration and extraction notes
+
 ## Areas
 
 ### Core Features
@@ -19,7 +29,7 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 - [Comments](Newsroom/comments.md) — Kind 1111 comment system with async relay fetch
 - [Highlights](Reader/highlights.md) — Kind 9802 highlight display and caching
 - [Reading Lists](Newsroom/reading-lists.md) — Curated article lists with workflow state machine
-- [Mercury Bookshelf](Reader/mercury-bookshelf.md) — Remote NKBIP-01 book search and continuous chapter reader
+- [Mercury Bookshelf](../packages/bookshelf-bundle/docs/mercury-bookshelf.md) — Remote NKBIP-01 book search and continuous chapter reader
 - [Home Feed](Reader/home-feed-logged-in.md) — Tabbed feed for logged-in users (Latest, Follows, Interests, Podcasts, News Bots)
 - [Notifications Center](Notifications/notifications-center.md) — Design/schema note for per-user subscriptions and Mercure toasts
 
@@ -72,9 +82,10 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 
 ### Nostr Protocol
 - [NIP-46 Remote Signing](Nostr/nip46-remote-signing.md) — Bunker session persistence and relay configuration
+- [Signing Bundle Extraction](../packages/signing-bundle/docs/signing-bundle-extraction.md) — Recommendation for isolating signing from identity and relay gateway responsibilities
 - [Tabular Data (NIP-XX)](Nostr/NIP-tabular.md) — Kind 1450 CSV events
 - [getNpubRelays Optimization](Nostr/get-npub-relays-optimization.md) — Relay list resolution performance
-- [Expression Runner OpenAPI Spec](Nostr/expression-runner-openapi.md) — OpenAPI contract for NIP-EX/NIP-FX/NIP-GX expression validation and evaluation
+- [Expression Runner OpenAPI Spec](../packages/expression-bundle/docs/expression-runner-openapi.md) — OpenAPI contract for NIP-EX/NIP-FX/NIP-GX expression validation and evaluation
 
 ### UI & Navigation
 - [Editorial Design System](Newsroom/editorial-design-system.md) — Flat visual system, shared shell, navigation, and story-feed patterns

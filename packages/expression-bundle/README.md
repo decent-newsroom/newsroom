@@ -26,6 +26,15 @@ HTTP endpoint. Nostr transport is implemented with
 - Keeps persistence, relay selection, and user-relay policy behind contracts so
   each host can provide its own implementation.
 
+## Documentation
+
+- [Expression runner overview](docs/expression-bundle.md)
+- [Feature summary](docs/expression-bundle-feature.md)
+- [Async evaluation and progress logs](docs/async-evaluation.md)
+- [Expression runner OpenAPI contract](docs/expression-runner-openapi.md)
+- [Spells](docs/spells.md)
+- [Custom NIP drafts](docs/NIP/EX.md)
+
 ## Requirements
 
 - PHP 8.3 or newer.
@@ -142,7 +151,7 @@ relay selection.
 way to supply it is `decent-newsroom/nostr-client-bundle`
 (`DecentNewsroom\NostrClientBundle`), which wires the same
 `innis/nostr-client` factory with configurable connection/reconnect defaults
-(see `documentation/Nostr/nostr-client-bundle.md` in the host repo). If that
+(see `../nostr-client-bundle/docs/nostr-client-bundle.md` in this packages directory). If that
 bundle is not installed, the host can wire the port manually instead:
 
 ```yaml

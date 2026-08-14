@@ -42,9 +42,9 @@ Client updates are handled by `assets/controllers/ui/bookshelf_directory_control
 
 | File | Role |
 |---|---|
-| `src/BookshelfBundle/Controller/BookshelfDirectoryController.php` | My Books page and publish API |
-| `src/BookshelfBundle/Service/Bookshelf/BookshelfDirectoryService.php` | Directory parsing/normalization/validation |
+| `src/Controller/BookshelfDirectoryController.php` | My Books page and publish API |
+| `src/Service/Bookshelf/BookshelfDirectoryService.php` | Directory parsing/normalization/validation |
 | `assets/controllers/ui/bookshelf_directory_controller.js` | Client-side sign + publish + UI state sync |
-| `src/BookshelfBundle/Resources/views/pages/bookshelf.html.twig` | Search page add/remove action wiring |
-| `src/BookshelfBundle/Resources/views/bookshelf/read.html.twig` | Reader page add/remove action wiring |
-| `src/BookshelfBundle/Resources/views/bookshelf/my_books.html.twig` | Favorites inventory page |
+| `src/Resources/views/pages/bookshelf.html.twig` | Search page add/remove action wiring |
+| `src/Resources/views/bookshelf/read.html.twig` | Reader page add/remove action wiring |
+| `src/Resources/views/bookshelf/my_books.html.twig` | Favorites inventory page |

@@ -18,6 +18,11 @@ directory (kind `30045`).
 - Keeps local persistence and relay publishing behind contracts so each host
   can provide its own implementation.
 
+## Documentation
+
+- [Mercury Bookshelf](docs/mercury-bookshelf.md)
+- [My Books Directory](docs/bookshelf-my-books-directory.md)
+
 ## Requirements
 
 - PHP 8.3 or newer.

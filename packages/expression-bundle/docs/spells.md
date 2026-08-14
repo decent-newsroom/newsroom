@@ -1,7 +1,7 @@
 # Spells (NIP-A7, kind 777)
 
 First-class support for Nostr **spells** — portable, shareable query filters
-defined by [NIP-A7](../NIP/A7.md). A spell is a kind:777 event that describes
+defined by [NIP-A7](NIP/A7.md). A spell is a kind:777 event that describes
 a relay REQ filter (kinds, authors, tags, since/until, limit, relays, search),
 optionally with variables such as `$me` and `$contacts` that are resolved
 against the viewer's runtime context.

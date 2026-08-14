@@ -118,4 +118,4 @@ suite independently of the host application.
 
 ## Related NIPs / NKBIPs
 
-- [NKBIP-01](../NKBIP/01.md) — publication indexes, ordered `a` tags, and publication content events.
+- [NKBIP-01](../../../documentation/NKBIP/01.md) — publication indexes, ordered `a` tags, and publication content events.

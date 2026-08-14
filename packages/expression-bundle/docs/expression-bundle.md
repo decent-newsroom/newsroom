@@ -2,7 +2,7 @@
 
 > **Date:** 2026-04-13
 > **Status:** Implementation Plan
-> **NIPs:** [NIP-EX](../NIP/EX.md) (kind:30880), [NIP-FX](../NIP/FX.md) (scoring), [NIP-A7](../NIP/A7.md) (kind:777 spells)
+> **NIPs:** [NIP-EX](NIP/EX.md) (kind:30880), [NIP-FX](NIP/FX.md) (scoring), [NIP-A7](NIP/A7.md) (kind:777 spells)
 
 ## Overview
 

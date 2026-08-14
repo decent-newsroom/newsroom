@@ -17,6 +17,10 @@ constructing it by hand:
   stable, bundle-owned seam for creating clients/health-checkers, so call
   sites don't depend on the vendor factory directly.
 
+## Documentation
+
+- [Bundle migration notes](docs/nostr-client-bundle.md)
+
 ## Configuration
 
 ```yaml

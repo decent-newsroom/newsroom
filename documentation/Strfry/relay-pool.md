@@ -39,14 +39,16 @@ Stale-while-revalidate resolution for user relay lists:
 
 On successful network fetch, persists the kind 10002 event to the database for durability. Relay list warming is triggered async on login via `UpdateRelayListMessage`.
 
-### Relay Gateway (`src/Command/RelayGatewayCommand.php`)
+### Relay Gateway (`packages/relay-gateway-bundle/src/Command/RelayGatewayCommand.php`)
 
-Optional persistent WebSocket connection pool. Feature-flagged via `RELAY_GATEWAY_ENABLED`.
+Optional persistent WebSocket connection pool. Feature-flagged via `RELAY_GATEWAY_ENABLED` and backed by `nostr-client-bundle`.
 
-- On-demand connections: opened lazily when first needed, kept alive for configurable idle TTL (default 5 min)
-- NIP-42 AUTH: challenges signed by the user's browser via Mercure SSE roundtrip
-- Communication: FrankenPHP workers ↔ gateway via Redis Streams
-- Publishing bypasses the gateway (direct connections) to avoid timeout issues
+- Shared anonymous connections: opened on demand, idle-pruned quickly, and only prewarmed when `--prewarm-shared-relays` is explicitly set
+- User-keyed connections: warmed and closed via Redis Stream control messages
+- Query execution: multi-filter and multi-kind reads are decomposed into sequential single-filter subscriptions over the same relay connection, then deduplicated for the caller
+- NIP-42 AUTH: user-keyed sockets sign through IdentityBundle NIP-46 first, then the existing browser Mercure SSE roundtrip; anonymous shared sockets decline AUTH challenges
+- Communication: FrankenPHP workers <-> gateway via Redis Streams
+- `NostrRelayPool` routes external reads through the gateway when enabled; its generic publish path still uses direct connections
 
 ### RelaySetFactory (`src/Service/Nostr/RelaySetFactory.php`)
 
@@ -60,10 +62,9 @@ Shows pool status, per-relay health scores, AUTH status, latency, last success/f
 
 ## Lessons Learned
 
-- **AUTH is per-connection**: NIP-42 AUTH challenges cannot be cached/replayed. The gateway authenticates once per connection and holds it open.
+- **AUTH is per-connection**: NIP-42 AUTH challenges cannot be cached/replayed. The gateway authenticates user-keyed connections once and holds them open; anonymous shared connections now decline AUTH rather than spending throwaway identities.
 - **Publishing direct, reading via gateway**: Gateway timeouts were too problematic for publishes (TLS+AUTH could exceed execution limits). Publishes go direct to each relay independently.
-- **Optimistic send**: EVENTs and REQs are sent immediately on connection without waiting for AUTH settle windows — most relays don't require AUTH, and those that do respond with CLOSED:auth-required.
-- **Tag filter passthrough**: `#e`, `#p`, `#t`, `#d`, `#a` tag filters were previously silently dropped in gateway routing, causing unfiltered results. Fixed in both `RelayGatewayCommand` and `NostrRequestExecutor::buildFilterFromArray`.
-- **URL normalization**: Trailing slash differences between config and user relay lists caused shared connection lookup misses in `GatewayConnection::buildKey`.
+- **Sequential REQs beat multifilter REQs**: many relays struggle with complex multi-filter requests, so the gateway sends one decomposed filter/kind at a time on an already-open relay connection.
+- **Tag filter passthrough**: `#e`, `#p`, `#t`, `#d`, `#a` tag filters were previously silently dropped in gateway routing, causing unfiltered results. Fixed in the gateway command and `NostrRequestExecutor::buildFilterFromArray`.
+- **URL normalization**: Trailing slash differences between config and user relay lists caused shared connection lookup misses; relay URL normalization now happens at the registry/adapter boundary.
 - **Stream initialization**: `xRead('$')` on Redis streams caused the gateway to never consume messages. Fixed via `xRevRange` for robust initialization.
-

@@ -189,6 +189,6 @@ docker compose exec php bin/phpunit
 
 The deeper integration notes live in:
 
-- `documentation/Nostr/relay-gateway-bundle.md`
-- `documentation/Nostr/relay-gateway-service.md`
-- `documentation/Nostr/user-relay-activity-log.md`
+- `docs/relay-gateway-bundle.md`
+- `../../documentation/Nostr/relay-gateway-service.md`
+- `../../documentation/Nostr/user-relay-activity-log.md`

@@ -14,7 +14,11 @@ NIP-46 enables remote signing via a "bunker" — a separate application (like Am
 
 ## Session Persistence
 
-After initial pairing, `BunkerSigner.fromURI()` returns immediately — no re-handshake needed. Subsequent signing requests (publish, interests, etc.) reuse the stored session and work without user interaction (~2 seconds, relay latency only).
+After initial pairing, `BunkerSigner.fromURI()` returns immediately — no re-handshake needed. Subsequent browser-side signing requests reuse the stored browser session and work without user interaction (~2 seconds, relay latency only).
+
+Server-side bunker signing now lives in `decent-newsroom/signing-bundle`. After the browser posts `/api/nostr-connect/session`, the bundle stores the encrypted NIP-46 client key and remote-signer relay data in Redis. Relay AUTH and future server-side publish intent can then use the stored session directly, without depending on browser-side WebSockets being open.
+
+The Nostr Connect URI requests `sign_event:27235`, `sign_event:22242`, and `get_public_key` permissions so bunkers can pre-approve both NIP-98 HTTP auth events and NIP-42 relay AUTH events. After a successful server-side bunker signature, the encrypted Redis server session is refreshed back to its 8-hour TTL, keeping active users' server session aligned with the browser's remote signer session.
 
 ### Key Files
 
@@ -24,6 +28,7 @@ After initial pairing, `BunkerSigner.fromURI()` returns immediately — no re-ha
 | Amber connect | `assets/controllers/nostr/amber_connect_controller.js` |
 | Login controller | `assets/controllers/utility/login_controller.js` |
 | Authenticator | `src/Security/NostrAuthenticator.php` |
+| Signing bundle | `packages/signing-bundle/` |
 
 ## Relay Configuration
 
@@ -35,4 +40,5 @@ Signer relays are configured in `services.yaml` under `relay_registry.signer_rel
 - **`BunkerSigner.fromURI()` returns immediately** — it does not block for a handshake. The connect handshake only happens during the initial pairing. No retry logic or long timeouts needed for subsequent calls.
 - **Session reconnection**: After a page reload, recreate the signer from stored session credentials. Call `getPublicKey()` as a quick verification before signing.
 - **Timing**: Initial connection requires user approval in the bunker app (variable time). All subsequent operations should be near-instant.
+
 

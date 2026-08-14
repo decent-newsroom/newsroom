@@ -481,7 +481,7 @@ components:
 
 ## Related NIPs
 
-- [NIP-EX](../NIP/EX.md)
-- [NIP-FX](../NIP/FX.md)
-- [NIP-GX](../NIP/GX.md)
+- [NIP-EX](NIP/EX.md)
+- [NIP-FX](NIP/FX.md)
+- [NIP-GX](NIP/GX.md)
 

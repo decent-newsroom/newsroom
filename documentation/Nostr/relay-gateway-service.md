@@ -1,6 +1,6 @@
 # Relay Gateway Service
 
-The Relay Gateway (`relay-gateway`) is a dedicated Docker service that maintains persistent WebSocket connections to external Nostr relays. It handles NIP-42 AUTH challenges via a Mercure roundtrip to the user's browser signer, and serves as the single point of relay communication for all FrankenPHP request workers.
+The Relay Gateway (`relay-gateway`) is a dedicated Docker service that maintains on-demand WebSocket connections to external Nostr relays. It serves as the single point of relay communication for FrankenPHP request workers, decomposes relay-hostile multi-filter reads into sequential single-filter subscriptions, and handles NIP-42 AUTH only for user-keyed connections.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ The Relay Gateway (`relay-gateway`) is a dedicated Docker service that maintains
 │  (FrankenPHP)│  ◀─  relay:responses:{id}  │  (app:relay-gw)  │                     │  (wss://) │
 └──────────────┘                             └────────┬─────────┘                     └───────────┘
                                                       │
-                                                Mercure (AUTH)
+                                            Mercure (user AUTH)
                                                       │
                                                ┌──────▼──────┐
                                                │   Browser   │
@@ -28,21 +28,35 @@ The Relay Gateway (`relay-gateway`) is a dedicated Docker service that maintains
 
 ### Connection Model (On-Demand)
 
-All connections are opened lazily when a query or publish first targets a relay, then kept alive for an idle TTL before being closed. No persistent connections are held at startup.
+All connections are opened lazily when a query or publish first targets a relay, then kept alive for an idle TTL before being closed. No public shared connections are held at startup unless `--prewarm-shared-relays` is passed explicitly.
 
 | Type | Key | Default Idle TTL | Description |
 |---|---|---|---|
 | On-demand shared | relay URL | 5 min | Opened when needed, shared across requests |
-| User-specific | relay::pubkey | 2 h | Opened via `warm` command, authenticated as user's npub |
+| User-specific | relay::pubkey | 2 h | Opened via `warm` command, authenticated as the user when the relay challenges |
 
 ### NIP-42 AUTH Flow
 
-1. Relay sends `AUTH` challenge to the gateway over WebSocket
-2. Gateway publishes challenge to `relay-auth/{pubkey}` Mercure topic
-3. Browser's `relay_auth_controller.js` receives challenge, signs kind-22242 event via NIP-07
-4. Signed event stored in Redis (`relay_auth_signed:{requestId}`)
-5. Gateway polls Redis, finds the signed event, sends it to the relay
-6. Connection is now authenticated — deferred REQs/publishes are replayed
+Anonymous shared sockets decline AUTH challenges. If a relay closes with an auth-related message, the gateway marks the relay as AUTH-required/failed in `RelayHealthStore` and returns the error to the caller; it does not create or spend an ephemeral identity.
+
+User-keyed sockets can authenticate:
+
+1. Relay sends `AUTH` challenge to the gateway over WebSocket.
+2. Gateway asks the host `AuthChallengeSignerInterface` to sign for that pubkey.
+3. The host tries IdentityBundle's NIP-46 remote-signer session first.
+4. If that cannot sign, the host publishes the challenge to the user's `relay-auth/{pubkey}` Mercure topic.
+5. Browser `relay_auth_controller.js` signs kind-22242 via NIP-07 and writes the signed event to Redis.
+6. Gateway sends the signed AUTH event to the relay and keeps the authenticated socket open until idle timeout/restart.
+
+### Query Execution
+
+The client-facing Redis request can still contain a single filter or a list of filters. The gateway expands that logical query before touching the relay:
+
+- each top-level filter is sent as its own subscription;
+- a filter with multiple `kinds` is split into one subscription per kind;
+- all subscriptions for the same relay reuse the same pooled WebSocket connection;
+- each subscription is unsubscribed before the next one starts;
+- events are deduplicated by event id before the response is written.
 
 ## Enabling the Gateway
 
@@ -84,10 +98,11 @@ The `app:relay-gateway` command accepts the following options:
 |---|---|---|
 | `--max-user-conns` | 5 | Maximum connections per user |
 | `--max-total-user-conns` | 200 | Maximum total user connections across all users |
-| `--max-shared-conns` | 50 | Maximum on-demand shared connections. The cap is **soft**: if a fan-out query needs more slots than are available and no truly-idle slot can be evicted (every shared socket is either younger than 5 s or serving a pending query), the gateway logs a warning and lets the count exceed the cap for the duration of the active query rather than tearing down an in-flight REQ. Raise this if you regularly see "soft cap exceeded" warnings. |
+| `--max-shared-conns` | 50 | Maximum on-demand anonymous shared connections. When the cap is reached, the idlest on-demand shared connection is closed before opening another. |
 | `--user-idle-timeout` | 7200 | User connection idle timeout in seconds (2 h). A user-keyed authenticated WebSocket survives quiet periods up to this TTL, so a user signing in and publishing 90 min later usually does **not** trigger a fresh NIP-42 challenge — the existing socket is reused. |
 | `--on-demand-idle-timeout` | 300 | On-demand shared connection idle timeout in seconds (5 min) |
-| `--auth-timeout` | 60 | AUTH roundtrip timeout in seconds |
+| `--auth-timeout` | 60 | User-keyed AUTH roundtrip timeout in seconds |
+| `--prewarm-shared-relays` | false | Opt in to opening configured shared relay connections at startup. Omit this to keep public connections sparse. |
 | `--time-limit` | 3600 | Max runtime before graceful restart (0=unlimited) |
 
 To customize, edit the `command` in `compose.yaml`:
@@ -142,7 +157,7 @@ Health data is available via the admin relay dashboard.
 | `RelayRegistry` | Provides relay URLs; gateway resolves internal URLs (e.g., `ws://strfry:7777`) for Docker networking |
 | `RelayHealthStore` | Gateway reports connection health metrics (latency, errors) |
 | `NostrRelayPool` | Routes queries through `RelayGatewayClient` when `RELAY_GATEWAY_ENABLED=true` |
-| Mercure (`php` service) | Gateway publishes AUTH challenges for browser signing |
+| Mercure (`php` service) | Gateway publishes fallback user-keyed AUTH challenges for browser signing |
 
 ## Migration from Worker Subprocess
 

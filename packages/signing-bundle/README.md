@@ -129,6 +129,10 @@ The signer validates returned events before handing them back:
 - signed event fields must match the unsigned intent;
 - event id and signature must validate through `innis/nostr-core`.
 
+## Documentation
+
+- [Signing bundle extraction recommendation](docs/signing-bundle-extraction.md)
+
 ## Testing
 
 Focused package tests can run without booting the host kernel:
