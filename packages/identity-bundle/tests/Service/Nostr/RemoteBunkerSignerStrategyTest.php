@@ -10,27 +10,33 @@ use DecentNewsroom\IdentityBundle\Service\Nostr\RemoteBunkerSignerStrategy;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
+require_once __DIR__ . '/RedisTestStub.php';
+
 final class RemoteBunkerSignerStrategyTest extends TestCase
 {
-    public function testItSupportsStoredSessionsAndDelegatesAuthSigning(): void
+    public function testItSupportsStoredSessionsDelegatesAuthSigningAndRefreshesTheSession(): void
     {
         $storage = [];
-        $store = new Nip46SessionStore($this->redis($storage), new NullLogger(), 'test-encryption-key');
+        $expirations = [];
+        $store = new Nip46SessionStore($this->redis($storage, $expirations), new NullLogger(), 'test-encryption-key');
+        $ownerId = str_repeat('a', 64);
         $store->store(
-            str_repeat('a', 64),
+            $ownerId,
             str_repeat('1', 64),
             str_repeat('2', 64),
             ['wss://bunker.example'],
         );
+        $expirations['nip46_session:' . $ownerId] = 1;
+
         $signer = new CapturingNip46Signer();
         $strategy = new RemoteBunkerSignerStrategy($store, $signer, new NullLogger());
 
         self::assertSame('nip46', $strategy->getMethod());
-        self::assertTrue($strategy->supports(str_repeat('a', 64)));
+        self::assertTrue($strategy->supports($ownerId));
 
-        $signed = $strategy->sign(str_repeat('a', 64), [
+        $signed = $strategy->sign($ownerId, [
             'kind' => 22242,
-            'pubkey' => str_repeat('a', 64),
+            'pubkey' => $ownerId,
             'tags' => [
                 ['relay', 'wss://relay.example'],
                 ['challenge', 'challenge-token'],
@@ -39,7 +45,7 @@ final class RemoteBunkerSignerStrategyTest extends TestCase
         ]);
 
         self::assertSame(['id' => 'signed-auth-event'], $signed);
-        self::assertSame(str_repeat('a', 64), $signer->userPubkeyHex);
+        self::assertSame($ownerId, $signer->userPubkeyHex);
         self::assertSame('wss://relay.example', $signer->relayUrl);
         self::assertSame('challenge-token', $signer->challenge);
         self::assertSame([
@@ -47,12 +53,38 @@ final class RemoteBunkerSignerStrategyTest extends TestCase
             'bunkerPubkeyHex' => str_repeat('2', 64),
             'bunkerRelays' => ['wss://bunker.example'],
         ], $signer->session);
+        self::assertSame(Nip46SessionStore::TTL_SECONDS, $expirations['nip46_session:' . $ownerId] ?? null);
+    }
+
+    public function testItDoesNotRefreshTheSessionWhenSigningFails(): void
+    {
+        $storage = [];
+        $expirations = [];
+        $store = new Nip46SessionStore($this->redis($storage, $expirations), new NullLogger(), 'test-encryption-key');
+        $ownerId = str_repeat('a', 64);
+        $store->store($ownerId, str_repeat('1', 64), str_repeat('2', 64), ['wss://bunker.example']);
+        $expirations['nip46_session:' . $ownerId] = 1;
+
+        $signer = new CapturingNip46Signer(null);
+        $strategy = new RemoteBunkerSignerStrategy($store, $signer, new NullLogger());
+
+        self::assertNull($strategy->sign($ownerId, [
+            'kind' => 22242,
+            'pubkey' => $ownerId,
+            'tags' => [
+                ['relay', 'wss://relay.example'],
+                ['challenge', 'challenge-token'],
+            ],
+            'content' => '',
+        ]));
+        self::assertSame(1, $expirations['nip46_session:' . $ownerId] ?? null);
     }
 
     public function testItReturnsNullWhenUnsignedEventIsMissingAuthTags(): void
     {
         $storage = [];
-        $store = new Nip46SessionStore($this->redis($storage), new NullLogger(), 'test-encryption-key');
+        $expirations = [];
+        $store = new Nip46SessionStore($this->redis($storage, $expirations), new NullLogger(), 'test-encryption-key');
         $store->store(str_repeat('a', 64), str_repeat('1', 64), str_repeat('2', 64), ['wss://bunker.example']);
 
         $strategy = new RemoteBunkerSignerStrategy($store, new CapturingNip46Signer(), new NullLogger());
@@ -62,12 +94,16 @@ final class RemoteBunkerSignerStrategyTest extends TestCase
 
     /**
      * @param array<string,string> $storage
+     * @param array<string,int> $expirations
      */
-    private function redis(array &$storage): \Redis
+    private function redis(array &$storage, array &$expirations): \Redis
     {
         $redis = $this->createMock(\Redis::class);
-        $redis->method('set')->willReturnCallback(static function (string $key, string $value) use (&$storage): bool {
+        $redis->method('set')->willReturnCallback(static function (string $key, string $value, mixed $options = null) use (&$storage, &$expirations): bool {
             $storage[$key] = $value;
+            if (is_array($options) && isset($options['ex'])) {
+                $expirations[$key] = (int) $options['ex'];
+            }
 
             return true;
         });
@@ -77,11 +113,19 @@ final class RemoteBunkerSignerStrategyTest extends TestCase
         $redis->method('exists')->willReturnCallback(static function (string $key) use (&$storage): int {
             return isset($storage[$key]) ? 1 : 0;
         });
-        $redis->method('del')->willReturnCallback(static function (string $key) use (&$storage): int {
+        $redis->method('del')->willReturnCallback(static function (string $key) use (&$storage, &$expirations): int {
             $removed = isset($storage[$key]) ? 1 : 0;
-            unset($storage[$key]);
+            unset($storage[$key], $expirations[$key]);
 
             return $removed;
+        });
+        $redis->method('expire')->willReturnCallback(static function (string $key, int $ttlSeconds) use (&$storage, &$expirations): bool {
+            if (!isset($storage[$key])) {
+                return false;
+            }
+            $expirations[$key] = $ttlSeconds;
+
+            return true;
         });
 
         return $redis;
@@ -97,6 +141,11 @@ final class CapturingNip46Signer implements Nip46AuthEventSignerInterface
     /** @var array{clientPrivkeyHex: string, bunkerPubkeyHex: string, bunkerRelays: string[]}|null */
     public ?array $session = null;
 
+    /** @param array<string,mixed>|null $signedEvent */
+    public function __construct(private readonly ?array $signedEvent = ['id' => 'signed-auth-event'])
+    {
+    }
+
     public function signAuthEvent(
         string $userPubkeyHex,
         string $relayUrl,
@@ -109,6 +158,6 @@ final class CapturingNip46Signer implements Nip46AuthEventSignerInterface
         $this->challenge = $challenge;
         $this->session = $session;
 
-        return ['id' => 'signed-auth-event'];
+        return $this->signedEvent;
     }
 }

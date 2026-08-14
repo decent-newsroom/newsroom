@@ -129,6 +129,25 @@ final class Nip46SessionStore
         }
     }
 
+    public function refresh(string $subjectId, int $ttlSeconds = self::TTL_SECONDS): bool
+    {
+        $key = self::REDIS_PREFIX . $subjectId;
+
+        try {
+            if ((int) $this->redis->exists($key) <= 0) {
+                return false;
+            }
+
+            return $this->redis->expire($key, max(1, $ttlSeconds));
+        } catch (\RedisException $e) {
+            $this->logger->warning('Nip46SessionStore: failed to refresh session TTL', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     public function remove(string $subjectId): void
     {
         try {

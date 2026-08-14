@@ -53,12 +53,18 @@ final readonly class RemoteBunkerSignerStrategy implements NostrSignerStrategyIn
             return null;
         }
 
-        return $this->signer->signAuthEvent(
+        $signedEvent = $this->signer->signAuthEvent(
             $pubkey,
             $relayUrl,
             $challenge,
             $session,
         );
+
+        if ($signedEvent !== null) {
+            $this->sessions->refresh($ownerId);
+        }
+
+        return $signedEvent;
     }
 
     /**
