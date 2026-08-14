@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b12f4fb6fce819d05cf1b5b882de7582",
+    "content-hash": "6e688798877ee44dc2f01eb6073d4526",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1791,6 +1791,47 @@
                 "MIT"
             ],
             "description": "Reusable Symfony bundle for low-level Nostr event and identity concerns",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "decent-newsroom/relay-gateway-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/relay-gateway-bundle",
+                "reference": "7538c91696cb5df6f07601daa3ac7a7e1f5a8bd1"
+            },
+            "require": {
+                "decent-newsroom/nostr-client-bundle": "@dev",
+                "ext-redis": "*",
+                "innis/nostr-core": "^0.3.17",
+                "php": "^8.3",
+                "psr/log": "^3.0",
+                "symfony/console": "^7.4",
+                "symfony/framework-bundle": "^7.4",
+                "symfony/uid": "^7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "DecentNewsroom\\RelayGatewayBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DecentNewsroom\\RelayGatewayBundle\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Reusable Redis-stream Nostr relay gateway built on decent-newsroom/nostr-client-bundle",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -17277,7 +17318,8 @@
         "decent-newsroom/expression-bundle": 20,
         "decent-newsroom/identity-bundle": 20,
         "decent-newsroom/nostr-client-bundle": 20,
-        "decent-newsroom/nostr-kernel-bundle": 20
+        "decent-newsroom/nostr-kernel-bundle": 20,
+        "decent-newsroom/relay-gateway-bundle": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

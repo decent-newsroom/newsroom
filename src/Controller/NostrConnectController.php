@@ -12,6 +12,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 class NostrConnectController
 {
+    public const REQUESTED_PERMISSIONS = 'sign_event:27235,sign_event:22242,get_public_key';
+
     public function __construct(
         private readonly RelayRegistry $relayRegistry,
     ) {}
@@ -48,11 +50,11 @@ class NostrConnectController
             $queryParts[] = 'relay=' . rawurlencode($r);
         }
         $queryParts[] = 'secret=' . rawurlencode($secret);
-        // Request pre-approval for NIP-98 HTTP auth signing (kind 27235).
+        // Request pre-approval for NIP-98 HTTP auth signing (kind 27235) and NIP-42 relay AUTH signing (kind 22242).
         // Without this, bunkers like Amber prompt for each sign_event request,
         // forcing the user to switch apps. On mobile, switching apps suspends
         // WebSocket connections and the ephemeral kind-24133 response is lost.
-        $queryParts[] = 'perms=' . rawurlencode('sign_event:27235,get_public_key');
+        $queryParts[] = 'perms=' . rawurlencode(self::REQUESTED_PERMISSIONS);
         $queryParts[] = 'name=' . rawurlencode($name);
         $queryParts[] = 'url=' . rawurlencode($appUrl);
         $query = implode('&', $queryParts);

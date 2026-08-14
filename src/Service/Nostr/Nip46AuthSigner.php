@@ -29,7 +29,7 @@ use Symfony\Component\Uid\Uuid;
  *   4. Poll for a kind:24133 response from the bunker (up to $timeoutSeconds)
  *   5. Decrypt and return the signed kind:22242 event as an associative array
  *
- * Called from RelayGatewayCommand::handleAuthChallenge() when a stored NIP-46
+ * Called by IdentityBundle remote-signer strategies when a stored NIP-46
  * session is found for the user.
  */
 class Nip46AuthSigner implements Nip46AuthEventSignerInterface
@@ -246,5 +246,3 @@ class Nip46AuthSigner implements Nip46AuthEventSignerInterface
         }
     }
 }
-
-

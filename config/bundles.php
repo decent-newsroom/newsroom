@@ -23,5 +23,6 @@ return [
     DecentNewsroom\NostrClientBundle\NostrClientBundle::class => ['all' => true],
     DecentNewsroom\BookshelfBundle\BookshelfBundle::class => ['all' => true],
     DecentNewsroom\ExpressionBundle\ExpressionBundle::class => ['all' => true],
+    DecentNewsroom\RelayGatewayBundle\RelayGatewayBundle::class => ['all' => true],
     DecentNewsroom\IdentityBundle\IdentityBundle::class => ['all' => true],
 ];

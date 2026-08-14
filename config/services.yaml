@@ -440,6 +440,22 @@ services:
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventPublisherInterface:
         alias: App\Bookshelf\BookshelfEventPublisher
 
+    # RelayGatewayBundle host integration
+    DecentNewsroom\RelayGatewayBundle\Contract\RelayUrlResolverInterface:
+        alias: App\RelayGateway\RelayUrlResolverAdapter
+
+    DecentNewsroom\RelayGatewayBundle\Contract\AuthChallengeSignerInterface:
+        alias: App\RelayGateway\IdentityAuthChallengeSigner
+
+    DecentNewsroom\RelayGatewayBundle\Contract\GatewayHealthRecorderInterface:
+        alias: App\RelayGateway\GatewayHealthRecorderAdapter
+
+    DecentNewsroom\RelayGatewayBundle\Contract\GatewayActivityRecorderInterface:
+        alias: App\RelayGateway\GatewayActivityRecorderAdapter
+
+    DecentNewsroom\RelayGatewayBundle\Contract\GatewayFilterStatsRecorderInterface:
+        alias: App\RelayGateway\GatewayFilterStatsRecorderAdapter
+
     # IdentityBundle host integration
     DecentNewsroom\IdentityBundle\Contract\UserRepositoryBridgeInterface:
         alias: App\Security\AppIdentityBridge

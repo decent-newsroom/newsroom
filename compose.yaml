@@ -218,9 +218,9 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
 
   # Persistent relay connection gateway with NIP-42 AUTH support.
-  # Maintains WebSocket connections to external Nostr relays on demand,
-  # handles AUTH challenges via Mercure roundtrip signing, and serves as
-  # the single point of relay communication for all FrankenPHP request workers.
+  # Maintains on-demand WebSocket connections to external Nostr relays,
+  # handles user-keyed AUTH signing, and serves as the single point of
+  # relay communication for all FrankenPHP request workers.
   #
   # Activate with: docker compose --profile gateway up -d
   # Requires: RELAY_GATEWAY_ENABLED=true on the php service
