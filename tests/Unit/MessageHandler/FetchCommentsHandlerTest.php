@@ -62,16 +62,12 @@ final class FetchCommentsHandlerTest extends TestCase
             ->with($coordinate)
             ->willReturn([]);
 
-        $eventRepository->expects($this->once())
-            ->method('findLatestCommentTimestamp')
-            ->with($coordinate)
-            ->willReturn(99);
 
         $nostrClient->expects($this->exactly(2))
             ->method('getComments')
             ->willReturnCallback(function (string $ref, ?int $since, ?string $author) use ($coordinate, $authorPubkey, $freshComment): array {
                 if ($ref === $coordinate) {
-                    TestCase::assertSame(99, $since);
+                    TestCase::assertNull($since);
                     TestCase::assertSame($authorPubkey, $author);
                     return [$freshComment];
                 }
@@ -145,10 +141,6 @@ final class FetchCommentsHandlerTest extends TestCase
             ->with($coordinate)
             ->willReturn([]);
 
-        $eventRepository->expects($this->once())
-            ->method('findLatestCommentTimestamp')
-            ->with($coordinate)
-            ->willReturn(null);
 
         $nostrClient->expects($this->exactly(2))
             ->method('getComments')

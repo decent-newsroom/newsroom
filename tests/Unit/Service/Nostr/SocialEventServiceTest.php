@@ -42,18 +42,27 @@ final class SocialEventServiceTest extends TestCase
 
         $relayPool->expects($this->once())
             ->method('sendToRelays')
-            ->with(
-                [
+            ->willReturnCallback(function (array $relays, callable $messageFactory, int $timeout, string $subscriptionId) use ($coordinate): array {
+                TestCase::assertSame([
                     'wss://local.example',
                     'wss://author-1.example',
                     'wss://default.example',
                     'wss://default-2.example',
-                ],
-                $this->isType('callable'),
-                10,
-                $this->isType('string')
-            )
-            ->willReturn([]);
+                ], $relays);
+                TestCase::assertSame(10, $timeout);
+                TestCase::assertNotSame('', $subscriptionId);
+
+                $payload = json_decode($messageFactory()->generate(), true, flags: JSON_THROW_ON_ERROR);
+                TestCase::assertCount(4, $payload);
+                TestCase::assertArrayNotHasKey('kinds', $payload[2]);
+                TestCase::assertArrayNotHasKey('kinds', $payload[3]);
+                TestCase::assertSame([$coordinate], $payload[2]['#A']);
+                TestCase::assertSame([$coordinate], $payload[3]['#a']);
+                TestCase::assertSame(500, $payload[2]['limit']);
+                TestCase::assertSame(500, $payload[3]['limit']);
+
+                return [];
+            });
 
         $executor->expects($this->once())
             ->method('process')

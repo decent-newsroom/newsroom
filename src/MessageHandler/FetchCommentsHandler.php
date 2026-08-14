@@ -77,17 +77,15 @@ class FetchCommentsHandler
     private function refreshFromRelays(string $coordinate, array $existingDbComments, ?string $authorPubkey = null): void
     {
         try {
-            // Get the latest timestamp from DB for incremental fetch
-            $since = $this->eventRepository->findLatestCommentTimestamp($coordinate);
-
-            $this->logger->info('Fetching fresh comments from relays', [
+            $this->logger->info('Fetching fresh referenced events from relays', [
                 'coordinate' => $coordinate,
-                'since' => $since,
                 'existing_count' => count($existingDbComments)
             ]);
 
-            // Fetch root-scoped comments for the current article/event.
-            $newEvents = $this->nostrClient->getComments($coordinate, $since, $authorPubkey);
+            // Fetch a capped, kindless reference window for the current article/event.
+            // Using no since value lets this path heal older kind-1 replies and reposts
+            // that were missed while the old fetch filtered only kinds 1111/9735.
+            $newEvents = $this->nostrClient->getComments($coordinate, null, $authorPubkey);
 
             // Fetch one-hop replies to known comment IDs so threads populate quickly
             // even when some clients only tag parent comment ids.

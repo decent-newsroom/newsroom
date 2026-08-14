@@ -12,7 +12,7 @@ use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Subscription\Subscription;
 
 /**
- * Social interaction event operations: comments, zaps, highlights.
+ * Social interaction event operations: references, comments, zaps, highlights.
  *
  * Extracted from NostrClient.
  */
@@ -26,6 +26,8 @@ class SocialEventService
         private readonly ?string              $nostrDefaultRelay = null,
         private readonly ?UserRelayListService $userRelayListService = null,
     ) {}
+
+    private const REFERENCE_FETCH_LIMIT = 500;
 
     // -------------------------------------------------------------------------
     // Combined Article Social Fetch (Phase 2)
@@ -107,8 +109,11 @@ class SocialEventService
     // -------------------------------------------------------------------------
 
     /**
-     * Get comments (kind 1111) and zap receipts (kind 9735) for a parent
-     * reference, which may be either an addressable coordinate or an event id.
+     * Get events that reference a parent event or coordinate.
+     *
+     * This intentionally does not filter by kind: Nostr clients use kind 1,
+     * kind 1111, kind 7, repost kinds, zaps, and newer kinds to interact with
+     * the same parent. Callers can classify the returned events after fetch.
      *
      * @param string      $ref          either "kind:pubkey:identifier" (addressable)
      *                                   or a 64-char lowercase hex event id
@@ -116,7 +121,7 @@ class SocialEventService
      * @param int|null    $since        Only events after this timestamp
      * @param string|null $authorPubkey Author pubkey hint used to pick the
      *                                   right relay set when $ref is an event id
-     * @return array   Deduplicated comment/zap events
+     * @return array   Deduplicated referencing events
      * @throws \InvalidArgumentException on malformed reference
      */
     public function getComments(string $ref, ?int $since = null, ?string $authorPubkey = null): array
@@ -193,8 +198,8 @@ class SocialEventService
 
         foreach ($tagNames as $tagName) {
             $filter = new Filter();
-            $filter->setKinds([KindsEnum::COMMENTS->value, KindsEnum::ZAP_RECEIPT->value]);
             $filter->setTag($tagName, [$ref]);
+            $filter->setLimit(self::REFERENCE_FETCH_LIMIT);
 
             if (is_int($since) && $since > 0) {
                 $filter->setSince($since);

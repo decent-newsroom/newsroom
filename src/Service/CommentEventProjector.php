@@ -59,7 +59,7 @@ class CommentEventProjector
     }
 
     /**
-     * Project multiple comment/zap events into the database in batch
+     * Project multiple referencing events into the database in batch
      *
      * @param array $events Array of Nostr event objects
      * @return int Number of events successfully persisted
@@ -74,13 +74,8 @@ class CommentEventProjector
                     continue;
                 }
 
-                if ($event->kind === 1111) {
-                    $this->projectCommentFromEvent($event);
-                    $persistedCount++;
-                } elseif ($event->kind === 9735) {
-                    $this->projectZapFromEvent($event);
-                    $persistedCount++;
-                }
+                $this->projectEvent($event, 'referencing');
+                $persistedCount++;
             } catch (\Exception $e) {
                 $this->logger->warning('Failed to project event', [
                     'event_id' => $event->id ?? 'unknown',
@@ -94,11 +89,11 @@ class CommentEventProjector
         if ($persistedCount > 0) {
             try {
                 $this->entityManager->flush();
-                $this->logger->info('Batch persisted comment/zap events', [
+                $this->logger->info('Batch persisted referencing events', [
                     'count' => $persistedCount
                 ]);
             } catch (\Exception $e) {
-                $this->logger->error('Failed to flush comment/zap events', [
+                $this->logger->error('Failed to flush referencing events', [
                     'error' => $e->getMessage()
                 ]);
                 throw $e;
@@ -109,7 +104,7 @@ class CommentEventProjector
     }
 
     /**
-     * Internal method to project any comment/zap event
+     * Internal method to project any referencing event
      *
      * @param object $event The Nostr event object
      * @param string $type Event type for logging ('comment' or 'zap')
@@ -193,7 +188,7 @@ class CommentEventProjector
         try {
             $this->entityManager->flush();
         } catch (\Exception $e) {
-            $this->logger->error('Failed to flush comment/zap events', [
+            $this->logger->error('Failed to flush referencing events', [
                 'error' => $e->getMessage()
             ]);
             throw $e;

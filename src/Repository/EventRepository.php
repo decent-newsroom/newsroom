@@ -677,15 +677,17 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find comments and zaps for an article by coordinate.
+     * Find events that reference an article/event coordinate.
      *
-     * Searches for events with kind 1111 (comments) or 9735 (zap receipts)
-     * that have an "A" tag matching the article coordinate.
+     * Direct references are intentionally kindless so kind 1 replies, reposts,
+     * reactions, zaps, NIP-22 comments, and newer unknown event kinds are all
+     * visible once they are stored locally. The recursive branch preserves the
+     * existing threaded kind-1111 comment behavior.
      *
-     * @param string $coordinate Article coordinate (kind:pubkey:identifier)
-     * @param int|null $since Optional timestamp to fetch only newer comments
-     * @param int $limit Maximum number of comments to return
-     * @return Event[] Array of comment and zap events, ordered by created_at DESC
+     * @param string $coordinate Article coordinate (kind:pubkey:identifier) or 64-char event id
+     * @param int|null $since Optional timestamp to fetch only newer references
+     * @param int $limit Maximum number of referenced events to return
+     * @return Event[] Array of referenced events, ordered by created_at DESC
      */
     public function findCommentsByCoordinate(string $coordinate, ?int $since = null, int $limit = 500): array
     {
@@ -717,18 +719,15 @@ class EventRepository extends ServiceEntityRepository
                 )
                 SELECT * FROM event e
                 WHERE (
-                    (e.kind = 1111 AND e.id IN (SELECT id FROM tree))
-                    OR
-                    (e.kind = 9735 AND (
-                        {$rootCondition}
-                        OR EXISTS (
-                            SELECT 1
-                            FROM tree
-                            WHERE EXISTS (
-                                SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-                                WHERE (tag->>0 = 'E' OR tag->>0 = 'e')
-                                  AND tag->>1 = tree.id
-                            )
+                    {$rootCondition}
+                    OR (e.kind = 1111 AND e.id IN (SELECT id FROM tree))
+                    OR (e.kind = 9735 AND EXISTS (
+                        SELECT 1
+                        FROM tree
+                        WHERE EXISTS (
+                            SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                            WHERE (tag->>0 = 'E' OR tag->>0 = 'e')
+                              AND tag->>1 = tree.id
                         )
                     ))
                 )";
