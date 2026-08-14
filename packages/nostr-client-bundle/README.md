@@ -53,22 +53,15 @@ final class ExampleService
 
 ## Scope and migration path
 
-This bundle currently only wraps `innis/nostr-client` for DI consumption; it
-does **not** change any existing relay code in the main application. The
-app's synchronous, `swentel/nostr-php`-based relay handling
-(`App\Service\Nostr\NostrRelayPool`, `GatewayConnection`,
-`RelayGatewayCommand`, `TweakedRequest`) is unaffected.
+This bundle wraps `innis/nostr-client` for DI consumption. It is now the base
+transport for `decent-newsroom/relay-gateway-bundle`, whose command owns the
+long-running Redis Stream gateway process.
 
-The bundle is the foundation for an eventual migration:
+The remaining split is intentional:
 
-- `swentel/nostr-php` (`swentel\nostr\Relay\Relay` + `WebSocket\Client`) is a
-  synchronous, blocking WebSocket client used directly in request workers and
-  in the persistent relay-gateway connection pool.
-- `innis/nostr-client` is AMPHP-based and async/fiber-driven, which is a
-  better fit for the long-running `relay-gateway` and `worker-relay` Docker
-  services than for short-lived synchronous request handling.
-
-Replacing swentel/hand-rolled WebSocket code with this bundle is a separate,
-larger effort (primarily in `RelayGatewayCommand`'s connection pool) tracked
-outside this change. See `documentation/Nostr/nostr-client-bundle.md` for
-details.
+- `DecentNewsroom\RelayGatewayBundle\Command\RelayGatewayCommand` uses this
+  bundle for persistent gateway connections.
+- `App\Service\Nostr\RelayGatewayClient` is a compatibility subclass of the
+  extracted bundle client.
+- `App\Service\Nostr\NostrRelayPool` and `TweakedRequest` still provide direct
+  fallback relay access when the gateway is disabled.
