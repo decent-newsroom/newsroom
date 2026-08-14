@@ -6,15 +6,28 @@ when@dev:
     monolog:
         handlers:
             main:
-                type: stream
+                type: fingers_crossed
+                action_level: warning
+                handler: nested
+                excluded_http_codes: [404, 405]
+                channels: ["!event", "!doctrine", "!deprecation"]
+                buffer_size: 100
+            nested:
+                type: rotating_file
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
-                channels: ["!event"]
+                max_files: 3
             stderr:
                 type: stream
                 path: php://stderr
-                level: info
-                channels: ["!event"]
+                level: warning
+                channels: ["!event", "!doctrine", "!deprecation"]
+            deprecation:
+                type: rotating_file
+                path: "%kernel.logs_dir%/%kernel.environment%.deprecations.log"
+                level: debug
+                channels: [deprecation]
+                max_files: 3
             console:
                 type: console
                 process_psr_3_messages: false

@@ -3,12 +3,13 @@
 {% block title %}Loading Article…{% endblock %}
 
 {% block body %}
+    {% set eventFetchTimeoutMs = app.environment == 'dev' ? 120000 : 30000 %}
     <div class="w-container">
         <section class="event-loading"
                  data-controller="content--event-fetch"
                  data-content--event-fetch-topic-value="/event-fetch/{{ lookupKey }}"
                  data-content--event-fetch-reload-url-value="{{ reloadUrl }}"
-                 data-content--event-fetch-timeout-value="30000">
+                 data-content--event-fetch-timeout-value="{{ eventFetchTimeoutMs }}">
 
             {# ── Loading state (shown initially) ── #}
             <div class="event-loading__spinner" data-content--event-fetch-target="spinner">
