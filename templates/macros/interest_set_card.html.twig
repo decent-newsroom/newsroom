@@ -24,12 +24,12 @@
          data-nostr--nostr-interest-set-actions-owned-value="{{ sub.owned|default(false) ? 'true' : 'false' }}"
          {% endif %}>
 
-        <h3><a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></h3>
+        <h3><a href="{{ path('topics', {'topic': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></h3>
 
         <div class="d-flex flex-row">
             <div class="tags m-0">
                 {% for tag in sub.tags %}
-                    <a class="tag" href="{{ path('forum_tag', {'tag': tag}) }}">{{ tag }}</a>
+                    <a class="tag" href="{{ path('topics', {'tag': tag}) }}">{{ tag }}</a>
                 {% endfor %}
             </div>
             <div class="count">{{ sub.count|default(0) }}</div>

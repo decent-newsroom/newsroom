@@ -2,10 +2,10 @@
 
 {% block ogtags %}
     {{ parent() }}
-    <meta property="og:title" content="{% if selectedTopic %}{{ topics[selectedTopic].name }} - {% endif %}Topics - Newsroom">
+    <meta property="og:title" content="{% if selectedLabel %}{{ selectedLabel }} - {% endif %}Topics - Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">
-    <meta property="og:description" content="{% if selectedTopic %}Explore articles about {{ topics[selectedTopic].name }}{% else %}Explore topics and discover articles on Newsroom{% endif %}">
+    <meta property="og:description" content="{% if selectedLabel %}Explore articles about {{ selectedLabel }}{% else %}Explore topics and discover articles on Newsroom{% endif %}">
     <meta property="og:site_name" content="Newsroom">
 
     {# JSON-LD Structured Data for Topics Page #}
@@ -13,17 +13,17 @@
     {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        "name": "{% if selectedTopic %}{{ topics[selectedTopic].name }}{% else %}Topics{% endif %}",
-        "description": "{% if selectedTopic %}Explore articles about {{ topics[selectedTopic].name }}{% else %}Explore topics and discover articles on Newsroom{% endif %}",
+        "name": "{% if selectedLabel %}{{ selectedLabel }}{% else %}Topics{% endif %}",
+        "description": "{% if selectedLabel %}Explore articles about {{ selectedLabel }}{% else %}Explore topics and discover articles on Newsroom{% endif %}",
         "url": {{ app.request.uri|json_encode|raw }},
         "isPartOf": {
             "@type": "WebSite",
             "name": "Newsroom",
             "url": "{{ url('home') }}"
-        }{% if selectedTopic and articles is not empty %},
+        }{% if selectedLabel and articles is not empty %},
         "about": {
             "@type": "Thing",
-            "name": {{ topics[selectedTopic].name|json_encode|raw }}
+            "name": {{ selectedLabel|json_encode|raw }}
         },
         "mainEntity": {
             "@type": "ItemList",
@@ -56,16 +56,16 @@
 
 <div class="topics-list">
     {% for key, topic in topics %}
-        <a href="{{ path('forum_topic', {'key': key}) }}" class="topic-button {{ selectedTopic == key ? 'active' : '' }}">
+        <a href="{{ path('topics', {'topic': key}) }}" class="topic-button {{ selectedTopic == key ? 'active' : '' }}">
             {{ topic.name }}
         </a>
     {% endfor %}
 </div>
 
-{% if selectedTopic and articles %}
-    <h2>{{ 'topics.recentIn'|trans({'%topic%': topics[selectedTopic].name}) }}</h2>
+{% if selectedLabel and articles %}
+    <h2>{{ 'topics.recentIn'|trans({'%topic%': selectedLabel}) }}</h2>
     <twig:Organisms:CardList :list="articles" class="article-list" />
-{% elseif selectedTopic %}
+{% elseif selectedLabel %}
     <p>{{ 'topics.noArticles'|trans }}</p>
 {% endif %}
 {% endblock %}

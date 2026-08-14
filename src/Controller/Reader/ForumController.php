@@ -18,6 +18,7 @@ use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
+
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,14 +26,12 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\Cache\ItemInterface;
 
 class ForumController extends AbstractController
 {
     use NavigationBuilderTrait;
 
-    #[Route('/topics', name: 'topics')]
+    #[Route('/topics', name: 'topics', methods: ['GET'])]
     public function topics(ContentSearchService $contentSearch, Request $request): Response
     {
         $topics = [];
@@ -46,14 +45,39 @@ class ForumController extends AbstractController
         }
 
         $selectedTopic = (string) $request->query->get('topic', '');
-        $articles = [];
+        $selectedMain = strtolower(trim((string) $request->query->get('main', '')));
+        $selectedTag = strtolower(trim((string) $request->query->get('tag', '')));
+        $selectedLabel = '';
+        $selectedTags = [];
+
         if ($selectedTopic !== '' && isset($topics[$selectedTopic])) {
-            $articles = $contentSearch->searchByTopics($topics[$selectedTopic]['tags'], limit: 20);
+            $selectedLabel = $topics[$selectedTopic]['name'];
+            $selectedTags = $topics[$selectedTopic]['tags'];
+        } elseif ($selectedMain !== '' && isset(ForumTopics::TOPICS[$selectedMain])) {
+            $category = ForumTopics::TOPICS[$selectedMain];
+            $selectedLabel = $category['name'] ?? ucfirst($selectedMain);
+            foreach (($category['subcategories'] ?? []) as $sub) {
+                foreach (($sub['tags'] ?? []) as $tag) {
+                    $selectedTags[] = (string) $tag;
+                }
+            }
+            $selectedTags = array_values(array_unique(array_map('strtolower', array_map('trim', $selectedTags))));
+        } elseif ($selectedTag !== '') {
+            $selectedLabel = '#' . $selectedTag;
+            $selectedTags = [$selectedTag];
+        }
+
+        $articles = [];
+        if ($selectedTags !== []) {
+            $articles = $contentSearch->searchByTopics($selectedTags, limit: 20);
         }
 
         return $this->render('pages/topics.html.twig', [
             'topics' => $topics,
             'selectedTopic' => $selectedTopic,
+            'selectedMain' => $selectedMain,
+            'selectedTag' => $selectedTag,
+            'selectedLabel' => $selectedLabel,
             'articles' => $articles,
         ]);
     }
@@ -61,34 +85,14 @@ class ForumController extends AbstractController
     /**
      * @deprecated Forum index is being replaced by topics integrated into home feeds.
      */
-    #[Route('/forum', name: 'forum')]
-    public function index(
-        ContentSearchService $contentSearch,
-        CacheInterface $cache,
-        Request $request,
-        NostrClient $nostrClient,
-    ): Response {
-        $categoriesWithCounts = $cache->get('forum.index.counts.v3', function (ItemInterface $item) use ($contentSearch) {
-            $item->expiresAfter(30);
-            return $contentSearch->buildTaxonomyWithCounts(ForumTopics::TOPICS);
-        });
-
-        $userInterests = null;
-        /** @var User|null $user */
-        $user = $this->getUser();
-        if ($user && $contentSearch->isSearchAvailable()) {
-            $userInterests = $this->buildUserInterests($user, $nostrClient, $contentSearch);
-        }
-
-        return $this->render('forum/index.html.twig', [
-            'topics' => $categoriesWithCounts,
-            'userInterests' => $userInterests,
-            'deprecated' => true,
-        ]);
+    #[Route('/forum', name: 'forum', methods: ['GET'])]
+    public function index(): Response
+    {
+        return $this->redirectToRoute('topics', [], Response::HTTP_MOVED_PERMANENTLY);
     }
 
     /**
-     * My Interests – shows only the topics matching the user's interest tags (kind 10015).
+     * My Interests - shows only the topics matching the user's interest tags (kind 10015).
      */
     #[Route('/my-interests', name: 'my_interests')]
     public function myInterests(
@@ -99,7 +103,7 @@ class ForumController extends AbstractController
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->redirectToRoute('forum');
+            return $this->redirectToRoute('topics');
         }
 
         $currentInterestTags = [];
@@ -225,172 +229,42 @@ class ForumController extends AbstractController
     /**
      * @deprecated Forum main topic pages are being replaced by home feed topic integration.
      */
-    #[Route('/forum/main/{topic}', name: 'forum_main_topic')]
-    public function mainTopic(
-        string $topic,
-        ContentSearchService $contentSearch,
-        CacheInterface $cache,
-        Request $request,
-    ): Response
+    #[Route('/forum/main/{topic}', name: 'forum_main_topic', methods: ['GET'])]
+    public function mainTopic(string $topic): Response
     {
-        $catKey = strtolower(trim($topic));
-        if (!isset(ForumTopics::TOPICS[$catKey])) {
-            throw $this->createNotFoundException('Main topic not found');
-        }
-
-        $category = ForumTopics::TOPICS[$catKey];
-        $tags = [];
-        foreach (($category['subcategories'] ?? []) as $sub) {
-            foreach (($sub['tags'] ?? []) as $tag) {
-                $tags[] = (string) $tag;
-            }
-        }
-        $tags = array_values(array_unique(array_map('strtolower', array_map('trim', $tags))));
-
-        $page = max(1, (int) $request->query->get('page', 1));
-        $perPage = 20;
-
-        $cacheKey = sprintf('forum.main_topic.v3.%s.page.%d', $catKey, $page);
-        $payload = $cache->get($cacheKey, function (ItemInterface $item) use ($contentSearch, $tags, $page, $perPage) {
-            $item->expiresAfter(30);
-
-            $offset = ($page - 1) * $perPage;
-            // Fetch one extra record as a cheap "has next page" signal.
-            $window = $contentSearch->searchByTopics($tags, limit: $perPage + 1, offset: $offset);
-            $hasMore = count($window) > $perPage;
-
-            return [
-                'articles' => array_slice($window, 0, $perPage),
-                'hasMore' => $hasMore,
-            ];
-        });
-
-        $articlesPage = $payload['articles'] ?? [];
-        $hasMore = (bool) ($payload['hasMore'] ?? false);
-        $hasPrev = $page > 1;
-
-        return $this->render('forum/main_topic.html.twig', [
-            'mainTopicsMap' => $this->buildMainTopicsMap(),
-            'categoryKey' => $catKey,
-            'category' => ['name' => $category['name'] ?? ucfirst($catKey)],
-            'articles' => $articlesPage,
-            'page' => $page,
-            'hasPrev' => $hasPrev,
-            'hasMore' => $hasMore,
-            'deprecated' => true,
-        ]);
+        return $this->redirectToRoute(
+            'topics',
+            ['main' => strtolower(trim($topic))],
+            Response::HTTP_MOVED_PERMANENTLY,
+        );
     }
 
     /**
      * @deprecated Forum topic pages are being replaced by home feed topic integration.
      */
-    #[Route('/forum/topic/{key}', name: 'forum_topic')]
-    public function topic(
-        string $key,
-        ContentSearchService $contentSearch,
-        NostrClient $nostrClient,
-        EventRepository $eventRepository,
-        Request $request,
-    ): Response {
-        $key = trim($key);
-        [$cat, $sub] = array_pad(explode('-', $key, 2), 2, null);
-        $cat = strtolower((string) $cat);
-        if ($cat !== 'isets') {
-            $sub = $sub !== null ? strtolower($sub) : null;
-        }
-
-        if ($cat === 'interests' && $sub === 'all') {
-            $allTags = [];
-            /** @var User|null $user */
-            $user = $this->getUser();
-            if ($user) {
-                try {
-                    $pubkey = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
-                    $interests = $nostrClient->getUserInterests($pubkey);
-                    if (!empty($interests)) {
-                        $allTags = array_map('strtolower', array_values($interests));
-                    }
-                } catch (\Throwable) {
-                }
-            }
-            $topic = [
-                'name' => 'All Interests',
-                'tags' => $allTags,
-            ];
-        } elseif ($cat === 'isets' && $sub !== null) {
-            $coordParts = explode(':', $sub, 2);
-            if (count($coordParts) !== 2) {
-                throw $this->createNotFoundException('Invalid interest set coordinate');
-            }
-            [$setPubkey, $setDTag] = $coordParts;
-            $setEvent = $eventRepository->findByNaddr(KindsEnum::INTEREST_SETS->value, $setPubkey, $setDTag);
-            if (!$setEvent) {
-                throw $this->createNotFoundException('Interest set not found');
-            }
-            $setTags = [];
-            foreach ($setEvent->getTags() as $tag) {
-                if (is_array($tag) && ($tag[0] ?? '') === 't' && isset($tag[1])) {
-                    $setTags[] = strtolower(trim((string) $tag[1]));
-                }
-            }
-            $topic = [
-                'name' => $setEvent->getTitle() ?? $setDTag,
-                'tags' => $setTags,
-            ];
-        } elseif (!$cat || !$sub || !isset(ForumTopics::TOPICS[$cat]['subcategories'][$sub])) {
-            throw $this->createNotFoundException('Topic not found');
-        } else {
-            $topic = ForumTopics::TOPICS[$cat]['subcategories'][$sub];
-        }
-
-        $tags = array_map('strval', $topic['tags'] ?? []);
-        $tagCounts = $contentSearch->getTopicsMetadata($tags);
-
-        $page = max(1, (int) $request->query->get('page', 1));
-        $perPage = 20;
-        $articles = $contentSearch->searchByTopics($tags, limit: $perPage * 10);
-        $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
-
-        $pager = new Pagerfanta(new ArrayAdapter($articles));
-        $pager->setMaxPerPage($perPage);
-        $pager->setCurrentPage($page);
-
-        return $this->render('forum/topic.html.twig', [
-            'categoryKey' => $cat,
-            'subcategoryKey' => $sub,
-            'topic' => $topic,
-            'tags' => $tagCounts,
-            'articles' => $articlesPage,
-            'pager' => $pager,
-            'topics' => $contentSearch->buildTaxonomyWithCounts(ForumTopics::TOPICS),
-            'deprecated' => true,
-        ]);
+    #[Route('/forum/topic/{key}', name: 'forum_topic', methods: ['GET'])]
+    public function topic(string $key): Response
+    {
+        return $this->redirectToRoute(
+            'topics',
+            ['topic' => trim($key)],
+            Response::HTTP_MOVED_PERMANENTLY,
+        );
     }
 
     /**
      * @deprecated Forum tag pages are being replaced by home feed topic integration.
      */
-    #[Route('/forum/tag/{tag}', name: 'forum_tag')]
-    public function tag(string $tag, ContentSearchService $contentSearch, Request $request): Response
+    #[Route('/forum/tag/{tag}', name: 'forum_tag', methods: ['GET'])]
+    public function tag(string $tag): Response
     {
-        $tag = strtolower(trim($tag));
-        $page = max(1, (int) $request->query->get('page', 1));
-        $perPage = 20;
-        $articles = $contentSearch->searchByTopics([$tag], limit: $perPage * 10);
-        $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
-
-        $pager = new Pagerfanta(new ArrayAdapter($articles));
-        $pager->setMaxPerPage($perPage);
-        $pager->setCurrentPage($page);
-
-        return $this->render('forum/tag.html.twig', [
-            'tag' => $tag,
-            'articles' => $articlesPage,
-            'pager' => $pager,
-            'topics' => $contentSearch->buildTaxonomyWithCounts(ForumTopics::TOPICS),
-            'deprecated' => true,
-        ]);
+        return $this->redirectToRoute(
+            'topics',
+            ['tag' => strtolower(trim($tag))],
+            Response::HTTP_MOVED_PERMANENTLY,
+        );
     }
+
 
     #[Route('/api/interests/current-tags', name: 'api_interests_current_tags', methods: ['GET'])]
     public function currentInterestTags(EventRepository $eventRepository): JsonResponse

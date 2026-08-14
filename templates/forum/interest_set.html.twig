@@ -9,7 +9,7 @@
         <div class="discover-section topics-strip">
             <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
                 {% for tag in set.tags %}
-                    <a href="{{ path('forum_tag', {'tag': tag}) }}" class="btn btn-outline-primary btn-sm">#{{ tag }}</a>
+                    <a href="{{ path('topics', {'tag': tag}) }}" class="btn btn-outline-primary btn-sm">#{{ tag }}</a>
                 {% endfor %}
             </div>
         </div>

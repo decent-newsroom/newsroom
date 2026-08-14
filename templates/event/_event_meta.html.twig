@@ -44,7 +44,7 @@
         <div class="event-meta-topics">
             <small class="event-meta-label">Topics:</small>
             {% for t in metaTopics|slice(0, 20) %}
-                <a href="{{ path('forum_tag', {'tag': t}) }}" class="badge bg-secondary">#{{ t }}</a>
+                <a href="{{ path('topics', {'tag': t}) }}" class="badge bg-secondary">#{{ t }}</a>
             {% endfor %}
         </div>
     {% endif %}

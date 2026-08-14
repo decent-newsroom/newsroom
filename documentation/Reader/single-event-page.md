@@ -58,7 +58,7 @@ skip it). It surfaces:
 - `alt` — rendered prominently when `event.content` is empty or very
   short (covers kinds whose payload is purely tag-based); otherwise
   shown as a small "Description:" row in the extras list.
-- `t` hashtags — linked to `forum_tag` so readers can jump to the
+- `t` hashtags — linked to the canonical `topics` tag view so readers can jump to the
   corresponding topic page.
 - `p` mentions — rendered through `<twig:Molecules:UserFromNpub>` with a
   link to the author profile; filtered to only include valid 64-hex

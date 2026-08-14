@@ -45,12 +45,12 @@ class ImageUploadController extends AbstractController
         $provider = strtolower($provider);
 
         if (!isset(self::PROVIDERS[$provider])) {
-            return new JsonResponse(['status' => 'error', 'message' => 'Unsupported provider'], 400);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Unsupported provider'], 400);
         }
 
         $authHeader = $request->headers->get('Authorization');
         if (!$authHeader || !str_starts_with($authHeader, 'Nostr ')) {
-            return new JsonResponse(['status' => 'error', 'message' => 'Missing or invalid Authorization header'], 401);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Missing or invalid Authorization header'], 401);
         }
 
         $file = $request->files->get('file');
@@ -70,7 +70,7 @@ class ImageUploadController extends AbstractController
                 'post_max_size'  => ini_get('post_max_size'),
                 'upload_max'     => ini_get('upload_max_filesize'),
             ]);
-            return new JsonResponse(['status' => 'error', 'message' => 'Missing file'], 400);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Missing file'], 400);
         }
 
         $this->logger->info('[Upload] File received', [
@@ -100,7 +100,7 @@ class ImageUploadController extends AbstractController
                 'reason'     => $reason,
             ]);
 
-            return new JsonResponse([
+            return $this->deprecatedJsonResponse([
                 'status' => 'error',
                 'message' => 'Upload rejected by server: ' . $reason,
             ], 400);
@@ -129,7 +129,7 @@ class ImageUploadController extends AbstractController
                 'file'      => $e->getFile() . ':' . $e->getLine(),
                 'trace'     => $e->getTraceAsString(),
             ]);
-            return new JsonResponse([
+            return $this->deprecatedJsonResponse([
                 'status' => 'error',
                 'message' => 'Proxy error: ' . $e->getMessage(),
             ], 500);
@@ -145,7 +145,7 @@ class ImageUploadController extends AbstractController
 
         $fileContent = file_get_contents($file->getPathname());
         if ($fileContent === false) {
-            return new JsonResponse(['status' => 'error', 'message' => 'Failed to read uploaded file'], 500);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Failed to read uploaded file'], 500);
         }
 
         $filename = $file->getClientOriginalName() ?: ('upload_' . date('Ymd_His'));
@@ -182,7 +182,7 @@ class ImageUploadController extends AbstractController
         // 20 MiB server-side size guard for blossom.band free tier
         $maxBytes = 20 * 1024 * 1024;
         if ($file->getSize() > $maxBytes) {
-            return new JsonResponse([
+            return $this->deprecatedJsonResponse([
                 'status' => 'error',
                 'message' => sprintf('File too large for Blossom (max 20 MiB, got %.1f MiB)', $file->getSize() / 1024 / 1024),
             ], 413);
@@ -198,7 +198,7 @@ class ImageUploadController extends AbstractController
         $fileContent = file_get_contents($pathname);
         if ($fileContent === false) {
             $this->logger->error('[Upload][Blossom] file_get_contents failed', ['pathname' => $pathname]);
-            return new JsonResponse(['status' => 'error', 'message' => 'Failed to read uploaded file'], 500);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Failed to read uploaded file'], 500);
         }
 
         $mimeType = $file->getMimeType() ?: 'application/octet-stream';
@@ -247,12 +247,14 @@ class ImageUploadController extends AbstractController
         }
 
         $statusCode = 200;
-        if (isset($http_response_header) && is_array($http_response_header)) {
-            foreach ($http_response_header as $hdr) {
-                if (preg_match('#^HTTP/\\S+\\s+(\\d{3})#', $hdr, $m)) {
-                    $statusCode = (int) $m[1];
-                    break;
-                }
+        $responseHeaders = function_exists('http_get_last_response_headers')
+            ? (http_get_last_response_headers() ?: [])
+            : ($http_response_header ?? []);
+
+        foreach ($responseHeaders as $hdr) {
+            if (preg_match('#^HTTP/\\S+\\s+(\\d{3})#', $hdr, $m)) {
+                $statusCode = (int) $m[1];
+                break;
             }
         }
 
@@ -266,7 +268,7 @@ class ImageUploadController extends AbstractController
     {
         $json = json_decode($response['body'], true);
         if (!is_array($json)) {
-            return new JsonResponse(['status' => 'error', 'message' => 'Invalid JSON from provider', 'raw' => $response['body']], 502);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Invalid JSON from provider', 'raw' => $response['body']], 502);
         }
 
         $statusCode = $response['status'];
@@ -296,11 +298,11 @@ class ImageUploadController extends AbstractController
         }
 
         if ($isSuccess && $imageUrl) {
-            return new JsonResponse(['status' => 'success', 'url' => $imageUrl]);
+            return $this->deprecatedJsonResponse(['status' => 'success', 'url' => $imageUrl]);
         }
 
         $message = $json['message'] ?? $json['error'] ?? $json['msg'] ?? 'Upload failed';
-        return new JsonResponse(['status' => 'error', 'message' => $message, 'raw' => $json], $statusCode >= 400 ? $statusCode : 502);
+        return $this->deprecatedJsonResponse(['status' => 'error', 'message' => $message, 'raw' => $json], $statusCode >= 400 ? $statusCode : 502);
     }
 
     /**
@@ -312,22 +314,22 @@ class ImageUploadController extends AbstractController
     {
         $json = json_decode($response['body'], true);
         if (!is_array($json)) {
-            return new JsonResponse(['status' => 'error', 'message' => 'Invalid JSON from Blossom', 'raw' => $response['body']], 502);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Invalid JSON from Blossom', 'raw' => $response['body']], 502);
         }
 
         $statusCode = $response['status'];
 
         if ($statusCode >= 400) {
             $message = $json['message'] ?? $json['error'] ?? 'Blossom upload failed';
-            return new JsonResponse(['status' => 'error', 'message' => $message, 'raw' => $json], $statusCode);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => $message, 'raw' => $json], $statusCode);
         }
 
         $imageUrl = $json['url'] ?? null;
         if (!$imageUrl || !is_string($imageUrl)) {
-            return new JsonResponse(['status' => 'error', 'message' => 'No URL in Blossom response', 'raw' => $json], 502);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'No URL in Blossom response', 'raw' => $json], 502);
         }
 
-        return new JsonResponse(['status' => 'success', 'url' => $imageUrl]);
+        return $this->deprecatedJsonResponse(['status' => 'success', 'url' => $imageUrl]);
     }
 
     /**
@@ -364,7 +366,7 @@ class ImageUploadController extends AbstractController
     {
         $user = $this->getUser();
         if (!$user) {
-            return new JsonResponse(['status' => 'error', 'message' => 'Not authenticated'], 401);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Not authenticated'], 401);
         }
 
         $limit = min($request->query->getInt('limit', 50), 200);
@@ -378,7 +380,7 @@ class ImageUploadController extends AbstractController
         $uploads = $repo->findByNpub($npub, $limit, $offset, $provider);
         $total = $repo->countByNpub($npub, $provider);
 
-        return new JsonResponse([
+        return $this->deprecatedJsonResponse([
             'uploads' => array_map(fn(UserUpload $u) => $u->toArray(), $uploads),
             'total' => $total,
             'limit' => $limit,
@@ -394,7 +396,7 @@ class ImageUploadController extends AbstractController
     {
         $user = $this->getUser();
         if (!$user) {
-            return new JsonResponse(['status' => 'error', 'message' => 'Not authenticated'], 401);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Not authenticated'], 401);
         }
 
         try {
@@ -403,25 +405,35 @@ class ImageUploadController extends AbstractController
             $upload = $repo->find($id);
 
             if (!$upload) {
-                return new JsonResponse(['status' => 'error', 'message' => 'Upload not found'], 404);
+                return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Upload not found'], 404);
             }
 
             // Verify ownership: only the user who uploaded can delete
             if ($upload->getNpub() !== $user->getUserIdentifier()) {
-                return new JsonResponse(['status' => 'error', 'message' => 'Unauthorized'], 403);
+                return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Unauthorized'], 403);
             }
 
             $this->entityManager->remove($upload);
             $this->entityManager->flush();
 
-            return new JsonResponse(['status' => 'success', 'message' => 'Upload deleted']);
+            return $this->deprecatedJsonResponse(['status' => 'success', 'message' => 'Upload deleted']);
         } catch (\Throwable $e) {
             $this->logger->error('[Delete] Upload deletion failed', [
                 'id'        => $id,
                 'exception' => $e->getMessage(),
             ]);
-            return new JsonResponse(['status' => 'error', 'message' => 'Failed to delete upload'], 500);
+            return $this->deprecatedJsonResponse(['status' => 'error', 'message' => 'Failed to delete upload'], 500);
         }
     }
-}
+
+    private function deprecatedJsonResponse(mixed $data = null, int $status = 200, array $headers = [], bool $json = false): JsonResponse
+    {
+        $headers = array_replace([
+            'Deprecation' => 'true',
+            'Sunset' => 'Fri, 13 Nov 2026 00:00:00 GMT',
+            'Link' => '</api/media>; rel="successor-version"',
+        ], $headers);
+
+        return new JsonResponse($data, $status, $headers, $json);
+    }}
 

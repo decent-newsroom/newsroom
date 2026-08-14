@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Started the controller deprecation batch: old `/forum/*` topic pages now redirect to canonical `/topics` query URLs, app-level NIP-46 controller shells were removed in favor of SigningBundle routes, the legacy image upload/history API now emits deprecation headers while frontend callers migrate, and the upload proxy no longer uses deprecated `$http_response_header` access.
 - [Improvement] Pruned obsolete and overly verbose host documentation: removed stale roadmap/draft docs, collapsed current Search/graph/fetch/navigation/admin references, and kept package/spec documentation out of the host docs tree.
 - [Feature] Added the initial `decent-newsroom/signing-bundle` package with Nostr Connect QR/session routes, encrypted NIP-46 remote-signer session storage, server-side bunker `sign_event` RPC through `nostr-client-bundle`, relay AUTH signing, and host wiring that keeps Mercure/browser fallback outside the bundle.
 - [Improvement] Started extracting the relay gateway into `decent-newsroom/relay-gateway-bundle`, with the Redis stream gateway protocol and client moved behind a reusable Composer package backed by `nostr-client-bundle`; the host now supplies relay URL resolution, IdentityBundle/Mercure NIP-42 AUTH signing, health recording, filter stats, and user activity adapters.

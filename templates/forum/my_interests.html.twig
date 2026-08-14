@@ -112,7 +112,7 @@
                         {% for subKey, sub in category.subcategories %}
                             {% if catKey != 'isets' %}
                                 {% for tag in sub.tags %}
-                                    <a href="{{ path('forum_tag', {'tag': tag}) }}"
+                                    <a href="{{ path('topics', {'tag': tag}) }}"
                                        class="btn btn-outline-primary btn-sm">
                                         #{{ tag }}
                                     </a>
@@ -145,7 +145,7 @@
                 You will then see articles related to those interests here, and they will also be used to personalize your main feed.
             </p>
             <div class="cta-row mt-3">
-                <a class="btn btn--primary" href="{{ path('forum') }}">Browse all topics</a>
+                <a class="btn btn--primary" href="{{ path('topics') }}">Browse all topics</a>
             </div>
         </div>
     {% endif %}

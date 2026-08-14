@@ -43,7 +43,7 @@
         <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
             <div class="flex-grow-1">
                 <div class="bookmark-item-entry">
-                    <a class="tag" href="{{ path('forum_tag', {tag: value}) }}">{{ value }}</a>
+                    <a class="tag" href="{{ path('topics', {tag: value}) }}">{{ value }}</a>
                 </div>
             </div>
             {% include 'partial/_bookmark_remove_button.html.twig' with {type: type, value: value} only %}
