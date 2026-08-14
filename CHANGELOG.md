@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Pruned obsolete and overly verbose host documentation: removed stale roadmap/draft docs, collapsed current Search/graph/fetch/navigation/admin references, and kept package/spec documentation out of the host docs tree.
 - [Feature] Added the initial `decent-newsroom/signing-bundle` package with Nostr Connect QR/session routes, encrypted NIP-46 remote-signer session storage, server-side bunker `sign_event` RPC through `nostr-client-bundle`, relay AUTH signing, and host wiring that keeps Mercure/browser fallback outside the bundle.
 - [Improvement] Started extracting the relay gateway into `decent-newsroom/relay-gateway-bundle`, with the Redis stream gateway protocol and client moved behind a reusable Composer package backed by `nostr-client-bundle`; the host now supplies relay URL resolution, IdentityBundle/Mercure NIP-42 AUTH signing, health recording, filter stats, and user activity adapters.
 - [Improvement] Changed RelayGatewayBundle reads to decompose multi-filter and multi-kind relay queries into sequential single-filter subscriptions over the same pooled connection, avoiding relay-hostile multi-filter REQs while preserving deduplicated results for callers.
@@ -150,7 +151,7 @@
   - `NavigationBuilderTrait` helper providing `buildMainNav()`, `buildReadingNookNav()`, `buildNewsroomNav()` methods
   - Three layouts: main global (`layout.html.twig`), Reading Nook (`reading-nook-layout.html.twig`), Newsroom (`newsroom-layout.html.twig`)
   - Simplified main sidebar removes redundant "my ..." links (these will be in the Reading Nook and Newsroom sub-hubs)
-  - Full implementation guide at `documentation/Newsroom/navigation-layouts-implementation.md`
+  - Navigation implementation guide at `documentation/Newsroom/navigation-layouts-implementation.md`
 - [Bug] Fixed article-page timeouts in `ReadingListNavigationService`: list-membership discovery now uses the indexed `parsed_reference.target_coord` path first (joining to source events) with a legacy `event.tags @>` fallback only when graph references are unavailable.
 - [Bug] Fixed nested magazine category pages failing to load: `FeaturedList` now resolves category/chapter events by full coordinate (`kind + pubkey + d_tag`) instead of slug-only lookups, and recursive subcategory rendering is depth-guarded to prevent cyclic/self-referential loops.
 - [Bug] Fixed `mag/...` page timeouts caused by `CategoryLink` Twig component DB lookups: replaced broad `tags @>` scans with indexed `(kind, pubkey, d_tag)` resolution (legacy fallback kept) and added per-request coordinate title memoization to avoid repeated duplicate queries during one render.
@@ -187,7 +188,7 @@
 - [Improvement] Enhanced `.dockerignore` with organized sections (Git, IDE, Env, Docker, Documentation, Artifacts) to reduce Docker build context transfer and accelerate builds.
 - [Improvement] Updated `compose.prod.yaml`: made all worker services (worker, worker-relay, worker-profiles, relay-gateway) depend on redis healthcheck, set Essayist relay internal URL (`ESSAYIST_RELAY_INTERNAL_URL: ws://strfry-essayist:7779`), fixed SERVER_NAME to include `php:80` for internal Mercure routing.
 - [Improvement] Created quick-reference documentation (`documentation/Admin/docker-quick-reference.md`) with common Docker Compose commands organized by role (Frontend, Backend, DevOps, Database, API).
-- [Improvement] Added comprehensive Docker infrastructure improvement summary (`documentation/Admin/docker-compose-improvements.md`) documenting all changes, rationale, benefits, risk mitigation, and future optimization opportunities.
+- [Improvement] Added Docker infrastructure deployment notes; the historical summary was later folded into the production validation and quick-reference docs.
 - [Improvement] Reduced duplicate runtime-context work in `ExpressionService`: cached expression and spell evaluation paths now build `RuntimeContext` once and reuse it for both cache-key generation and evaluation execution.
 - [Bug] Fixed ExpressionBundle PHPStan issues by tightening iterable/value PHPDoc types across parser/model/source/cache services, removing dead/unreachable runner branches, making address resolver matches exhaustive, fixing non-null coalesce/strict checks in spell resolution, and replacing `Bech32::$type` access in feed API naddr decoding with payload type validation.
 - [Bug] Fixed the Essayist members page crashing on `/essayist/members` by correcting the claim-section Twig translation calls and adding the missing `essayist.claim.*` strings.
@@ -551,6 +552,3 @@ Graph traversal operators.
 - Exposed the new NIP-GX traversal ops in the expression builder UI (`/expressions/create` and `/expressions/edit/...`). The stage operation dropdown now has a "Traversal (NIP-GX)" optgroup, and `ancestor`/`descendant` stages expose a modifier selector for `root` / `leaves`. Traversal stages are serialized as `["op","<op>"]` or `["op","<op>","<modifier>"]`, matching the runner's parser.
 - [Bug] Fixed NIP-GX `ancestor` / `ancestor root` traversal stopping short of the true root for `kind:1` threads and `kind:1111` comment trees whenever an intermediate event wasn't cached in the local DB. The runner now honors the authoritative root-scope tags — NIP-10 marked `"root"` e tag and NIP-22 uppercase `E`/`A` — via a `TraversalResolver::rootHint()` shortcut that jumps straight to the true root in one hop. For `ancestor root`, the hint is preferred over the iterative walk; for plain `ancestor`, the hint is appended at the farthest position if the walk didn't already reach it, so the chain always terminates at the declared root when one is set.
 - Broadened the ExpressionBundle's event-id input resolution to query a union of the local relay, the configured content relays, and the viewer's NIP-65 read relays (deduplicated, capped at 16) when an input event is not in the local database. The local and content relays remain the canonical paths — the viewer is intentionally not assumed to be the author of referenced events, since expressions and the spells they reference can be authored by anyone and evaluated by anyone — but the viewer's relays are included as an additional low-priority probe. The viewer's pubkey is passed to the relay fetch for NIP-42 AUTH against their own session only, not as an authorship claim.
-
-
-

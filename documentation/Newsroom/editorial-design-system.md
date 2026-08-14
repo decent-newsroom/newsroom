@@ -107,5 +107,4 @@ The public homepage uses one primary heading, one split hero, four product paths
 
 ## Related documentation
 
-- [Navigation Layouts Implementation](navigation-layouts-implementation.md)
-- [Newsroom Navigation Refactor Plan](newsroom-navigation-refactor-plan.md)
+- [Navigation Layouts](navigation-layouts-implementation.md)
