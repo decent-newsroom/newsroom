@@ -1,0 +1,5 @@
+signing_bundle_controllers:
+  resource:
+    path: ../../Controller/
+    namespace: DecentNewsroom\SigningBundle\Controller
+  type: attribute

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Nostr;
 
 use App\Enum\RelayPurpose;
-use DecentNewsroom\IdentityBundle\Contract\SignerRelayProviderInterface;
+use DecentNewsroom\IdentityBundle\Contract\SignerRelayProviderInterface as IdentitySignerRelayProviderInterface;
+use DecentNewsroom\SigningBundle\Contract\SignerRelayProviderInterface as SigningSignerRelayProviderInterface;
 use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 
@@ -27,7 +28,7 @@ use Psr\Log\LoggerInterface;
  * Configured via services.yaml parameters. The local relay URL comes from
  * the NOSTR_DEFAULT_RELAY env var.
  */
-class RelayRegistry implements SignerRelayProviderInterface
+class RelayRegistry implements IdentitySignerRelayProviderInterface, SigningSignerRelayProviderInterface
 {
     /** @var array<string, string[]> purpose => URLs */
     private array $relays = [];
@@ -282,4 +283,5 @@ class RelayRegistry implements SignerRelayProviderInterface
         return $relayUrls;
     }
 }
+
 

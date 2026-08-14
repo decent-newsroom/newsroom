@@ -6,9 +6,8 @@ namespace App\RelayGateway;
 
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayUserActivityStore;
-use DecentNewsroom\IdentityBundle\Service\Nostr\RemoteBunkerSignerStrategy;
-use DecentNewsroom\IdentityBundle\Service\NostrSignerStrategyRegistry;
 use DecentNewsroom\RelayGatewayBundle\Contract\AuthChallengeSignerInterface;
+use DecentNewsroom\SigningBundle\Contract\RelayAuthSignerInterface;
 use Innis\Nostr\Core\Domain\Entity\Event;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
@@ -25,7 +24,7 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
     public function __construct(
         private \Redis $redis,
         private HubInterface $hub,
-        private NostrSignerStrategyRegistry $signerStrategies,
+        private RelayAuthSignerInterface $relayAuthSigner,
         private RelayUserActivityStore $activityStore,
         private RelayHealthStore $healthStore,
         private LoggerInterface $logger,
@@ -38,21 +37,10 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
             return null;
         }
 
-        $unsignedEvent = [
-            'pubkey' => $pubkeyHex,
-            'created_at' => time(),
-            'kind' => 22242,
-            'tags' => [
-                ['relay', $relayUrl],
-                ['challenge', $challenge],
-            ],
-            'content' => '',
-        ];
-
         $this->healthStore->setAuthRequired($relayUrl);
         $this->healthStore->setAuthStatus($relayUrl, 'pending');
 
-        $signed = $this->signWithRemoteBunker($pubkeyHex, $relayUrl, $unsignedEvent);
+        $signed = $this->signWithRemoteBunker($pubkeyHex, $relayUrl, $challenge, max(1, $timeoutSeconds));
         if ($signed !== null) {
             return $signed;
         }
@@ -60,20 +48,16 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
         return $this->signWithBrowserRoundtrip($pubkeyHex, $relayUrl, $challenge, max(1, $timeoutSeconds));
     }
 
-    /**
-     * @param array<string,mixed> $unsignedEvent
-     */
-    private function signWithRemoteBunker(string $pubkeyHex, string $relayUrl, array $unsignedEvent): ?Event
+    private function signWithRemoteBunker(string $pubkeyHex, string $relayUrl, string $challenge, int $timeoutSeconds): ?Event
     {
         try {
-            $strategy = $this->signerStrategies->getByMethod(RemoteBunkerSignerStrategy::METHOD);
-            if ($strategy === null || !$strategy->supports($pubkeyHex)) {
-                return null;
-            }
-
-            $signedEvent = $strategy->sign($pubkeyHex, $unsignedEvent);
+            $hadRemoteSession = $this->relayAuthSigner->supportsRelayAuth($pubkeyHex);
+            $signedEvent = $this->relayAuthSigner->signRelayAuth($pubkeyHex, $relayUrl, $challenge, $timeoutSeconds);
             if (!is_array($signedEvent)) {
-                $this->activityStore->recordAuth($pubkeyHex, $relayUrl, 'nip46', RelayUserActivityStore::STATUS_FAILED, 'signing failed');
+                if ($hadRemoteSession) {
+                    $this->activityStore->recordAuth($pubkeyHex, $relayUrl, 'nip46', RelayUserActivityStore::STATUS_FAILED, 'signing failed');
+                }
+
                 return null;
             }
 
@@ -84,7 +68,7 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
         } catch (\Throwable $e) {
             $this->logger->warning('Relay gateway NIP-46 AUTH signing failed; falling back to browser roundtrip', [
                 'relay' => $relayUrl,
-                'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                'pubkey' => substr($pubkeyHex, 0, 8).'...',
                 'error' => $e->getMessage(),
             ]);
             $this->activityStore->recordAuth($pubkeyHex, $relayUrl, 'nip46', RelayUserActivityStore::STATUS_FAILED, $e->getMessage());
@@ -99,7 +83,7 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
 
         try {
             $this->redis->set(
-                self::AUTH_PENDING_PREFIX . $requestId,
+                self::AUTH_PENDING_PREFIX.$requestId,
                 json_encode([
                     'relay' => $relayUrl,
                     'challenge' => $challenge,
@@ -110,7 +94,7 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
             );
 
             $this->hub->publish(new Update(
-                '/relay-auth/' . $pubkeyHex,
+                '/relay-auth/'.$pubkeyHex,
                 json_encode([
                     'requestId' => $requestId,
                     'relay' => $relayUrl,
@@ -122,7 +106,7 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
         } catch (\Throwable $e) {
             $this->logger->error('Relay gateway browser AUTH roundtrip could not be started', [
                 'relay' => $relayUrl,
-                'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                'pubkey' => substr($pubkeyHex, 0, 8).'...',
                 'error' => $e->getMessage(),
             ]);
             $this->healthStore->setAuthStatus($relayUrl, 'failed');
@@ -134,9 +118,9 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
         $deadline = microtime(true) + $timeoutSeconds;
         while (microtime(true) < $deadline) {
             try {
-                $signedJson = $this->redis->get(self::AUTH_SIGNED_PREFIX . $requestId);
+                $signedJson = $this->redis->get(self::AUTH_SIGNED_PREFIX.$requestId);
                 if (is_string($signedJson) && $signedJson !== '') {
-                    $this->redis->del(self::AUTH_SIGNED_PREFIX . $requestId);
+                    $this->redis->del(self::AUTH_SIGNED_PREFIX.$requestId);
                     $signedEvent = json_decode($signedJson, true);
 
                     if (is_array($signedEvent)) {
@@ -169,3 +153,4 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
         return strlen($value) === 64 && ctype_xdigit($value);
     }
 }
+

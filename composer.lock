@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6e688798877ee44dc2f01eb6073d4526",
+    "content-hash": "2b3dc77a0b09c0d53e57df8ad7137eb3",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1832,6 +1832,55 @@
                 "MIT"
             ],
             "description": "Reusable Redis-stream Nostr relay gateway built on decent-newsroom/nostr-client-bundle",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "decent-newsroom/signing-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/signing-bundle",
+                "reference": "0c088bddc966995c3eca16a0f184b2e7fd2d870f"
+            },
+            "require": {
+                "decent-newsroom/nostr-client-bundle": "@dev",
+                "endroid/qr-code": "^6.0",
+                "ext-ctype": "*",
+                "ext-json": "*",
+                "ext-openssl": "*",
+                "ext-redis": "*",
+                "innis/nostr-core": "^0.3.17",
+                "php": ">=8.3",
+                "psr/log": "^3.0",
+                "swentel/nostr-php": "^1.9",
+                "symfony/config": "^7.4",
+                "symfony/dependency-injection": "^7.4",
+                "symfony/framework-bundle": "^7.4",
+                "symfony/http-foundation": "^7.4",
+                "symfony/routing": "^7.4",
+                "symfony/uid": "^7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.6"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "DecentNewsroom\\SigningBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DecentNewsroom\\SigningBundle\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Server-side Nostr signing orchestration for extension, relay AUTH, and NIP-46 bunker flows.",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -17319,7 +17368,8 @@
         "decent-newsroom/identity-bundle": 20,
         "decent-newsroom/nostr-client-bundle": 20,
         "decent-newsroom/nostr-kernel-bundle": 20,
-        "decent-newsroom/relay-gateway-bundle": 20
+        "decent-newsroom/relay-gateway-bundle": 20,
+        "decent-newsroom/signing-bundle": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
@@ -17335,3 +17385,4 @@
     "platform-dev": {},
     "plugin-api-version": "2.9.0"
 }
+

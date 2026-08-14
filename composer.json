@@ -46,6 +46,13 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "packages/signing-bundle",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "require": {
@@ -61,6 +68,7 @@
         "decent-newsroom/identity-bundle": "@dev",
         "decent-newsroom/nostr-client-bundle": "@dev",
         "decent-newsroom/relay-gateway-bundle": "@dev",
+        "decent-newsroom/signing-bundle": "@dev",
         "decent-newsroom/nostr-kernel-bundle": "@dev",
         "decent-newsroom/expression-bundle": "@dev",
         "doctrine/dbal": "^4.2",

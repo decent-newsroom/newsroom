@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use App\Entity\User;
-use DecentNewsroom\IdentityBundle\Service\Nostr\Nip46SessionStore;
+use DecentNewsroom\SigningBundle\Service\Nostr\Nip46SessionStore;
 use App\Service\Nostr\RelayGatewayClient;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
@@ -59,4 +59,5 @@ class LogoutRelayCleanupListener
         }
     }
 }
+
 

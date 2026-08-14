@@ -256,10 +256,9 @@ services:
     App\Service\Nostr\NostrRequestExecutor:
         lazy: true
 
-    # NIP-46 session storage — encrypted ephemeral client keys for remote-signer users
+    # Legacy app-level NIP-46 session service id now delegates to SigningBundle.
     App\Service\Nostr\Nip46SessionService:
-        arguments:
-            $encryptionKey: '%encryption_key%'
+        alias: DecentNewsroom\SigningBundle\Service\Nostr\Nip46SessionStore
 
     App\MessageHandler\UpdateRelayListHandler:
         arguments:
@@ -456,6 +455,13 @@ services:
     DecentNewsroom\RelayGatewayBundle\Contract\GatewayFilterStatsRecorderInterface:
         alias: App\RelayGateway\GatewayFilterStatsRecorderAdapter
 
+    # SigningBundle host integration
+    DecentNewsroom\SigningBundle\Contract\SignerRelayProviderInterface:
+        alias: App\Service\Nostr\RelayRegistry
+
+    DecentNewsroom\SigningBundle\Contract\CurrentSubjectPubkeyResolverInterface:
+        alias: App\Signing\AppCurrentSubjectPubkeyResolver
+
     # IdentityBundle host integration
     DecentNewsroom\IdentityBundle\Contract\UserRepositoryBridgeInterface:
         alias: App\Security\AppIdentityBridge
@@ -463,13 +469,6 @@ services:
     DecentNewsroom\IdentityBundle\Contract\SignerRelayProviderInterface:
         alias: App\Service\Nostr\RelayRegistry
 
-    DecentNewsroom\IdentityBundle\Contract\Nip46AuthEventSignerInterface:
-        alias: App\Service\Nostr\Nip46AuthSigner
-
-    DecentNewsroom\IdentityBundle\Service\Nostr\Nip46SessionStore:
-        arguments:
-            $redis: '@Redis'
-            $encryptionKey: '%encryption_key%'
 
     App\Security\AppIdentityBridge: ~
 
@@ -481,3 +480,4 @@ services:
 
     Innis\Nostr\Core\Domain\Service\Bech32EncoderInterface:
         class: Innis\Nostr\Core\Infrastructure\Adapter\Bech32EncoderAdapter
+

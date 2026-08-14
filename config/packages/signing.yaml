@@ -1,0 +1,12 @@
+signing:
+    app_name: 'Decent Newsroom'
+    nostr_connect:
+        requested_permissions:
+            - 'sign_event:27235'
+            - 'sign_event:22242'
+            - 'get_public_key'
+    nip46:
+        session_ttl_seconds: 28800
+        request_timeout_seconds: 15
+        redis_prefix: 'nip46_session:'
+        encryption_key: '%env(APP_ENCRYPTION_KEY)%'
