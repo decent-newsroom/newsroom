@@ -46,6 +46,22 @@ final class ContentSearchServiceTest extends TestCase
         );
     }
 
+    public function testSearchByTopicsNormalizesHashtagPrefixedTags(): void
+    {
+        $articleSearch = $this->createMock(ArticleSearchInterface::class);
+        $service = new ContentSearchService($articleSearch, new NullLogger());
+
+        $articleSearch
+            ->expects($this->once())
+            ->method('findByTopics')
+            ->with(['nostr', 'bitcoin'], 20, 0)
+            ->willReturn([$this->article('author-a', 'nostr-note')]);
+
+        $results = $service->searchByTopics([' #Nostr ', 'nostr', '#Bitcoin', '', ['not-a-tag']]);
+
+        self::assertCount(1, $results);
+    }
+
     private function article(string $pubkey, string $slug): Article
     {
         return (new Article())

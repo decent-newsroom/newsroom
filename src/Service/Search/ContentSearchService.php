@@ -55,11 +55,7 @@ class ContentSearchService
         }
 
         try {
-            $normalizedTopics = array_map(
-                fn($t) => strtolower(trim((string) $t)),
-                $topics
-            );
-            $normalizedTopics = array_values(array_filter(array_unique($normalizedTopics)));
+            $normalizedTopics = $this->normalizeTopicNames($topics);
 
             if (empty($normalizedTopics)) {
                 return [];
@@ -157,11 +153,7 @@ class ContentSearchService
         }
 
         try {
-            $normalizedTopics = array_map(
-                fn($t) => strtolower(trim((string) $t)),
-                $topics
-            );
-            $normalizedTopics = array_values(array_filter(array_unique($normalizedTopics)));
+            $normalizedTopics = $this->normalizeTopicNames($topics);
 
             if (empty($normalizedTopics)) {
                 return [];
@@ -435,6 +427,32 @@ class ContentSearchService
             $result[$catKey]['subcategories'] = $subs;
         }
         return $result;
+    }
+
+    /**
+     * @param array<int, mixed> $topics
+     * @return string[]
+     */
+    private function normalizeTopicNames(array $topics): array
+    {
+        $normalized = [];
+
+        foreach ($topics as $topic) {
+            if (!is_scalar($topic)) {
+                continue;
+            }
+
+            $value = strtolower(trim((string) $topic));
+            $value = trim(ltrim($value, '#'));
+
+            if ($value === '') {
+                continue;
+            }
+
+            $normalized[$value] = true;
+        }
+
+        return array_keys($normalized);
     }
 }
 

@@ -485,7 +485,10 @@ class UserProfileService
                 $tag = (array) $tag;
             }
             if (is_array($tag) && ($tag[0] ?? '') === 't' && isset($tag[1])) {
-                $tTags[] = strtolower(trim((string) $tag[1]));
+                $value = trim(ltrim(strtolower(trim((string) $tag[1])), '#'));
+                if ($value !== '') {
+                    $tTags[] = $value;
+                }
             }
         }
 
