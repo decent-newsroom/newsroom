@@ -4,25 +4,20 @@ namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
-use App\Enum\RolesEnum;
-use App\Entity\User;
-use App\Message\FetchEventFromRelaysMessage;
-use App\Message\PrefetchNostrEmbedsMessage;
 use App\Service\ArticlePublicationIndexer;
+use App\Service\Reader\ArticleAccessService;
+use App\Service\Reader\ArticlePageLoader;
 use App\Service\Cache\RedisCacheService;
-use App\Service\EmbedReferenceExtractor;
 use App\Service\HighlightService;
 use App\Service\ReadingListNavigationService;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\VanityNameService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
-use League\CommonMark\Exception\CommonMarkException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class ArticleController  extends AbstractController
@@ -30,39 +25,6 @@ class ArticleController  extends AbstractController
     public function __construct(
         private readonly VanityNameService $vanityNameService,
     ) {}
-
-    /**
-     * True when the current viewer can read Essayist-exclusive articles.
-     * Access is granted to current members/admins, or to the article's author.
-     */
-    private function viewerCanSeeEssayistExclusive(?Article $article = null): bool
-    {
-        $user = $this->getUser();
-        if (!$user instanceof User) {
-            return false;
-        }
-
-        $roles = $user->getRoles();
-        if (in_array('ROLE_ADMIN', $roles, true)
-            || in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true)
-            || in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true)
-        ) {
-            return true;
-        }
-
-        if (!$article instanceof Article) {
-            return false;
-        }
-
-        try {
-            $key = new Key();
-            $viewerPubkey = $key->convertToHex($user->getUserIdentifier());
-        } catch (\Throwable) {
-            return false;
-        }
-
-        return hash_equals(strtolower((string) $article->getPubkey()), strtolower($viewerPubkey));
-    }
 
     /**
      * Resolve vanity name to npub, or redirect npub to vanity if exists
@@ -443,6 +405,7 @@ class ArticleController  extends AbstractController
         string $slug,
         string $npub,
         EntityManagerInterface $entityManager,
+        ArticleAccessService $articleAccess,
     ): Response {
         $slug = urldecode($slug);
         $article = null;
@@ -455,7 +418,7 @@ class ArticleController  extends AbstractController
                 'pubkey' => $pubkey,
             ], ['createdAt' => 'DESC']);
 
-            if ($article?->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive($article)) {
+            if ($article?->isEssayistExclusive() && !$articleAccess->canViewEssayistExclusive($this->getUser(), $article)) {
                 $article = null;
             }
         } catch (\Throwable) {
@@ -471,13 +434,8 @@ class ArticleController  extends AbstractController
     #[Route('/{vanity}/d/{slug}', name: 'author-vanity-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorArticle(
         $slug,
-        EntityManagerInterface $entityManager,
-        RedisCacheService $redisCacheService,
-        Converter $converter,
+        ArticlePageLoader $articlePageLoader,
         LoggerInterface $logger,
-        NostrEventParser $eventParser,
-        EmbedReferenceExtractor $embedExtractor,
-        MessageBusInterface $bus,
         $npub = null,
         $vanity = null
     ): Response
@@ -489,136 +447,22 @@ class ArticleController  extends AbstractController
 
         $npub = $resolved['npub'];
 
-        $slug = urldecode($slug);
         try {
-            $key = new Key();
-            $pubkey = $key->convertToHex($npub);
-        } catch (\Throwable) {
+            $page = $articlePageLoader->loadPublicArticle($npub, $slug, $this->getUser());
+        } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException('Invalid author identifier.');
         }
-        $repository = $entityManager->getRepository(Article::class);
-        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
 
-        if (!$article) {
-            // Article not in local DB — dispatch async relay fetch and show a
-            // loading page.  The worker (FetchEventFromRelaysHandler) will
-            // persist the event and publish a Mercure update; the browser
-            // Stimulus controller will reload this URL once the article lands.
-            $lookupKey = 'article:' . md5($pubkey . ':' . $slug);
-            $logger->info('Article not in DB, dispatching async relay fetch', [
-                'npub' => $npub,
-                'slug' => $slug,
-                'lookupKey' => $lookupKey,
-            ]);
-            try {
-                $bus->dispatch(new FetchEventFromRelaysMessage(
-                    lookupKey: $lookupKey,
-                    type: 'naddr',
-                    kind: KindsEnum::LONGFORM->value,
-                    pubkey: $pubkey,
-                    identifier: $slug,
-                ));
-            } catch (\Throwable $e) {
-                $logger->warning('Could not dispatch async article fetch', ['error' => $e->getMessage()]);
-            }
-
-            return $this->render('pages/article_loading.html.twig', [
-                'lookupKey' => $lookupKey,
-                'reloadUrl' => $this->generateUrl('author-article-slug', ['npub' => $npub, 'slug' => $slug]),
-            ]);
+        if ($page->isLoading()) {
+            return $this->render('pages/article_loading.html.twig', $page->loadingTemplateParameters());
         }
 
-        // Gate Essayist-exclusive articles: current members/admins or the
-        // article author may access. Everyone else gets the standard not-found view so the
-        // existence of the exclusive is not disclosed.
-        if ($article->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive($article)) {
+        if ($page->requiresAccess()) {
             return $this->render('pages/article_essayist_access_required.html.twig');
         }
 
-        // Parse advanced metadata from raw event for zap splits etc.
-        $advancedMetadata = null;
-        if ($article->getRaw()) {
-            $tags = $article->getRaw()['tags'] ?? [];
-            $advancedMetadata = $eventParser->parseAdvancedMetadata($tags);
-        }
-
-        // Use cached processedHtml from database if available
-        $htmlContent = $article->getProcessedHtml();
-        $logger->info('Article content retrieval', [
-            'article_id' => $article->getId(),
-            'slug' => $article->getSlug(),
-            'pubkey' => $article->getPubkey(),
-            'has_cached_html' => $htmlContent !== null
-        ]);
-
-        if (!$htmlContent) {
-            try {
-                // Fall back to converting on-the-fly.
-                // Avoid flushing during a web request in FrankenPHP worker mode for stability.
-                $htmlContent = $converter->convertToHTML(
-                    $article->getContent(),
-                    null,
-                    $article->getKind()?->value,
-                    $article->getRaw()['tags'] ?? null,
-                );
-                $article->setProcessedHtml($htmlContent);
-            } catch (\Exception|CommonMarkException $e) {
-                $logger->error('Error converting article content to HTML', [
-                    'article_id' => $article->getId(),
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
-
-        $authorMetadata = $redisCacheService->getMetadata($article->getPubkey());
-        $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility
-        $canEdit = false;
-        $user = $this->getUser();
-        if ($user) {
-            try {
-                $currentPubkey = $key->convertToHex($user->getUserIdentifier());
-                $canEdit = ($currentPubkey === $article->getPubkey());
-            } catch (\Throwable $e) {
-                $canEdit = false;
-            }
-        }
-        $canonical = $this->generateUrl('author-article-slug', ['npub' => $npub, 'slug' => $article->getSlug()], 0);
-
-        // ── Async prefetch of unresolved nostr embeds in article content ──────
-        // Any nostr: references in the article that weren't in the local DB at
-        // conversion time are sitting as placeholder divs in processedHtml.
-        // Dispatch a message so the worker can batch-fetch them from relays; on
-        // subsequent visits they will render as rich cards server-side.
         try {
-            $refs = $embedExtractor->extractFromHtml($htmlContent);
-            if (!empty($refs['eventIds']) || !empty($refs['coordinates'])) {
-                $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
-                $bus->dispatch(new PrefetchNostrEmbedsMessage(
-                    $articleCoordinate,
-                    $refs['eventIds'],
-                    $refs['coordinates'],
-                    $refs['relayHints'],
-                ));
-                $logger->info('Dispatched embed prefetch for article', [
-                    'coordinate'  => $articleCoordinate,
-                    'event_ids'   => count($refs['eventIds']),
-                    'coordinates' => count($refs['coordinates']),
-                ]);
-            }
-        } catch (\Throwable $e) {
-            // Non-critical — transport may be temporarily unavailable
-            $logger->debug('Could not dispatch embed prefetch', ['error' => $e->getMessage()]);
-        }
-        try {
-            return $this->render('pages/article.html.twig', [
-                'article' => $article,
-                'author' => $author,
-                'npub' => $npub,
-                'content' => $htmlContent,
-                'canEdit' => $canEdit,
-                'canonical' => $canonical,
-                'advancedMetadata' => $advancedMetadata,
-            ]);
+            return $this->render('pages/article.html.twig', $page->articleTemplateParameters());
         } catch (\Throwable $e) {
             $logger->critical('ARTICLE RENDER CRASHED', [
                 'error' => $e->getMessage(),

@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Started untangling the article reader controller by extracting public article page composition into `ArticlePageLoader` and shared Essayist article access checks into `ArticleAccessService`, reusing the Nostr identity bundle wrapper instead of direct controller-side key conversion.
 - [Improvement] Added a generic event fallback renderer that tries common Nostr tags across unknown/new kinds, including alt/summary content, imeta/url/image/thumb media, references, source URLs, topics, mentions, client, and published metadata.
 - [Bug] Broadened article/event reference fetching so comment refreshes request any kind with matching #a/#A/#e/#E tags, persist those referenced events locally, and surface stored direct references beyond only kind 1111 comments and kind 9735 zaps.
 - [Bug] Fixed interest-set pages (/my-interests/set/{dTag}) returning no articles when kind-30015 set tags include hashtag-prefixed values; topic search now normalizes #tag inputs to the stored article topic token.
