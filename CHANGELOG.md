@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Bug] Deduplicated relay gateway browser AUTH challenges so repeated Mercure replays of the same relay challenge share one pending request and one signed response.
 - [Improvement] Started untangling `DefaultController` magazine routes by moving magazine structure parsing, latest index lookup, category preview payloads, chapter placeholders, and raw event row hydration into `MagazineStructureService`.
 - [Improvement] Continued the article reader cleanup by moving draft article composition and ownership checks into `ArticlePageLoader`, including draft metadata, HTML fallback, highlights, and template parameters.
 - [Improvement] Started untangling the article reader controller by extracting public article page composition into `ArticlePageLoader` and shared Essayist article access checks into `ArticleAccessService`, reusing the Nostr identity bundle wrapper instead of direct controller-side key conversion.

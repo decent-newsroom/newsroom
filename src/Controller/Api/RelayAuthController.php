@@ -6,6 +6,7 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Service\Nostr\NostrIdentityService;
+use App\Util\RelayUrlNormalizer;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,6 +28,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class RelayAuthController extends AbstractController
 {
     private const SIGNED_KEY_PREFIX = 'relay_auth_signed:';
+    private const SIGNED_FINGERPRINT_KEY_PREFIX = 'relay_auth_signed_challenge:';
     private const PENDING_KEY_PREFIX = 'relay_auth_pending:';
     private const TTL = 60; // seconds
 
@@ -112,8 +114,13 @@ class RelayAuthController extends AbstractController
             }
 
             // Store the signed event for the gateway to pick up
+            $signedJson = json_encode($signedEvent, JSON_THROW_ON_ERROR);
             $signedKey = self::SIGNED_KEY_PREFIX . $requestId;
-            $this->redis->set($signedKey, json_encode($signedEvent), ['ex' => self::TTL]);
+            $this->redis->set($signedKey, $signedJson, ['ex' => self::TTL]);
+
+            if (isset($pending['fingerprint']) && is_string($pending['fingerprint']) && $pending['fingerprint'] !== '') {
+                $this->redis->set(self::SIGNED_FINGERPRINT_KEY_PREFIX . $pending['fingerprint'], $signedJson, ['ex' => self::TTL]);
+            }
 
             // Clean up the pending challenge
             $this->redis->del($pendingKey);
@@ -159,6 +166,7 @@ class RelayAuthController extends AbstractController
         $resent = 0;
         $topic = '/relay-auth/' . $userPubkeyHex;
         $iterator = null;
+        $seen = [];
 
         try {
             do {
@@ -187,6 +195,15 @@ class RelayAuthController extends AbstractController
                     if (!is_string($relay) || $relay === '' || !is_string($challenge) || $challenge === '') {
                         continue;
                     }
+
+                    $fingerprint = $pending['fingerprint'] ?? null;
+                    if (!is_string($fingerprint) || $fingerprint === '') {
+                        $fingerprint = $this->challengeFingerprint($userPubkeyHex, $relay, $challenge);
+                    }
+                    if (isset($seen[$fingerprint])) {
+                        continue;
+                    }
+                    $seen[$fingerprint] = true;
 
                     $requestId = substr($pendingKey, strlen(self::PENDING_KEY_PREFIX));
                     if ($requestId === '') {
@@ -221,5 +238,10 @@ class RelayAuthController extends AbstractController
         }
 
         return new JsonResponse(['status' => 'ok', 'resent' => $resent]);
+    }
+
+    private function challengeFingerprint(string $pubkeyHex, string $relayUrl, string $challenge): string
+    {
+        return hash('sha256', $pubkeyHex."\0".RelayUrlNormalizer::normalize($relayUrl)."\0".$challenge);
     }
 }
