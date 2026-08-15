@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Started untangling `DefaultController` magazine routes by moving magazine structure parsing, latest index lookup, category preview payloads, chapter placeholders, and raw event row hydration into `MagazineStructureService`.
 - [Improvement] Continued the article reader cleanup by moving draft article composition and ownership checks into `ArticlePageLoader`, including draft metadata, HTML fallback, highlights, and template parameters.
 - [Improvement] Started untangling the article reader controller by extracting public article page composition into `ArticlePageLoader` and shared Essayist article access checks into `ArticleAccessService`, reusing the Nostr identity bundle wrapper instead of direct controller-side key conversion.
 - [Improvement] Added a generic event fallback renderer that tries common Nostr tags across unknown/new kinds, including alt/summary content, imeta/url/image/thumb media, references, source URLs, topics, mentions, client, and published metadata.
