@@ -7,12 +7,9 @@ use App\Enum\KindsEnum;
 use App\Service\ArticlePublicationIndexer;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ArticlePageLoader;
-use App\Service\Cache\RedisCacheService;
 use App\Service\HighlightService;
 use App\Service\ReadingListNavigationService;
-use App\Service\Nostr\NostrEventParser;
 use App\Service\VanityNameService;
-use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
@@ -198,21 +195,11 @@ class ArticleController  extends AbstractController
     #[Route('/{vanity}/d/{slug}/draft', name: 'author-vanity-draft-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorDraft(
         $slug,
-        EntityManagerInterface $entityManager,
-        RedisCacheService $redisCacheService,
-        Converter $converter,
-        LoggerInterface $logger,
-        HighlightService $highlightService,
-        NostrEventParser $eventParser,
+        ArticlePageLoader $articlePageLoader,
         $npub = null,
         $vanity = null
     ): Response
     {
-        // Drafts require authentication
-        if (!$this->getUser()) {
-            throw $this->createAccessDeniedException('You must be logged in to view drafts.');
-        }
-
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-draft-slug', ['slug' => $slug]);
         if ($resolved instanceof Response) {
             return $resolved;
@@ -220,104 +207,18 @@ class ArticleController  extends AbstractController
 
         $npub = $resolved['npub'];
 
-        $slug = urldecode($slug);
         try {
-            $key = new Key();
-            $pubkey = $key->convertToHex($npub);
-        } catch (\Throwable) {
+            $page = $articlePageLoader->loadDraftArticle($npub, $slug, $this->getUser());
+        } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException('Invalid author identifier.');
         }
 
-        // Verify the user is the author of this draft
-        try {
-            $currentPubkey = $key->convertToHex($this->getUser()->getUserIdentifier());
-        } catch (\Throwable) {
-            throw $this->createAccessDeniedException('Invalid user identifier.');
-        }
-        if ($currentPubkey !== $pubkey) {
-            throw $this->createAccessDeniedException('You can only view your own drafts.');
+        if ($page->isNotFound()) {
+            return $this->render('pages/article_not_found.html.twig', $page->notFoundTemplateParameters());
         }
 
-        $repository = $entityManager->getRepository(Article::class);
-        $draft = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC']);
-        if (!$draft) {
-            return $this->render('pages/article_not_found.html.twig', [
-                'message' => 'The draft could not be found. It may have been deleted or published.',
-                'searchQuery' => $slug
-            ]);
-        }
-
-        // Parse advanced metadata from raw event for zap splits etc.
-        $advancedMetadata = null;
-        if ($draft->getRaw()) {
-            $tags = $draft->getRaw()['tags'] ?? [];
-            $advancedMetadata = $eventParser->parseAdvancedMetadata($tags);
-        }
-
-        // Use cached processedHtml from database if available
-        $htmlContent = $draft->getProcessedHtml();
-        $logger->info('Draft content retrieval', [
-            'article_id' => $draft->getId(),
-            'slug' => $draft->getSlug(),
-            'pubkey' => $draft->getPubkey(),
-            'has_cached_html' => $htmlContent !== null
-        ]);
-
-        if (!$htmlContent) {
-            // Fall back to converting on-the-fly.
-            // Avoid flushing during a web request in FrankenPHP worker mode: if the DB connection is stale
-            // or flush fails, it may poison the EntityManager for subsequent requests in this worker.
-            try {
-                $htmlContent = $converter->convertToHTML(
-                    $draft->getContent(),
-                    null,
-                    $draft->getKind()?->value,
-                    $draft->getRaw()['tags'] ?? null,
-                );
-                $draft->setProcessedHtml($htmlContent);
-            } catch (\Throwable $e) {
-                $logger->error('Error converting draft content to HTML', [
-                    'article_id' => $draft->getId(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        $authorMetadata = $redisCacheService->getMetadata($draft->getPubkey());
-        $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility
-        $canEdit = false;
-        $user = $this->getUser();
-        if ($user) {
-            try {
-                $currentPubkey = $key->convertToHex($user->getUserIdentifier());
-                $canEdit = ($currentPubkey === $draft->getPubkey());
-            } catch (\Throwable $e) {
-                $canEdit = false;
-            }
-        }
-        $canonical = $this->generateUrl('author-draft-slug', ['npub' => $npub, 'slug' => $draft->getSlug()], 0);
-        $highlights = [];
-        try {
-            $draftCoordinate = '30024:' . $draft->getPubkey() . ':' . $draft->getSlug();
-            $highlights = $highlightService->getHighlightsForArticle($draftCoordinate);
-        } catch (\Throwable $e) {
-            // Best-effort only
-        }
-
-        // Reuse article.html.twig template - drafts use the same Article entity
-        return $this->render('pages/article.html.twig', [
-            'article' => $draft,  // Pass draft as article since they share the same entity
-            'author' => $author,
-            'npub' => $npub,
-            'content' => $htmlContent,
-            'canEdit' => $canEdit,
-            'canonical' => $canonical,
-            'highlights' => $highlights,
-            'advancedMetadata' => $advancedMetadata,
-            'isDraft' => true  // Flag to identify this is a draft view
-        ]);
+        return $this->render('pages/article.html.twig', $page->articleTemplateParameters());
     }
-
     #[Route('/p/{npub}/d/{slug}/aside', name: 'article-aside-frame', requirements: ['slug' => '.+'], priority: 6)]
     public function articleAsideFrame(
         string $slug,

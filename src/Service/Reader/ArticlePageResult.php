@@ -11,7 +11,11 @@ final readonly class ArticlePageResult
     public const STATUS_READY = 'ready';
     public const STATUS_LOADING = 'loading';
     public const STATUS_ACCESS_REQUIRED = 'access_required';
+    public const STATUS_NOT_FOUND = 'not_found';
 
+    /**
+     * @param array<int, mixed> $highlights
+     */
     private function __construct(
         public string $status,
         public ?Article $article = null,
@@ -23,9 +27,16 @@ final readonly class ArticlePageResult
         public mixed $advancedMetadata = null,
         public ?string $lookupKey = null,
         public ?string $reloadUrl = null,
+        public array $highlights = [],
+        public bool $isDraft = false,
+        public ?string $notFoundMessage = null,
+        public ?string $searchQuery = null,
     ) {
     }
 
+    /**
+     * @param array<int, mixed> $highlights
+     */
     public static function ready(
         Article $article,
         \stdClass $author,
@@ -34,6 +45,8 @@ final readonly class ArticlePageResult
         bool $canEdit,
         string $canonical,
         mixed $advancedMetadata,
+        array $highlights = [],
+        bool $isDraft = false,
     ): self {
         return new self(
             status: self::STATUS_READY,
@@ -44,6 +57,8 @@ final readonly class ArticlePageResult
             canEdit: $canEdit,
             canonical: $canonical,
             advancedMetadata: $advancedMetadata,
+            highlights: $highlights,
+            isDraft: $isDraft,
         );
     }
 
@@ -61,6 +76,15 @@ final readonly class ArticlePageResult
         return new self(status: self::STATUS_ACCESS_REQUIRED);
     }
 
+    public static function notFound(string $message, string $searchQuery): self
+    {
+        return new self(
+            status: self::STATUS_NOT_FOUND,
+            notFoundMessage: $message,
+            searchQuery: $searchQuery,
+        );
+    }
+
     public function isReady(): bool
     {
         return $this->status === self::STATUS_READY;
@@ -76,12 +100,17 @@ final readonly class ArticlePageResult
         return $this->status === self::STATUS_ACCESS_REQUIRED;
     }
 
+    public function isNotFound(): bool
+    {
+        return $this->status === self::STATUS_NOT_FOUND;
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function articleTemplateParameters(): array
     {
-        return [
+        $parameters = [
             'article' => $this->article,
             'author' => $this->author,
             'npub' => $this->npub,
@@ -90,6 +119,13 @@ final readonly class ArticlePageResult
             'canonical' => $this->canonical,
             'advancedMetadata' => $this->advancedMetadata,
         ];
+
+        if ($this->isDraft) {
+            $parameters['highlights'] = $this->highlights;
+            $parameters['isDraft'] = true;
+        }
+
+        return $parameters;
     }
 
     /**
@@ -100,6 +136,17 @@ final readonly class ArticlePageResult
         return [
             'lookupKey' => $this->lookupKey,
             'reloadUrl' => $this->reloadUrl,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function notFoundTemplateParameters(): array
+    {
+        return [
+            'message' => $this->notFoundMessage,
+            'searchQuery' => $this->searchQuery,
         ];
     }
 }
