@@ -12,10 +12,7 @@
         </div>
     </div>
 
-    <div class="event-content">
-        <twig:Atoms:Content :content="event.content" />
-    </div>
-    {# % include 'partial/_gallery.html.twig' with {event: event, isEmbed: true} % #}
+    {% include 'event/_generic_event_body.html.twig' with {event: event} only %}
 
     <div class="event-footer">
         <a href="/e/{{ eventIdentifier }}" class="view-full">View full event</a>

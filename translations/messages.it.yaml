@@ -31,6 +31,13 @@ heading:
 
 
 # ── Brand ─────────────────────────────────────────────────────────
+event:
+    details: 'Dettagli evento'
+    media: 'Media'
+    mentions: 'Menzioni'
+    references: 'Riferimenti'
+    client: 'Client'
+    contentWarning: 'Avviso sul contenuto'
 brand:
     tagline: 'Pubblicazione collaborativa su Nostr'
     description: 'Una piattaforma decentralizzata per la pubblicazione collaborativa'

@@ -31,6 +31,13 @@ heading:
 
 
 # ── Blagovna znamka ───────────────────────────────────────────────
+event:
+    details: 'Podrobnosti dogodka'
+    media: 'Mediji'
+    mentions: 'Omembe'
+    references: 'Reference'
+    client: 'Odjemalec'
+    contentWarning: 'Opozorilo o vsebini'
 brand:
     tagline: 'Sodelovalno založništvo na Nostru'
     description: 'Decentralizirana platforma za sodelovalno založništvo'

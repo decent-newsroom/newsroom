@@ -31,6 +31,13 @@ heading:
 
 
 # ── Marke ──────────────────────────────────────────────────────────
+event:
+    details: 'Ereignisdetails'
+    media: 'Medien'
+    mentions: 'Erwaehnungen'
+    references: 'Referenzen'
+    client: 'Client'
+    contentWarning: 'Inhaltswarnung'
 brand:
     tagline: 'Kollaboratives Publizieren auf Nostr'
     description: 'Eine dezentralisierte Plattform für kollaboratives Publizieren'

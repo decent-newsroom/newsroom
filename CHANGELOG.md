@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Improvement] Added a generic event fallback renderer that tries common Nostr tags across unknown/new kinds, including alt/summary content, imeta/url/image/thumb media, references, source URLs, topics, mentions, client, and published metadata.
 - [Bug] Broadened article/event reference fetching so comment refreshes request any kind with matching #a/#A/#e/#E tags, persist those referenced events locally, and surface stored direct references beyond only kind 1111 comments and kind 9735 zaps.
 - [Bug] Fixed interest-set pages (/my-interests/set/{dTag}) returning no articles when kind-30015 set tags include hashtag-prefixed values; topic search now normalizes #tag inputs to the stored article topic token.
 - [Improvement] Started the controller deprecation batch: old `/forum/*` topic pages now redirect to canonical `/topics` query URLs, app-level NIP-46 controller shells were removed in favor of SigningBundle routes, the legacy image upload/history API now emits deprecation headers while frontend callers migrate, and the upload proxy no longer uses deprecated `$http_response_header` access.

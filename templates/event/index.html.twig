@@ -166,17 +166,12 @@
 
             {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
         {% else %}
-            {# Regular event content for non-picture and non-video events #}
-            <div class="event-content">
-                <twig:Atoms:Content :content="event.content" />
-            </div>
-            {% include 'partial/_gallery.html.twig' with {event: event, isEmbed: false} %}
-
+            {% include 'event/_generic_event_body.html.twig' %}
         {% endif %}
 
-        {# Surface commonly-used but otherwise hidden tags (alt, topics, mentions, published_at, client).
-           Skipped for kinds with dedicated chrome that already displays these. #}
-        {% set metaExcludedKinds = [20, 21, 22, 34235, 34236, 1450, 10015, 39089] %}
+        {# Surface commonly-used but otherwise hidden tags. Kinds with dense
+           dedicated list UIs stay excluded to avoid repeating their primary content. #}
+        {% set metaExcludedKinds = [10015, 39089] %}
         {% if event.kind not in metaExcludedKinds %}
             {% include 'event/_event_meta.html.twig' %}
         {% endif %}
@@ -210,25 +205,6 @@
     </div>
     {% endif %}
 
-    <div class="event-footer">
-        {# Source link from r tag #}
-        {% set sourceUrl = null %}
-        {% for tag in event.tags %}
-            {% if tag[0] == 'r' and tag|length > 2 and tag[2] == 'source' %}
-                {% set sourceUrl = tag[1] %}
-            {% endif %}
-        {% endfor %}
-
-        {% if sourceUrl %}
-            <div class="picture-source">
-                <span class="source-label">Source:</span>
-                <a href="{{ sourceUrl }}" target="_blank" rel="noopener noreferrer" class="source-link">
-                    {{ sourceUrl }}
-                </a>
-            </div>
-        {% endif %}
-
-    </div>
 
     {% if is_granted('ROLE_ADMIN') %}
     <details>
