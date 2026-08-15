@@ -36,3 +36,5 @@ config/reference.php
 ###> phpstan/phpstan ###
 phpstan.neon
 ###< phpstan/phpstan ###
+
+bolt.db
