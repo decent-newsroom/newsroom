@@ -23,6 +23,7 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
     private const AUTH_SIGNED_PREFIX = 'relay_auth_signed:';
     private const AUTH_REQUEST_PREFIX = 'relay_auth_request:';
     private const AUTH_SIGNED_CHALLENGE_PREFIX = 'relay_auth_signed_challenge:';
+    private const AUTH_SIGNER_PREFIX = 'relay_auth_signer:';
 
     public function __construct(
         private \Redis $redis,
@@ -40,30 +41,45 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
             return null;
         }
 
+        $timeoutSeconds = max(1, $timeoutSeconds);
+        $fingerprint = $this->challengeFingerprint($pubkeyHex, $relayUrl, $challenge);
+
         $this->healthStore->setAuthRequired($relayUrl);
         $this->healthStore->setAuthStatus($relayUrl, 'pending');
 
-        $signed = $this->signWithRemoteBunker($pubkeyHex, $relayUrl, $challenge, max(1, $timeoutSeconds));
+        $signed = $this->readSignedChallenge($fingerprint, $relayUrl);
         if ($signed !== null) {
             return $signed;
         }
 
-        return $this->signWithBrowserRoundtrip($pubkeyHex, $relayUrl, $challenge, max(1, $timeoutSeconds));
+        $signed = $this->signWithRemoteBunker($pubkeyHex, $relayUrl, $challenge, $timeoutSeconds, $fingerprint);
+        if ($signed !== null) {
+            return $signed;
+        }
+
+        return $this->signWithBrowserRoundtrip($pubkeyHex, $relayUrl, $challenge, $timeoutSeconds, $fingerprint);
     }
 
-    private function signWithRemoteBunker(string $pubkeyHex, string $relayUrl, string $challenge, int $timeoutSeconds): ?Event
+    private function signWithRemoteBunker(string $pubkeyHex, string $relayUrl, string $challenge, int $timeoutSeconds, string $fingerprint): ?Event
     {
         try {
             $hadRemoteSession = $this->relayAuthSigner->supportsRelayAuth($pubkeyHex);
+            if (!$hadRemoteSession) {
+                return null;
+            }
+
+            if (!$this->acquireRemoteSigningSlot($fingerprint, $timeoutSeconds)) {
+                return $this->waitForSignedChallenge($fingerprint, $relayUrl, $timeoutSeconds);
+            }
+
             $signedEvent = $this->relayAuthSigner->signRelayAuth($pubkeyHex, $relayUrl, $challenge, $timeoutSeconds);
             if (!is_array($signedEvent)) {
-                if ($hadRemoteSession) {
-                    $this->activityStore->recordAuth($pubkeyHex, $relayUrl, 'nip46', RelayUserActivityStore::STATUS_FAILED, 'signing failed');
-                }
+                $this->activityStore->recordAuth($pubkeyHex, $relayUrl, 'nip46', RelayUserActivityStore::STATUS_FAILED, 'signing failed');
 
                 return null;
             }
 
+            $this->storeSignedChallenge($fingerprint, $signedEvent, $timeoutSeconds);
             $this->healthStore->setAuthStatus($relayUrl, 'user_authed');
             $this->activityStore->recordAuth($pubkeyHex, $relayUrl, 'nip46', RelayUserActivityStore::STATUS_OK);
 
@@ -80,10 +96,9 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
         }
     }
 
-    private function signWithBrowserRoundtrip(string $pubkeyHex, string $relayUrl, string $challenge, int $timeoutSeconds): ?Event
+    private function signWithBrowserRoundtrip(string $pubkeyHex, string $relayUrl, string $challenge, int $timeoutSeconds, string $fingerprint): ?Event
     {
         $requestId = Uuid::v4()->toRfc4122();
-        $fingerprint = $this->challengeFingerprint($pubkeyHex, $relayUrl, $challenge);
         $requestKey = self::AUTH_REQUEST_PREFIX.$fingerprint;
 
         try {
@@ -175,6 +190,83 @@ final readonly class IdentityAuthChallengeSigner implements AuthChallengeSignerI
         $this->activityStore->recordAuth($pubkeyHex, $relayUrl, 'nip07', RelayUserActivityStore::STATUS_FAILED, 'browser did not sign within timeout');
 
         return null;
+    }
+
+    private function acquireRemoteSigningSlot(string $fingerprint, int $timeoutSeconds): bool
+    {
+        try {
+            return $this->redis->set(self::AUTH_SIGNER_PREFIX.$fingerprint, '1', ['NX', 'EX' => $timeoutSeconds]) !== false;
+        } catch (\RedisException $e) {
+            $this->logger->debug('Relay gateway remote AUTH signing dedupe unavailable', [
+                'fingerprint' => substr($fingerprint, 0, 12).'...',
+                'error' => $e->getMessage(),
+            ]);
+
+            return true;
+        }
+    }
+
+    private function waitForSignedChallenge(string $fingerprint, string $relayUrl, int $timeoutSeconds): ?Event
+    {
+        $deadline = microtime(true) + $timeoutSeconds;
+        while (microtime(true) < $deadline) {
+            $signed = $this->readSignedChallenge($fingerprint, $relayUrl);
+            if ($signed !== null) {
+                return $signed;
+            }
+
+            delay(0.05);
+        }
+
+        return null;
+    }
+
+    private function readSignedChallenge(string $fingerprint, string $relayUrl): ?Event
+    {
+        try {
+            $signedJson = $this->redis->get(self::AUTH_SIGNED_CHALLENGE_PREFIX.$fingerprint);
+            if (!is_string($signedJson) || $signedJson === '') {
+                return null;
+            }
+
+            $signedEvent = json_decode($signedJson, true);
+            if (!is_array($signedEvent)) {
+                return null;
+            }
+
+            $this->healthStore->setAuthStatus($relayUrl, 'user_authed');
+
+            return Event::fromArray($signedEvent);
+        } catch (\RedisException $e) {
+            $this->logger->debug('Relay gateway shared AUTH read failed', [
+                'fingerprint' => substr($fingerprint, 0, 12).'...',
+                'error' => $e->getMessage(),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Relay gateway shared AUTH event could not be decoded', [
+                'fingerprint' => substr($fingerprint, 0, 12).'...',
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
+    /** @param array<string, mixed> $signedEvent */
+    private function storeSignedChallenge(string $fingerprint, array $signedEvent, int $timeoutSeconds): void
+    {
+        try {
+            $this->redis->set(
+                self::AUTH_SIGNED_CHALLENGE_PREFIX.$fingerprint,
+                json_encode($signedEvent, JSON_THROW_ON_ERROR),
+                ['ex' => max(60, $timeoutSeconds)],
+            );
+        } catch (\Throwable $e) {
+            $this->logger->debug('Relay gateway shared AUTH write failed', [
+                'fingerprint' => substr($fingerprint, 0, 12).'...',
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function challengeFingerprint(string $pubkeyHex, string $relayUrl, string $challenge): string
