@@ -1,0 +1,128 @@
+{# Generic fallback for event kinds without a dedicated renderer.
+   It tries the common Nostr tag shapes shared across many kinds instead of
+   leaving unknown-but-readable events blank. #}
+{% set contentWarning = null %}
+{% set altText = null %}
+{% set summary = null %}
+{% set mediaItems = [] %}
+{% set seenMediaUrls = [] %}
+
+{% for tag in event.tags %}
+    {% if tag is iterable and tag[0] is defined %}
+        {% set tagName = tag[0] %}
+
+        {% if tagName == 'content-warning' and contentWarning is null and tag[1] is defined %}
+            {% set contentWarning = tag[1] %}
+        {% elseif tagName == 'alt' and altText is null and tag[1] is defined %}
+            {% set altText = tag[1] %}
+        {% elseif tagName == 'summary' and summary is null and tag[1] is defined %}
+            {% set summary = tag[1] %}
+        {% elseif tagName == 'imeta' and tag|length > 1 %}
+            {% set mediaUrl = null %}
+            {% set mediaMime = null %}
+            {% set mediaAlt = altText %}
+            {% set mediaPoster = null %}
+
+            {% for param in tag|slice(1) %}
+                {% set paramText = param ~ '' %}
+                {% if paramText starts with 'url ' %}
+                    {% set mediaUrl = paramText[4:] %}
+                {% elseif paramText starts with 'm ' %}
+                    {% set mediaMime = paramText[2:] %}
+                {% elseif paramText starts with 'alt ' %}
+                    {% set mediaAlt = paramText[4:] %}
+                {% elseif paramText starts with 'image ' %}
+                    {% set mediaPoster = paramText[6:] %}
+                {% endif %}
+            {% endfor %}
+
+            {% if mediaUrl and mediaUrl not in seenMediaUrls %}
+                {% set lowerUrl = mediaUrl|lower %}
+                {% set lowerMime = mediaMime|default('')|lower %}
+                {% set mediaType = 'link' %}
+                {% if lowerMime starts with 'image/' or lowerUrl matches '/\.(avif|gif|jpe?g|png|svg|webp)(\?|#|$)/' %}
+                    {% set mediaType = 'image' %}
+                {% elseif lowerMime starts with 'video/' or lowerUrl matches '/\.(mp4|mov|ogg|webm)(\?|#|$)/' %}
+                    {% set mediaType = 'video' %}
+                {% endif %}
+
+                {% set seenMediaUrls = seenMediaUrls|merge([mediaUrl]) %}
+                {% set mediaItems = mediaItems|merge([{
+                    url: mediaUrl,
+                    type: mediaType,
+                    mime: mediaMime,
+                    alt: mediaAlt,
+                    poster: mediaPoster,
+                    label: 'imeta'
+                }]) %}
+            {% endif %}
+        {% elseif tagName in ['url', 'image', 'thumb'] and tag[1] is defined %}
+            {% set mediaUrl = tag[1] %}
+            {% if mediaUrl matches '#^https?://#i' and mediaUrl not in seenMediaUrls %}
+                {% set lowerUrl = mediaUrl|lower %}
+                {% set mediaType = 'link' %}
+                {% if tagName in ['image', 'thumb'] or lowerUrl matches '/\.(avif|gif|jpe?g|png|svg|webp)(\?|#|$)/' %}
+                    {% set mediaType = 'image' %}
+                {% elseif lowerUrl matches '/\.(mp4|mov|ogg|webm)(\?|#|$)/' %}
+                    {% set mediaType = 'video' %}
+                {% endif %}
+
+                {% set seenMediaUrls = seenMediaUrls|merge([mediaUrl]) %}
+                {% set mediaItems = mediaItems|merge([{
+                    url: mediaUrl,
+                    type: mediaType,
+                    mime: null,
+                    alt: altText|default(summary),
+                    poster: null,
+                    label: tagName
+                }]) %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+{% if contentWarning %}
+    <div class="generic-event-warning">
+        <strong>{{ 'event.contentWarning'|trans }}:</strong> {{ contentWarning }}
+    </div>
+{% endif %}
+
+{% if event.content|default('') is not empty %}
+    <div class="event-content generic-event-content">
+        <twig:Atoms:Content :content="event.content" />
+    </div>
+{% elseif altText %}
+    <div class="event-content generic-event-content generic-event-content--alt">
+        <p><em>{{ altText }}</em></p>
+    </div>
+{% elseif summary %}
+    <div class="event-content generic-event-content generic-event-content--summary">
+        <p>{{ summary }}</p>
+    </div>
+{% endif %}
+
+{% if mediaItems|length > 0 %}
+    <section class="generic-event-media" aria-label="{{ 'event.media'|trans }}">
+        {% for item in mediaItems|slice(0, 8) %}
+            {% if item.type == 'image' %}
+                <figure class="generic-event-media-item generic-event-media-item--image">
+                    <img src="{{ item.url }}" alt="{{ item.alt|default('event.media'|trans) }}" loading="lazy" />
+                    {% if item.alt %}
+                        <figcaption>{{ item.alt }}</figcaption>
+                    {% endif %}
+                </figure>
+            {% elseif item.type == 'video' %}
+                <div class="generic-event-media-item generic-event-media-item--video">
+                    <video controls preload="metadata" {% if item.poster %}poster="{{ item.poster }}"{% endif %} {% if item.alt %}aria-label="{{ item.alt }}"{% endif %}>
+                        <source src="{{ item.url }}" {% if item.mime %}type="{{ item.mime }}"{% endif %} />
+                    </video>
+                </div>
+            {% else %}
+                <p class="generic-event-media-link">
+                    <small>{{ item.label }}:</small>
+                    <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.url }}</a>
+                </p>
+            {% endif %}
+        {% endfor %}
+    </section>
+{% endif %}
