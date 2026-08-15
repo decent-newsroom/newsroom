@@ -15,9 +15,11 @@ Allow: /newsstand
 Allow: /follow-packs
 Allow: /lists
 Allow: /forum
+Allow: /forum/
 Allow: /bookshelf
 Allow: /search
 Allow: /users
+Allow: /users/
 Allow: /pricing
 Allow: /roadmap
 Allow: /changelog
@@ -25,7 +27,11 @@ Allow: /tos
 Allow: /mag/
 Allow: /p/
 Allow: /e/
+Allow: /a/
+Allow: /article/
+Allow: /follow-pack/
 Allow: /list/
+Allow: /my-interests/
 Allow: /sitemap.xml
 
 # Sitemap
