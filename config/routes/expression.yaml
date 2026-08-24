@@ -1,3 +1,3 @@
 # ExpressionBundle Routes — Feed expression API
 expression_bundle:
-    resource: '../../packages/expression-bundle/src/Resources/config/routes.yaml'
+    resource: '../../vendor/decent-newsroom/expression-bundle/src/Resources/config/routes.yaml'
