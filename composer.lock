@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "94bd1b502ae5cefbda293c43018ae3f0",
+    "content-hash": "b0209b87d4568f787d43236c263c7553",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1588,10 +1588,16 @@
         {
             "name": "decent-newsroom/bookshelf-bundle",
             "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/decent-newsroom/bookshelf-bundle.git",
+                "reference": "6230b73ae3097e284ac021ca5d0a6e0188f312f2"
+            },
             "dist": {
-                "type": "path",
-                "url": "packages/bookshelf-bundle",
-                "reference": "c1cdf47e24c6a83293a83cd38bb5356ed24ae5b3"
+                "type": "zip",
+                "url": "https://api.github.com/repos/decent-newsroom/bookshelf-bundle/zipball/6230b73ae3097e284ac021ca5d0a6e0188f312f2",
+                "reference": "6230b73ae3097e284ac021ca5d0a6e0188f312f2",
+                "shasum": ""
             },
             "require": {
                 "decent-newsroom/asciidoc-html": "^0.1.0",
@@ -1607,6 +1613,7 @@
             "require-dev": {
                 "phpunit/phpunit": "^9.5"
             },
+            "default-branch": true,
             "type": "symfony-bundle",
             "extra": {
                 "symfony": {
@@ -1618,27 +1625,30 @@
                     "DecentNewsroom\\BookshelfBundle\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "DecentNewsroom\\BookshelfBundle\\Tests\\": "tests/"
-                }
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
             "description": "Reusable Symfony bundle for a Nostr-based bookshelf and e-reader backed by Mercury",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
+            "support": {
+                "issues": "https://github.com/decent-newsroom/bookshelf-bundle/issues",
+                "source": "https://github.com/decent-newsroom/bookshelf-bundle/tree/main"
+            },
+            "time": "2026-08-24T13:56:53+00:00"
         },
         {
             "name": "decent-newsroom/expression-bundle",
             "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/decent-newsroom/expressions-bundle.git",
+                "reference": "0b23cc94b1705c67298ce9f2ec0dee4ddc4bea98"
+            },
             "dist": {
-                "type": "path",
-                "url": "packages/expression-bundle",
-                "reference": "fea59bdd91e73ef780f7a12e2b61b41727240ef0"
+                "type": "zip",
+                "url": "https://api.github.com/repos/decent-newsroom/expressions-bundle/zipball/0b23cc94b1705c67298ce9f2ec0dee4ddc4bea98",
+                "reference": "0b23cc94b1705c67298ce9f2ec0dee4ddc4bea98",
+                "shasum": ""
             },
             "require": {
                 "innis/nostr-client": "^0.1.7",
@@ -1656,6 +1666,7 @@
             "require-dev": {
                 "phpunit/phpunit": "^9.5"
             },
+            "default-branch": true,
             "type": "symfony-bundle",
             "extra": {
                 "symfony": {
@@ -1667,19 +1678,16 @@
                     "DecentNewsroom\\ExpressionBundle\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "DecentNewsroom\\ExpressionBundle\\Tests\\": "tests/"
-                }
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
             "description": "Reusable Symfony bundle for Nostr expression and spell evaluation",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
+            "support": {
+                "issues": "https://github.com/decent-newsroom/expressions-bundle/issues",
+                "source": "https://github.com/decent-newsroom/expressions-bundle/tree/main"
+            },
+            "time": "2026-08-24T13:59:16+00:00"
         },
         {
             "name": "decent-newsroom/identity-bundle",
