@@ -1,0 +1,21 @@
+# Blocked pubkeys for the default strfry relay.
+# One hex pubkey per line. Lines starting with # are ignored.
+# Add a pubkey here and restart the strfry container to block it from writing.
+#
+# To also delete events already ingested from a pubkey:
+#   docker compose exec strfry sh
+#   ./strfry delete --filter '{"authors":["<hex-pubkey>"]}'
+#
+74f9fad6f4d8846320d882cfa0ef9ee87028e1b3f66a6bdee9ffb5d7f0c43251
+e802c549bbdb8eff55ffb48b97b8d94bdf80cc36f5f7dc391a8868b45fd5948e
+877501282c7fc7a8a64da05fbe4a36cf9e4d2bfd7db55b0584739f87fd754a37
+8bf4d2aa23b4adc25c0a7a9a758814958e9abb1eebcfb8ebb76d10ab91679238
+e7bf8dad360828f0289b7b4bea1a1bd28eb6d4d6522fa17f957e0dfb839ef3db
+f03df3d4134230420cdf7acbb35f96a2542424246ab052ba24c6fec6a4d4f676
+cbab7074a03bf89c7dd1623e42e65409e3918662af6c65fe2e38c92ff9f0bd61
+80ad241af536da7361900bf9c7e752290e854dc1d7f9f5082982084634e76bb8
+72a9e2f6a473cce8315d2b72f8cd3b7cb5c1bfaaf9b93861a7d0e5480fcb1cea
+50fa3f1c5efe82b022bea172582b42aacd0a3046849f7a3fb0ec6ba0d7911b0d
+e999b60c655743ff80c89c7d3e9c3c5b35e5636a87db97caf1af7a24beb383cb
+e3a06e4e6677daec389226270df84d15e34243188a2e9661e057d317408c6782
+

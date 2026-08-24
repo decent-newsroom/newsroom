@@ -3,22 +3,7 @@
     "type": "project",
     "license": "MIT",
     "description": "A decentralised newsroom",
-    "prefer-stable": true,
     "repositories": [
-        {
-            "type": "path",
-            "url": "packages/identity-bundle",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "packages/nostr-kernel-bundle",
-            "options": {
-                "symlink": true
-            }
-        },
         {
             "type": "path",
             "url": "packages/expression-bundle",
@@ -29,27 +14,6 @@
         {
             "type": "path",
             "url": "packages/bookshelf-bundle",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "packages/nostr-client-bundle",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "packages/relay-gateway-bundle",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "packages/signing-bundle",
             "options": {
                 "symlink": true
             }

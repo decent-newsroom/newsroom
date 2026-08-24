@@ -2,6 +2,7 @@
 
 ## v0.0.49
 
+- [Docs] Added Unfold publication administration specs covering owner-signed AppData, audience tiers, publication payment targets, publication feeds and sitemap, owner dashboard analytics, footer behavior, tests, and rollout planning.
 - [Bug] Deduplicated relay gateway AUTH challenge signing across NIP-46 bunker and browser extension flows so repeated relay challenges share one pending request and one signed response.
 - [Improvement] Started untangling `DefaultController` magazine routes by moving magazine structure parsing, latest index lookup, category preview payloads, chapter placeholders, and raw event row hydration into `MagazineStructureService`.
 - [Improvement] Continued the article reader cleanup by moving draft article composition and ownership checks into `ArticlePageLoader`, including draft metadata, HTML fallback, highlights, and template parameters.
