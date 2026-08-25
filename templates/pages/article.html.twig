@@ -156,7 +156,7 @@
 
         <div class="card heading">
             <div class="card-header">
-                <h1 class="card-title">{{ article.title }}</h1>
+                <h1 class="card-title">{{ article.title|markdown_to_html }}</h1>
             </div>
             {% if author %}
                 <div class="byline">
