@@ -2,17 +2,26 @@
 
 Status: draft implementation specification.
 
+> **Kind renumbering (2026-08):** `00-refactor-plan.md` and
+> `06-gated-access-and-payments.md` are authoritative for event kinds.
+> Audiences are `kind:30879` (not `38110`) and publication payment targets
+> are `kind:38133` (not `30133`). Specs 01–05 remain valid for structure,
+> flows, and rollout, but read their kind numbers through spec 06.
+
 These specs describe the next Unfold administration layer: owner-signed publication AppData, publication-local feeds, audience tiers, payment targets, owner analytics, and content management. They are intentionally stored inside `src/UnfoldBundle/specs/` because the work is bundle-scoped and should travel with the Unfold implementation.
 
 ## Spec Map
 
 | File | Purpose |
 | --- | --- |
+| `00-refactor-plan.md` | Master refactor plan: phases, decision log, open questions, risks. |
 | `01-appdata-and-owner-admin.md` | Owner-signed AppData, `UnfoldSite` ownership fields, and owner-only subdomain administration. |
-| `02-audiences-and-payment-targets.md` | Audience tiers as extended `kind:38110` Scope Definitions and publication payment descriptors as provisional `kind:30133`. |
+| `02-audiences-and-payment-targets.md` | Audience tiers and publication payment descriptors — structure and admin behavior (kind numbers superseded by spec 06). |
 | `03-feeds-sitemap-footer.md` | Publication RSS feeds, XML sitemap, optional robots endpoint, and two-level footer behavior. |
 | `04-owner-dashboard-and-content-management.md` | Owner dashboard pages for analytics, category/article assignment, index editing, and payment setup. |
 | `05-tests-and-rollout.md` | Migrations, backward compatibility, cache invalidation, rollout sequence, and test coverage. |
+| `06-gated-access-and-payments.md` | Gated content contract: kinds `38133`/`30879`/`8879`/`28877`/`28878`, payment bridge, mint, and relay behavior. |
+| `07-reader-interactions.md` | Likes, bookmarks, and highlights on Unfold pages; gated-content interaction rules; subdomain signing. |
 
 ## Terms
 

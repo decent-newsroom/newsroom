@@ -109,8 +109,6 @@ Package-owned docs live with their Composer packages instead of this host docume
 ### Business
 - [Architecture Overview](Business/architecture-overview.md)
 - [Visitor Analytics](Business/visitor-analytics.md)
-- [Subscriptions Spec](Business/Subscriptions/subscriptions.md) — ReWire relay and scope subscriptions
-- [Submissions](Business/Submissions/submissions.md)
 
 ### Audience
 - [Audience](Audience/audience.md)

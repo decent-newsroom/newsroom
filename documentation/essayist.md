@@ -260,9 +260,8 @@ reasons:
 
 1. **Replay protection.** The `UNIQUE` index on `zap_receipt_event_id`
    guarantees that the worker cannot mint the same membership twice from
-   one receipt — matching the ReWire relay spec
-   (`documentation/Subscriptions/rewire-relay-specification.md`,
-   "Receipt Replay Protection").
+   one receipt — each receipt event id is consumed exactly once,
+   permanently.
 2. **Expiry tracking.** Roles are stateless — they're either on or off.
    Without `expires_at` rows we cannot tell when a member's window actually
    ends, which makes both the cron and any future "expires in N days"

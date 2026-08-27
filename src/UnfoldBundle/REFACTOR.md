@@ -1,0 +1,36 @@
+# Refactor wishlist
+
+- Each publication would produce an XML sitemap and an RSS feed at predictable urls. 
+- Each publication would have a dashboard, with a getting-started wizard, analytics and links to editorial tools. 
+- The dash would also contain a link to the live subdomain website with target _blank. 
+- A user could create a publication first or claim a subdomain first. 
+- For creators that would like to enable subscriptions and gated content, there needs to exist a way to create a payment taget event for the publication and a way to create a scope/audience definition.
+- A scope/audience definition reference is used in a tag when publishing articles, or indexes, to indicate that content is gated. In such cases, only a special relay is used and content is not spewed all over nostr inadvertently.
+- This scope/audience tag is also used by the relay to judge whether a user requesting content is allowed to see it. 
+- Having an active subdomain subscription on dn gives you access to the gated relay and the scope/audience setup.
+- A subdomain record needs to contain the whole definition of the unfold publication: 
+  - payment targets,
+  - scope/audiences,
+  - magazine indexes,
+  - home relay (for now only one option, premium.decentnewsroom.com)
+  - mint (dn operated),
+  - payment bridge (dn operated).
+- Payment bridge, mint, relay, payment targets and scope/audiences are all related. 
+  - Payment targets record where the author is receiving payments to (monero addresses, LN addresses etc).
+  - Scope/audience is at once a definition what is offered, and used as a tag on an event, a requirement to see the event. 
+  - Payment bridge shows available payment targets to the user, and has success hooks configured for payments. It issues a payment receipt/attestation on success, linking a dn user to a scope paid. Payment attestations are sent to the mint.
+  - Mint issues short-lived access tokens based on payment receipts. 
+  - Relay demands a REQ be accompanied by a mint-issued token before returning an event with a scope tag. Event scope tags and scope in the minted token must match. 
+  - Payment targets, scope, payment attestations, minted tokens are all nostr events. Relay has trusted mints npubs on record. Mint has trusted payment bridges npubs on record. 
+- A lot of this is already half-coded, except not well put together. 
+- Expected kinds:
+  - payment targets: kind:38133 - based on NIP-A3 payto: Payment Targets (RFC-8905) that uses kind:10133, except addressable
+  - 30879 — scope/audience — attempt to reuse the semantics of the existing Nostr commerce/classifieds work rather than invent a separate abstraction
+  - 8879 — access attestation (payment receipt signed by the payment bridge)
+  - 28877 — holder assertion (sent to the mint when asking for an access token)
+  - 28878 — access authorization (signed by the mint to pass to the relay as authorization)
+- Some of this clashes with the existing proposals in the NIP docs of this repo, Those are to be considered superseded. If you think if would be better, we can look them up and delete them or alternatively actively mark them as superseded.
+- The documentation of this repo has not quite kept up with the development. If in doubt, ask what's going on. 
+- Eventually, the bundle should be ready to be moved outside of the repo, and to be reusable as a part of a standalone publication with its own db and relay on any sovereign domain.
+- Reader interactions must be available on unfold subdomains: likes (kind:7 reactions) and bookmarks on articles, and readers can see existing highlights and create their own highlights (kind:9802).
+- I have a separate repo for the mint and the payment bridge. Someone else will help with the relay.

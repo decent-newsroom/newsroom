@@ -1,5 +1,11 @@
 # Audiences And Payment Targets
 
+> **Superseded kinds:** this spec's `kind:38110` and `kind:30133` are
+> replaced by `kind:30879` (audience) and `kind:38133` (publication payment
+> targets) — see `06-gated-access-and-payments.md`. The audience structure,
+> AppData linkage pattern, and admin behavior below remain the reference for
+> the dashboard implementation.
+
 ## Goal
 
 Represent publication subscription tiers as Nostr-native addressable events and let each Unfold publication define payment targets that can differ from the owner's personal payment targets.
@@ -42,7 +48,7 @@ Optional tags:
 
 `price` is repeatable so an audience can be priced in multiple currencies. Currency values are uppercase ISO-like codes where possible, with `SATS` allowed for Lightning/BTC-native pricing.
 
-If a `SATS` price exists, publish `subscription` with the same minimum sats value for compatibility with the existing subscription-scope documents and NIP-SB-style tooling.
+If a `SATS` price exists, publish `subscription` with the same minimum sats value for compatibility with legacy subscription-scope tooling.
 
 Example:
 
