@@ -1,11 +1,15 @@
 # CHANGELOG
 
-## v0.0.49
+## v0.0.50
 
 - Fix: article reactions (kind 7) now render as emoji/heart aggregates instead of empty comment cards; like count shown in the reaction strip.
 - Feature: preview cards for publication chapter (kind 30041) references in articles and highlights, with standalone /chapter/{naddr} route.
 - Fix: publication (30040) chapter loading — ingest kind 30041, async chapter fetch with Mercure updates, working fetch CTA.
 - Fix: nevent/naddr lookup stalling on not-found — async naddr fetches now use author relay lists; projection failures no longer reported as not-found.
+
+
+## v0.0.49
+
 - [Docs] Added Unfold publication administration specs covering owner-signed AppData, audience tiers, publication payment targets, publication feeds and sitemap, owner dashboard analytics, footer behavior, tests, and rollout planning.
 - [Bug] Deduplicated relay gateway AUTH challenge signing across NIP-46 bunker and browser extension flows so repeated relay challenges share one pending request and one signed response.
 - [Improvement] Started untangling `DefaultController` magazine routes by moving magazine structure parsing, latest index lookup, category preview payloads, chapter placeholders, and raw event row hydration into `MagazineStructureService`.
