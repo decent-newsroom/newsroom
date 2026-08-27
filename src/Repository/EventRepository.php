@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Event;
+use App\Enum\KindsEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -684,10 +685,11 @@ class EventRepository extends ServiceEntityRepository
     /**
      * Find events that reference an article/event coordinate.
      *
-     * Direct references are intentionally kindless so kind 1 replies, reposts,
-     * reactions, zaps, NIP-22 comments, and newer unknown event kinds are all
-     * visible once they are stored locally. The recursive branch preserves the
-     * existing threaded kind-1111 comment behavior.
+     * Direct root references are limited to text notes (legacy kind-1 replies),
+     * comments, zap receipts, and reactions so unrelated article-tagged events
+     * (highlights, reposts, ...) do not leak into the social list. The
+     * recursive branch preserves the existing threaded kind-1111 comment
+     * behavior.
      *
      * @param string $coordinate Article coordinate (kind:pubkey:identifier) or 64-char event id
      * @param int|null $since Optional timestamp to fetch only newer references
@@ -724,7 +726,7 @@ class EventRepository extends ServiceEntityRepository
                 )
                 SELECT * FROM event e
                 WHERE (
-                    {$rootCondition}
+                    (e.kind IN (:noteKind, :commentKind, :zapKind, :reactionKind) AND {$rootCondition})
                     OR (e.kind = 1111 AND e.id IN (SELECT id FROM tree))
                     OR (e.kind = 9735 AND EXISTS (
                         SELECT 1
@@ -744,6 +746,10 @@ class EventRepository extends ServiceEntityRepository
 
         $sql .= " ORDER BY e.created_at DESC LIMIT :limit";
         $params['limit'] = $limit;
+        $params['noteKind'] = KindsEnum::TEXT_NOTE->value;
+        $params['commentKind'] = KindsEnum::COMMENTS->value;
+        $params['zapKind'] = KindsEnum::ZAP_RECEIPT->value;
+        $params['reactionKind'] = KindsEnum::REACTION->value;
 
         $results = $conn->executeQuery($sql, $params)->fetchAllAssociative();
 

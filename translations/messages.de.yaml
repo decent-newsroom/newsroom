@@ -585,6 +585,10 @@ comments:
     label: 'Kommentar'
     zap: 'Zap'
     private: 'Privat'
+    reactions:
+        label: 'Artikelreaktionen'
+        likes: 'Gefällt mir'
+        customEmoji: 'Benutzerdefiniertes Emoji %shortcode%'
 
 # ── Benutzermenü / Authentifizierung ───────────────────────────────────
 auth:
@@ -1312,4 +1316,3 @@ chapter:
         return_home: 'Zur Startseite'
         error_title: '⚠ Kapitelabruf fehlgeschlagen'
         error_detail: 'Das Kapitel wurde auf Relays gefunden, konnte aber nicht für die Anzeige gespeichert werden.'
-

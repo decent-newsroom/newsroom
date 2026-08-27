@@ -11,6 +11,31 @@
         <div class="comments-loading" data-content--comments-mercure-target="loading">{{ 'comments.loading'|trans }}</div>
     {% endif %}
     <div class="comments-list" data-content--comments-mercure-target="list" {% if loading %}style="display:none"{% endif %}>
+        {% if reactions is not empty %}
+            <div class="comment-reactions" aria-label="{{ 'comments.reactions.label'|trans }}">
+                {% for reaction in reactions %}
+                    {% set reactionLabel = reaction.isLike
+                        ? ('comments.reactions.likes'|trans)
+                        : (reaction.custom ? ('comments.reactions.customEmoji'|trans({'%shortcode%': reaction.custom.shortcode})) : reaction.emoji)
+                    %}
+                    <span class="comment-reactions__item{% if reaction.isLike %} comment-reactions__item--like{% endif %}" title="{{ reactionLabel|e('html_attr') }}">
+                        {% if reaction.isLike %}
+                            {{ ux_icon('iconoir:heart', {class: 'icon comment-reactions__icon', fill: 'currentColor', 'aria-hidden': 'true'}) }}
+                            <span class="visually-hidden">{{ 'comments.reactions.likes'|trans }}</span>
+                        {% elseif reaction.custom %}
+                            <img
+                                src="{{ reaction.custom.url|e('html_attr') }}"
+                                alt=":{{ reaction.custom.shortcode|e('html_attr') }}:"
+                                class="comment-reactions__image"
+                            >
+                        {% else %}
+                            <span class="comment-reactions__emoji" aria-hidden="true">{{ reaction.emoji }}</span>
+                        {% endif %}
+                        <span class="comment-reactions__count">× {{ reaction.count }}</span>
+                    </span>
+                {% endfor %}
+            </div>
+        {% endif %}
         {% for item in list %}
             <div class="card comment {% if item.kind is defined and item.kind == '9735' %}zap-comment{% endif %}">
                 <div class="metadata">

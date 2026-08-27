@@ -37,15 +37,16 @@ final class ReactionController extends AbstractController
 
         $params = $this->buildCoordinateTagParams($coordinate);
         $refCondition = '(e.tags @> CAST(:aTag AS jsonb) OR e.tags @> CAST(:upperATag AS jsonb))';
+        $likeParams = ['likeContent' => '+', 'emptyLikeContent' => ''];
 
         $conn = $em->getConnection();
         $count = (int) $conn->executeQuery(
             "SELECT COUNT(DISTINCT e.pubkey)
              FROM event e
              WHERE e.kind = :kind
-               AND e.content = '+'
+               AND e.content IN (:likeContent, :emptyLikeContent)
                AND {$refCondition}",
-            ['kind' => KindsEnum::REACTION->value] + $params,
+            ['kind' => KindsEnum::REACTION->value] + $likeParams + $params,
         )->fetchOne();
 
         $liked = false;
@@ -57,11 +58,11 @@ final class ReactionController extends AbstractController
                     "SELECT 1
                      FROM event e
                      WHERE e.kind = :kind
-                       AND e.content = '+'
+                       AND e.content IN (:likeContent, :emptyLikeContent)
                        AND e.pubkey = :pubkey
                        AND {$refCondition}
                      LIMIT 1",
-                    ['kind' => KindsEnum::REACTION->value, 'pubkey' => $pubkey] + $params,
+                    ['kind' => KindsEnum::REACTION->value, 'pubkey' => $pubkey] + $likeParams + $params,
                 )->fetchOne();
             } catch (\Throwable) {
                 $liked = false;
@@ -223,9 +224,9 @@ final class ReactionController extends AbstractController
             "SELECT COUNT(DISTINCT e.pubkey)
              FROM event e
              WHERE e.kind = :kind
-               AND e.content = '+'
+               AND e.content IN (:likeContent, :emptyLikeContent)
                AND (e.tags @> CAST(:aTag AS jsonb) OR e.tags @> CAST(:upperATag AS jsonb))",
-            ['kind' => KindsEnum::REACTION->value] + $params,
+            ['kind' => KindsEnum::REACTION->value, 'likeContent' => '+', 'emptyLikeContent' => ''] + $params,
         )->fetchOne();
     }
 

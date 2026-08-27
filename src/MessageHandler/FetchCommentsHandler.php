@@ -2,6 +2,7 @@
 
 namespace App\MessageHandler;
 
+use App\Enum\KindsEnum;
 use App\Message\FetchCommentsMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
@@ -225,11 +226,16 @@ class FetchCommentsHandler
         $maxTs = 0;
 
         foreach ($comments as $c) {
+            $kind = is_numeric($c->kind ?? null) ? (int) $c->kind : null;
             $maxTs = max($maxTs, (int)($c->created_at ?? 0));
+            if ($kind === KindsEnum::REACTION->value) {
+                continue;
+            }
+
             $collected = Nip22TagParser::collectPubkeys(
                 $c->pubkey ?? null,
                 $c->tags ?? [],
-                is_numeric($c->kind ?? null) ? (int) $c->kind : null
+                $kind
             );
             $keys = array_merge($keys, $collected);
         }

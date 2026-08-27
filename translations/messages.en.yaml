@@ -680,6 +680,10 @@ comments:
     label: 'Comment'
     zap: 'Zap'
     private: 'Private'
+    reactions:
+        label: 'Article reactions'
+        likes: 'Likes'
+        customEmoji: 'Custom emoji %shortcode%'
     replyingTo: 'Replying to'
     writeCta: 'Write a comment'
     reply: 'Reply'
@@ -1683,4 +1687,3 @@ chapter:
         return_home: 'Return home'
         error_title: '⚠ Chapter fetch failed'
         error_detail: 'The chapter was found on relays, but could not be stored for rendering.'
-

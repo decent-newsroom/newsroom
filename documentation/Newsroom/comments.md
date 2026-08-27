@@ -62,10 +62,22 @@ Server-side branching:
 - `FetchCommentsHandler` performs one-hop thread hydration after the root fetch: it takes recent kind:1111 ids from DB + fresh relay hits and fetches comments that reference those ids (`e`/`E`) to quickly fill reply chains.
 - `CommentController::publish` accepts either an `A` tag (addressable root) or an `E` + `P` tag pair (non-addressable root) to resolve commenter + parent-author relays for publishing.
 
-The database layer (`EventRepository::findCommentsByCoordinate`) now anchors by explicit root tags (`A/a` or `E/e`) and uses a recursive query to include nested kind:1111 replies plus related zaps (`9735`) that point at comments in that thread.
+The database layer (`EventRepository::findCommentsByCoordinate`) now anchors by explicit root tags (`A/a` or `E/e`), whitelists direct comment/zap/reaction kinds, and uses a recursive query to include nested kind:1111 replies plus related zaps (`9735`) that point at comments in that thread.
+
+## Article reactions
+
+Article-level NIP-25 reactions (`kind 7`) are fetched with the comments payload only when they directly reference the article/event root. The `Comments` Live Component removes those reaction events from the comment-card list and renders them in a compact aggregate strip, so reactions never pass through the Markdown content renderer.
+
+Reaction normalization follows NIP-25 and NIP-30:
+
+- `+` and empty content are counted as likes and rendered as a heart with the distinct-pubkey count.
+- `-` is treated as a dislike and is not rendered.
+- `:shortcode:` is rendered as a custom emoji image only when a matching `["emoji", shortcode, url]` tag is present.
+- Any other content is rendered as escaped literal text with a distinct-pubkey count.
+
+Only distinct reacting pubkeys count within each bucket. Other article-tagged event kinds, such as highlights, are excluded from the comments query so they do not appear as empty comment cards.
 
 ## Lessons Learned
 
 - **Comment fetching refactoring**: Comments were originally fetched inline during page load, causing slow renders. Moved to async via Messenger for non-blocking display.
 - **Database persistence**: Comments must be persisted to survive relay unavailability. The `Event` entity stores raw comment events alongside articles.
-

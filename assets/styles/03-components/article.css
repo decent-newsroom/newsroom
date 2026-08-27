@@ -249,6 +249,44 @@ article .card {
     gap: var(--spacing-2);
 }
 
+.comment-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding-block: var(--spacing-2);
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.comment-reactions__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    color: var(--color-text);
+    line-height: 1;
+}
+
+.comment-reactions__icon,
+.comment-reactions__image {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 auto;
+}
+
+.comment-reactions__image {
+    object-fit: contain;
+}
+
+.comment-reactions__emoji {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.comment-reactions__count {
+    font-size: 0.875rem;
+}
+
 /* Collapsible comment-form CTAs — project style: no shading, no rounded edges */
 .comment-form-toggle,
 .comment-reply-toggle {

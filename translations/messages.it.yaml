@@ -637,6 +637,10 @@ comments:
     label: 'Commento'
     zap: 'Zap'
     private: 'Privato'
+    reactions:
+        label: "Reazioni all'articolo"
+        likes: 'Mi piace'
+        customEmoji: 'Emoji personalizzata %shortcode%'
 
 # ── User Menu / Auth ──────────────────────────────────────────────
 auth:
@@ -1297,4 +1301,3 @@ chapter:
         return_home: 'Torna alla home'
         error_title: '⚠ Recupero capitolo non riuscito'
         error_detail: 'Il capitolo è stato trovato sui relay, ma non è stato possibile salvarlo per la visualizzazione.'
-

@@ -588,6 +588,10 @@ comments:
     label: 'Komentar'
     zap: 'Zap'
     private: 'Zasebno'
+    reactions:
+        label: 'Odzivi na članek'
+        likes: 'Všečki'
+        customEmoji: 'Emoji po meri %shortcode%'
 
 # ── Uporabniški meni / Prijava ────────────────────────────────────
 auth:
@@ -1301,4 +1305,3 @@ chapter:
         return_home: 'Nazaj domov'
         error_title: '⚠ Pridobivanje poglavja ni uspelo'
         error_detail: 'Poglavje je bilo najdeno na relejih, vendar ga ni bilo mogoče shraniti za prikaz.'
-

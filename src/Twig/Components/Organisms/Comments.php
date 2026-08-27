@@ -2,6 +2,7 @@
 
 namespace App\Twig\Components\Organisms;
 
+use App\Enum\KindsEnum;
 use App\Message\FetchCommentsMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
@@ -52,6 +53,10 @@ final class Comments
     public array $processedContent = [];
     public array $zapAmounts = [];
     public array $zappers = [];
+    /**
+     * @var array<string, array{emoji: string|null, isLike: bool, count: int, custom: array{shortcode: string, url: string}|null}>
+     */
+    public array $reactions = [];
     public array $authorsMetadata = [];
     /** @var array<string, string[]> comment ID → list of display names being replied to */
     public array $replyingTo = [];
@@ -106,6 +111,8 @@ final class Comments
                     ];
                 }, $dbEvents);
 
+                $this->parseReactions();
+
                 // Hydrate author metadata from cache
                 $pubkeys = array_unique(array_filter(array_column($this->list, 'pubkey')));
                 $this->authorsMetadata = $this->normalizeMetadata(
@@ -145,12 +152,14 @@ final class Comments
         }
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
-        $this->list            = $data['comments'] ?? [];
+        $this->list = $data['comments'] ?? [];
         if (empty($this->list)) {
+            $this->reactions = [];
             $this->loading = false;
             return;
         }
 
+        $this->parseReactions();
         $this->authorsMetadata = $this->normalizeMetadata($data['profiles'] ?? []);
 
         $this->parseZaps();
@@ -242,6 +251,142 @@ final class Comments
         }
         // Unset reference to avoid accidental modification later
         unset($comment);
+    }
+
+    /**
+     * Split article-level NIP-25 reactions out of the card list and aggregate
+     * them by normalized reaction value, counting each pubkey once per bucket.
+     */
+    private function parseReactions(): void
+    {
+        $this->reactions = [];
+        $visibleItems = [];
+        $seenPubkeys = [];
+
+        foreach ($this->list as $item) {
+            if ((int) ($item['kind'] ?? 0) !== KindsEnum::REACTION->value) {
+                $visibleItems[] = $item;
+                continue;
+            }
+
+            if (!$this->referencesCurrentRoot($item['tags'] ?? [])) {
+                continue;
+            }
+
+            $pubkey = (string) ($item['pubkey'] ?? '');
+            if ($pubkey === '') {
+                continue;
+            }
+
+            $bucket = $this->normalizeReactionContent((string) ($item['content'] ?? ''), $item['tags'] ?? []);
+            if ($bucket === null) {
+                continue;
+            }
+
+            $key = $bucket['key'];
+            if (isset($seenPubkeys[$key][$pubkey])) {
+                continue;
+            }
+
+            $seenPubkeys[$key][$pubkey] = true;
+            if (!isset($this->reactions[$key])) {
+                $this->reactions[$key] = [
+                    'emoji' => $bucket['emoji'],
+                    'isLike' => $bucket['isLike'],
+                    'count' => 0,
+                    'custom' => $bucket['custom'],
+                ];
+            }
+
+            ++$this->reactions[$key]['count'];
+        }
+
+        $this->list = $visibleItems;
+    }
+
+    /**
+     * @param array<int, mixed> $tags
+     * @return array{key: string, emoji: string|null, isLike: bool, custom: array{shortcode: string, url: string}|null}|null
+     */
+    private function normalizeReactionContent(string $content, array $tags): ?array
+    {
+        $normalized = trim($content);
+        if ($normalized === '' || $normalized === '+') {
+            return [
+                'key' => '+',
+                'emoji' => null,
+                'isLike' => true,
+                'custom' => null,
+            ];
+        }
+
+        if ($normalized === '-') {
+            return null;
+        }
+
+        if (preg_match('/^:([A-Za-z0-9_+\-]+):$/u', $normalized, $matches) === 1) {
+            $custom = $this->findCustomEmojiTag($tags, $matches[1]);
+            if ($custom !== null) {
+                return [
+                    'key' => ':' . $custom['shortcode'] . ':',
+                    'emoji' => $normalized,
+                    'isLike' => false,
+                    'custom' => $custom,
+                ];
+            }
+        }
+
+        return [
+            'key' => $normalized,
+            'emoji' => $normalized,
+            'isLike' => false,
+            'custom' => null,
+        ];
+    }
+
+    /**
+     * @param array<int, mixed> $tags
+     * @return array{shortcode: string, url: string}|null
+     */
+    private function findCustomEmojiTag(array $tags, string $shortcode): ?array
+    {
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || count($tag) < 3) {
+                continue;
+            }
+
+            if (($tag[0] ?? null) === 'emoji' && (string) ($tag[1] ?? '') === $shortcode && (string) ($tag[2] ?? '') !== '') {
+                return [
+                    'shortcode' => $shortcode,
+                    'url' => (string) $tag[2],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, mixed> $tags
+     */
+    private function referencesCurrentRoot(array $tags): bool
+    {
+        if (!isset($this->current) || $this->current === '') {
+            return false;
+        }
+
+        $allowedTags = str_contains($this->current, ':') ? ['A', 'a'] : ['E', 'e'];
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+
+            if (in_array((string) ($tag[0] ?? ''), $allowedTags, true) && (string) ($tag[1] ?? '') === $this->current) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // --- Helpers ---

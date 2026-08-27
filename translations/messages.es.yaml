@@ -588,6 +588,10 @@ comments:
     label: 'Comentario'
     zap: 'Zap'
     private: 'Privado'
+    reactions:
+        label: 'Reacciones del artículo'
+        likes: 'Me gusta'
+        customEmoji: 'Emoji personalizado %shortcode%'
 
 # ── Menú de usuario / Autenticación ─────────────────────────────────────
 auth:
@@ -1302,4 +1306,3 @@ chapter:
         return_home: 'Volver al inicio'
         error_title: '⚠ Error al obtener el capítulo'
         error_detail: 'El capítulo se encontró en relés, pero no pudo guardarse para renderizarlo.'
-

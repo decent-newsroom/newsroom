@@ -588,6 +588,10 @@ comments:
     label: 'Commentaire'
     zap: 'Zap'
     private: 'Privé'
+    reactions:
+        label: "Réactions de l'article"
+        likes: "J'aime"
+        customEmoji: 'Emoji personnalisé %shortcode%'
 
 # ── Menu utilisateur / Authentification ─────────────────────────────
 auth:
@@ -1301,4 +1305,3 @@ chapter:
         return_home: 'Retour à l’accueil'
         error_title: '⚠ Échec du chargement du chapitre'
         error_detail: 'Le chapitre a été trouvé sur les relais, mais n’a pas pu être enregistré pour l’affichage.'
-
