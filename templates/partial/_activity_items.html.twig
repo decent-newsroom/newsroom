@@ -44,13 +44,17 @@
                 <div class="highlight-footer">
                     {% if item.article_ref %}
                         {% set refParts = item.article_ref|split(':', 3) %}
-                        {% set refNpub = refParts|length == 3 ? refParts[1]|hex_to_npub : '' %}
-                        {% if refNpub and refParts|length == 3 %}
-                            <a href="{{ path('author-article-slug', {npub: refNpub, slug: refParts[2]}) }}"
-                               class="article-reference"
-                               data-turbo-frame="_top">
-                                {{ item.article_title ?: ('discover.viewArticle'|trans) }}
-                            </a>
+                        {% if refParts|length == 3 and refParts[0] == '30041' %}
+                            <twig:Organisms:ChapterFromCoordinate :coordinate="item.article_ref" />
+                        {% else %}
+                            {% set refNpub = refParts|length == 3 ? refParts[1]|hex_to_npub : '' %}
+                            {% if refNpub and refParts|length == 3 %}
+                                <a href="{{ path('author-article-slug', {npub: refNpub, slug: refParts[2]}) }}"
+                                   class="article-reference"
+                                   data-turbo-frame="_top">
+                                    {{ item.article_title ?: ('discover.viewArticle'|trans) }}
+                                </a>
+                            {% endif %}
                         {% endif %}
                     {% endif %}
                 </div>
@@ -62,4 +66,3 @@
         {% endif %}
     {% endfor %}
 </div>
-

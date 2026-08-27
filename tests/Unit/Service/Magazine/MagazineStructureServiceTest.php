@@ -16,7 +16,7 @@ final class MagazineStructureServiceTest extends TestCase
     {
         $magazine = $this->event('magazine', KindsEnum::PUBLICATION_INDEX->value, tags: [
             ['a', '30040:pubkey:essays'],
-            ['a', '30041:pubkey:intro'],
+            ['a', '30041:pubkey:intro', 'wss://relay.example/'],
             ['a', '30023:author:first-front'],
             ['a', '30024:author:draft-front'],
             ['a', 'not-a-coordinate'],
@@ -27,6 +27,7 @@ final class MagazineStructureServiceTest extends TestCase
 
         self::assertSame([['a', '30040:pubkey:essays']], $structure->categoryTags);
         self::assertSame(['30041:pubkey:intro'], $structure->chapterCoordinates);
+        self::assertSame(['30041:pubkey:intro' => ['wss://relay.example']], $structure->chapterRelayHints);
         self::assertSame('30023:author:first-front', $structure->frontPageArticleCoordinate);
     }
 
@@ -81,6 +82,9 @@ final class MagazineStructureServiceTest extends TestCase
             '30041:pubkey:intro',
             '30041:pubkey:missing',
             'broken',
+        ], [
+            '30041:pubkey:intro' => ['wss://relay.example/'],
+            '30041:pubkey:missing' => ['wss://relay.two', 'invalid'],
         ]);
 
         self::assertSame([
@@ -88,6 +92,7 @@ final class MagazineStructureServiceTest extends TestCase
                 'event' => $chapter,
                 'coordinate' => '30041:pubkey:intro',
                 'fetched' => true,
+                'relayHints' => ['wss://relay.example'],
             ],
             [
                 'event' => null,
@@ -96,8 +101,37 @@ final class MagazineStructureServiceTest extends TestCase
                 'pubkey' => 'pubkey',
                 'kind' => KindsEnum::PUBLICATION_CONTENT->value,
                 'fetched' => false,
+                'relayHints' => ['wss://relay.two'],
             ],
         ], $chapters);
+    }
+
+    public function testMissingChapterFetchRequestsReturnsOnlyUnfetchedPublicationContentWithRelayHints(): void
+    {
+        $magazine = $this->event('magazine', KindsEnum::PUBLICATION_INDEX->value, tags: [
+            ['a', '30041:pubkey:intro', 'wss://relay.one/'],
+            ['a', '30041:pubkey:missing', 'wss://relay.two'],
+            ['a', '30023:author:not-a-chapter', 'wss://relay.three'],
+        ]);
+        $chapter = $this->event('chapter', KindsEnum::PUBLICATION_CONTENT->value);
+
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findByCoordinates')
+            ->with(['30041:pubkey:intro', '30041:pubkey:missing'])
+            ->willReturn([
+                '30041:pubkey:intro' => $chapter,
+            ]);
+
+        self::assertSame([
+            [
+                'coordinate' => '30041:pubkey:missing',
+                'kind' => KindsEnum::PUBLICATION_CONTENT->value,
+                'pubkey' => 'pubkey',
+                'identifier' => 'missing',
+                'relayHints' => ['wss://relay.two'],
+            ],
+        ], $this->service($repository)->missingChapterFetchRequests($magazine));
     }
 
     public function testHydrateEventFromRowAcceptsJsonEncodedTags(): void
@@ -119,6 +153,7 @@ final class MagazineStructureServiceTest extends TestCase
         self::assertSame('content', $event->getContent());
         self::assertSame(123, $event->getCreatedAt());
         self::assertSame([['d', 'magazine'], ['title', 'Magazine']], $event->getTags());
+        self::assertSame('magazine', $event->getDTag());
         self::assertSame('signature', $event->getSig());
     }
 

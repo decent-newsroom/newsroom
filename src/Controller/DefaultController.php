@@ -18,6 +18,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\GraphMagazineListService;
 use App\Service\Magazine\MagazineStructureService;
+use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ContentSearchService;
@@ -852,7 +853,7 @@ class DefaultController extends AbstractController
         }
 
         $structure = $magazineStructure->parseStructure($magazine);
-        $chapters = $magazineStructure->resolveChapters($structure->chapterCoordinates);
+        $chapters = $magazineStructure->resolveChapters($structure->chapterCoordinates, $structure->chapterRelayHints);
 
         $html = $this->renderView('magazine/_chapters_frame.html.twig', [
             'mag' => $mag,
@@ -860,7 +861,14 @@ class DefaultController extends AbstractController
         ]);
 
         $cacheItem->set($html);
-        $cacheItem->expiresAfter(600);
+        $hasMissingChapters = false;
+        foreach ($chapters as $chapter) {
+            if (($chapter['fetched'] ?? false) === false) {
+                $hasMissingChapters = true;
+                break;
+            }
+        }
+        $cacheItem->expiresAfter($hasMissingChapters ? 60 : 600);
         $cache->save($cacheItem);
 
         return new Response($html);
@@ -961,7 +969,7 @@ class DefaultController extends AbstractController
         }
 
         $structure = $magazineStructure->parseStructure($magazine);
-        $chapterReferences = $magazineStructure->resolveChapters($structure->chapterCoordinates);
+        $chapterReferences = $magazineStructure->resolveChapters($structure->chapterCoordinates, $structure->chapterRelayHints);
         $chapters = [];
         foreach ($chapterReferences as $chapterReference) {
             $chapter = $chapterReference['event'] ?? null;
@@ -1011,6 +1019,9 @@ class DefaultController extends AbstractController
         string $mag,
         string $slug,
         EntityManagerInterface $entityManager,
+        EventRepository $eventRepository,
+        MagazineStructureService $magazineStructure,
+        MessageBusInterface $messageBus,
         RedisCacheService $redisCacheService,
         Converter $converter,
         CacheItemPoolInterface $articlesCache,
@@ -1022,37 +1033,91 @@ class DefaultController extends AbstractController
         // Decode slug if it's URL encoded
         $slug = urldecode($slug);
 
-        // Find the chapter by slug and kind
-        $sql = "SELECT e.* FROM event e
-                WHERE e.tags @> ?::jsonb
-                AND e.kind = ?
-                ORDER BY e.created_at DESC
-                LIMIT 1";
+        $magazineEvent = $magazineStructure->findLatestIndexBySlug($mag);
+        $chapterReference = null;
+        if ($magazineEvent instanceof Event) {
+            $structure = $magazineStructure->parseStructure($magazineEvent);
+            foreach ($structure->chapterCoordinates as $coordinate) {
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) !== 3) {
+                    continue;
+                }
 
-        $conn = $entityManager->getConnection();
-        $result = $conn->executeQuery($sql, [
-            json_encode([['d', $slug]]),
-            KindsEnum::PUBLICATION_CONTENT->value
-        ]);
+                if ((int) $parts[0] === KindsEnum::PUBLICATION_CONTENT->value && $parts[2] === $slug) {
+                    $chapterReference = [
+                        'coordinate' => $coordinate,
+                        'kind' => (int) $parts[0],
+                        'pubkey' => $parts[1],
+                        'identifier' => $parts[2],
+                        'relayHints' => $structure->chapterRelayHints[$coordinate] ?? [],
+                    ];
+                    break;
+                }
+            }
+        }
 
-        $eventData = $result->fetchAssociative();
+        $chapter = null;
+        if ($chapterReference !== null) {
+            $chapter = $eventRepository->findByNaddr(
+                $chapterReference['kind'],
+                $chapterReference['pubkey'],
+                $chapterReference['identifier'],
+            );
+        }
 
-        if (!$eventData) {
+        if (!$chapter instanceof Event) {
+            // Backward-compatible fallback for older links where the magazine
+            // index is missing from Redis/DB but the chapter itself is local.
+            $sql = "SELECT e.* FROM event e
+                    WHERE e.tags @> ?::jsonb
+                    AND e.kind = ?
+                    ORDER BY e.created_at DESC
+                    LIMIT 1";
+
+            $conn = $entityManager->getConnection();
+            $result = $conn->executeQuery($sql, [
+                json_encode([['d', $slug]]),
+                KindsEnum::PUBLICATION_CONTENT->value
+            ]);
+
+            $eventData = $result->fetchAssociative();
+            $chapter = $eventData ? $magazineStructure->hydrateEventFromRow($eventData) : null;
+        }
+
+        if (!$chapter instanceof Event) {
+            if ($chapterReference !== null) {
+                $lookupKey = EventLookupKey::forNaddr(
+                    $chapterReference['kind'],
+                    $chapterReference['pubkey'],
+                    $chapterReference['identifier'],
+                );
+
+                $messageBus->dispatch(new FetchEventFromRelaysMessage(
+                    lookupKey: $lookupKey,
+                    type: 'naddr',
+                    kind: $chapterReference['kind'],
+                    pubkey: $chapterReference['pubkey'],
+                    identifier: $chapterReference['identifier'],
+                    relays: $chapterReference['relayHints'],
+                    mag: $mag,
+                ));
+
+                return $this->render('magazine/chapter_loading.html.twig', [
+                    'magazine' => $magazine,
+                    'mag' => $mag,
+                    'slug' => $slug,
+                    'coordinate' => $chapterReference['coordinate'],
+                    'relayHints' => $chapterReference['relayHints'],
+                    'lookupKey' => $lookupKey,
+                    'lookupTopic' => EventLookupKey::topic($lookupKey),
+                ]);
+            }
+
             return $this->render('pages/article_not_found.html.twig', [
                 'message' => 'The chapter could not be found.',
                 'searchQuery' => $slug
             ]);
         }
-
-        // Create Event entity
-        $chapter = new Event();
-        $chapter->setId($eventData['id']);
-        $chapter->setKind((int)$eventData['kind']);
-        $chapter->setPubkey($eventData['pubkey']);
-        $chapter->setContent($eventData['content']);
-        $chapter->setCreatedAt((int)$eventData['created_at']);
-        $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
-        $chapter->setSig($eventData['sig']);
 
         // Process AsciiDoc content to HTML with caching
         // Kind 30041 (PUBLICATION_CONTENT) uses AsciiDoc by spec
@@ -1582,7 +1647,7 @@ class DefaultController extends AbstractController
                         $missingCoordinates[] = $coordinate;
 
                         // Queue only wiki coordinates that this category actually references.
-                        $lookupKey = sprintf('naddr:%d:%s:%s', $info['kind'], $info['pubkey'], $info['slug']);
+                        $lookupKey = EventLookupKey::forNaddr($info['kind'], $info['pubkey'], $info['slug']);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
                             type: 'naddr',
@@ -2021,6 +2086,20 @@ class DefaultController extends AbstractController
         $pubkey = $decoded['pubkey'] ?? null;
         $identifier = $decoded['identifier'] ?? null;
 
+        if (($kind === null || $pubkey === null || $identifier === null) && isset($decoded['bech']) && is_string($decoded['bech'])) {
+            try {
+                $bech = new \nostriphant\NIP19\Bech32($decoded['bech']);
+                if ($bech->type === 'naddr') {
+                    $kind = $bech->data->kind ?? $kind;
+                    $pubkey = $bech->data->pubkey ?? $pubkey;
+                    $identifier = $bech->data->identifier ?? $identifier;
+                    $decoded['relays'] = $bech->data->relays ?? ($decoded['relays'] ?? []);
+                }
+            } catch (\Throwable) {
+                // Keep the existing unsupported-preview fallback.
+            }
+        }
+
         if ($kind === KindsEnum::LONGFORM->value) {
             // Try to find article in database
             $repository = $entityManager->getRepository(Article::class);
@@ -2054,6 +2133,54 @@ class DefaultController extends AbstractController
             } catch (\Exception $e) {
                 $logger->error('Failed to generate naddr for preview', ['error' => $e->getMessage()]);
                 return new Response('<div class="alert alert-warning">Unable to generate article link.</div>', 200);
+            }
+        }
+
+        if ((int) $kind === KindsEnum::PUBLICATION_CONTENT->value && $pubkey && $identifier) {
+            $repository = $entityManager->getRepository(Event::class);
+            $chapter = $repository instanceof EventRepository
+                ? $repository->findByNaddr(KindsEnum::PUBLICATION_CONTENT->value, (string) $pubkey, (string) $identifier)
+                : null;
+
+            if ($chapter instanceof Event) {
+                try {
+                    $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
+                        kind: KindsEnum::PUBLICATION_CONTENT->value,
+                        pubkey: (string) $pubkey,
+                        identifier: (string) $identifier,
+                        relays: is_array($decoded['relays'] ?? null) ? $decoded['relays'] : [],
+                    );
+                } catch (\Throwable) {
+                    $naddr = null;
+                }
+
+                return $this->render('components/Molecules/ChapterCard.html.twig', [
+                    'chapter' => $chapter,
+                    'naddr' => $naddr,
+                    'link' => $naddr ? $this->generateUrl('chapter', ['naddr' => $naddr]) : '#',
+                ]);
+            }
+
+            try {
+                $relays = $decoded['relays'] ?? [];
+                $naddr = \nostriphant\NIP19\Bech32::naddr(
+                    kind: KindsEnum::PUBLICATION_CONTENT->value,
+                    pubkey: (string) $pubkey,
+                    identifier: (string) $identifier,
+                    relays: is_array($relays) ? $relays : [],
+                );
+
+                return new Response(
+                    '<div class="alert alert-info">
+                        <strong>Chapter Preview</strong><br>
+                        This chapter has not been fetched yet.
+                        <a href="' . $this->generateUrl('chapter', ['naddr' => (string) $naddr]) . '" class="alert-link" data-turbo-frame="_top">Click here to view it</a>
+                    </div>',
+                    200
+                );
+            } catch (\Exception $e) {
+                $logger->error('Failed to generate chapter naddr for preview', ['error' => $e->getMessage()]);
+                return new Response('<div class="alert alert-warning">Unable to generate chapter link.</div>', 200);
             }
         }
 

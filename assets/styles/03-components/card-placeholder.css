@@ -118,7 +118,7 @@
     background-color: transparent;
     border: 1px solid var(--color-primary);
     color: var(--color-primary);
-    border-radius: 4px;
+    border-radius: 0;
     cursor: pointer;
     font-size: 0.9rem;
     transition: all 0.2s ease;
@@ -141,4 +141,3 @@
 .fetch-chapter-btn svg {
     flex-shrink: 0;
 }
-

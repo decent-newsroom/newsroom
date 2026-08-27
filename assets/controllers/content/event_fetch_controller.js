@@ -13,7 +13,7 @@ export default class extends Controller {
         timeout: { type: Number, default: 30000 },
     };
 
-    static targets = ['spinner', 'notFound', 'slowNotice', 'statusHeading', 'statusDetail'];
+    static targets = ['spinner', 'notFound', 'error', 'slowNotice', 'statusHeading', 'statusDetail'];
 
     connect() {
         if (this._started) return;
@@ -84,8 +84,14 @@ export default class extends Controller {
 
         console.debug('[event-fetch] Received', data);
 
-        if (data.status === 'not_found' || data.status === 'error') {
+        if (data.status === 'not_found') {
             this._showNotFound();
+            this.disconnect();
+            return;
+        }
+
+        if (data.status === 'error') {
+            this._showError();
             this.disconnect();
             return;
         }
@@ -127,8 +133,23 @@ export default class extends Controller {
         if (this.hasSpinnerTarget) {
             this.spinnerTarget.style.display = 'none';
         }
+        if (this.hasErrorTarget) {
+            this.errorTarget.style.display = 'none';
+        }
         if (this.hasNotFoundTarget) {
             this.notFoundTarget.style.display = '';
+        }
+    }
+
+    _showError() {
+        if (this.hasSpinnerTarget) {
+            this.spinnerTarget.style.display = 'none';
+        }
+        if (this.hasNotFoundTarget) {
+            this.notFoundTarget.style.display = 'none';
+        }
+        if (this.hasErrorTarget) {
+            this.errorTarget.style.display = '';
         }
     }
 

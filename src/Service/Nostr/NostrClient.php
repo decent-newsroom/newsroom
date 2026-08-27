@@ -7,6 +7,7 @@ use App\Enum\KindsEnum;
 use nostriphant\NIP19\Data;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
+use swentel\nostr\Relay\RelaySet;
 
 /**
  * Facade over the focused Nostr service classes.
@@ -24,8 +25,6 @@ use swentel\nostr\Event\Event;
 class NostrClient
 {
     private const EVENT_LOOKUP_MAX_RELAYS = 5;
-    private const EVENT_LOOKUP_DIRECT_TIMEOUT = 2;
-    private const EVENT_LOOKUP_GATEWAY_TIMEOUT = 3;
 
     public function __construct(
         private readonly LoggerInterface        $logger,
@@ -38,6 +37,8 @@ class NostrClient
         private readonly SocialEventService     $socialEventService,
         private readonly UserProfileService     $userProfileService,
         private readonly ?string                $nostrDefaultRelay = null,
+        private readonly int                    $eventLookupDirectTimeout = 2,
+        private readonly int                    $eventLookupGatewayTimeout = 3,
     ) {}
 
     // =========================================================================
@@ -113,10 +114,13 @@ class NostrClient
     public function getEventById(
         string $eventId,
         array $relays = [],
-        int $gatewayTimeout = self::EVENT_LOOKUP_GATEWAY_TIMEOUT,
-        int $directTimeout = self::EVENT_LOOKUP_DIRECT_TIMEOUT,
+        ?int $gatewayTimeout = null,
+        ?int $directTimeout = null,
     ): ?object
     {
+        $gatewayTimeout ??= $this->eventLookupGatewayTimeout;
+        $directTimeout ??= $this->eventLookupDirectTimeout;
+
         $this->logger->info('Getting event by ID', ['event_id' => $eventId, 'relays' => $relays]);
 
         // Prioritise hint relays (most likely to have the event), then local, then content.
@@ -128,10 +132,14 @@ class NostrClient
         $allRelays = $this->buildBoundedEventLookupRelays($hintRelays, $localRelays, $contentRelays);
 
         if ($allRelays === []) {
+            $this->logger->info('Event ID lookup resolved no relays', [
+                'event_id' => $eventId,
+                'outcome' => 'empty',
+            ]);
             return null;
         }
 
-        $this->logger->debug('Querying relays for event in one bounded request', [
+        $this->logger->info('Resolved relay set for event ID lookup', [
             'event_id' => $eventId,
             'relays' => $allRelays,
             'gateway_timeout' => $gatewayTimeout,
@@ -147,16 +155,27 @@ class NostrClient
             );
             $request->setTimeout($directTimeout);
 
-            $events = $this->executor->process(
-                $this->executor->execute($request, gatewayTimeout: $gatewayTimeout),
-                fn($event) => $event,
-            );
+            $responses = $this->executor->execute($request, gatewayTimeout: $gatewayTimeout);
+            $events = $this->executor->process($responses, fn($event) => $event);
 
-            return $events[0] ?? null;
-        } catch (\Throwable $e) {
-            $this->logger->debug('Bounded relay event lookup failed', [
+            $event = $events[0] ?? null;
+            $outcome = $event !== null
+                ? 'found'
+                : ($this->containsTimeoutResponse($responses) ? 'timeout' : 'empty');
+
+            $this->logger->info('Completed event ID lookup', [
                 'event_id' => $eventId,
                 'relays' => $allRelays,
+                'outcome' => $outcome,
+                'found_event_id' => $event->id ?? null,
+            ]);
+
+            return $event;
+        } catch (\Throwable $e) {
+            $this->logger->info('Completed event ID lookup', [
+                'event_id' => $eventId,
+                'relays' => $allRelays,
+                'outcome' => 'timeout',
                 'error' => $e->getMessage(),
             ]);
             return null;
@@ -218,39 +237,67 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getEventByNaddr(array $decoded, bool $hintOnly = false, bool $allowRelayListNetworkFetch = true): ?object
+    public function getEventByNaddr(
+        array $decoded,
+        bool $hintOnly = false,
+        bool $allowRelayListNetworkFetch = true,
+        ?int $gatewayTimeout = null,
+        ?int $directTimeout = null,
+    ): ?object
     {
         $this->logger->info('Getting event by naddr', ['decoded' => $decoded, 'hintOnly' => $hintOnly]);
 
-        $kind       = $decoded['kind']       ?? 30023;
+        $kind       = (int) ($decoded['kind'] ?? 30023);
         $pubkey     = $decoded['pubkey']     ?? '';
         $identifier = $decoded['identifier'] ?? '';
         $relays     = $decoded['relays']     ?? [];
 
         if (empty($pubkey) || empty($identifier)) {
+            $this->logger->info('naddr lookup missing required fields', [
+                'kind' => $kind,
+                'pubkey' => $pubkey,
+                'identifier' => $identifier,
+                'outcome' => 'empty',
+            ]);
             return null;
         }
 
         $filters = ['authors' => [$pubkey], 'tag' => ['#d', [$identifier]]];
+        $directTimeout ??= $this->eventLookupDirectTimeout;
 
         // Targeted mode: only query the hint relays (+ local) with a generous
         // timeout so the relay has time to EOSE.  No fallback to default relays.
         if ($hintOnly && !empty($relays)) {
             $hintUrls = $this->relayRegistry->ensureLocalRelayInList($relays);
             $primary  = $this->relaySetFactory->fromUrls($hintUrls);
+            $effectiveGatewayTimeout = $gatewayTimeout ?? 15;
 
             $this->logger->info('naddr hint-only query', [
                 'relays' => $hintUrls,
                 'kind'   => $kind,
+                'gateway_timeout' => $effectiveGatewayTimeout,
+                'direct_timeout' => $directTimeout,
             ]);
 
-            return $this->executor->fetchFirst(
-                kinds: [$kind],
-                filters: $filters,
-                primary: $primary,
-                fallback: null,
-                gatewayTimeout: 15,
+            [$event, $outcome] = $this->fetchFirstEventForLookup(
+                [$kind],
+                $filters,
+                $primary,
+                null,
+                $effectiveGatewayTimeout,
+                $directTimeout,
             );
+
+            $this->logger->info('Completed naddr lookup', [
+                'kind' => $kind,
+                'pubkey' => $pubkey,
+                'identifier' => $identifier,
+                'relays' => $hintUrls,
+                'outcome' => $outcome,
+                'found_event_id' => $event->id ?? null,
+            ]);
+
+            return $event;
         }
 
         // Broad search: author/hint relays first, then content relays as fallback.
@@ -265,14 +312,129 @@ class NostrClient
             $primary = $this->relaySetFactory->fromUrls($primaryRelays ?: $this->relayRegistry->getContentRelays());
         }
         $fallback = $this->relaySetFactory->getDefault();
+        $primaryRelays = $this->relaySetUrls($primary);
+        $fallbackRelays = $this->relaySetUrls($fallback);
+        $effectiveGatewayTimeout = $gatewayTimeout ?? ($allowRelayListNetworkFetch ? 8 : $this->eventLookupGatewayTimeout);
 
-        return $this->executor->fetchFirst(
-            kinds: [$kind],
-            filters: $filters,
-            primary: $primary,
-            fallback: $fallback,
-            gatewayTimeout: $allowRelayListNetworkFetch ? 8 : self::EVENT_LOOKUP_GATEWAY_TIMEOUT,
+        $this->logger->info('Resolved relay set for naddr lookup', [
+            'kind' => $kind,
+            'pubkey' => $pubkey,
+            'identifier' => $identifier,
+            'primary_relays' => $primaryRelays,
+            'fallback_relays' => $fallbackRelays,
+            'gateway_timeout' => $effectiveGatewayTimeout,
+            'direct_timeout' => $directTimeout,
+        ]);
+
+        [$event, $primaryOutcome] = $this->fetchFirstEventForLookup(
+            [$kind],
+            $filters,
+            $primary,
+            null,
+            $effectiveGatewayTimeout,
+            $directTimeout,
         );
+        $fallbackOutcome = null;
+
+        if ($event === null) {
+            [$event, $fallbackOutcome] = $this->fetchFirstEventForLookup(
+                [$kind],
+                $filters,
+                $fallback,
+                null,
+                $effectiveGatewayTimeout,
+                $directTimeout,
+            );
+        }
+
+        $outcome = $event !== null
+            ? 'found'
+            : (in_array('timeout', [$primaryOutcome, $fallbackOutcome], true) ? 'timeout' : 'empty');
+
+        $this->logger->info('Completed naddr lookup', [
+            'kind' => $kind,
+            'pubkey' => $pubkey,
+            'identifier' => $identifier,
+            'primary_relays' => $primaryRelays,
+            'fallback_relays' => $fallbackRelays,
+            'outcome' => $outcome,
+            'primary_outcome' => $primaryOutcome,
+            'fallback_outcome' => $fallbackOutcome,
+            'found_event_id' => $event->id ?? null,
+        ]);
+
+        return $event;
+    }
+
+    /**
+     * @param int[] $kinds
+     * @return array{0: ?object, 1: string}
+     */
+    private function fetchFirstEventForLookup(
+        array $kinds,
+        array $filters,
+        RelaySet $relaySet,
+        ?string $pubkey,
+        int $gatewayTimeout,
+        int $directTimeout,
+    ): array {
+        $request = $this->executor->buildRequest($kinds, $filters, $relaySet);
+        $request->setTimeout($directTimeout);
+        $responses = $this->executor->execute($request, $pubkey, $gatewayTimeout);
+        $events = $this->executor->process($responses, fn($event) => $event);
+        $event = $events[0] ?? null;
+
+        if ($event !== null) {
+            return [$event, 'found'];
+        }
+
+        return [null, $this->containsTimeoutResponse($responses) ? 'timeout' : 'empty'];
+    }
+
+    /**
+     * @return string[]
+     */
+    private function relaySetUrls(RelaySet $relaySet): array
+    {
+        return array_map(
+            static fn($relay): string => $relay->getUrl(),
+            $relaySet->getRelays(),
+        );
+    }
+
+    private function containsTimeoutResponse(array $responses): bool
+    {
+        $stack = [$responses];
+        while ($stack !== []) {
+            $value = array_pop($stack);
+            if ($value instanceof \Throwable) {
+                $message = strtolower($value->getMessage());
+                if (str_contains($message, 'timeout') || str_contains($message, 'timed out')) {
+                    return true;
+                }
+                continue;
+            }
+            if (is_array($value)) {
+                foreach ($value as $item) {
+                    $stack[] = $item;
+                }
+                continue;
+            }
+            if (is_object($value)) {
+                foreach (get_object_vars($value) as $item) {
+                    $stack[] = $item;
+                }
+                continue;
+            }
+            if (is_string($value)) {
+                $message = strtolower($value);
+                if (str_contains($message, 'timeout') || str_contains($message, 'timed out')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

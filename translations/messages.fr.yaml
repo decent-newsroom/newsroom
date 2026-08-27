@@ -1280,3 +1280,25 @@ reading_list_editor:
         event_preview: 'Aperçu de l’événement Nostr'
 relay_feed:
     untitled: 'Sans titre'
+
+chapter:
+    card:
+        badge: 'Chapitre'
+    part_of_label: 'Fil d’Ariane de publication'
+    part_of: 'Fait partie de'
+    error:
+        invalid_coordinate: 'Coordonnée de chapitre invalide.'
+        not_found: 'Chapitre introuvable.'
+    loading:
+        title: 'Chargement du chapitre…'
+        heading: 'Recherche de ce chapitre sur les relais…'
+        detail: 'Le chapitre n’est pas encore dans notre base de données. La recherche sur le réseau Nostr peut prendre quelques secondes.'
+        slow_heading: 'Recherche toujours en cours…'
+        slow_detail: 'Cela peut prendre plus longtemps si le chapitre est seulement disponible sur des relais lents ou peu courants.'
+        not_found_title: '⚠ Chapitre introuvable'
+        not_found_detail: 'Le chapitre est introuvable sur les relais vérifiés.'
+        try_again: 'Réessayer'
+        return_home: 'Retour à l’accueil'
+        error_title: '⚠ Échec du chargement du chapitre'
+        error_detail: 'Le chapitre a été trouvé sur les relais, mais n’a pas pu être enregistré pour l’affichage.'
+

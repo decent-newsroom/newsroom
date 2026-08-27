@@ -3,6 +3,7 @@
 namespace App\Controller\Newsroom;
 
 use App\Entity\Highlight;
+use App\Enum\KindsEnum;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,13 +60,13 @@ class HighlightController extends AbstractController
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
-            // Extract the article coordinate from tags ('a' tag with 30023: or 30024: prefix)
+            // Extract the source coordinate from tags ('a' tag with article or chapter prefix)
             $articleCoordinate = null;
             $context = null;
             foreach ($signedEvent['tags'] as $tag) {
                 if (is_array($tag) && count($tag) >= 2) {
                     if (in_array($tag[0], ['a', 'A'])) {
-                        if (str_starts_with($tag[1] ?? '', '30023:') || str_starts_with($tag[1] ?? '', '30024:')) {
+                        if ($this->isSupportedHighlightSourceCoordinate($tag[1] ?? '')) {
                             $articleCoordinate = $tag[1];
                         }
                     }
@@ -151,6 +152,17 @@ class HighlightController extends AbstractController
         }
     }
 
+    private function isSupportedHighlightSourceCoordinate(string $coordinate): bool
+    {
+        foreach ([KindsEnum::LONGFORM, KindsEnum::LONGFORM_DRAFT, KindsEnum::PUBLICATION_CONTENT] as $kind) {
+            if (str_starts_with($coordinate, $kind->value . ':')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Persist the highlight to the local database for immediate display
      * without waiting for the next cron fetch cycle.
@@ -233,4 +245,3 @@ class HighlightController extends AbstractController
         return $relays;
     }
 }
-

@@ -14,16 +14,17 @@ gateway timeouts.
 Relay fetching uses a **two-phase strategy**: synchronous hint relay lookup
 first, then async broader search as fallback.
 
-### Phase 1 — Synchronous hint relay lookup (naddr/nevent with relay hints)
+### Phase 1 — Synchronous fast-path lookup
 
-When the NIP-19 entity contains relay hints, those relays are queried
-**synchronously** in the controller in **hint-only mode**: only the hint relays
-(plus the local strfry relay) are contacted, with a generous 15-second gateway
-timeout so the relay has time to send EOSE. **No fallback to default/content
-relays** happens in this phase — the naddr was crafted with those relays for a
-reason, and querying every default relay wastes 10+ seconds when they don't
-carry the event. If found, the event is persisted (both `Event` and `Article`
-entities for kind 30023) and the page renders immediately with no loading screen.
+The controller first checks the local database, then performs a short
+**synchronous** relay lookup so explicit event searches can render immediately
+when relays respond quickly. `nevent` lookups merge relay hints with cached/DB
+author NIP-65 relays. `naddr` lookups use relay hints plus cached/DB author
+relays without performing blocking NIP-65 network discovery in the HTTP request.
+If found, the event is persisted (both `Event` and `Article` entities for kind
+30023/30024 when possible) and the page renders immediately with no loading
+screen. Projection failures render the raw relay event instead of falling
+through as not-found.
 
 For **article naddr** lookups specifically, EventController checks the `Article`
 table first as a fast path. If the article already exists, it redirects to the
@@ -40,10 +41,12 @@ If no relay hints exist, or the hint relays didn't have the event:
 2. The controller immediately renders a **loading placeholder** page
    (`event/loading.html.twig`) with a spinner.
 3. The browser subscribes to a **Mercure SSE topic** for the fetch result.
-4. A background worker picks up the message, queries relays, persists the
-   event via `GenericEventProjector`, and publishes the result to Mercure.
-   For article events (kind 30023/30024), `ArticleEventProjector` is also
-   called to create the `Article` entity required by article routes.
+4. A background worker picks up the message, expands the relay list with the
+   author's NIP-65 relays when an author pubkey is known (including `naddr`
+   lookups), queries relays with worker-only longer timeouts, persists the event
+   via `GenericEventProjector`, and publishes the result to Mercure. For article
+   events (kind 30023/30024), `ArticleEventProjector` is also called to create
+   the `Article` entity required by article routes.
 5. The browser receives the Mercure update and **reloads the page** (via
    Turbo or full reload). Since the event is now in the database, the page
    renders normally.
@@ -52,6 +55,9 @@ If no relay hints exist, or the hint relays didn't have the event:
    condition). If the loading page is served again, the UI switches to a
    **"Not found on relays"** state with a **Retry** button. The reload
    tracking uses `sessionStorage` to survive page navigation.
+7. If relays return the event but persistence/projection fails, the worker
+   publishes `status=error` so the UI shows a fetch-failed state instead of a
+   misleading not-found message.
 
 ## Components
 
@@ -72,6 +78,10 @@ The topic pattern is `/event-fetch/{lookupKey}` where `lookupKey` is:
 - `naddr:{kind}:{pubkey}:{identifier}` for parameterized replaceable events
 - `nevent:{eventId}` for events with relay hints
 - `note:{eventId}` for plain notes
+
+`EventLookupKey` is the PHP single source of truth for `nevent`/`naddr` lookup
+key strings and the `/event-fetch/` topic prefix used by the controller and
+worker.
 
 ## Timeout Behaviour
 

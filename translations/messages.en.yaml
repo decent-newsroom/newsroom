@@ -1662,3 +1662,25 @@ reading_list_editor:
         description: 'The visible article list is used to build the event. Your NIP-07 extension or connected signer will sign it.'
         login_required: 'A Nostr identity is required to publish this list.'
         event_preview: 'Nostr event preview'
+
+chapter:
+    card:
+        badge: 'Chapter'
+    part_of_label: 'Publication breadcrumb'
+    part_of: 'Part of'
+    error:
+        invalid_coordinate: 'Invalid chapter coordinate.'
+        not_found: 'Chapter not found.'
+    loading:
+        title: 'Loading Chapter…'
+        heading: 'Searching relays for this chapter…'
+        detail: 'The chapter is not in our database yet. Querying the Nostr network may take a few seconds.'
+        slow_heading: 'Still searching…'
+        slow_detail: 'This may take longer when the chapter is only available on slow or uncommon relays.'
+        not_found_title: '⚠ Chapter not found'
+        not_found_detail: 'The chapter could not be found on the relays we checked.'
+        try_again: 'Try again'
+        return_home: 'Return home'
+        error_title: '⚠ Chapter fetch failed'
+        error_detail: 'The chapter was found on relays, but could not be stored for rendering.'
+

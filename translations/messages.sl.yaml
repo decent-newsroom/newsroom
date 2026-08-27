@@ -1280,3 +1280,25 @@ reading_list_editor:
         event_preview: 'Predogled dogodka Nostr'
 relay_feed:
     untitled: 'Brez naslova'
+
+chapter:
+    card:
+        badge: 'Poglavje'
+    part_of_label: 'Drobtinice publikacije'
+    part_of: 'Del publikacije'
+    error:
+        invalid_coordinate: 'Neveljavna koordinata poglavja.'
+        not_found: 'Poglavja ni bilo mogoče najti.'
+    loading:
+        title: 'Nalaganje poglavja…'
+        heading: 'Iskanje tega poglavja po relejih…'
+        detail: 'Poglavja še ni v naši zbirki podatkov. Poizvedba po omrežju Nostr lahko traja nekaj sekund.'
+        slow_heading: 'Še vedno iščemo…'
+        slow_detail: 'To lahko traja dlje, če je poglavje na voljo le na počasnih ali manj pogostih relejih.'
+        not_found_title: '⚠ Poglavja ni bilo mogoče najti'
+        not_found_detail: 'Poglavja ni bilo mogoče najti na preverjenih relejih.'
+        try_again: 'Poskusi znova'
+        return_home: 'Nazaj domov'
+        error_title: '⚠ Pridobivanje poglavja ni uspelo'
+        error_detail: 'Poglavje je bilo najdeno na relejih, vendar ga ni bilo mogoče shraniti za prikaz.'
+

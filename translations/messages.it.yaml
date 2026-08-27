@@ -1276,3 +1276,25 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 relay_feed:
     untitled: 'Senza titolo'
+
+chapter:
+    card:
+        badge: 'Capitolo'
+    part_of_label: 'Percorso della pubblicazione'
+    part_of: 'Parte di'
+    error:
+        invalid_coordinate: 'Coordinata del capitolo non valida.'
+        not_found: 'Capitolo non trovato.'
+    loading:
+        title: 'Caricamento capitolo…'
+        heading: 'Ricerca di questo capitolo sui relay…'
+        detail: 'Il capitolo non è ancora nel nostro database. La query sulla rete Nostr può richiedere alcuni secondi.'
+        slow_heading: 'Ricerca ancora in corso…'
+        slow_detail: 'Può richiedere più tempo se il capitolo è disponibile solo su relay lenti o insoliti.'
+        not_found_title: '⚠ Capitolo non trovato'
+        not_found_detail: 'Il capitolo non è stato trovato sui relay controllati.'
+        try_again: 'Riprova'
+        return_home: 'Torna alla home'
+        error_title: '⚠ Recupero capitolo non riuscito'
+        error_detail: 'Il capitolo è stato trovato sui relay, ma non è stato possibile salvarlo per la visualizzazione.'
+

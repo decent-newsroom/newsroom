@@ -9,8 +9,10 @@ use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\ArticleEventProjector;
 use App\Service\GenericEventProjector;
+use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -26,6 +28,7 @@ final class FetchEventFromRelaysHandler
         private readonly ArticleEventProjector $articleEventProjector,
         private readonly UserRelayListService $userRelayListService,
         private readonly HubInterface $hub,
+        private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -52,15 +55,16 @@ final class FetchEventFromRelaysHandler
             $this->logger->info('Event already in DB, skipping relay fetch', [
                 'lookup_key' => $message->lookupKey,
             ]);
+            $this->invalidateChapterCaches($message, $event->getId());
             $this->publishResult($message->lookupKey, 'found', $event->getId());
             return;
         }
 
-        // Fetch from relays (this is the slow part — OK in a worker)
-        // For nevent/note: enrich relay list with author's relay list when available.
-        // Kind 1 notes are typically only on the author's personal relays.
+        // Fetch from relays (this is the slow part — OK in a worker).
+        // Enrich with the author's NIP-65 relays whenever the author is known;
+        // notes and naddr events are often only available on personal relays.
         $relays = $message->relays;
-        if ($message->type !== 'naddr' && $message->pubkey) {
+        if ($message->pubkey) {
             try {
                 $authorRelays = $this->userRelayListService->getRelaysForFetching($message->pubkey);
                 foreach ($authorRelays as $ar) {
@@ -88,11 +92,13 @@ final class FetchEventFromRelaysHandler
                     'kind' => $message->kind,
                     'pubkey' => $message->pubkey,
                     'identifier' => $message->identifier,
-                    'relays' => $message->relays,
-                ]),
+                    'relays' => $relays,
+                ], allowRelayListNetworkFetch: true, gatewayTimeout: 15, directTimeout: 10),
                 default => $this->nostrClient->getEventById(
                     $message->eventId,
                     $relays,
+                    gatewayTimeout: 15,
+                    directTimeout: 10,
                 ),
             };
         } catch (\Throwable $e) {
@@ -112,7 +118,7 @@ final class FetchEventFromRelaysHandler
 
         // Persist
         try {
-            $relaySource = $message->relays[0] ?? 'async-fetch';
+            $relaySource = $relays[0] ?? 'async-fetch';
             $persisted = $this->genericEventProjector->projectEventFromNostrEvent(
                 $rawEvent,
                 $relaySource,
@@ -138,16 +144,41 @@ final class FetchEventFromRelaysHandler
                 'lookup_key' => $message->lookupKey,
                 'event_id' => $persisted->getId(),
             ]);
+            $this->invalidateChapterCaches($message, $persisted->getId());
             $this->publishResult($message->lookupKey, 'found', $persisted->getId());
         } catch (\Throwable $e) {
             $this->logger->error('Failed to persist fetched event', [
                 'lookup_key' => $message->lookupKey,
+                'event_id' => $rawEvent->id ?? null,
+                'kind' => $rawEvent->kind ?? null,
                 'error' => $e->getMessage(),
             ]);
             $this->publishResult($message->lookupKey, 'error');
         }
     }
 
+    private function invalidateChapterCaches(FetchEventFromRelaysMessage $message, ?string $eventId): void
+    {
+        if ($message->kind !== KindsEnum::PUBLICATION_CONTENT->value) {
+            return;
+        }
+
+        try {
+            if (is_string($message->mag) && $message->mag !== '') {
+                $this->cache->deleteItem('magazine_chapters_frame_' . $message->mag);
+            }
+            if (is_string($eventId) && $eventId !== '') {
+                $this->cache->deleteItem('chapter_' . $eventId);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to invalidate chapter caches after async fetch', [
+                'lookup_key' => $message->lookupKey,
+                'mag' => $message->mag,
+                'event_id' => $eventId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 
     /**
      * Publish a Mercure update so the browser reacts instantly.
@@ -155,7 +186,7 @@ final class FetchEventFromRelaysHandler
     private function publishResult(string $lookupKey, string $status, ?string $eventId = null): void
     {
         try {
-            $topic = sprintf('/event-fetch/%s', $lookupKey);
+            $topic = EventLookupKey::topic($lookupKey);
             $update = new Update($topic, json_encode([
                 'status' => $status,
                 'eventId' => $eventId,
@@ -169,4 +200,3 @@ final class FetchEventFromRelaysHandler
         }
     }
 }
-

@@ -1,0 +1,40 @@
+{% set chapterTitle = title|default(chapter.title|default(slug|default(chapter.dTag|default('')))) %}
+{% set chapterSummary = summary|default(chapter.summary|default(null)) %}
+{% set chapterAuthor = authorPubkey|default(chapter.pubkey|default(null)) %}
+{% set chapterCreatedAt = createdAt|default(chapter.createdAt|default(chapter.created_at|default(null))) %}
+{% set chapterLink = link|default(null) %}
+{% if chapterLink is empty and naddr|default(null) %}
+    {% set chapterLink = path('chapter', {naddr: naddr}) %}
+{% endif %}
+{% if chapterLink is empty %}
+    {% set chapterLink = '#' %}
+{% endif %}
+
+<article class="card article-card chapter-card" data-coordinate="{{ chapter.kind|default(30041) }}:{{ chapterAuthor }}:{{ slug|default(chapter.dTag|default('')) }}">
+    <div class="article-card__body">
+        <div class="article-card__content">
+            <div class="card-sources">
+                <span class="source-badge source-badge--category">{{ 'chapter.card.badge'|trans }}</span>
+            </div>
+
+            <div class="metadata">
+                {% if chapterAuthor %}
+                    <span>{{ 'text.by'|trans }} <twig:Molecules:UserFromNpub :ident="chapterAuthor" /></span>
+                {% endif %}
+                {% if chapterCreatedAt %}
+                    <span><time datetime="{{ chapterCreatedAt|date('c') }}">{{ chapterCreatedAt|date('M j, Y') }}</time></span>
+                {% endif %}
+            </div>
+
+            <h2 class="card-title line-clamp-5">
+                <a class="article-card__title-link" href="{{ chapterLink }}" data-turbo-frame="_top">{{ chapterTitle }}</a>
+            </h2>
+
+            {% if chapterSummary %}
+                <p class="lede line-clamp-5" data-controller="utility--katex" data-utility--katex-display-value="false">
+                    {{ chapterSummary }}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</article>

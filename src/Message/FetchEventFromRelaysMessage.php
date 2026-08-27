@@ -20,6 +20,7 @@ final class FetchEventFromRelaysMessage
      * @param string|null $identifier d-tag / slug (naddr only)
      * @param string|null $eventId    Event ID (nevent/note only)
      * @param string[]    $relays     Relay hint URLs
+     * @param string|null $mag        Magazine slug whose chapter frame should be invalidated after a chapter fetch
      */
     public function __construct(
         public readonly string  $lookupKey,
@@ -29,6 +30,6 @@ final class FetchEventFromRelaysMessage
         public readonly ?string $identifier = null,
         public readonly ?string $eventId = null,
         public readonly array   $relays = [],
+        public readonly ?string $mag = null,
     ) {}
 }
-

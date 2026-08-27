@@ -1,0 +1,14 @@
+<div {{ attributes.defaults({class: 'chapter-from-coordinate'}) }}>
+    {% if error and parsedPubkey and parsedSlug %}
+        <twig:Molecules:CardPlaceholder :item="{
+            kind: parsedKind,
+            pubkey: parsedPubkey,
+            slug: parsedSlug,
+            coordinate: coordinate
+        }" />
+    {% elseif error %}
+        <div class="alert alert-info">{{ error|trans }}</div>
+    {% elseif chapter %}
+        <twig:Molecules:ChapterCard :chapter="chapter" />
+    {% endif %}
+</div>

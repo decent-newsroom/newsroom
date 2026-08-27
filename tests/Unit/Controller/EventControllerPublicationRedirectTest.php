@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Controller;
 
 use App\Controller\EventController;
+use App\Dto\UserMetadata;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
@@ -174,6 +175,51 @@ class EventControllerPublicationRedirectTest extends TestCase
         self::assertStringContainsString('npub=' . rawurlencode((static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey))), $response->getTargetUrl());
     }
 
+    public function testNaddrNonArticleDbHitRendersGenericEventPage(): void
+    {
+        $pubkey = str_repeat('7', 64);
+        $slug = 'custom-event';
+        $event = new Event();
+        $event->setId(str_repeat('7', 64));
+        $event->setKind(30818);
+        $event->setPubkey($pubkey);
+        $event->setContent('Custom event content');
+        $event->setCreatedAt(time());
+        $event->setTags([['d', $slug]]);
+        $event->setSig(str_repeat('f', 128));
+        $event->setDTag($slug);
+
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findByNaddr')
+            ->with(30818, $pubkey, $slug)
+            ->willReturn($event);
+
+        $redisCache = $this->createMock(RedisCacheService::class);
+        $redisCache->expects(self::once())
+            ->method('getMetadata')
+            ->with($pubkey)
+            ->willReturn(UserMetadata::createDefault($pubkey));
+
+        $logger = $this->createMock(LoggerInterface::class);
+
+        $controller = $this->makeController();
+        $response = $controller->index(
+            $this->encodeNaddr($event),
+            new Request(),
+            $redisCache,
+            new NostrLinkParser($logger),
+            $logger,
+            $repository,
+            $this->createMock(MessageBusInterface::class),
+            $this->createMock(NostrClient::class),
+            $this->createMock(GenericEventProjector::class),
+            $this->createMock(UserRelayListService::class),
+        );
+
+        self::assertSame('rendered:event/index.html.twig', $response->getContent());
+    }
+
     private function makeController(): EventController
     {
         $projector = $this->createMock(ArticleEventProjector::class);
@@ -220,5 +266,3 @@ class EventControllerPublicationRedirectTest extends TestCase
         return $nip19->encodeAddr($nostr, (string) $event->getDTag(), $event->getKind());
     }
 }
-
-

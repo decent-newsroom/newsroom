@@ -38,6 +38,11 @@ final readonly class MagazineStructureService
             $tags = json_decode($tags, true) ?? [];
         }
         $event->setTags(is_array($tags) ? $tags : []);
+        if (array_key_exists('d_tag', $row) && $row['d_tag'] !== null) {
+            $event->setDTag((string) $row['d_tag']);
+        } else {
+            $event->extractAndSetDTag();
+        }
 
         return $event;
     }
@@ -79,6 +84,7 @@ final readonly class MagazineStructureService
     {
         $categoryTags = [];
         $chapterCoordinates = [];
+        $chapterRelayHints = [];
         $frontPageArticleCoordinate = null;
 
         foreach ($magazine->getTags() as $tag) {
@@ -98,7 +104,15 @@ final readonly class MagazineStructureService
             }
 
             if ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
-                $chapterCoordinates[] = (string) $tag[1];
+                $coordinate = (string) $tag[1];
+                $chapterCoordinates[] = $coordinate;
+                $relayHint = $this->normalizeRelayHint($tag[2] ?? null);
+                if ($relayHint !== null) {
+                    $chapterRelayHints[$coordinate] ??= [];
+                    if (!in_array($relayHint, $chapterRelayHints[$coordinate], true)) {
+                        $chapterRelayHints[$coordinate][] = $relayHint;
+                    }
+                }
                 continue;
             }
 
@@ -111,6 +125,7 @@ final readonly class MagazineStructureService
             categoryTags: $categoryTags,
             chapterCoordinates: $chapterCoordinates,
             frontPageArticleCoordinate: $frontPageArticleCoordinate,
+            chapterRelayHints: $chapterRelayHints,
         );
     }
 
@@ -189,9 +204,10 @@ final readonly class MagazineStructureService
 
     /**
      * @param string[] $chapterCoordinates
-     * @return array<int, array{event: ?Event, coordinate: string, fetched: bool, slug?: string, pubkey?: string, kind?: int}>
+     * @param array<string, string[]> $relayHintsByCoordinate
+     * @return array<int, array{event: ?Event, coordinate: string, fetched: bool, relayHints: string[], slug?: string, pubkey?: string, kind?: int}>
      */
-    public function resolveChapters(array $chapterCoordinates): array
+    public function resolveChapters(array $chapterCoordinates, array $relayHintsByCoordinate = []): array
     {
         if ($chapterCoordinates === []) {
             return [];
@@ -210,11 +226,13 @@ final readonly class MagazineStructureService
             $slug = $parts[2];
 
             $chapter = $chapterMap[$coordinate] ?? null;
+            $relayHints = $this->normalizeRelayHints($relayHintsByCoordinate[$coordinate] ?? []);
             if ($chapter instanceof Event) {
                 $chapters[] = [
                     'event' => $chapter,
                     'coordinate' => $coordinate,
                     'fetched' => true,
+                    'relayHints' => $relayHints,
                 ];
                 continue;
             }
@@ -226,9 +244,69 @@ final readonly class MagazineStructureService
                 'pubkey' => $pubkey,
                 'kind' => $kind,
                 'fetched' => false,
+                'relayHints' => $relayHints,
             ];
         }
 
         return $chapters;
+    }
+
+    /**
+     * Return missing kind-30041 chapter coordinates for a publication index.
+     *
+     * @return array<int, array{coordinate: string, kind: int, pubkey: string, identifier: string, relayHints: string[]}>
+     */
+    public function missingChapterFetchRequests(Event $magazine): array
+    {
+        $structure = $this->parseStructure($magazine);
+        $chapters = $this->resolveChapters($structure->chapterCoordinates, $structure->chapterRelayHints);
+        $requests = [];
+
+        foreach ($chapters as $chapter) {
+            if (($chapter['fetched'] ?? false) === true || ($chapter['kind'] ?? null) !== KindsEnum::PUBLICATION_CONTENT->value) {
+                continue;
+            }
+
+            $requests[] = [
+                'coordinate' => $chapter['coordinate'],
+                'kind' => $chapter['kind'],
+                'pubkey' => $chapter['pubkey'],
+                'identifier' => $chapter['slug'],
+                'relayHints' => $chapter['relayHints'],
+            ];
+        }
+
+        return $requests;
+    }
+
+    /**
+     * @param mixed[] $relayHints
+     * @return string[]
+     */
+    private function normalizeRelayHints(array $relayHints): array
+    {
+        $normalized = [];
+        foreach ($relayHints as $relayHint) {
+            $relay = $this->normalizeRelayHint($relayHint);
+            if ($relay !== null && !in_array($relay, $normalized, true)) {
+                $normalized[] = $relay;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeRelayHint(mixed $relayHint): ?string
+    {
+        if (!is_string($relayHint)) {
+            return null;
+        }
+
+        $relayHint = rtrim(trim($relayHint), '/');
+        if ($relayHint === '' || !preg_match('#^wss?://#i', $relayHint)) {
+            return null;
+        }
+
+        return $relayHint;
     }
 }

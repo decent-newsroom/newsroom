@@ -1,0 +1,50 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Loading Chapter…{% endblock %}
+
+{% block body %}
+    {% set chapterFetchTimeoutMs = app.environment == 'dev' ? 120000 : 30000 %}
+    <div class="w-container">
+        <section
+            class="event-loading"
+            data-controller="content--chapter-fetch"
+            data-content--chapter-fetch-coordinate-value="{{ coordinate }}"
+            data-content--chapter-fetch-mag-value="{{ mag }}"
+            data-content--chapter-fetch-relay-hints-value="{{ relayHints|default([])|json_encode|e('html_attr') }}"
+            data-content--chapter-fetch-topic-value="{{ lookupTopic|default('/event-fetch/' ~ lookupKey) }}"
+            data-content--chapter-fetch-reload-url-value="{{ path('magazine-chapter', {mag: mag, slug: slug}) }}"
+            data-content--chapter-fetch-timeout-value="{{ chapterFetchTimeoutMs }}"
+        >
+            <div class="event-loading__spinner" data-content--chapter-fetch-target="spinner">
+                <div class="spinner">
+                    <div class="lds-dual-ring"></div>
+                </div>
+                <h2 class="h5 mt-3" data-content--chapter-fetch-target="statusHeading">Searching relays for this chapter…</h2>
+                <p class="text-muted" data-content--chapter-fetch-target="statusDetail">
+                    The chapter is referenced by this publication but is not in the local database yet.
+                </p>
+
+                <div class="event-loading__slow-notice" data-content--chapter-fetch-target="slowNotice" hidden>
+                    <p class="text-muted">
+                        <strong>Still searching…</strong> This may take longer when the chapter is only available on the publication relay.
+                    </p>
+                </div>
+            </div>
+
+            <div class="event-loading__not-found" data-content--chapter-fetch-target="notFound" hidden>
+                <div class="notice info mt-4">
+                    <h3 class="h5 mb-2">⚠ Chapter not found</h3>
+                    <p>The chapter could not be found on the relays we checked.</p>
+                </div>
+                <div class="mt-4 text-center">
+                    <a href="{{ path('magazine-chapter', {mag: mag, slug: slug}) }}" class="btn btn-primary">Try again</a>
+                    <a href="{{ path('magazine-index', {mag: mag}) }}" class="btn btn-secondary ms-2">Back to magazine</a>
+                </div>
+            </div>
+
+            <div class="event-loading__error" data-content--chapter-fetch-target="error" hidden>
+                Chapter fetch failed.
+            </div>
+        </section>
+    </div>
+{% endblock %}

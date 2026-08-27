@@ -1291,3 +1291,25 @@ reading_list_editor:
         event_preview: 'Nostr-Event-Vorschau'
 relay_feed:
     untitled: 'Ohne Titel'
+
+chapter:
+    card:
+        badge: 'Kapitel'
+    part_of_label: 'Publikations-Breadcrumb'
+    part_of: 'Teil von'
+    error:
+        invalid_coordinate: 'Ungültige Kapitelkoordinate.'
+        not_found: 'Kapitel nicht gefunden.'
+    loading:
+        title: 'Kapitel wird geladen…'
+        heading: 'Relays werden nach diesem Kapitel durchsucht…'
+        detail: 'Das Kapitel ist noch nicht in unserer Datenbank. Die Abfrage des Nostr-Netzwerks kann einige Sekunden dauern.'
+        slow_heading: 'Suche läuft noch…'
+        slow_detail: 'Dies kann länger dauern, wenn das Kapitel nur auf langsamen oder ungewöhnlichen Relays verfügbar ist.'
+        not_found_title: '⚠ Kapitel nicht gefunden'
+        not_found_detail: 'Das Kapitel konnte auf den geprüften Relays nicht gefunden werden.'
+        try_again: 'Erneut versuchen'
+        return_home: 'Zur Startseite'
+        error_title: '⚠ Kapitelabruf fehlgeschlagen'
+        error_detail: 'Das Kapitel wurde auf Relays gefunden, konnte aber nicht für die Anzeige gespeichert werden.'
+

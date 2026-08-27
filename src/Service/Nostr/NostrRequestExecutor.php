@@ -273,8 +273,12 @@ class NostrRequestExecutor
         ?callable  $handler = null,
         ?string    $pubkey = null,
         int        $gatewayTimeout = 8,
+        ?int       $directTimeout = null,
     ): array {
         $request = $this->buildRequest($kinds, $filters, $relaySet);
+        if ($directTimeout !== null) {
+            $request->setTimeout($directTimeout);
+        }
         return $this->process($this->execute($request, $pubkey, $gatewayTimeout), $handler ?? fn($e) => $e);
     }
 
@@ -290,14 +294,15 @@ class NostrRequestExecutor
         ?RelaySet $fallback = null,
         ?string   $pubkey = null,
         int       $gatewayTimeout = 8,
+        ?int      $directTimeout = null,
     ): ?object {
-        $events = $this->fetch($kinds, $filters, $primary, null, $pubkey, $gatewayTimeout);
+        $events = $this->fetch($kinds, $filters, $primary, null, $pubkey, $gatewayTimeout, $directTimeout);
         if (!empty($events)) {
             return $events[0];
         }
 
         if ($fallback !== null) {
-            $events = $this->fetch($kinds, $filters, $fallback, null, $pubkey, $gatewayTimeout);
+            $events = $this->fetch($kinds, $filters, $fallback, null, $pubkey, $gatewayTimeout, $directTimeout);
             return !empty($events) ? $events[0] : null;
         }
 
@@ -388,4 +393,3 @@ class NostrRequestExecutor
         return $this->relayPool->publish($event, $relayUrls, $pubkey, $timeout);
     }
 }
-

@@ -2,6 +2,9 @@
 
 ## v0.0.49
 
+- Feature: preview cards for publication chapter (kind 30041) references in articles and highlights, with standalone /chapter/{naddr} route.
+- Fix: publication (30040) chapter loading — ingest kind 30041, async chapter fetch with Mercure updates, working fetch CTA.
+- Fix: nevent/naddr lookup stalling on not-found — async naddr fetches now use author relay lists; projection failures no longer reported as not-found.
 - [Docs] Added Unfold publication administration specs covering owner-signed AppData, audience tiers, publication payment targets, publication feeds and sitemap, owner dashboard analytics, footer behavior, tests, and rollout planning.
 - [Bug] Deduplicated relay gateway AUTH challenge signing across NIP-46 bunker and browser extension flows so repeated relay challenges share one pending request and one signed response.
 - [Improvement] Started untangling `DefaultController` magazine routes by moving magazine structure parsing, latest index lookup, category preview payloads, chapter placeholders, and raw event row hydration into `MagazineStructureService`.
@@ -561,3 +564,4 @@ Graph traversal operators.
 - Exposed the new NIP-GX traversal ops in the expression builder UI (`/expressions/create` and `/expressions/edit/...`). The stage operation dropdown now has a "Traversal (NIP-GX)" optgroup, and `ancestor`/`descendant` stages expose a modifier selector for `root` / `leaves`. Traversal stages are serialized as `["op","<op>"]` or `["op","<op>","<modifier>"]`, matching the runner's parser.
 - [Bug] Fixed NIP-GX `ancestor` / `ancestor root` traversal stopping short of the true root for `kind:1` threads and `kind:1111` comment trees whenever an intermediate event wasn't cached in the local DB. The runner now honors the authoritative root-scope tags — NIP-10 marked `"root"` e tag and NIP-22 uppercase `E`/`A` — via a `TraversalResolver::rootHint()` shortcut that jumps straight to the true root in one hop. For `ancestor root`, the hint is preferred over the iterative walk; for plain `ancestor`, the hint is appended at the farthest position if the walk didn't already reach it, so the chain always terminates at the declared root when one is set.
 - Broadened the ExpressionBundle's event-id input resolution to query a union of the local relay, the configured content relays, and the viewer's NIP-65 read relays (deduplicated, capped at 16) when an input event is not in the local database. The local and content relays remain the canonical paths — the viewer is intentionally not assumed to be the author of referenced events, since expressions and the spells they reference can be authored by anyone and evaluated by anyone — but the viewer's relays are included as an additional low-priority probe. The viewer's pubkey is passed to the relay fetch for NIP-42 AUTH against their own session only, not as an authorship claim.
+

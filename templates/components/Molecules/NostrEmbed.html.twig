@@ -7,6 +7,8 @@
             :authors_metadata="authorsMetadata"
             :is_author_profile="false"
         />
+    {% elseif isChapter and chapter is not null %}
+        <twig:Molecules:ChapterCard :chapter="chapter" />
     {% elseif isPicture %}
         {# Kind 20 picture card #}
         {% include 'event/_kind20_picture.html.twig' with {event: event, embed: true} %}
@@ -40,4 +42,3 @@
         </div>
     </div>
 {% endif %}
-

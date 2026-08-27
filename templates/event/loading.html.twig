@@ -7,7 +7,7 @@
     <div class="w-container">
         <section class="event-loading"
                  data-controller="content--event-fetch"
-                 data-content--event-fetch-topic-value="/event-fetch/{{ lookupKey }}"
+                 data-content--event-fetch-topic-value="{{ lookupTopic|default('/event-fetch/' ~ lookupKey) }}"
                  data-content--event-fetch-reload-url-value="{{ path('nevent', { nevent: nevent }) }}"
                  data-content--event-fetch-timeout-value="{{ eventFetchTimeoutMs }}">
 
@@ -40,6 +40,21 @@
                     <p>
                         The event could not be found on any of the relays we checked.
                         It may have been deleted, or the relays may be temporarily unavailable.
+                    </p>
+                </div>
+                <div class="mt-4 text-center">
+                    <a href="{{ path('nevent', { nevent: nevent }) }}" class="btn btn-primary">Try again</a>
+                    <a href="{{ path('home') }}" class="btn btn-secondary ms-2">Return home</a>
+                </div>
+            </div>
+
+            {# ── Error state (hidden until worker reports projection/persistence failure) ── #}
+            <div class="event-loading__error" data-content--event-fetch-target="error" style="display:none;">
+                <div class="notice warning mt-4">
+                    <h3 class="h5 mb-2">⚠ Event fetch failed</h3>
+                    <p>
+                        The event was found on relays, but could not be stored for rendering.
+                        Please try again later.
                     </p>
                 </div>
                 <div class="mt-4 text-center">

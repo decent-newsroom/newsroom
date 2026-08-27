@@ -85,7 +85,8 @@
         </div>
 
         {# Chapters content #}
-        <div class="chapters-content">
+        <turbo-frame id="magazine-read-chapters" target="_top">
+            <div class="chapters-content">
             {# Debug: Show chapter count #}
             {% if chapters is empty %}
                 <div class="alert alert-info text-center">
@@ -124,25 +125,43 @@
                     <hr class="chapter-separator my-5">
                 {% else %}
                     {# Placeholder card for unfetched chapter #}
-                    <div class="chapter-placeholder card card-placeholder mb-5">
+                    <div
+                        class="chapter-placeholder card card-placeholder mb-5"
+                        data-controller="content--chapter-fetch"
+                        data-content--chapter-fetch-coordinate-value="{{ chapter.coordinate }}"
+                        data-content--chapter-fetch-mag-value="{{ mag }}"
+                        data-content--chapter-fetch-relay-hints-value="{{ chapter.relayHints|default([])|json_encode|e('html_attr') }}"
+                        data-content--chapter-fetch-frame-id-value="magazine-read-chapters"
+                        data-content--chapter-fetch-reload-url-value="{{ path('magazine-read', {mag: mag}) }}"
+                    >
                         <div class="card-body text-center p-5">
                             <h3 class="h4 mb-3">{{ chapter.slug }}</h3>
                             <p class="text-muted mb-4">This chapter has not been fetched from relays yet</p>
                             <button class="btn btn-primary fetch-chapter-btn"
                                     data-coordinate="{{ chapter.coordinate }}"
-                                    onclick="fetchChapter(this)">
+                                    data-mag="{{ mag }}"
+                                    data-content--chapter-fetch-target="button"
+                                    data-action="click->content--chapter-fetch#fetch">
                                 Fetch Chapter
                             </button>
-                            <div class="spinner-border spinner-border-sm ms-2 hidden" role="status">
+                            <div class="spinner-border spinner-border-sm ms-2" role="status" data-content--chapter-fetch-target="spinner" hidden>
                                 <span class="hidden">Loading...</span>
                             </div>
+                            <p class="text-muted mt-2" data-content--chapter-fetch-target="slowNotice" hidden>
+                                Still searching relays…
+                            </p>
+                            <p class="text-muted mt-2" data-content--chapter-fetch-target="notFound" hidden>
+                                Chapter not found on relays.
+                            </p>
+                            <p class="text-muted mt-2" data-content--chapter-fetch-target="error" hidden></p>
+                            </div>
                         </div>
-                    </div>
 
                     <hr class="chapter-separator my-5">
                 {% endif %}
             {% endfor %}
-        </div>
+            </div>
+        </turbo-frame>
 
         {# Back to top button #}
         <div class="text-center my-5">
@@ -152,47 +171,4 @@
             </a>
         </div>
     </div>
-{% endblock %}
-
-{% block javascripts %}
-    {{ parent() }}
-    <script>
-        async function fetchChapter(button) {
-            const coordinate = button.getAttribute('data-coordinate');
-            const spinner = button.nextElementSibling;
-
-            // Disable button and show spinner
-            button.disabled = true;
-            spinner.classList.remove('hidden');
-            button.textContent = 'Fetching...';
-
-            try {
-                const response = await fetch('/api/fetch-chapter', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ coordinate: coordinate })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Reload the page to show the fetched chapter
-                    window.location.reload();
-                } else {
-                    alert('Failed to fetch chapter: ' + (data.error || 'Unknown error'));
-                    button.disabled = false;
-                    spinner.classList.add('hidden');
-                    button.textContent = 'Fetch Chapter';
-                }
-            } catch (error) {
-                console.error('Error fetching chapter:', error);
-                alert('Error fetching chapter. Please try again.');
-                button.disabled = false;
-                spinner.classList.add('hidden');
-                button.textContent = 'Fetch Chapter';
-            }
-        }
-    </script>
 {% endblock %}

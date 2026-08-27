@@ -70,6 +70,11 @@ class EventRepository extends ServiceEntityRepository
             $tags = json_decode($tags, true) ?? [];
         }
         $event->setTags($tags ?? []);
+        if (array_key_exists('d_tag', $row) && $row['d_tag'] !== null) {
+            $event->setDTag((string) $row['d_tag']);
+        } else {
+            $event->extractAndSetDTag();
+        }
 
         return $event;
     }

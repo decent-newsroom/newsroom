@@ -1281,3 +1281,25 @@ reading_list_editor:
         event_preview: 'Vista previa del evento Nostr'
 relay_feed:
     untitled: 'Sin título'
+
+chapter:
+    card:
+        badge: 'Capítulo'
+    part_of_label: 'Ruta de publicación'
+    part_of: 'Parte de'
+    error:
+        invalid_coordinate: 'Coordenada de capítulo no válida.'
+        not_found: 'Capítulo no encontrado.'
+    loading:
+        title: 'Cargando capítulo…'
+        heading: 'Buscando este capítulo en relés…'
+        detail: 'El capítulo todavía no está en nuestra base de datos. Consultar la red Nostr puede tardar unos segundos.'
+        slow_heading: 'Aún buscando…'
+        slow_detail: 'Esto puede tardar más si el capítulo solo está disponible en relés lentos o poco comunes.'
+        not_found_title: '⚠ Capítulo no encontrado'
+        not_found_detail: 'No se pudo encontrar el capítulo en los relés comprobados.'
+        try_again: 'Intentar de nuevo'
+        return_home: 'Volver al inicio'
+        error_title: '⚠ Error al obtener el capítulo'
+        error_detail: 'El capítulo se encontró en relés, pero no pudo guardarse para renderizarlo.'
+

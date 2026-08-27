@@ -1,160 +1,168 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller\Api;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Service\Nostr\NostrClient;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
-use Psr\Cache\CacheItemPoolInterface;
+use App\Message\FetchEventFromRelaysMessage;
+use App\Service\Magazine\MagazineStructureService;
+use App\Service\Nostr\EventLookupKey;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api')]
 class ChapterFetchController extends AbstractController
 {
     public function __construct(
-        private readonly NostrClient $nostrClient,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly MessageBusInterface $messageBus,
+        private readonly MagazineStructureService $magazineStructure,
         private readonly LoggerInterface $logger,
-        private readonly CacheItemPoolInterface $cache,
     ) {}
 
-    /**
-     * Endpoint to fetch a chapter (30041) that hasn't been loaded yet
-     * This is called when user clicks "Fetch Chapter" button
-     */
     #[Route('/fetch-chapter', name: 'api_fetch_chapter', methods: ['POST'])]
     public function fetchChapter(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-
-        if (!$data) {
+        if (!is_array($data)) {
             return new JsonResponse([
-                'success' => false,
-                'error' => 'Invalid request data'
+                'queued' => false,
+                'error' => 'Invalid request data',
             ], 400);
         }
 
         $coordinate = $data['coordinate'] ?? null;
+        if (!is_string($coordinate) || $coordinate === '') {
+            return new JsonResponse([
+                'queued' => false,
+                'error' => 'Missing required parameter: coordinate',
+            ], 400);
+        }
+
+        $parsed = $this->parseChapterCoordinate($coordinate);
+        if ($parsed === null) {
+            return new JsonResponse([
+                'queued' => false,
+                'error' => 'Invalid coordinate. Expected kind 30041 coordinate: 30041:pubkey:d-tag',
+            ], 400);
+        }
+
         $mag = $data['mag'] ?? null;
-
-        if (!$coordinate) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Missing required parameter: coordinate'
-            ], 400);
+        $mag = is_string($mag) && $mag !== '' ? $mag : null;
+        $relayHints = $this->normalizeRelayHints($data['relayHints'] ?? []);
+        if ($relayHints === [] && $mag !== null) {
+            $relayHints = $this->relayHintsFromMagazine($mag, $coordinate);
         }
 
-        // Validate coordinate format
-        $parts = explode(':', $coordinate, 3);
-        if (count($parts) !== 3) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Invalid coordinate format. Expected: kind:pubkey:slug'
-            ], 400);
-        }
+        $lookupKey = EventLookupKey::forNaddr($parsed['kind'], $parsed['pubkey'], $parsed['identifier']);
 
-        $kind = (int)$parts[0];
-        if ($kind !== KindsEnum::PUBLICATION_CONTENT->value) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Invalid kind. Expected 30041 (PUBLICATION_CONTENT)'
-            ], 400);
-        }
+        $this->messageBus->dispatch(new FetchEventFromRelaysMessage(
+            lookupKey: $lookupKey,
+            type: 'naddr',
+            kind: $parsed['kind'],
+            pubkey: $parsed['pubkey'],
+            identifier: $parsed['identifier'],
+            relays: $relayHints,
+            mag: $mag,
+        ));
 
-        try {
-            $this->logger->info('Fetching chapter from relays', [
-                'coordinate' => $coordinate
-            ]);
+        $this->logger->info('Queued async chapter fetch', [
+            'coordinate' => $coordinate,
+            'lookup_key' => $lookupKey,
+            'mag' => $mag,
+            'relay_hints' => $relayHints,
+        ]);
 
-            // Fetch from Nostr relays using existing method
-            $eventsMap = $this->nostrClient->getArticlesByCoordinates([$coordinate]);
-
-            if (empty($eventsMap)) {
-                return new JsonResponse([
-                    'success' => false,
-                    'error' => 'Chapter not found on Nostr relays',
-                    'coordinate' => $coordinate
-                ], 404);
-            }
-
-            // Get the fetched event
-            $nostrEvent = $eventsMap[$coordinate] ?? null;
-
-            if (!$nostrEvent) {
-                return new JsonResponse([
-                    'success' => false,
-                    'error' => 'Chapter not found in response',
-                    'coordinate' => $coordinate
-                ], 404);
-            }
-
-            $alreadyExists = $this->entityManager->find(Event::class, $nostrEvent->id) instanceof Event;
-
-            if (!$alreadyExists) {
-                $event = new Event();
-                $event->setId($nostrEvent->id);
-                $event->setEventId($nostrEvent->id);
-                $event->setKind($nostrEvent->kind);
-                $event->setPubkey($nostrEvent->pubkey);
-                $event->setContent($nostrEvent->content);
-                $event->setCreatedAt($nostrEvent->created_at);
-                $event->setTags($nostrEvent->tags);
-                $event->setSig($nostrEvent->sig);
-
-                try {
-                    $this->entityManager->persist($event);
-                    $this->entityManager->flush();
-                } catch (UniqueConstraintViolationException) {
-                    // Race-safe idempotency: if another request saved first, treat as success.
-                    $alreadyExists = true;
-                }
-            }
-
-            $this->invalidateMagazineChaptersCache($mag);
-
-            $this->logger->info('Chapter fetch completed', [
-                'coordinate' => $coordinate,
-                'event_id' => $nostrEvent->id,
-                'already_exists' => $alreadyExists,
-            ]);
-
-            return new JsonResponse([
-                'success' => true,
-                'message' => $alreadyExists
-                    ? 'Chapter already exists locally; cache refreshed.'
-                    : 'Chapter successfully fetched from Nostr and saved to database.',
-                'coordinate' => $coordinate,
-                'event_id' => $nostrEvent->id,
-                'already_exists' => $alreadyExists,
-            ]);
-
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to fetch chapter', [
-                'coordinate' => $coordinate,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Failed to fetch chapter: ' . $e->getMessage(),
-                'coordinate' => $coordinate
-            ], 500);
-        }
+        return new JsonResponse([
+            'queued' => true,
+            'success' => true,
+            'lookupKey' => $lookupKey,
+            'lookupTopic' => EventLookupKey::topic($lookupKey),
+        ], 202);
     }
 
-    private function invalidateMagazineChaptersCache(mixed $mag): void
+    /**
+     * @return array{kind: int, pubkey: string, identifier: string}|null
+     */
+    private function parseChapterCoordinate(string $coordinate): ?array
     {
-        if (!is_string($mag) || $mag === '') {
-            return;
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3 || !ctype_digit($parts[0])) {
+            return null;
         }
 
-        $this->cache->deleteItem('magazine_chapters_frame_' . $mag);
+        $kind = (int) $parts[0];
+        if (
+            $kind !== KindsEnum::PUBLICATION_CONTENT->value
+            || strlen($parts[1]) !== 64
+            || !ctype_xdigit($parts[1])
+            || $parts[2] === ''
+        ) {
+            return null;
+        }
+
+        return [
+            'kind' => $kind,
+            'pubkey' => $parts[1],
+            'identifier' => $parts[2],
+        ];
+    }
+
+    /**
+     * @param mixed $relayHints
+     * @return string[]
+     */
+    private function normalizeRelayHints(mixed $relayHints): array
+    {
+        if (!is_array($relayHints)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($relayHints as $relayHint) {
+            if (!is_string($relayHint)) {
+                continue;
+            }
+
+            $relayHint = rtrim(trim($relayHint), '/');
+            if ($relayHint === '' || !preg_match('#^wss?://#i', $relayHint)) {
+                continue;
+            }
+
+            if (!in_array($relayHint, $normalized, true)) {
+                $normalized[] = $relayHint;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function relayHintsFromMagazine(string $mag, string $coordinate): array
+    {
+        try {
+            $magazine = $this->magazineStructure->findLatestIndexBySlug($mag);
+            if (!$magazine instanceof Event) {
+                return [];
+            }
+
+            $structure = $this->magazineStructure->parseStructure($magazine);
+            return $structure->chapterRelayHints[$coordinate] ?? [];
+        } catch (\Throwable $e) {
+            $this->logger->warning('Unable to resolve chapter relay hints from magazine index', [
+                'mag' => $mag,
+                'coordinate' => $coordinate,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 }

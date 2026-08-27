@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Entity\Highlight;
+use App\Enum\KindsEnum;
 use App\Message\FetchHighlightsMessage;
 use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -63,17 +64,16 @@ class FetchHighlightsHandler
                         continue;
                     }
 
-                    // Extract article coordinate from tags (looking for 'a' or 'A' tag with 30023: prefix)
+                    // Extract source coordinate from tags (article or publication chapter)
                     $articleCoordinate = null;
                     $context = null;
                     foreach ($nostrEvent->tags ?? [] as $tag) {
                         if (is_array($tag) && count($tag) >= 2) {
-                        if (in_array($tag[0], ['a', 'A'])) {
-                            // Check for article reference (kind 30023)
-                            if (str_starts_with($tag[1] ?? '', '30023:')) {
-                                $articleCoordinate = $tag[1];
+                            if (in_array($tag[0], ['a', 'A'], true)) {
+                                if ($this->isSupportedHighlightSourceCoordinate($tag[1] ?? '')) {
+                                    $articleCoordinate = $tag[1];
+                                }
                             }
-                        }
                             // Extract context if available (quoted text)
                             if ($tag[0] === 'context' && isset($tag[1])) {
                                 $context = $tag[1];
@@ -138,5 +138,16 @@ class FetchHighlightsHandler
             ]);
             throw $e;
         }
+    }
+
+    private function isSupportedHighlightSourceCoordinate(string $coordinate): bool
+    {
+        foreach ([KindsEnum::LONGFORM, KindsEnum::LONGFORM_DRAFT, KindsEnum::PUBLICATION_CONTENT] as $kind) {
+            if (str_starts_with($coordinate, $kind->value . ':')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

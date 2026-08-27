@@ -1,0 +1,47 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'chapter.loading.title'|trans }}{% endblock %}
+
+{% block body %}
+    {% set eventFetchTimeoutMs = app.environment == 'dev' ? 120000 : 30000 %}
+    <div class="w-container">
+        <section class="event-loading"
+                 data-controller="content--event-fetch"
+                 data-content--event-fetch-topic-value="{{ lookupTopic|default('/event-fetch/' ~ lookupKey) }}"
+                 data-content--event-fetch-reload-url-value="{{ path('chapter', {naddr: naddr}) }}"
+                 data-content--event-fetch-timeout-value="{{ eventFetchTimeoutMs }}">
+            <div class="event-loading__spinner" data-content--event-fetch-target="spinner">
+                <div class="spinner">
+                    <div class="lds-dual-ring"></div>
+                </div>
+                <h2 class="h5 mt-3" data-content--event-fetch-target="statusHeading">{{ 'chapter.loading.heading'|trans }}</h2>
+                <p class="text-muted" data-content--event-fetch-target="statusDetail">{{ 'chapter.loading.detail'|trans }}</p>
+
+                <div class="event-loading__slow-notice" data-content--event-fetch-target="slowNotice" style="display:none;">
+                    <p class="text-muted">
+                        <strong>{{ 'chapter.loading.slow_heading'|trans }}</strong>
+                        {{ 'chapter.loading.slow_detail'|trans }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="event-loading__not-found" data-content--event-fetch-target="notFound" style="display:none;">
+                <div class="notice info mt-4">
+                    <h3 class="h5 mb-2">{{ 'chapter.loading.not_found_title'|trans }}</h3>
+                    <p>{{ 'chapter.loading.not_found_detail'|trans }}</p>
+                </div>
+                <div class="mt-4 text-center">
+                    <a href="{{ path('chapter', {naddr: naddr}) }}" class="btn btn-primary">{{ 'chapter.loading.try_again'|trans }}</a>
+                    <a href="{{ path('home') }}" class="btn btn-secondary ms-2">{{ 'chapter.loading.return_home'|trans }}</a>
+                </div>
+            </div>
+
+            <div class="event-loading__error" data-content--event-fetch-target="error" style="display:none;">
+                <div class="notice warning mt-4">
+                    <h3 class="h5 mb-2">{{ 'chapter.loading.error_title'|trans }}</h3>
+                    <p>{{ 'chapter.loading.error_detail'|trans }}</p>
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock %}

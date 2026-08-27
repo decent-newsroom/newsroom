@@ -730,7 +730,7 @@ class HomeFeedController extends AbstractController
                 foreach ($event->getTags() as $tag) {
                     if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
                         $parts = explode(':', $tag[1], 3);
-                        if (count($parts) === 3 && in_array((int) $parts[0], [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value], true)) {
+                        if (count($parts) === 3 && in_array((int) $parts[0], [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value, KindsEnum::PUBLICATION_CONTENT->value], true)) {
                             $articleRef = $tag[1];
                         }
                     }

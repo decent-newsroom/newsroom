@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Reader;
 
 use App\Entity\Article;
+use App\Service\Nostr\EventLookupKey;
 
 final readonly class ArticlePageResult
 {
@@ -135,6 +136,7 @@ final readonly class ArticlePageResult
     {
         return [
             'lookupKey' => $this->lookupKey,
+            'lookupTopic' => $this->lookupKey ? EventLookupKey::topic($this->lookupKey) : null,
             'reloadUrl' => $this->reloadUrl,
         ];
     }

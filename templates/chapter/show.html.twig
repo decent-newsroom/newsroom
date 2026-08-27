@@ -1,0 +1,55 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ title }} - Newsroom{% endblock %}
+
+{% block ogtags %}
+    {{ parent() }}
+    <meta property="og:title" content="{{ title }}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if summary %}
+        <meta property="og:description" content="{{ summary }}">
+    {% endif %}
+    <meta property="og:site_name" content="Newsroom">
+{% endblock %}
+
+{% block body %}
+    <article class="w-container">
+        <div class="card">
+            <div class="card-body">
+                {% if parentPublication %}
+                    <nav class="metadata mb-3" aria-label="{{ 'chapter.part_of_label'|trans }}">
+                        <span>{{ 'chapter.part_of'|trans }}</span>
+                        {% if parentPublication.slug %}
+                            <a href="{{ path('magazine-index', {mag: parentPublication.slug}) }}">{{ parentPublication.title }}</a>
+                        {% else %}
+                            <span>{{ parentPublication.title }}</span>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+
+                <h1 class="card-title">{{ title }}</h1>
+
+                {% if summary %}
+                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ summary }}</p>
+                {% endif %}
+
+                <div class="byline mb-4">
+                    <span>
+                        <small>{{ 'text.by'|trans }}</small>
+                        <twig:Molecules:UserFromNpub :ident="chapter.pubkey" />
+                    </span>
+                    <span class="text-muted">
+                        <small>{{ chapter.createdAt|date('F j, Y') }}</small>
+                    </span>
+                </div>
+
+                <div class="chapter-content"
+                     data-controller="utility--katex"
+                     data-utility--katex-display-value="true">
+                    {{ content|resolve_nostr_embeds|raw }}
+                </div>
+            </div>
+        </div>
+    </article>
+{% endblock %}

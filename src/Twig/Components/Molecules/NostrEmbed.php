@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig\Components\Molecules;
 
 use App\Enum\KindsEnum;
+use App\Entity\Event as EventEntity;
 use App\Factory\ArticleFactory;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
@@ -42,9 +43,13 @@ final class NostrEmbed
     public ?object $article = null;
     /** Authors metadata array for Card component */
     public array $authorsMetadata = [];
+    /** For naddr chapters: the resolved Event entity */
+    public ?EventEntity $chapter = null;
 
     /** Is this a longform article (kind 30023)? */
     public bool $isLongform = false;
+    /** Is this a publication chapter (kind 30041)? */
+    public bool $isChapter = false;
     /** Is this a kind 20 picture? */
     public bool $isPicture = false;
 
@@ -89,8 +94,9 @@ final class NostrEmbed
         }
 
         // Set fallback href
-        $this->href = match ($this->type) {
-            'naddr' => '/article/' . $bech,
+        $this->href = match (true) {
+            $this->isChapter => '/chapter/' . $bech,
+            $this->type === 'naddr' => '/article/' . $bech,
             default => '/e/' . $bech,
         };
     }
@@ -130,6 +136,10 @@ final class NostrEmbed
         /** @var NAddr $obj */
         $obj = $decoded->data;
         $this->isLongform = ((int) $obj->kind === KindsEnum::LONGFORM->value);
+        $this->isChapter = ((int) $obj->kind === KindsEnum::PUBLICATION_CONTENT->value);
+        if ($this->isChapter) {
+            $this->label = 'chapter';
+        }
 
         // For longform articles, try ArticleRepository first
         if ($this->isLongform) {
@@ -154,6 +164,12 @@ final class NostrEmbed
         try {
             $entity = $this->eventRepository->findByNaddr((int) $obj->kind, $obj->pubkey, $obj->identifier);
             if (!$entity) {
+                return;
+            }
+
+            if ($this->isChapter && (int) $entity->getKind() === KindsEnum::PUBLICATION_CONTENT->value) {
+                $this->chapter = $entity;
+                $this->resolved = true;
                 return;
             }
 
@@ -221,4 +237,3 @@ final class NostrEmbed
         }
     }
 }
-

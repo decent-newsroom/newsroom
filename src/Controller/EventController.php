@@ -10,6 +10,7 @@ use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
+use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use App\Util\Nip10TagParser;
@@ -198,6 +199,141 @@ class EventController extends AbstractController
         ]);
     }
 
+    private function isArticleKind(int $kind): bool
+    {
+        return $kind === KindsEnum::LONGFORM->value || $kind === KindsEnum::LONGFORM_DRAFT->value;
+    }
+
+    private function npubFromPubkey(string $pubkey): string
+    {
+        return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32()
+            ?? throw new \InvalidArgumentException('Not a valid hex pubkey');
+    }
+
+    private function redirectArticleIfProjected(
+        int $kind,
+        string $pubkey,
+        string $identifier,
+        EventRepository $eventRepository,
+        LoggerInterface $logger,
+    ): ?Response {
+        if (!$this->isArticleKind($kind)) {
+            return null;
+        }
+
+        $articleEntity = $eventRepository->getEntityManager()
+            ->getRepository(\App\Entity\Article::class)
+            ->findOneBy(['slug' => $identifier, 'pubkey' => $pubkey]);
+
+        if (!$articleEntity) {
+            return null;
+        }
+
+        $logger->info('Redirecting to article', ['identifier' => $identifier]);
+
+        return $this->redirectToRoute('author-article-slug', [
+            'npub' => $this->npubFromPubkey($pubkey),
+            'slug' => $identifier,
+        ]);
+    }
+
+    private function redirectCurationIfNeeded(
+        int $kind,
+        string $pubkey,
+        string $identifier,
+        LoggerInterface $logger,
+    ): ?Response {
+        $curationKinds = [
+            KindsEnum::CURATION_SET->value,
+            KindsEnum::CURATION_VIDEOS->value,
+            KindsEnum::CURATION_PICTURES->value,
+        ];
+
+        if (!in_array($kind, $curationKinds, true)) {
+            return null;
+        }
+
+        $npub = $this->npubFromPubkey($pubkey);
+        $logger->info('Redirecting to curation set', [
+            'kind' => $kind,
+            'npub' => $npub,
+            'slug' => $identifier,
+        ]);
+
+        return $this->redirectToRoute('curation-set', [
+            'npub' => $npub,
+            'kind' => $kind,
+            'slug' => $identifier,
+        ]);
+    }
+
+    private function renderEventResponse(
+        object $event,
+        string $nevent,
+        \Symfony\Component\HttpFoundation\Request $request,
+        RedisCacheService $redisCacheService,
+        NostrLinkParser $nostrLinkParser,
+        LoggerInterface $logger,
+        EventRepository $eventRepository,
+        NostrClient $nostrClient,
+        GenericEventProjector $genericEventProjector,
+    ): Response {
+        $publicationRedirect = $this->redirectPublicationIndexIfNeeded($event, $logger);
+        if ($publicationRedirect instanceof Response) {
+            return $publicationRedirect;
+        }
+
+        $nostrLinks = [];
+        if (isset($event->content)) {
+            $nostrLinks = $nostrLinkParser->parseLinks($event->content);
+            $logger->info('Parsed Nostr links from content', ['count' => count($nostrLinks)]);
+        }
+
+        $authorMetadata = $redisCacheService->getMetadata($event->pubkey);
+
+        $opEvent = $this->resolveRootOpEvent(
+            $event,
+            $eventRepository,
+            $nostrClient,
+            $genericEventProjector,
+            $logger,
+        );
+        $opAuthorMetadata = $opEvent ? $redisCacheService->getMetadata($opEvent->pubkey) : null;
+
+        $followPackProfiles = [];
+        if (isset($event->kind) && $event->kind == 39089 && isset($event->tags)) {
+            $pubkeys = [];
+            foreach ($event->tags as $tag) {
+                if (is_array($tag) && $tag[0] === 'p' && isset($tag[1])) {
+                    $pubkeys[] = $tag[1];
+                }
+            }
+            if (!empty($pubkeys)) {
+                $logger->info('Batch fetching follow pack profiles', ['count' => count($pubkeys)]);
+                $metadataMap = $redisCacheService->getMultipleMetadata($pubkeys);
+                $followPackProfiles = array_map(fn($metadata) => $metadata->toStdClass(), $metadataMap);
+            }
+        }
+
+        $response = $this->render('event/index.html.twig', [
+            'event' => $event,
+            'author' => $authorMetadata,
+            'opEvent' => $opEvent,
+            'opAuthor' => $opAuthorMetadata,
+            'nostrLinks' => $nostrLinks,
+            'followPackProfiles' => $followPackProfiles,
+        ]);
+
+        $response->setPublic();
+        $response->setMaxAge(300);
+        $response->setSharedMaxAge(300);
+        $response->setEtag(md5($nevent . ($event->created_at ?? '') . ($event->content ?? '')));
+        $response->setLastModified(new \DateTime('@' . ($event->created_at ?? time())));
+        $response->isNotModified($request);
+
+        return $response;
+    }
+
     /**
      * @throws Exception
      */
@@ -238,7 +374,16 @@ class EventController extends AbstractController
                         $logger->info('Note not in database, trying synchronous relay fetch', ['eventId' => $eventId]);
                         try {
                             $rawEvent = $nostrClient->getEventById($eventId);
-                            if ($rawEvent !== null) {
+                        } catch (\Throwable $e) {
+                            $logger->warning('Synchronous relay fetch failed for note', [
+                                'eventId' => $eventId,
+                                'error' => $e->getMessage(),
+                            ]);
+                            $rawEvent = null;
+                        }
+
+                        if ($rawEvent !== null) {
+                            try {
                                 $persisted = $genericEventProjector->projectEventFromNostrEvent(
                                     $rawEvent,
                                     'sync-note-fetch',
@@ -246,12 +391,15 @@ class EventController extends AbstractController
                                 $logger->info('Note found on relays and persisted', ['eventId' => $persisted->getId()]);
                                 $event = $this->entityToObject($persisted);
                                 break;
+                            } catch (\Throwable $e) {
+                                $logger->error('Synchronous note projection failed after relay hit', [
+                                    'eventId' => $rawEvent->id ?? $eventId,
+                                    'kind' => $rawEvent->kind ?? null,
+                                    'error' => $e->getMessage(),
+                                ]);
+                                $event = $rawEvent;
+                                break;
                             }
-                        } catch (\Throwable $e) {
-                            $logger->warning('Synchronous relay fetch failed for note', [
-                                'eventId' => $eventId,
-                                'error' => $e->getMessage(),
-                            ]);
                         }
 
                         // Sync fetch didn't find it — fall back to async broader search
@@ -265,6 +413,7 @@ class EventController extends AbstractController
                         return $this->render('event/loading.html.twig', [
                             'nevent' => $nevent,
                             'lookupKey' => $lookupKey,
+                            'lookupTopic' => EventLookupKey::topic($lookupKey),
                             'hasRelayHints' => false,
                         ]);
                     }
@@ -324,7 +473,16 @@ class EventController extends AbstractController
                         ]);
                         try {
                             $rawEvent = $nostrClient->getEventById($eventId, $relays);
-                            if ($rawEvent !== null) {
+                        } catch (\Throwable $e) {
+                            $logger->warning('Synchronous relay fetch failed for nevent', [
+                                'eventId' => $eventId,
+                                'error' => $e->getMessage(),
+                            ]);
+                            $rawEvent = null;
+                        }
+
+                        if ($rawEvent !== null) {
+                            try {
                                 $persisted = $genericEventProjector->projectEventFromNostrEvent(
                                     $rawEvent,
                                     $relays[0] ?? 'sync-nevent-fetch',
@@ -332,16 +490,19 @@ class EventController extends AbstractController
                                 $logger->info('Event found on relays and persisted', ['eventId' => $persisted->getId()]);
                                 $event = $this->entityToObject($persisted);
                                 break;
+                            } catch (\Throwable $e) {
+                                $logger->error('Synchronous nevent projection failed after relay hit', [
+                                    'eventId' => $rawEvent->id ?? $eventId,
+                                    'kind' => $rawEvent->kind ?? null,
+                                    'error' => $e->getMessage(),
+                                ]);
+                                $event = $rawEvent;
+                                break;
                             }
-                        } catch (\Throwable $e) {
-                            $logger->warning('Synchronous relay fetch failed for nevent', [
-                                'eventId' => $eventId,
-                                'error' => $e->getMessage(),
-                            ]);
                         }
 
                         // Sync fetch didn't find it — fall back to async broader search
-                        $lookupKey = 'nevent:' . $eventId;
+                        $lookupKey = EventLookupKey::forNevent($eventId);
                         $logger->info('nevent not found synchronously, dispatching async relay search', ['eventId' => $eventId]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
@@ -353,6 +514,7 @@ class EventController extends AbstractController
                         return $this->render('event/loading.html.twig', [
                             'nevent' => $nevent,
                             'lookupKey' => $lookupKey,
+                            'lookupTopic' => EventLookupKey::topic($lookupKey),
                             'hasRelayHints' => !empty($data->relays),
                         ]);
                     }
@@ -374,10 +536,8 @@ class EventController extends AbstractController
                     // The article controller already handles relay fetch fallback.
                     if ($naddrKind === KindsEnum::LONGFORM->value && $naddrPubkey !== '' && $naddrIdentifier !== '') {
                         try {
-                            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
-
                             return $this->redirectToRoute('author-article-slug', [
-                                'npub' => $npub,
+                                'npub' => $this->npubFromPubkey($naddrPubkey),
                                 'slug' => $naddrIdentifier,
                             ]);
                         } catch (\Throwable $e) {
@@ -389,20 +549,22 @@ class EventController extends AbstractController
                         }
                     }
 
-                    // Fast path for articles: check Article table first and redirect
-                    // directly. This is the canonical path for /article/naddr1... which
-                    // now redirects here, and avoids falling through to the generic
-                    // event renderer when a proper article view is available.
-                    if ($naddrKind === KindsEnum::LONGFORM->value || $naddrKind === KindsEnum::LONGFORM_DRAFT->value) {
-                        $articleEntity = $eventRepository->getEntityManager()
-                            ->getRepository(\App\Entity\Article::class)
-                            ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
-                        if ($articleEntity) {
-                            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
-                            return $this->redirectToRoute('author-article-slug', [
-                                'npub' => $npub,
-                                'slug' => $naddrIdentifier,
-                            ]);
+                    if ($naddrKind === KindsEnum::PUBLICATION_CONTENT->value && $naddrPubkey !== '' && $naddrIdentifier !== '') {
+                        return $this->redirectToRoute('chapter', ['naddr' => $nevent]);
+                    }
+
+                    // Fast path for article drafts: check Article table first and redirect
+                    // directly when a proper article projection already exists.
+                    if ($this->isArticleKind($naddrKind)) {
+                        $articleRedirect = $this->redirectArticleIfProjected(
+                            $naddrKind,
+                            $naddrPubkey,
+                            $naddrIdentifier,
+                            $eventRepository,
+                            $logger,
+                        );
+                        if ($articleRedirect instanceof Response) {
+                            return $articleRedirect;
                         }
                     }
 
@@ -417,7 +579,7 @@ class EventController extends AbstractController
                         // For article kinds, ensure the Article projection exists.
                         // The Event may have been ingested via GenericEventProjector
                         // without a corresponding Article entity — recover here.
-                        if ($naddrKind === KindsEnum::LONGFORM->value || $naddrKind === KindsEnum::LONGFORM_DRAFT->value) {
+                        if ($this->isArticleKind($naddrKind)) {
                             try {
                                 $this->articleEventProjector->projectArticleFromEvent(
                                     $event,
@@ -431,136 +593,158 @@ class EventController extends AbstractController
                                     'error' => $e->getMessage(),
                                 ]);
                             }
-                            // Re-check the Article table — redirect if projection succeeded
-                            $articleEntity = $eventRepository->getEntityManager()
-                                ->getRepository(\App\Entity\Article::class)
-                                ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
-                            if ($articleEntity) {
-                                $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
-                                return $this->redirectToRoute('author-article-slug', [
-                                    'npub' => $npub,
-                                    'slug' => $naddrIdentifier,
-                                ]);
+
+                            $articleRedirect = $this->redirectArticleIfProjected(
+                                $naddrKind,
+                                $naddrPubkey,
+                                $naddrIdentifier,
+                                $eventRepository,
+                                $logger,
+                            );
+                            if ($articleRedirect instanceof Response) {
+                                return $articleRedirect;
                             }
+
+                            $logger->warning('Event found but Article entity not found, rendering generic event page', [
+                                'kind' => $naddrKind,
+                                'pubkey' => $naddrPubkey,
+                                'identifier' => $naddrIdentifier,
+                            ]);
                         }
-                    } else {
-                        // Synchronous fetch — targeted limit-1 lookup, the user
-                        // is explicitly looking for this event so a brief wait is fine.
-                        // getEventByNaddr already prioritises hint relays, then falls
-                        // back to author relays + default relays.
-                        $logger->info('naddr not in database, querying relays synchronously', [
+
+                        $curationRedirect = $this->redirectCurationIfNeeded($naddrKind, $naddrPubkey, $naddrIdentifier, $logger);
+                        if ($curationRedirect instanceof Response) {
+                            return $curationRedirect;
+                        }
+
+                        return $this->renderEventResponse(
+                            $event,
+                            $nevent,
+                            $request,
+                            $redisCacheService,
+                            $nostrLinkParser,
+                            $logger,
+                            $eventRepository,
+                            $nostrClient,
+                            $genericEventProjector,
+                        );
+                    }
+
+                    // Synchronous fetch — targeted limit-1 lookup, the user
+                    // is explicitly looking for this event so a brief wait is fine.
+                    // getEventByNaddr prioritises hint relays plus cached/DB author relays;
+                    // it must not perform blocking NIP-65 network discovery here.
+                    $logger->info('naddr not in database, querying relays synchronously', [
+                        'kind' => $naddrKind,
+                        'pubkey' => $naddrPubkey,
+                        'identifier' => $naddrIdentifier,
+                        'relays' => $relays,
+                    ]);
+                    try {
+                        $rawEvent = $nostrClient->getEventByNaddr([
                             'kind' => $naddrKind,
                             'pubkey' => $naddrPubkey,
                             'identifier' => $naddrIdentifier,
                             'relays' => $relays,
+                        ], allowRelayListNetworkFetch: false);
+                    } catch (\Throwable $e) {
+                        $logger->warning('Synchronous relay fetch failed for naddr', [
+                            'kind' => $naddrKind,
+                            'pubkey' => $naddrPubkey,
+                            'identifier' => $naddrIdentifier,
+                            'error' => $e->getMessage(),
                         ]);
+                        $rawEvent = null;
+                    }
+
+                    if ($rawEvent !== null) {
+                        $relaySource = $relays[0] ?? 'sync-naddr-fetch';
                         try {
-                            $rawEvent = $nostrClient->getEventByNaddr([
-                                'kind' => $naddrKind,
-                                'pubkey' => $naddrPubkey,
-                                'identifier' => $naddrIdentifier,
-                                'relays' => $relays,
-                            ], allowRelayListNetworkFetch: false);
-                            if ($rawEvent !== null) {
-                                $relaySource = $relays[0] ?? 'sync-naddr-fetch';
-                                $persisted = $genericEventProjector->projectEventFromNostrEvent(
-                                    $rawEvent,
-                                    $relaySource,
-                                );
-                                $rawKind = (int) ($rawEvent->kind ?? 0);
-                                if ($rawKind === KindsEnum::LONGFORM->value || $rawKind === KindsEnum::LONGFORM_DRAFT->value) {
-                                    try {
-                                        $this->articleEventProjector->projectArticleFromEvent(
-                                            $rawEvent,
-                                            $relaySource,
-                                        );
-                                    } catch (\Throwable $e) {
-                                        $logger->warning('Article projection failed during naddr sync fetch', [
-                                            'error' => $e->getMessage(),
-                                        ]);
-                                    }
+                            $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                                $rawEvent,
+                                $relaySource,
+                            );
+                            $rawKind = (int) ($rawEvent->kind ?? 0);
+                            if ($this->isArticleKind($rawKind)) {
+                                try {
+                                    $this->articleEventProjector->projectArticleFromEvent(
+                                        $rawEvent,
+                                        $relaySource,
+                                    );
+                                } catch (\Throwable $e) {
+                                    $logger->warning('Article projection failed during naddr sync fetch', [
+                                        'eventId' => $rawEvent->id ?? null,
+                                        'kind' => $rawKind,
+                                        'error' => $e->getMessage(),
+                                    ]);
                                 }
-                                $logger->info('Event found on relays and persisted', [
-                                    'eventId' => $persisted->getId(),
-                                    'kind' => $naddrKind,
-                                ]);
-                                $event = $this->entityToObject($persisted);
-                                break;
                             }
-                        } catch (\Throwable $e) {
-                            $logger->warning('Synchronous relay fetch failed for naddr', [
+                            $logger->info('Event found on relays and persisted', [
+                                'eventId' => $persisted->getId(),
                                 'kind' => $naddrKind,
+                            ]);
+                            $event = $this->entityToObject($persisted);
+                        } catch (\Throwable $e) {
+                            $logger->error('Synchronous naddr projection failed after relay hit', [
+                                'eventId' => $rawEvent->id ?? null,
+                                'kind' => $rawEvent->kind ?? $naddrKind,
                                 'pubkey' => $naddrPubkey,
                                 'identifier' => $naddrIdentifier,
                                 'error' => $e->getMessage(),
                             ]);
+                            $event = $rawEvent;
                         }
 
-                        // Sync fetch didn't find it — fall back to async as last resort
-                        $lookupKey = sprintf('naddr:%d:%s:%s', $naddrKind, $naddrPubkey, $naddrIdentifier);
-                        $logger->info('naddr not found synchronously, dispatching async relay search', [
-                            'kind' => $naddrKind,
-                            'pubkey' => $naddrPubkey,
-                            'identifier' => $naddrIdentifier,
-                        ]);
-                        $messageBus->dispatch(new FetchEventFromRelaysMessage(
-                            lookupKey: $lookupKey,
-                            type: 'naddr',
-                            kind: $naddrKind,
-                            pubkey: $naddrPubkey,
-                            identifier: $naddrIdentifier,
-                            relays: $relays,
-                        ));
-                        return $this->render('event/loading.html.twig', [
-                            'nevent' => $nevent,
-                            'lookupKey' => $lookupKey,
-                            'hasRelayHints' => !empty($relays),
-                        ]);
-                    }
-
-                    if ($naddrKind === KindsEnum::LONGFORM->value || $naddrKind === KindsEnum::LONGFORM_DRAFT->value) {
-                        // Only redirect to the article page if the Article entity
-                        // was actually projected.  The sync fetch persists the Event
-                        // but article projection can fail silently — in that case
-                        // fall through to the generic event renderer.
-                        $articleEntity = $eventRepository->getEntityManager()
-                            ->getRepository(\App\Entity\Article::class)
-                            ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
-                        if ($articleEntity) {
-                            $logger->info('Redirecting to article', ['identifier' => $naddrIdentifier]);
-                            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
-                            return $this->redirectToRoute('author-article-slug', [
-                                'npub' => $npub,
-                                'slug' => $naddrIdentifier,
-                            ]);
+                        $articleRedirect = $this->redirectArticleIfProjected(
+                            (int) ($event->kind ?? $naddrKind),
+                            $naddrPubkey,
+                            $naddrIdentifier,
+                            $eventRepository,
+                            $logger,
+                        );
+                        if ($articleRedirect instanceof Response) {
+                            return $articleRedirect;
                         }
-                        $logger->warning('Event fetched but Article entity not found, rendering generic event page', [
-                            'kind' => $naddrKind,
-                            'pubkey' => $naddrPubkey,
-                            'identifier' => $naddrIdentifier,
-                        ]);
+
+                        $curationRedirect = $this->redirectCurationIfNeeded($naddrKind, $naddrPubkey, $naddrIdentifier, $logger);
+                        if ($curationRedirect instanceof Response && isset($persisted)) {
+                            return $curationRedirect;
+                        }
+
+                        return $this->renderEventResponse(
+                            $event,
+                            $nevent,
+                            $request,
+                            $redisCacheService,
+                            $nostrLinkParser,
+                            $logger,
+                            $eventRepository,
+                            $nostrClient,
+                            $genericEventProjector,
+                        );
                     }
 
-                    // Redirect curation sets to their dedicated views
-                    $curationKinds = [
-                        KindsEnum::CURATION_SET->value,       // 30004
-                        KindsEnum::CURATION_VIDEOS->value,    // 30005
-                        KindsEnum::CURATION_PICTURES->value,  // 30006
-                    ];
-                    if (in_array($naddrKind, $curationKinds, true)) {
-                        $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($naddrPubkey));
-                        $logger->info('Redirecting to curation set', [
-                            'kind' => $naddrKind,
-                            'npub' => $npub,
-                            'slug' => $naddrIdentifier,
-                        ]);
-                        return $this->redirectToRoute('curation-set', [
-                            'npub' => $npub,
-                            'kind' => $naddrKind,
-                            'slug' => $naddrIdentifier,
-                        ]);
-                    }
-                    break;
+                    // Sync fetch didn't find it — fall back to async as last resort
+                    $lookupKey = EventLookupKey::forNaddr($naddrKind, $naddrPubkey, $naddrIdentifier);
+                    $logger->info('naddr not found synchronously, dispatching async relay search', [
+                        'kind' => $naddrKind,
+                        'pubkey' => $naddrPubkey,
+                        'identifier' => $naddrIdentifier,
+                    ]);
+                    $messageBus->dispatch(new FetchEventFromRelaysMessage(
+                        lookupKey: $lookupKey,
+                        type: 'naddr',
+                        kind: $naddrKind,
+                        pubkey: $naddrPubkey,
+                        identifier: $naddrIdentifier,
+                        relays: $relays,
+                    ));
+                    return $this->render('event/loading.html.twig', [
+                        'nevent' => $nevent,
+                        'lookupKey' => $lookupKey,
+                        'lookupTopic' => EventLookupKey::topic($lookupKey),
+                        'hasRelayHints' => !empty($relays),
+                    ]);
 
                 default:
                     $logger->error('Unsupported event type', ['type' => $decoded->type]);
@@ -572,70 +756,17 @@ class EventController extends AbstractController
                 throw new NotFoundHttpException('Event not found');
             }
 
-            $publicationRedirect = $this->redirectPublicationIndexIfNeeded($event, $logger);
-            if ($publicationRedirect instanceof Response) {
-                return $publicationRedirect;
-            }
-
-            // Parse event content for Nostr links
-            $nostrLinks = [];
-            if (isset($event->content)) {
-                $nostrLinks = $nostrLinkParser->parseLinks($event->content);
-                $logger->info('Parsed Nostr links from content', ['count' => count($nostrLinks)]);
-            }
-
-            $authorMetadata = $redisCacheService->getMetadata($event->pubkey);
-
-            $opEvent = $this->resolveRootOpEvent(
+            return $this->renderEventResponse(
                 $event,
+                $nevent,
+                $request,
+                $redisCacheService,
+                $nostrLinkParser,
+                $logger,
                 $eventRepository,
                 $nostrClient,
                 $genericEventProjector,
-                $logger,
             );
-            $opAuthorMetadata = $opEvent ? $redisCacheService->getMetadata($opEvent->pubkey) : null;
-
-            // Batch fetch profiles for follow pack events (kind 39089)
-            $followPackProfiles = [];
-            if (isset($event->kind) && $event->kind == 39089 && isset($event->tags)) {
-                $pubkeys = [];
-                foreach ($event->tags as $tag) {
-                    if (is_array($tag) && $tag[0] === 'p' && isset($tag[1])) {
-                        $pubkeys[] = $tag[1];
-                    }
-                }
-                if (!empty($pubkeys)) {
-                    $logger->info('Batch fetching follow pack profiles', ['count' => count($pubkeys)]);
-                    $metadataMap = $redisCacheService->getMultipleMetadata($pubkeys);
-                    // Convert UserMetadata DTOs to stdClass for template compatibility
-                    $followPackProfiles = array_map(fn($metadata) => $metadata->toStdClass(), $metadataMap);
-                }
-            }
-
-            // Render template with the event data and extracted Nostr links
-            $response = $this->render('event/index.html.twig', [
-                'event' => $event,
-                'author' => $authorMetadata,
-                'opEvent' => $opEvent,
-                'opAuthor' => $opAuthorMetadata,
-                'nostrLinks' => $nostrLinks,
-                'followPackProfiles' => $followPackProfiles
-            ]);
-
-            // Add HTTP caching headers for request-level caching
-            $response->setPublic(); // Allow public caching (browsers, CDNs)
-            $response->setMaxAge(300); // Cache for 5 minutes
-            $response->setSharedMaxAge(300); // Same for shared caches (CDNs)
-
-            // Add ETag for conditional requests
-            $etag = md5($nevent . ($event->created_at ?? '') . ($event->content ?? ''));
-            $response->setEtag($etag);
-            $response->setLastModified(new \DateTime('@' . ($event->created_at ?? time())));
-
-            // Check if client has current version
-            $response->isNotModified($request);
-
-            return $response;
 
         } catch (Exception $e) {
             $logger->error('Error processing event', ['error' => $e->getMessage()]);

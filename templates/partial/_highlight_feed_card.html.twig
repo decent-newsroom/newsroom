@@ -49,7 +49,14 @@
     </div>
 
     <div class="highlight-footer">
-        {% if highlight.preview is defined and highlight.preview %}
+        {% set sourceParts = highlight.article_ref|default(null) ? highlight.article_ref|split(':', 3) : [] %}
+        {% set sourceKind = sourceParts|length == 3 ? sourceParts[0] : null %}
+
+        {% if highlight.article_ref|default(null) and sourceKind == '30041' %}
+            <div class="article-preview">
+                <twig:Organisms:ChapterFromCoordinate :coordinate="highlight.article_ref" />
+            </div>
+        {% elseif highlight.preview is defined and highlight.preview %}
             <div class="article-preview">
                 <twig:Molecules:NostrPreview :preview="highlight.preview" />
             </div>
@@ -64,7 +71,7 @@
                 {% endif %}
             </a>
         {% elseif highlight.article_ref %}
-            {% set refParts = highlight.article_ref|split(':', 3) %}
+            {% set refParts = sourceParts %}
             {% set refNpub = refParts|length == 3 ? refParts[1]|hex_to_npub : '' %}
             {% if refNpub and refParts|length == 3 %}
                 <a href="{{ path('author-article-slug', {npub: refNpub, slug: refParts[2]}) }}"
@@ -99,4 +106,3 @@
         {% endif %}
     </div>
 </div>
-

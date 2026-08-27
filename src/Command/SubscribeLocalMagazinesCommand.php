@@ -16,7 +16,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'magazines:subscribe-local-relay',
-    description: 'Subscribe to local relay for magazine events (kind 30040) and save them to the database in real-time'
+    description: 'Subscribe to local relay for magazine events (kinds 30040/30041) and save them to the database in real-time'
 )]
 class SubscribeLocalMagazinesCommand extends Command
 {
@@ -38,14 +38,15 @@ class SubscribeLocalMagazinesCommand extends Command
                 null,
                 InputOption::VALUE_OPTIONAL,
                 'Comma-separated list of event kinds to subscribe to',
-                '30040'
+                '30040,30041'
             )
             ->setHelp(
-                'This command subscribes to the local Nostr relay for magazine/reading list events (kind 30040) ' .
+                'This command subscribes to the local Nostr relay for magazine/reading list events (kinds 30040/30041) ' .
                 'and automatically persists them to the database as generic events. ' .
                 'It runs as a long-lived daemon process.' . "\n\n" .
                 'Supported event kinds:' . "\n" .
                 '  - Kind 30040: Magazine indices / Reading lists (NIP-51)' . "\n" .
+                '  - Kind 30041: Publication content chapters (NKBIP-01)' . "\n" .
                 '  - Kind 30817: Wiki entries (NIP-54)' . "\n\n" .
                 'You can specify additional kinds using --kinds=30040,30041,30817'
             );
@@ -126,7 +127,7 @@ class SubscribeLocalMagazinesCommand extends Command
 
                     $kindName = match($kind) {
                         30040 => 'Magazine/List',
-                        30041 => 'Curation Set',
+                        30041 => 'Publication Content',
                         30817 => 'Wiki',
                         default => "Kind $kind"
                     };
