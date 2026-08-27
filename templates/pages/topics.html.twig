@@ -56,7 +56,7 @@
 
 <div class="topics-list">
     {% for key, topic in topics %}
-        <a href="{{ path('topics', {'topic': key}) }}" class="topic-button {{ selectedTopic == key ? 'active' : '' }}">
+        <a href="{{ path('topics', {'topic': key}) }}" class="btn btn-secodary topic-button {{ selectedTopic == key ? 'active' : '' }}">
             {{ topic.name }}
         </a>
     {% endfor %}
