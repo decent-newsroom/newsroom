@@ -320,6 +320,14 @@ newsstand:
     createMagazine: 'Crear revista'
 
 # TODO: translate Mercury bookshelf strings
+bookshelf:
+    app:
+        eyebrow: 'Leer sin conexión'
+        title: 'Bookshelf para Android'
+        description: 'Lleva el catálogo contigo. La aplicación de Android lee las mismas publicaciones de Nostr en tu teléfono.'
+        zapstore: 'Consíguelo en Zapstore'
+        releases: 'Descargar desde las versiones de GitHub'
+
 # ── Descubrir / Buscar ─────────────────────────────────────────────
 discover:
     searchPlaceholder: 'Buscar artículos o pegar identificadores de Nostr...'

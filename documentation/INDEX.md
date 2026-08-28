@@ -30,6 +30,7 @@ Package-owned docs live with their Composer packages instead of this host docume
 - [Highlights](Reader/highlights.md) — Kind 9802 highlight display and caching
 - [Reading Lists](Newsroom/reading-lists.md) — Curated article lists with workflow state machine
 - [Mercury Bookshelf](../packages/bookshelf-bundle/docs/mercury-bookshelf.md) — Remote NKBIP-01 book search and continuous chapter reader
+- [Bookshelf Android App Links](Reader/bookshelf-android-app.md) — Zapstore/GitHub download section appended to the Bookshelf page
 - [Home Feed](Reader/home-feed-logged-in.md) — Tabbed feed for logged-in users (Latest, Follows, Interests, Podcasts, News Bots)
 - [Notifications Center](Notifications/notifications-center.md) — Design/schema note for per-user subscriptions and Mercure toasts
 

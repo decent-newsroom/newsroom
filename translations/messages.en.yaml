@@ -335,6 +335,14 @@ newsstand:
     createMagazine: 'Create magazine'
 
 # ── Bookshelf page ────────────────────────────────────────────────
+bookshelf:
+    app:
+        eyebrow: 'Read offline'
+        title: 'Bookshelf for Android'
+        description: 'Take the catalogue with you. The Android app reads the same Nostr publications on your phone.'
+        zapstore: 'Get it on Zapstore'
+        releases: 'Download from GitHub releases'
+
 # ── Discover / Search page ────────────────────────────────────────
 discover:
     searchPlaceholder: 'Search for articles or paste Nostr identifiers...'

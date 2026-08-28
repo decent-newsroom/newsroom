@@ -480,9 +480,63 @@
     }
 }
 
+.bookshelf-app {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4) var(--spacing-5);
+    padding: var(--spacing-5) 0 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.bookshelf-app__intro {
+    display: grid;
+    gap: var(--spacing-2);
+    max-width: 44ch;
+}
+
+.bookshelf-app__intro h2,
+.bookshelf-app__intro p {
+    margin: 0;
+}
+
+.bookshelf-app__intro > p:not(.eyebrow) {
+    color: var(--color-text-mid);
+}
+
+.bookshelf-app__downloads {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-3) var(--spacing-4);
+}
+
+.bookshelf-app__badge {
+    display: inline-flex;
+}
+
+.bookshelf-app__badge img {
+    display: block;
+    width: auto;
+    height: 3.75rem;
+}
+
+.bookshelf-app__release {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.bookshelf-app__release .icon {
+    width: 1rem;
+    height: 1rem;
+}
+
 @media print {
     .app-shell__sidebar,
     .app-shell__context,
+    .bookshelf-app,
     .bookshelf-reader__back,
     .bookshelf-toc,
     .back-to-top-btn,

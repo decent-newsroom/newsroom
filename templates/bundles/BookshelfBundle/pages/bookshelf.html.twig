@@ -1,0 +1,9 @@
+{# Application override of the BookshelfBundle landing page.
+   `@!Bookshelf` resolves to the bundle's own template, so the vendor markup stays authoritative. #}
+{% extends '@!Bookshelf/pages/bookshelf.html.twig' %}
+
+{% block body %}
+    {{ parent() }}
+
+    {{ include('partial/_bookshelf_app.html.twig') }}
+{% endblock %}

@@ -321,6 +321,14 @@ newsstand:
     createMagazine: 'Crea rivista'
 
 # ── Bookshelf page ────────────────────────────────────────────────
+bookshelf:
+    app:
+        eyebrow: 'Leggi offline'
+        title: 'Bookshelf per Android'
+        description: 'Porta il catalogo con te. L''app Android legge le stesse pubblicazioni Nostr sul tuo telefono.'
+        zapstore: 'Scaricalo su Zapstore'
+        releases: 'Scarica dalle release su GitHub'
+
 # ── Discover / Search page ────────────────────────────────────────
 discover:
     searchPlaceholder: 'Cerca articoli o incolla identificatori Nostr...'

@@ -320,6 +320,14 @@ newsstand:
     createMagazine: 'Ustvari revijo'
 
 # TODO: translate Mercury bookshelf strings
+bookshelf:
+    app:
+        eyebrow: 'Beri brez povezave'
+        title: 'Bookshelf za Android'
+        description: 'Vzemite katalog s seboj. Aplikacija za Android bere iste objave Nostr na vašem telefonu.'
+        zapstore: 'Prenesite v Zapstore'
+        releases: 'Prenesi z izdaj na GitHubu'
+
 # ── Odkrivanje / Iskanje ──────────────────────────────────────────
 discover:
     searchPlaceholder: 'Išči članke ali prilepi Nostr identifikatorje...'

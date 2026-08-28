@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.51
+
+- [Feature] Added an Android app download section to the Bookshelf page, linking to the Zapstore listing and GitHub releases, via a template override of the vendor `bookshelf-bundle` landing page.
+
+
 ## v0.0.50
 
 - Fix: article reactions (kind 7) now render as emoji/heart aggregates instead of empty comment cards; like count shown in the reaction strip.

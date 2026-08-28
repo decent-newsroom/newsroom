@@ -1,0 +1,34 @@
+<section class="bookshelf-app">
+    <div class="bookshelf-app__intro">
+        <p class="eyebrow">{{ 'bookshelf.app.eyebrow'|trans }}</p>
+        <h2>{{ 'bookshelf.app.title'|trans }}</h2>
+        <p>{{ 'bookshelf.app.description'|trans }}</p>
+    </div>
+
+    <div class="bookshelf-app__downloads">
+        <a
+            class="bookshelf-app__badge"
+            href="https://zapstore.dev/apps/eu.decentnewsroom.bookshelf"
+            target="_blank"
+            rel="noreferrer"
+        >
+            <img
+                src="{{ asset('images/get-it-on-zapstore.svg') }}"
+                alt="{{ 'bookshelf.app.zapstore'|trans }}"
+                width="197"
+                height="60"
+                loading="lazy"
+            >
+        </a>
+
+        <a
+            class="bookshelf-app__release"
+            href="https://github.com/decent-newsroom/bookshelf-app/releases"
+            target="_blank"
+            rel="noreferrer"
+        >
+            {{ ux_icon('iconoir:github-circle', {class: 'icon'}) }}
+            {{ 'bookshelf.app.releases'|trans }}
+        </a>
+    </div>
+</section>
