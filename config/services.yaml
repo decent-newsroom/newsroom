@@ -10,6 +10,8 @@ parameters:
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
     books.elasticsearch_index: '%env(default:books.elasticsearch_index_default:BOOKS_ELASTICSEARCH_INDEX)%'
     books.elasticsearch_index_default: 'gutenberg-books'
+    books.local_api_base_url_default: 'http://php/books'
+    books.local_api_base_url: '%env(default:books.local_api_base_url_default:BOOKS_LOCAL_API_BASE_URL)%'
     relay_gateway_default: 'false'
     relay_gateway_enabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
     # Essayist gateway membership cache (see documentation/essayist-gateway.md).
@@ -449,6 +451,10 @@ services:
 
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventPublisherInterface:
         alias: App\Bookshelf\BookshelfEventPublisher
+
+    App\Bookshelf\BookshelfBookLoader:
+        arguments:
+            $localBooksApiBaseUrl: '%books.local_api_base_url%'
 
     # RelayGatewayBundle host integration
     DecentNewsroom\RelayGatewayBundle\Contract\RelayUrlResolverInterface:
