@@ -1,0 +1,489 @@
+{
+  "info": {
+    "version": "0.2.30",
+    "description": "A Nostr index relay for the http protocol, from GitCitadel. Featuring a RESTful API and Swagger, it specializes in swift retrieval or publications, repos, and similar graphs of related events\n\n**Supported NIPs:** NIP-1, NIP-11, NIP-70\n\nRelay information document available at `GET /` with `Accept: application/nostr+json`.",
+    "title": "Mercury Index-Relay"
+  },
+  "host": "https://mercury-relay.imwald.eu",
+  "definitions": {
+    "PubEvent": {
+      "description": "A signed Nostr event",
+      "example": {
+        "content": "Walled gardens became prisons, and users, lost.",
+        "created_at": 1673347337,
+        "id": "4376c65d2f232afbe9b882a35baa4f6fe8667c4e684749af565f981833ed6a65",
+        "kind": 1,
+        "pubkey": "6e468422dfb74a5738702a8823b9b28168abab8655faacb6853cd0ee15deee93",
+        "sig": "908a15e46fb4d8675bab026fc230a0e3542bfade63da02d542fb78b2a8513fcd0092619a2c8c1221e581946e0191f2af505dfdf8657a414dbca329186f009262",
+        "tags": []
+      },
+      "properties": {
+        "content": {
+          "description": "Arbitrary event content",
+          "type": "string"
+        },
+        "created_at": {
+          "description": "Unix timestamp in seconds",
+          "type": "integer"
+        },
+        "id": {
+          "description": "32-byte lowercase hex event ID (SHA-256 of serialized event)",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Nostr event kind",
+          "type": "integer"
+        },
+        "pubkey": {
+          "description": "32-byte lowercase hex public key of the event creator",
+          "type": "string"
+        },
+        "sig": {
+          "description": "64-byte lowercase hex Schnorr signature",
+          "type": "string"
+        },
+        "tags": {
+          "description": "List of tags, each an array of strings",
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "sig",
+        "content",
+        "tags",
+        "kind",
+        "created_at",
+        "pubkey",
+        "id"
+      ],
+      "title": "PubEvent",
+      "type": "object"
+    },
+    "SectionSearchRequest": {
+      "properties": {
+        "limit": {
+          "description": "Maximum results (1–100, default 25)",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "q": {
+          "description": "Section search query over title tags and body (minimum 4 characters)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "q"
+      ],
+      "title": "SectionSearchRequest",
+      "type": "object"
+    },
+    "PubEventList": {
+      "description": "A list of Nostr events",
+      "items": {
+        "$ref": "#/definitions/PubEvent"
+      },
+      "title": "PubEventList",
+      "type": "array"
+    },
+    "Nip01FilterRequest": {
+      "description": "NIP-01 filter. Top-level keys: ids, authors, kinds, since, until, limit. Tag filters must be exactly `#` + one letter (a-z/A-Z), case-sensitive (e.g. `#d`, `#T`, `#N`, `#i`, `#s`). Multi-letter keys like `#title`/`#author`/`#source` are rejected.",
+      "properties": {
+        "authors": {
+          "description": "Author pubkeys",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ids": {
+          "description": "Event IDs",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kinds": {
+          "description": "Event kinds",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "limit": {
+          "description": "Required. Maximum events to return (1–100)",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "since": {
+          "description": "Created at lower bound (unix seconds)",
+          "type": "integer"
+        },
+        "until": {
+          "description": "Created at upper bound (unix seconds)",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "limit"
+      ],
+      "title": "Nip01FilterRequest",
+      "type": "object"
+    },
+    "PublicationSearchRequest": {
+      "properties": {
+        "author": {
+          "description": "Author contains (`N`)",
+          "type": "string"
+        },
+        "d": {
+          "description": "Replaceable `d` substring/segment match (hyphen-normalized; e.g. mansfield-park → pg141-mansfield-park)",
+          "type": "string"
+        },
+        "identifier": {
+          "description": "URL → `s`, term → expanded `i`",
+          "type": "string"
+        },
+        "language": {
+          "description": "Exact language (`l`)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum results (1–100, default 25)",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "q": {
+          "description": "Free-text metadata query (tag-first; URL/slug/id expanded)",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Subject slug (`t`)",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title contains (`T`)",
+          "type": "string"
+        }
+      },
+      "title": "PublicationSearchRequest",
+      "type": "object"
+    },
+    "WikiSearchRequest": {
+      "properties": {
+        "limit": {
+          "description": "Maximum results (1–100, default 25)",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "q": {
+          "description": "Wiki search query (minimum 2 characters)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "q"
+      ],
+      "title": "WikiSearchRequest",
+      "type": "object"
+    },
+    "EventPublishRequest": {
+      "properties": {
+        "event": {
+          "$ref": "#/definitions/PubEvent",
+          "description": "Signed Nostr event"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "title": "EventPublishRequest",
+      "type": "object"
+    }
+  },
+  "schemes": [
+    "https",
+    "wss"
+  ],
+  "paths": {
+    "/api/events": {
+      "get": {
+        "description": "The `since`, `until`, and `limit` parameters are required. This ensures every query generates a\nunique, repeatable response. Queries that do not specify `since`, `until`, or `limit` should be\nmade against POST /api/events/filter.\n\nTag filters are single-letter only (`#d`, `#T`, `#p`, bare `d=` / `T=`). Multi-letter keys such as\n`#title` or `#author` are rejected.\n",
+        "operationId": "query_events",
+        "parameters": [
+          {
+            "description": "Start time",
+            "in": "query",
+            "name": "since",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "description": "End time",
+            "in": "query",
+            "name": "until",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "description": "Maximum number of events",
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PubEventList"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Query events by specifying NIP-01 filter parameters in the URL query string.",
+        "tags": [
+          "Events"
+        ]
+      },
+      "post": {
+        "description": "Accepts a signed Nostr event JSON. Event ID and signature are validated.",
+        "operationId": "create_event",
+        "parameters": [
+          {
+            "description": "Signed event wrapper",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/EventPublishRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/PubEvent"
+            }
+          },
+          "400": {
+            "description": "BadRequest"
+          }
+        },
+        "summary": "Publish a Nostr event",
+        "tags": [
+          "Events"
+        ]
+      }
+    },
+    "/api/events/filter": {
+      "post": {
+        "description": "  Returns a list of events matching the filter in descending order of created_at time.\n  Response is returned as a batch, not streamed, so a `limit` parameter is required to prevent\n  the response from getting too large.\n\n  Tag filters must be `#` + one letter (a-z/A-Z), case-sensitive. Multi-letter keys\n  (`#title`, `#author`, `#source`, …) return 400.\n",
+        "operationId": "filter_events",
+        "parameters": [
+          {
+            "description": "NIP-01 filter body",
+            "in": "body",
+            "name": "filter",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Nip01FilterRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PubEventList"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Query events using a JSON filter in the request body.",
+        "tags": [
+          "Events"
+        ]
+      }
+    },
+    "/api/events/{event_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete_event",
+        "parameters": [
+          {
+            "description": "Event ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "NoContent"
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        },
+        "summary": "Delete a Nostr event by ID",
+        "tags": [
+          "Events"
+        ]
+      },
+      "get": {
+        "description": "",
+        "operationId": "show_event",
+        "parameters": [
+          {
+            "description": "Event ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PubEvent"
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        },
+        "summary": "Retrieve a Nostr event by ID",
+        "tags": [
+          "Events"
+        ]
+      }
+    },
+    "/api/publications/search": {
+      "post": {
+        "description": "Metadata search over publication index tags: `d`, `T`, `N`, `s`, `i`, `l`, `t`,\nplus multi-letter `title` / `author` (for indexes that lack catalog `T`/`N` slugs).\nFree-text `q` is tag-first (URL → `s`, slug/id → expanded `i`). Optional structured\nfields: `title`, `author`, `language`, `subject`, `d`, `identifier`.\n",
+        "operationId": "search_publications",
+        "parameters": [
+          {
+            "description": "Search request",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PublicationSearchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PubEventList"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Search kind-30040 publication indexes by metadata",
+        "tags": [
+          "Publications"
+        ]
+      }
+    },
+    "/api/publications/sections/search": {
+      "post": {
+        "description": "Search over kind **30041** publication sections across **both** the body (`content`) **and**\nthe metadata tags (`d`, `T`, and multi-letter `title`).\n\nMatching is case-insensitive and treats hyphens and spaces as equivalent. Unquoted multi-word\nqueries AND content words (length >= 4) and also match metadata tags; exact contiguous phrase\nhits (in content or metadata) rank first. Quoted queries require an exact contiguous phrase in\nthe body or in a `d`/`T`/`title` tag.\n",
+        "operationId": "search_publication_sections",
+        "parameters": [
+          {
+            "description": "Search request",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SectionSearchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PubEventList"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Search kind-30041 publication sections by title slug and body",
+        "tags": [
+          "Publications"
+        ]
+      }
+    },
+    "/api/wiki/search": {
+      "post": {
+        "description": "Full-text search over kind **30818** NIP-54 wiki articles, across **both** the body\n(`content`) **and** the metadata tags (`d`, `T`, `s`, `i`, and multi-letter `title`).\n\nMatching is case-insensitive and treats hyphens and spaces as equivalent. Unquoted\nmulti-word queries AND content words (length >= 4) and also match metadata tags; exact\ncontiguous phrase hits (in content or metadata) rank first. Quoted queries require an\nexact contiguous phrase in the body only.\n",
+        "operationId": "search_wiki",
+        "parameters": [
+          {
+            "description": "Search request",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/WikiSearchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PubEventList"
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Search kind-30818 NIP-54 wiki articles by content and metadata",
+        "tags": [
+          "Wiki"
+        ]
+      }
+    }
+  },
+  "swagger": "2.0",
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ]
+}

@@ -9,3 +9,6 @@ unfold_controllers:
         path: ../src/UnfoldBundle/Controller/
         namespace: App\UnfoldBundle\Controller
     type: attribute
+
+books_api:
+    resource: routes/books_api.yaml

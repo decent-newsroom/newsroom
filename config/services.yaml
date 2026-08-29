@@ -8,6 +8,8 @@ parameters:
     mercure_public_hub_url: '%env(MERCURE_PUBLIC_URL)%'
     nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
+    books.elasticsearch_index: '%env(default:books.elasticsearch_index_default:BOOKS_ELASTICSEARCH_INDEX)%'
+    books.elasticsearch_index_default: 'gutenberg-books'
     relay_gateway_default: 'false'
     relay_gateway_enabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
     # Essayist gateway membership cache (see documentation/essayist-gateway.md).
@@ -489,3 +491,8 @@ services:
 
     Innis\Nostr\Core\Domain\Service\Bech32EncoderInterface:
         class: Innis\Nostr\Core\Infrastructure\Adapter\Bech32EncoderAdapter
+
+    App\Api\Books\Elasticsearch\BooksIndex:
+        arguments:
+            $client: '@fos_elastica.client.default'
+            $booksElasticsearchIndex: '%books.elasticsearch_index%'

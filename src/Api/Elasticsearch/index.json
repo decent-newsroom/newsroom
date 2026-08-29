@@ -1,0 +1,98 @@
+{
+  "gutenberg-books-2026-08-17": {
+    "aliases": {
+      "gutenberg-books": {}
+    },
+    "mappings": {
+      "dynamic_templates": [
+        {
+          "strings": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        }
+      ],
+      "properties": {
+        "content": {
+          "type": "text"
+        },
+        "created_at": {
+          "type": "date",
+          "format": "epoch_second||strict_date_optional_time||yyyy/MM/dd'T'HH:mm:ssSSS'Z'"
+        },
+        "id": {
+          "type": "keyword"
+        },
+        "kind": {
+          "type": "long"
+        },
+        "pubkey": {
+          "type": "keyword"
+        },
+        "sig": {
+          "type": "keyword"
+        },
+        "tags": {
+          "type": "object",
+          "enabled": false
+        },
+        "tags_flat": {
+          "properties": {
+            "N": {
+              "type": "keyword"
+            },
+            "T": {
+              "type": "keyword"
+            },
+            "d": {
+              "type": "keyword"
+            },
+            "i": {
+              "type": "keyword"
+            },
+            "published_by": {
+              "type": "keyword"
+            },
+            "published_on": {
+              "type": "keyword"
+            },
+            "s": {
+              "type": "keyword"
+            },
+            "t": {
+              "type": "keyword"
+            },
+            "title": {
+              "type": "keyword"
+            },
+            "version": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    },
+    "settings": {
+      "index": {
+        "max_ngram_diff": "1",
+        "routing": {
+          "allocation": {
+            "include": {
+              "_tier_preference": "data_content"
+            }
+          }
+        },
+        "number_of_shards": "6",
+        "provided_name": "gutenberg-books-2026-08-17",
+        "creation_date": "1788000171084",
+        "number_of_replicas": "1",
+        "uuid": "5U5k60pDTJue1DgNuadJgA",
+        "version": {
+          "created": "8521000"
+        }
+      }
+    }
+  }
+}

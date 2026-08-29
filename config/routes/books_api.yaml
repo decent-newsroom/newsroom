@@ -1,0 +1,7 @@
+books_api:
+    resource:
+        path: ../../src/Api/Books/Controller/
+        namespace: App\Api\Books\Controller
+    type: attribute
+    prefix: /Books
+    name_prefix: books_api_
