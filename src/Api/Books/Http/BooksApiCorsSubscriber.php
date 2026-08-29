@@ -17,7 +17,7 @@ final class BooksApiCorsSubscriber implements EventSubscriberInterface
 
     public function onResponse(ResponseEvent $event): void
     {
-        if (!str_starts_with($event->getRequest()->getPathInfo(), '/Books/api/')) {
+        if (!str_starts_with($event->getRequest()->getPathInfo(), '/books/api/')) {
             return;
         }
 

@@ -10,7 +10,7 @@ Set `BOOKS_ELASTICSEARCH_INDEX=gutenberg-books` (or another existing alias). The
 
 ## Routes
 
-All routes begin with `/Books/api`.
+All routes begin with `/books/api`.
 
 | Method | Route | Response |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ Only those read endpoints are exposed. Publish, delete, and wiki routes are deli
 `GET /events` requires `since`, `until`, and `limit`. Repeat query keys for list fields, for example:
 
 ```text
-/Books/api/events?since=0&until=2000000000&limit=10&kinds=30040&%23T=The%20Republic
+/books/api/events?since=0&until=2000000000&limit=10&kinds=30040&%23T=The%20Republic
 ```
 
 `POST /events/filter` requires `limit` and accepts `ids`, `authors`, `kinds`, `since`, `until`, and case-sensitive tag filters formed as `#` plus one ASCII letter. Limits are 1-100 and `since` cannot exceed `until`.

@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "description": "Public read-only API for Nostr publication events. It reads the configured external Elasticsearch alias only; it does not publish, delete, or use relay/database fallbacks."
   },
-  "basePath": "/Books/api",
+  "basePath": "/books/api",
   "schemes": [
     "https"
   ],

@@ -78,7 +78,14 @@ final class EventController
         foreach ($query as $key => $value) {
             $isList = in_array($key, ['ids', 'authors', 'kinds'], true) || preg_match('/^#[A-Za-z]$/', $key) === 1;
             if ($isList) {
-                $input[$key] = is_array($value) ? $value : [$value];
+                $values = is_array($value) ? $value : [$value];
+                if ($key === 'kinds') {
+                    $values = array_merge(...array_map(
+                        static fn (string $kind): array => array_map(trim(...), explode(',', $kind)),
+                        $values,
+                    ));
+                }
+                $input[$key] = $values;
                 continue;
             }
             if (is_array($value)) {

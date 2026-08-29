@@ -3,5 +3,5 @@ books_api:
         path: ../../src/Api/Books/Controller/
         namespace: App\Api\Books\Controller
     type: attribute
-    prefix: /Books
+    prefix: /books
     name_prefix: books_api_
