@@ -28,7 +28,7 @@ final class BookshelfBookLoaderTest extends TestCase
             'https://mercury.example',
         ));
         $localClient = new MockHttpClient(new MockResponse(json_encode([
-            'data' => [[
+            [
                 'id' => str_repeat('b', 64),
                 'kind' => 30040,
                 'pubkey' => $pubkey,
@@ -40,7 +40,7 @@ final class BookshelfBookLoaderTest extends TestCase
                     ['title', 'Local book'],
                     ['a', '30041:' . $pubkey . ':chapter-1'],
                 ],
-            ]],
+            ],
         ], JSON_THROW_ON_ERROR)));
 
         $loader = new BookshelfBookLoader($primary, $localClient, 'http://php/books');

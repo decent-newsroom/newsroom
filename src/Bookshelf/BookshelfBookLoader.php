@@ -31,7 +31,7 @@ final class BookshelfBookLoader
             return $this->mercuryBookService->getBooksForReferences($references);
         } catch (MercuryApiException) {
             $localService = new MercuryBookService(new MercuryApiClient(
-                $this->httpClient,
+                new BooksApiMercuryHttpClient($this->httpClient),
                 $this->localBooksApiBaseUrl,
             ));
 

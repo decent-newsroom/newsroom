@@ -7,6 +7,7 @@
 The My Books list is a parameterized replaceable kind `30045` event with the stable `d` tag `my-book-collection`. A browser may publish a newer copy through another client or relay, so a database-only lookup can be stale. The page probes the configured local relay on each My Books load and projects a returned event through the normal generic projector. NIP-01 replaceable-event ordering keeps the newest revision and ignores stale relay copies.
 
 The normal book resolver still uses Mercury first. On a Mercury transport or HTTP failure, it uses the endpoints below `/books/api` on this instance instead. Both paths use the bundle's same event-to-book mapping, preserving directory order and missing-item handling.
+The public Books API deliberately returns bare event arrays and objects. `BooksApiMercuryHttpClient` adapts only the internal fallback response to Mercury's `data` envelope, leaving the public API contract unchanged.
 
 ## Flow
 
