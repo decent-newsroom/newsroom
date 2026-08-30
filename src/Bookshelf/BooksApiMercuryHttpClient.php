@@ -13,12 +13,25 @@ use Symfony\Contracts\HttpClient\ResponseStreamInterface;
  */
 final class BooksApiMercuryHttpClient implements HttpClientInterface
 {
+    private const MAX_FILTER_RESULTS = 100;
+
     public function __construct(private readonly HttpClientInterface $httpClient)
     {
     }
 
+    /** @param array<string, mixed> $options */
     public function request(string $method, string $url, array $options = []): ResponseInterface
     {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (
+            is_string($path)
+            && str_ends_with($path, '/api/events/filter')
+            && is_array($options['json'] ?? null)
+            && is_int($options['json']['limit'] ?? null)
+        ) {
+            $options['json']['limit'] = min($options['json']['limit'], self::MAX_FILTER_RESULTS);
+        }
+
         return new BooksApiMercuryResponse($this->httpClient->request($method, $url, $options));
     }
 
@@ -36,6 +49,7 @@ final class BooksApiMercuryHttpClient implements HttpClientInterface
         return $this->httpClient->stream($unwrapped, $timeout);
     }
 
+    /** @param array<string, mixed> $options */
     public function withOptions(array $options): static
     {
         return new self($this->httpClient->withOptions($options));
