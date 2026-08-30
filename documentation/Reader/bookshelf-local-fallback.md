@@ -9,6 +9,7 @@ The My Books list is a parameterized replaceable kind `30045` event with the sta
 The normal book resolver still uses Mercury first. On a Mercury transport or HTTP failure, it uses the endpoints below `/books/api` on this instance instead. Both paths use the bundle's same event-to-book mapping, preserving directory order and missing-item handling.
 The public Books API deliberately returns bare event arrays and objects. `BooksApiMercuryHttpClient` adapts only the internal fallback response to Mercury's `data` envelope, leaving the public API contract unchanged.
 
+If both HTTP sources fail, My Books queries the configured Books Elasticsearch alias directly through `BookshelfEsBookLoader`; the unavailable notice appears only when that final lookup is unavailable too.
 ## Flow
 
 1. An authenticated reader opens `/bookshelf/my-books`.

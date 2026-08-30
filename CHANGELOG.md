@@ -2,7 +2,7 @@
 
 ## v0.0.51
 
-- [Fix] My Books now refreshes its kind-30045 directory from the local relay on load and retries book resolution through the local Books API when Mercury is unavailable.
+- [Fix] My Books now refreshes its kind-30045 directory from the local relay and falls back from Mercury to the local Books API, then its Elasticsearch alias, when resolving saved books.
 - [Feature] Added a public, read-only Books API under /Books/api backed directly by the configured Gutenberg Elasticsearch alias.
 - [Feature] Added an Android app download section to the Bookshelf page, linking to the Zapstore listing and GitHub releases, via a template override of the vendor `bookshelf-bundle` landing page.
 

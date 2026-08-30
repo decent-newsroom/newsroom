@@ -6,9 +6,11 @@ namespace App\Controller\Bookshelf;
 
 use App\Bookshelf\BookshelfBookLoader;
 use App\Bookshelf\BookshelfDirectoryRefreshService;
+use App\Bookshelf\BookshelfEsBookLoader;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
+use App\Api\Books\Http\ApiException;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,6 +27,7 @@ final class MyBooksController extends AbstractController
         BookshelfDirectoryRefreshService $directoryRefreshService,
         BookshelfDirectoryService $directoryService,
         BookshelfBookLoader $bookLoader,
+        BookshelfEsBookLoader $esBookLoader,
     ): Response {
         $user = $this->getUser();
         \assert($user !== null);
@@ -39,8 +42,12 @@ final class MyBooksController extends AbstractController
         try {
             $books = $bookLoader->getBooksForReferences($references);
         } catch (MercuryApiException) {
-            $books = [];
-            $available = false;
+            try {
+                $books = $esBookLoader->getBooksForReferences($references);
+            } catch (ApiException) {
+                $books = [];
+                $available = false;
+            }
         }
 
         return $this->render('@Bookshelf/bookshelf/my_books.html.twig', [
