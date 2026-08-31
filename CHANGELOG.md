@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Fix] The Bookshelf reader now loads missing kind-30041 chapters for Nostr-native books from index relay hints, then the chapter author's relay list when needed.
 - [Fix] My Books now resolves directory references absent from the Gutenberg index directly from the local and author-selected Nostr relays, including relay hints stored in directory tags.
 - [Fix] My Books now queries both Mercury and the Elasticsearch-backed local Books API, merges books in directory order, and deduplicates replaceable publications by keeping the newest revision.
 - [Fix] My Books now refreshes its kind-30045 directory from the local relay and falls back from Mercury to the local Books API, then its Elasticsearch alias, when resolving saved books.

@@ -490,6 +490,30 @@ class NostrClient
             $filters = ['authors' => [$pubkey], 'tag' => ['#d', $identifiers]];
             $events  = $this->executor->fetch([$kind], $filters, $this->relaySetFactory->fromUrls($relayUrls));
 
+            $resolvedIdentifiers = [];
+            foreach ($events as $event) {
+                foreach ($event->tags ?? [] as $tag) {
+                    if (is_array($tag) && ($tag[0] ?? '') === 'd' && is_string($tag[1] ?? null)) {
+                        $resolvedIdentifiers[$tag[1]] = true;
+                        break;
+                    }
+                }
+            }
+            $missingIdentifiers = array_values(array_diff($identifiers, array_keys($resolvedIdentifiers)));
+            if ($missingIdentifiers !== [] && $this->nostrDefaultRelay) {
+                $fallbackRelays = array_values(array_unique(array_merge(
+                    $this->userRelayListService->getTopRelaysForAuthor($pubkey),
+                    $extraRelays
+                )));
+                if ($fallbackRelays !== []) {
+                    $fallbackFilters = ['authors' => [$pubkey], 'tag' => ['#d', $missingIdentifiers]];
+                    $events = array_merge($events, $this->executor->fetch(
+                        [$kind],
+                        $fallbackFilters,
+                        $this->relaySetFactory->fromUrls($fallbackRelays),
+                    ));
+                }
+            }
             if (empty($events) && $this->nostrDefaultRelay) {
                 $fallbackRelays = array_values(array_unique(array_merge(
                     $this->userRelayListService->getTopRelaysForAuthor($pubkey),

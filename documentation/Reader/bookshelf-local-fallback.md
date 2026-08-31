@@ -13,6 +13,8 @@ If both HTTP sources fail, My Books queries the configured Books Elasticsearch a
 
 For references still unresolved after those indexed sources, `BookshelfRelayBookLoader` fetches the kind `30040` publication directly using the normal Nostr coordinate and event-ID lookups. Those lookups check the local relay, any relay hints in the directory tag, and the publication author's regular relays. Relay-resolved books are merged into their declared directory positions.
 
+
+When a reader opens a Nostr-native book, its kind `30040` index is used to collect kind `30041` chapter references and relay hints. Missing chapters are fetched from those hints first; any unresolved chapter identifiers then fan out to the chapter author's regular relays.
 ## Flow
 
 1. An authenticated reader opens `/bookshelf/my-books`.

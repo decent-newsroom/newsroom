@@ -64,6 +64,92 @@ final class BookshelfRelayBookLoader
 
         return $this->orderedBooks($references, $booksById, $booksByCoordinate);
     }
+    /** @return array<string, mixed>|null */
+    public function getBook(string $eventId): ?array
+    {
+        $events = $this->fetchById([$eventId], []);
+        $event = $events[$eventId] ?? reset($events);
+        if (!$event instanceof \stdClass && !is_object($event)) {
+            return null;
+        }
+
+        $book = $this->mapBook($event, null);
+        if ($book === null) {
+            return null;
+        }
+
+        $refs = $this->chapterReferences($this->normalizeTags($event->tags ?? []));
+        $book['chapters'] = array_map(static fn (array $ref, int $position): array => [
+            ...$ref,
+            'position' => $position,
+            'available' => false,
+            'title' => $ref['identifier'],
+            'summary' => null,
+            'content' => null,
+            'id' => null,
+            'createdAt' => null,
+        ], $refs, array_keys($refs));
+        $book['availableChapterCount'] = 0;
+        $book['missingChapterCount'] = count($refs);
+        $book['truncated'] = false;
+
+        return $this->fillMissingChapters($book);
+    }
+
+    /** @param array<string, mixed> $book
+     *  @return array<string, mixed>
+     */
+    public function fillMissingChapters(array $book): array
+    {
+        $chapters = is_array($book['chapters'] ?? null) ? $book['chapters'] : [];
+        $coordinates = [];
+        $relayHints = [];
+        foreach ($chapters as $chapter) {
+            if (!is_array($chapter) || ($chapter['available'] ?? false) === true) {
+                continue;
+            }
+            if (is_string($chapter['coordinate'] ?? null) && $this->isChapterCoordinate($chapter['coordinate'])) {
+                $coordinates[$chapter['coordinate']] = true;
+            }
+            if (is_string($chapter['relay'] ?? null) && $this->isRelayUrl($chapter['relay'])) {
+                $relayHints[$chapter['relay']] = true;
+            }
+        }
+
+        $eventsByCoordinate = [];
+        foreach ($this->fetchByCoordinate(array_keys($coordinates), array_keys($relayHints)) as $event) {
+            $coordinate = $this->eventCoordinate($event, self::PUBLICATION_CONTENT_KIND);
+            if ($coordinate !== null) {
+                $eventsByCoordinate[$coordinate] = $event;
+            }
+        }
+
+        foreach ($chapters as $position => &$chapter) {
+            if (!is_array($chapter) || ($chapter['available'] ?? false) === true) {
+                continue;
+            }
+            $event = is_string($chapter['coordinate'] ?? null) ? ($eventsByCoordinate[$chapter['coordinate']] ?? null) : null;
+            if ($event === null) {
+                continue;
+            }
+
+            $tags = $this->normalizeTags($event->tags ?? []);
+            $chapter['available'] = true;
+            $chapter['title'] = $this->firstTagValue($tags, 'title') ?? (string) ($chapter['identifier'] ?? '');
+            $chapter['summary'] = $this->firstNonEmptyTagValue($tags, ['summary', 'description']);
+            $chapter['content'] = (string) ($event->content ?? '');
+            $chapter['id'] = (string) ($event->id ?? '');
+            $chapter['createdAt'] = (int) ($event->created_at ?? 0);
+            $chapter['position'] ??= $position + 1;
+        }
+        unset($chapter);
+
+        $book['chapters'] = $chapters;
+        $book['availableChapterCount'] = count(array_filter($chapters, static fn (mixed $chapter): bool => is_array($chapter) && ($chapter['available'] ?? false) === true));
+        $book['missingChapterCount'] = count($chapters) - $book['availableChapterCount'];
+
+        return $book;
+    }
 
     /**
      * @param array<int, array{type: 'a'|'e', coordinate: ?string, relay: ?string, eventId: ?string, pubkey: ?string}> $references
@@ -211,6 +297,57 @@ final class BookshelfRelayBookLoader
             'createdAt' => (int) ($event->created_at ?? 0),
             'chapterCount' => $chapterCount,
         ];
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $tags
+     * @return array<int, array{coordinate: string, pubkey: string, identifier: string, relay: ?string, eventId: ?string}>
+     */
+    private function chapterReferences(array $tags): array
+    {
+        $references = [];
+        $seen = [];
+        foreach ($tags as $tag) {
+            if (($tag[0] ?? null) !== 'a' || !is_string($tag[1] ?? null) || !$this->isChapterCoordinate($tag[1])) {
+                continue;
+            }
+            if (isset($seen[$tag[1]])) {
+                continue;
+            }
+
+            [, $pubkey, $identifier] = explode(':', $tag[1], 3);
+            $seen[$tag[1]] = true;
+            $references[] = [
+                'coordinate' => $tag[1],
+                'pubkey' => $pubkey,
+                'identifier' => $identifier,
+                'relay' => is_string($tag[2] ?? null) && $this->isRelayUrl($tag[2]) ? $tag[2] : null,
+                'eventId' => is_string($tag[3] ?? null) && preg_match('/^[a-f0-9]{64}$/i', $tag[3]) === 1 ? strtolower($tag[3]) : null,
+            ];
+        }
+
+        return $references;
+    }
+
+    private function isChapterCoordinate(string $coordinate): bool
+    {
+        $parts = explode(':', $coordinate, 3);
+
+        return count($parts) === 3 && (int) $parts[0] === self::PUBLICATION_CONTENT_KIND && $parts[1] !== '' && $parts[2] !== '';
+    }
+
+    private function eventCoordinate(object $event, int $kind): ?string
+    {
+        if ((int) ($event->kind ?? 0) !== $kind) {
+            return null;
+        }
+
+        $pubkey = (string) ($event->pubkey ?? '');
+        $identifier = $this->firstTagValue($this->normalizeTags($event->tags ?? []), 'd');
+
+        return $pubkey !== '' && $identifier !== null && $identifier !== ''
+            ? sprintf('%d:%s:%s', $kind, $pubkey, $identifier)
+            : null;
     }
 
     private function isPublicationCoordinate(string $coordinate): bool
