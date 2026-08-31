@@ -7,6 +7,7 @@ namespace App\Controller\Bookshelf;
 use App\Bookshelf\BookshelfBookLoader;
 use App\Bookshelf\BookshelfDirectoryRefreshService;
 use App\Bookshelf\BookshelfEsBookLoader;
+use App\Bookshelf\BookshelfRelayBookLoader;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
@@ -28,6 +29,7 @@ final class MyBooksController extends AbstractController
         BookshelfDirectoryService $directoryService,
         BookshelfBookLoader $bookLoader,
         BookshelfEsBookLoader $esBookLoader,
+        BookshelfRelayBookLoader $relayBookLoader,
     ): Response {
         $user = $this->getUser();
         \assert($user !== null);
@@ -49,6 +51,9 @@ final class MyBooksController extends AbstractController
                 $available = false;
             }
         }
+
+        $books = $relayBookLoader->fillMissingBooks($references, $books);
+        $available = $available || $books !== [];
 
         return $this->render('@Bookshelf/bookshelf/my_books.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav(true),

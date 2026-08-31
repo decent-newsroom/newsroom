@@ -10,6 +10,9 @@ The book resolver queries Mercury and the local Books API, then merges their res
 The public Books API deliberately returns bare event arrays and objects. `BooksApiMercuryHttpClient` adapts only the internal fallback response to Mercury's `data` envelope and constrains internal event-filter requests to the API's 100-result maximum, leaving the public API contract unchanged.
 
 If both HTTP sources fail, My Books queries the configured Books Elasticsearch alias directly through `BookshelfEsBookLoader`; the unavailable notice appears only when that final lookup is unavailable too.
+
+For references still unresolved after those indexed sources, `BookshelfRelayBookLoader` fetches the kind `30040` publication directly using the normal Nostr coordinate and event-ID lookups. Those lookups check the local relay, any relay hints in the directory tag, and the publication author's regular relays. Relay-resolved books are merged into their declared directory positions.
+
 ## Flow
 
 1. An authenticated reader opens `/bookshelf/my-books`.
@@ -17,6 +20,7 @@ If both HTTP sources fail, My Books queries the configured Books Elasticsearch a
 3. A returned event is persisted through `GenericEventProjector`; its replaceable-event checks retain only the current revision.
 4. `BookshelfDirectoryService` reads the resulting local directory and extracts book references.
 5. `BookshelfBookLoader` resolves the references through Mercury and the local Books API, merges duplicate coordinates, and restores directory order.
+6. `BookshelfRelayBookLoader` retrieves remaining Nostr-original publications from regular relays and merges them into the same order.
 
 ## Configuration
 
