@@ -79,7 +79,7 @@ class NostrRequestExecutor
      *
      * @return array<string, array> relay URL => responses
      */
-    public function execute(TweakedRequest $request, ?string $pubkey = null, int $gatewayTimeout = 8): array
+    public function execute(TweakedRequest $request, ?string $pubkey = null, int $gatewayTimeout = 3): array
     {
         if (!$this->relayPool->isGatewayEnabled()) {
             return $request->send();
@@ -272,7 +272,7 @@ class NostrRequestExecutor
         ?RelaySet  $relaySet = null,
         ?callable  $handler = null,
         ?string    $pubkey = null,
-        int        $gatewayTimeout = 8,
+        int        $gatewayTimeout = 3,
         ?int       $directTimeout = null,
     ): array {
         $request = $this->buildRequest($kinds, $filters, $relaySet);

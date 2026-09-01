@@ -225,6 +225,8 @@ class NostrClient
             filters: ['ids' => $eventIds],
             relaySet: $relaySet,
             handler: fn($event) => $event,
+            gatewayTimeout: $this->eventLookupGatewayTimeout,
+            directTimeout: $this->eventLookupDirectTimeout,
         );
 
         $eventsMap = [];

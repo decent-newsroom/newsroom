@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Fix] Capped synchronous relay gateway reads at three seconds and applied the configured direct lookup timeout to event-ID resolution, preventing Bookshelf relay fallbacks from exhausting PHP's request limit.
 - [Fix] The Bookshelf reader now loads missing kind-30041 chapters for Nostr-native books from index relay hints, then the chapter author's relay list when needed.
 - [Fix] My Books now resolves directory references absent from the Gutenberg index directly from the local and author-selected Nostr relays, including relay hints stored in directory tags.
 - [Fix] My Books now queries both Mercury and the Elasticsearch-backed local Books API, merges books in directory order, and deduplicates replaceable publications by keeping the newest revision.
