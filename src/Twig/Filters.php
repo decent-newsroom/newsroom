@@ -89,7 +89,6 @@ class Filters extends AbstractExtension
     }
 
     /**
-     * @throws Bech32Exception
      * @throws Exception
      */
     public function naddrEncode(Article|AppEvent $entity): string
@@ -104,10 +103,7 @@ class Filters extends AbstractExtension
             }
 
             $pubkey = $entity->getPubkey();
-            $kind = $entity->getKind()?->value;
-            if ($pubkey === null || $kind === null || $slug === null) {
-                return $nip19->encodeNote($entity->getEventId() ?? $entity->getId());
-            }
+            $kind = $entity->getKind();
 
             return $nip19->encodeAddr($pubkey, $slug, $kind);
         }
