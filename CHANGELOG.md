@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Improvement] Upgraded SigningBundle to v0.1.0 and moved encrypted NIP-46 remote-signer session persistence behind its host-owned `RemoteSignerSessionStoreInterface` boundary.
 - [Improvement] Migrated `EssayistFeedService` from direct `swentel/nostr-php` WebSockets to the `nostr-client-bundle`/Innis subscription client, preserving EOSE and idle-timeout handling while failing closed on anonymous NIP-42 challenges.
 - [Improvement] Migrated the public relay-feed worker from direct `swentel/nostr-php` WebSockets to `nostr-client-bundle`'s AMPHP subscription client, retaining the time-bounded relay feed and Mercure card updates without anonymous NIP-42 authentication.
 - [Improvement] Removed ephemeral NIP-42 AUTH signing from direct relay requests. Direct requests now retain their initiating user's pubkey, obtain kind-22242 signatures through SigningBundle's user-scoped NIP-46 signer within the request timeout, and drop AUTH-gated requests when no eligible signature is available; anonymous workers no longer impersonate generated keys.

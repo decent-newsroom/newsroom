@@ -269,10 +269,6 @@ services:
     App\Service\Nostr\NostrRequestExecutor:
         lazy: true
 
-    # Legacy app-level NIP-46 session service id now delegates to SigningBundle.
-    App\Service\Nostr\Nip46SessionService:
-        alias: DecentNewsroom\SigningBundle\Service\Nostr\Nip46SessionStore
-
     App\MessageHandler\UpdateRelayListHandler:
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
@@ -478,6 +474,15 @@ services:
 
     DecentNewsroom\SigningBundle\Contract\CurrentSubjectPubkeyResolverInterface:
         alias: App\Signing\AppCurrentSubjectPubkeyResolver
+
+    DecentNewsroom\SigningBundle\Contract\RemoteSignerSessionStoreInterface:
+        alias: App\Signing\RedisRemoteSignerSessionStore
+
+    App\Signing\RedisRemoteSignerSessionStore:
+        arguments:
+            $redis: '@Redis'
+            $encryptionKey: '%encryption_key%'
+            $ttlSeconds: '%signing.nip46.session_ttl_seconds%'
 
     # IdentityBundle host integration
     DecentNewsroom\IdentityBundle\Contract\UserRepositoryBridgeInterface:
