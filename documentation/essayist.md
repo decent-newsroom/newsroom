@@ -284,7 +284,7 @@ it lands on or how many other payments the same user made that month.
 
 ### 2. Gated feed page (`/essayist/feed`) — ✓ Built
 
-`GET /essayist/feed` in `EssayistController`. Manual role check: non-members/anons redirect to the landing page; `ROLE_ADMIN` bypasses the gate and sees an admin-preview banner. `EssayistFeedService` connects to `ws://strfry-essayist:7779`, queries kind:30023 until EOSE, and returns stdClass cards compatible with `CardList`. Author metadata resolved from Redis. Internal relay URL configurable via `ESSAYIST_RELAY_INTERNAL_URL` (default `ws://strfry-essayist:7779`).
+`GET /essayist/feed` in `EssayistController`. Manual role check: non-members/anons redirect to the landing page; `ROLE_ADMIN` bypasses the gate and sees an admin-preview banner. `EssayistFeedService` uses the `nostr-client-bundle`/Innis subscription client to connect to `ws://strfry-essayist:7779`, queries kind:30023 until EOSE (or the five-second idle timeout), and returns stdClass cards compatible with `CardList`. The subscription is anonymous: an NIP-42 AUTH challenge fails closed without creating an ephemeral key or attempting authentication. Author metadata is resolved from Redis. Internal relay URL configurable via `ESSAYIST_RELAY_INTERNAL_URL` (default `ws://strfry-essayist:7779`).
 
 ### 3. Personalized members front page (`/essayist/home`) — ✓ Built
 

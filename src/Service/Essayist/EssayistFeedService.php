@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Service\Essayist;
 
+use DecentNewsroom\NostrClientBundle\Contract\NostrClientFactoryInterface;
+use Innis\Nostr\Client\Domain\Service\AuthChallengeHandlerInterface;
+use Innis\Nostr\Core\Application\Port\EventHandlerInterface;
+use Innis\Nostr\Core\Domain\Entity\Event;
+use Innis\Nostr\Core\Domain\Entity\Filter;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
-
-use App\Util\NostrPhp\RelaySubscriptionHandler;
+use Innis\Nostr\Core\Domain\ValueObject\Protocol\RelayUrl;
+use Innis\Nostr\Core\Domain\ValueObject\Protocol\SubscriptionId;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Relay\Relay;
-use swentel\nostr\Subscription\Subscription;
-use WebSocket\Message\Text;
+
+use function Amp\delay;
 
 /**
  * Fetches kind:30023 articles directly from the internal strfry-essayist relay.
@@ -34,6 +36,7 @@ final class EssayistFeedService
     public function __construct(
         private readonly string $internalRelayUrl,
         private readonly LoggerInterface $logger,
+        private readonly NostrClientFactoryInterface $nostrClientFactory,
     ) {
     }
 
@@ -55,9 +58,10 @@ final class EssayistFeedService
 
     public function fetchLatest(int $limit = 50): array
     {
-        $filter = new Filter();
-        $filter->setKinds([30023]);
-        $filter->setLimit($limit);
+        $filter = Filter::fromArray([
+            'kinds' => [30023],
+            'limit' => $limit,
+        ]);
 
         return $this->doFetch($filter);
     }
@@ -77,12 +81,33 @@ final class EssayistFeedService
         // The relay authors filter can be large; chunk to avoid protocol limits
         $pubkeys = array_values(array_unique($pubkeys));
 
-        $filter = new Filter();
-        $filter->setKinds([30023]);
-        $filter->setLimit($limit);
-
         try {
-            $filter->setAuthors($pubkeys);
+            $authors = [];
+            foreach ($pubkeys as $pubkey) {
+                if (!is_string($pubkey)) {
+                    throw new \InvalidArgumentException('Author pubkeys must be strings');
+                }
+
+                $author = str_starts_with($pubkey, 'npub')
+                    ? PublicKey::fromBech32($pubkey)
+                    : PublicKey::fromHex($pubkey);
+
+                if (null === $author) {
+                    throw new \InvalidArgumentException('Author pubkeys must be valid hex or npub values');
+                }
+
+                $authors[] = $author->toHex();
+            }
+
+            if (count($authors) !== count(array_unique($authors))) {
+                throw new \InvalidArgumentException('There are duplicate author pubkeys in the filter');
+            }
+
+            $filter = Filter::fromArray([
+                'kinds' => [30023],
+                'authors' => $authors,
+                'limit' => $limit,
+            ]);
         } catch (\Throwable $e) {
             $this->logger->warning('EssayistFeedService: invalid pubkeys for author filter', [
                 'error' => $e->getMessage(),
@@ -107,12 +132,12 @@ final class EssayistFeedService
 
         $hashtags = array_values(array_unique(array_map('strtolower', $hashtags)));
 
-        $filter = new Filter();
-        $filter->setKinds([30023]);
-        $filter->setLimit($limit);
-
         try {
-            $filter->setTags(['#t' => $hashtags]);
+            $filter = Filter::fromArray([
+                'kinds' => [30023],
+                '#t' => $hashtags,
+                'limit' => $limit,
+            ]);
         } catch (\Throwable $e) {
             $this->logger->warning('EssayistFeedService: invalid hashtags for tag filter', [
                 'error' => $e->getMessage(),
@@ -143,12 +168,12 @@ final class EssayistFeedService
 
         $dTags = array_values(array_unique($dTags));
 
-        $filter = new Filter();
-        $filter->setKinds([30023]);
-        $filter->setLimit($limit);
-
         try {
-            $filter->setTags(['#d' => $dTags]);
+            $filter = Filter::fromArray([
+                'kinds' => [30023],
+                '#d' => $dTags,
+                'limit' => $limit,
+            ]);
         } catch (\Throwable $e) {
             $this->logger->warning('EssayistFeedService: invalid d-tags for tag filter', [
                 'error' => $e->getMessage(),
@@ -192,110 +217,141 @@ final class EssayistFeedService
      */
     private function doFetchFromRelay(Filter $filter, string $relayUrl): array
     {
-
         try {
-            $relay = new Relay($relayUrl);
-            $relay->connect();
-
-            $client = $relay->getClient();
-            $client->setTimeout(self::IDLE_TIMEOUT);
-
-            $subscription = new Subscription();
-            $subId        = $subscription->setId();
-
-
-            $reqMsg = new RequestMessage($subId, [$filter]);
-            $client->text($reqMsg->generate());
-
-            $handler     = new RelaySubscriptionHandler($this->logger);
-            $cards       = [];
-            $lastMessage = time();
-            $eose        = false;
-
-            while (!$eose) {
-                try {
-                    $resp = $client->receive();
-                } catch (\Throwable $e) {
-                    if ($handler->isTimeoutError($e)) {
-                        if (time() - $lastMessage >= self::IDLE_TIMEOUT) {
-                            $this->logger->debug('EssayistFeedService: idle timeout before EOSE', [
-                                'received' => count($cards),
-                            ]);
-                            break;
-                        }
-                        continue;
-                    }
-                    if ($handler->isBadMessageError($e)) {
-                        continue;
-                    }
-                    throw $e;
-                }
-
-                if (!$resp instanceof Text) {
-                    continue;
-                }
-
-                $lastMessage = time();
-                $decoded     = json_decode($resp->getContent());
-
-                if (!is_array($decoded) || !isset($decoded[0])) {
-                    continue;
-                }
-
-                switch ($decoded[0]) {
-                    case 'EVENT':
-                        $event = $decoded[2] ?? null;
-                        if (!is_object($event)) {
-                            break;
-                        }
-                        $card = $this->buildCard($event);
-                        if ($card !== null) {
-                            $cards[] = $card;
-                        }
-                        break;
-
-                    case 'EOSE':
-                        $eose = true;
-                        $this->logger->debug('EssayistFeedService: EOSE received', [
-                            'received' => count($cards),
-                        ]);
-                        break;
-
-                    case 'AUTH':
-                        // strfry-essayist is internal-only; no NIP-42 challenge expected here
-                        // but handle gracefully if gateway is in the path
-                        $challenge = $decoded[1] ?? null;
-                        if ($challenge) {
-                            if (!$handler->handleAuth($relay, $client, (string) $challenge)) {
-                                $this->logger->info('EssayistFeedService: dropping anonymous AUTH-gated relay request', [
-                                    'relay' => $relayUrl,
-                                ]);
-                                $eose = true;
-                                break;
-                            }
-                            // Re-send REQ after AUTH
-                            $client->text($reqMsg->generate());
-                        }
-                        break;
-
-                    case 'CLOSED':
-                        $this->logger->warning('EssayistFeedService: relay closed subscription', [
-                            'message' => $decoded[2] ?? $decoded[1] ?? '',
-                        ]);
-                        $eose = true;
-                        break;
-
-                    default:
-                        break;
-                }
+            $relay = RelayUrl::fromString($relayUrl);
+            if (null === $relay) {
+                throw new \InvalidArgumentException('Invalid relay URL');
             }
 
-            $handler->sendClose($client, $subId);
+            $client         = $this->nostrClientFactory->create();
+            $subscriptionId = SubscriptionId::fromString('essayist-' . bin2hex(random_bytes(6)));
+            $cards          = [];
+            $eose           = false;
+            $authRequired   = false;
+            $lastMessage    = 0.0;
+            $subscribed     = false;
 
             try {
-                $client->close();
-            } catch (\Throwable) {
-                // ignore close errors
+                // The feed is anonymous: mark AUTH-gated relays as unavailable rather
+                // than attempting to manufacture an identity for NIP-42.
+                $client->setAuthHandler(new class(
+                    function () use (&$authRequired, &$eose, &$lastMessage, $relayUrl): void {
+                        $authRequired = true;
+                        $eose = true;
+                        $lastMessage = microtime(true);
+                        $this->logger->info('EssayistFeedService: dropping anonymous AUTH-gated relay request', [
+                            'relay' => $relayUrl,
+                        ]);
+                    }
+                ) implements AuthChallengeHandlerInterface {
+                    private readonly \Closure $onChallenge;
+
+                    public function __construct(callable $onChallenge)
+                    {
+                        $this->onChallenge = \Closure::fromCallable($onChallenge);
+                    }
+
+                    public function handleAuthChallenge(RelayUrl $relayUrl, string $challenge): ?Event
+                    {
+                        ($this->onChallenge)();
+
+                        return null;
+                    }
+                });
+
+                $client->connect($relay, $this->nostrClientFactory->createDefaultConnectionConfig());
+                $subscribed = true;
+                $client->subscribe(
+                    $relay,
+                    $filter,
+                    new class(
+                        function (Event $event) use (&$cards, &$authRequired, &$lastMessage): void {
+                            if ($authRequired) {
+                                return;
+                            }
+
+                            $lastMessage = microtime(true);
+                            $card = $this->buildCard($event);
+                            if (null !== $card) {
+                                $cards[] = $card;
+                            }
+                        },
+                        function () use (&$eose, &$lastMessage, &$cards): void {
+                            $lastMessage = microtime(true);
+                            $eose = true;
+                            $this->logger->debug('EssayistFeedService: EOSE received', [
+                                'received' => count($cards),
+                            ]);
+                        },
+                        function (string $message) use (&$eose, &$lastMessage): void {
+                            $lastMessage = microtime(true);
+                            $eose = true;
+                            $this->logger->warning('EssayistFeedService: relay closed subscription', [
+                                'message' => $message,
+                            ]);
+                        },
+                        function () use (&$lastMessage): void {
+                            $lastMessage = microtime(true);
+                        },
+                    ) implements EventHandlerInterface {
+                        private readonly \Closure $onEvent;
+                        private readonly \Closure $onEose;
+                        private readonly \Closure $onClosed;
+                        private readonly \Closure $onNotice;
+
+                        public function __construct(
+                            callable $onEvent,
+                            callable $onEose,
+                            callable $onClosed,
+                            callable $onNotice,
+                        ) {
+                            $this->onEvent = \Closure::fromCallable($onEvent);
+                            $this->onEose = \Closure::fromCallable($onEose);
+                            $this->onClosed = \Closure::fromCallable($onClosed);
+                            $this->onNotice = \Closure::fromCallable($onNotice);
+                        }
+
+                        public function handleEvent(Event $event, SubscriptionId $subscriptionId): void
+                        {
+                            ($this->onEvent)($event);
+                        }
+
+                        public function handleEose(SubscriptionId $subscriptionId): void
+                        {
+                            ($this->onEose)();
+                        }
+
+                        public function handleClosed(SubscriptionId $subscriptionId, string $message): void
+                        {
+                            ($this->onClosed)($message);
+                        }
+
+                        public function handleNotice(RelayUrl $relayUrl, string $message): void
+                        {
+                            ($this->onNotice)();
+                        }
+                    },
+                    $subscriptionId,
+                );
+                $lastMessage = microtime(true);
+
+                while (!$eose && microtime(true) - $lastMessage < self::IDLE_TIMEOUT) {
+                    delay(0.25);
+                }
+
+                if (!$eose) {
+                    $this->logger->debug('EssayistFeedService: idle timeout before EOSE', [
+                        'received' => count($cards),
+                    ]);
+                }
+            } finally {
+                try {
+                    if ($subscribed) {
+                        $client->unsubscribe($relay, $subscriptionId);
+                    }
+                } finally {
+                    $client->close();
+                }
             }
 
             // Sort descending by createdAt (relay already sends desc, but enforce it)
@@ -315,11 +371,12 @@ final class EssayistFeedService
      * Convert a raw Nostr EVENT object into a stdClass card compatible with
      * the Card / CardList Twig components.
      */
-    private function buildCard(object $event): ?object
+    private function buildCard(Event $event): ?object
     {
-        $pubkey    = $event->pubkey    ?? null;
-        $createdAt = $event->created_at ?? null;
-        $tags      = is_array($event->tags ?? null) ? $event->tags : [];
+        $eventData = $event->toArray();
+        $pubkey    = $eventData['pubkey'] ?? null;
+        $createdAt = $eventData['created_at'] ?? null;
+        $tags      = is_array($eventData['tags'] ?? null) ? $eventData['tags'] : [];
 
         if (!$pubkey || !$createdAt) {
             return null;
