@@ -42,7 +42,7 @@ class NostrRequestExecutor
 
         $request = new RelayQueryRequest(
             $relaySet ?? $this->relaySetFactory->getDefault(),
-            [$this->normaliseFilter($filter)],
+            [self::normaliseFilterArray($filter)],
         );
 
         if (is_string($stopGap) && $stopGap !== '') {
