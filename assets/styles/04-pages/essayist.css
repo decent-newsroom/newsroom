@@ -357,8 +357,6 @@
 /* ── Essayist feed / home page ──────────────────────────────────────── */
 .essayist-feed-header {
     padding: var(--spacing-4) 0 var(--spacing-3);
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: var(--spacing-3);
 }
 
 .essayist-feed-heading {
