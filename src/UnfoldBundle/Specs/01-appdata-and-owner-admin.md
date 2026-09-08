@@ -65,6 +65,11 @@ DN admins may still create or repair `UnfoldSite` mappings from the main-domain 
 
 ## Owner Admin Access
 
+> Mount and access rules are superseded by
+> `08-unified-publication-admin.md`. The admin is reachable both on the
+> subdomain and on the main domain by coordinate (`/mag/{mag}/admin`); the
+> page list below is unchanged.
+
 Owner admin routes live on the Unfold subdomain:
 
 - `/admin`

@@ -12,10 +12,17 @@ superseded** by `06-gated-access-and-payments.md` (see Decision Log).
 Unfold becomes a self-contained publication platform:
 
 - Public: subdomain website + RSS + sitemap per publication.
-- Owner: dashboard on the subdomain with wizard, analytics, editorial links.
+- Owner: one publication admin — wizard, analytics, content management and the
+  article editor — reachable both on the subdomain (`/admin`) and on the main
+  domain by coordinate (`/mag/{mag}/admin`), so a subdomain is a presentation
+  feature rather than an administration prerequisite (Spec 08).
 - Money: payment targets → payment bridge → mint → gated relay access chain.
 - Endgame: bundle extracted from this repo, runnable on any sovereign domain
   with its own DB and relay.
+
+The product bias is **collections, not single articles**: the host app's
+magazine administration folds into the bundle, and single-article authoring
+survives only as a tool that the publication admin can borrow (D11).
 
 ## Roles And External Components
 
@@ -78,16 +85,37 @@ Independent of everything else — ship early.
   interactions (highlight scope tagging) depend on the Phase 5 chokepoint.
 - Requires subdomain auth/signing decision (Q7).
 
-### Phase 3 — Owner dashboard shell, wizard, analytics (Spec 04)
+### Phase 3 — Unified publication admin: mounts, shell, wizard, analytics (Spec 08, Spec 04)
 
-- `/admin/*` on the subdomain, owner-pubkey access rule (Spec 01).
-- Getting-started wizard: claim/confirm subdomain → pick/create publication →
-  sign AppData → optional theme/about → done. Covers both onboarding orders.
-- Link to the live subdomain site with `target="_blank"`.
+- `PublicationContext` + two resolvers (host, coordinate); every admin
+  controller depends on the context only (Spec 08).
+- Route work: split the bundle route collections so admin can serve apex-domain
+  routes, and order both admin collections **before** the `unfold_site`
+  `/{path}` catch-all.
+- Owner-pubkey access rule (Spec 01); coordinate mount scopes lookups by
+  `(dtag, currentUserPubkey)` so ownership is structural (Spec 08).
+- Getting-started wizard: pick/create publication → sign AppData →
+  optional theme/about → optional subdomain → done. Covers both onboarding
+  orders; subdomain step is no longer terminal.
+- Wizard draft moves from `mag_wizard` session state to Redis keyed by
+  coordinate, so drafts survive both mounts.
+- Link to the live subdomain site with `target="_blank"` when one exists.
 - Visitor analytics from the existing `Visit` table, filtered strictly to the
-  current subdomain.
+  current subdomain; null state on the coordinate mount.
 - Subscription analytics cards render a not-connected null state until
   Phase 6.
+
+### Phase 3b — Admin consolidation and editor integration (Spec 08)
+
+- Migrate `MagazineWizardController` and `MagazineEditorController` into the
+  bundle admin, re-scoped from `ROLE_ADMIN`/slug to owner/coordinate.
+- Keep platform moderation and billing on the main domain under `ROLE_ADMIN`
+  (`MagazineAdminController`, `PublicationSubdomainAdminController`,
+  `UnfoldSiteController` repair screens).
+- Publication-scoped article editor: reuse `EditorController` behind a thin
+  wrapper that injects `PublicationContext`; publish `30023` then append the
+  coordinate to a category and publish `30040`, with an append-retry path.
+- `/article-editor/*` stays as-is for context-free single-article authoring.
 
 ### Phase 4 — Payment targets and audiences (Spec 02 structure, Spec 06 kinds)
 
@@ -141,6 +169,11 @@ Depends on external repos (bridge, mint) and third-party relay work.
 | D5 | v1 home relay is fixed to `premium.decentnewsroom.com`; mint and bridge are DN-operated. | Wishlist. Single option keeps AppData `home_relay` optional in v1. |
 | D6 | Cap and dedupe everything derived from relays (feed size 50, etc.). | Matches Spec 03 and repo-wide guardrails. |
 | D7 | `30879` is a new kind, not NIP-99 `30402`. Digital access resources have no `location`/`g` and never reach `status: sold`; NIP-99 has live marketplace implementations (Shopstr, Plebeian Market, Amethyst) that would mis-render audience offers as listings. Reuse only the NIP-99 tag vocabulary (`title`/`summary`/`image`/`published_at`/`price` array). Verified `30879`, `38133`, `8879`, `28877`, `28878` unallocated in the upstream NIPs kind table (2026-08); register in `nostr-protocol/registry-of-kinds` when stable. | Spec 06. |
+| D8 | The publication admin has **two mounts** — `<sub>/admin` and `<base>/mag/{mag}/admin` — sharing one implementation via a `PublicationContext` resolver. A subdomain is not required to administer a publication. | Owner decision (2026-09). Magazines without a subdomain need the same administration; the coordinate is the real identity, the subdomain is presentation. Also creates the host-agnostic seam Phase 7 extraction needs anyway. |
+| D9 | The coordinate mount resolves publications by `(dtag, currentUserPubkey)`, never by slug alone, and 404s instead of falling back to another pubkey's event. | `MagazineStructureService::findLatestIndexBySlug()` filters only on kind and d-tag, so slug resolution is last-writer-wins across pubkeys. Safe for public reading, disqualifying as an ownership signal. Scoping by the authenticated pubkey makes ownership structural rather than a comparison. |
+| D10 | Host-app magazine administration folds into the bundle (wizard, index editing, content assignment), scoped to the publication owner. Platform moderation and billing stay on the main domain under `ROLE_ADMIN`. | Owner decision (2026-09): one administration surface, not two. Preserves the distinction between owning a publication and operating the platform. |
+| D11 | The standalone `/article-editor/*` surface is kept; the publication admin reuses the same editor with a `PublicationContext` injected. | Owner decision (2026-09). Absorbing the editor entirely would block context-free authoring; duplicating it would fork the publish path. Coupling stays in a thin wrapper so the standalone editor keeps zero collection dependencies. |
+| D12 | Wizard draft state moves from the `mag_wizard` session key to Redis keyed by coordinate. | A session-scoped draft cannot cross the two mounts, and the single session key forbids more than one draft per user. Also removes Q7 from the admin path. |
 
 ## Open Questions (blocking later phases)
 
@@ -152,7 +185,9 @@ Depends on external repos (bridge, mint) and third-party relay work.
 | Q4 | `8879` attestation is a regular (stored) kind linking a pubkey to a purchased scope. Where may it be stored? Proposal: bridge→mint direct delivery only, never broadcast (privacy). | Phase 6 |
 | Q5 | Does the relay keep any publisher-write authorization (old `18101`), or is write access out of scope for the new model? | Phase 6 |
 | Q6 | `UnfoldSite` vs `PublicationSubdomainSubscription`: merge or keep joined by subdomain? Proposal: keep separate (claim/config vs billing), add explicit FK. | Phase 1 |
-| Q7 | Subdomain auth: are DN session cookies valid on `*.<base-domain>`? If not — widen cookie scope or add a subdomain login flow. NIP-07 signer approval is per-origin either way. | Phase 2b, 3 |
+| Q7 | Subdomain auth: are DN session cookies valid on `*.<base-domain>`? If not — widen cookie scope or add a subdomain login flow. NIP-07 signer approval is per-origin either way. **Narrowed by D12**: no longer blocks the admin (drafts move to Redis keyed by coordinate), but still blocks reader interactions on subdomains. | Phase 2b |
+| Q8 | `Magazine.slug` is `unique: true`, so the projection cannot represent two pubkeys publishing `kind:30040` with the same d-tag — the second collides on insert. Is this dropping data today, and should the projection key on coordinate instead? Out of scope for Spec 08 (which sidesteps it), but it is a latent correctness bug. | — (record, don't fix here) |
+| Q9 | Does the coordinate mount need a stable admin URL when an owner renames the d-tag, or is the admin URL allowed to move with the slug? | Phase 3 |
 
 ## Known Issues / Risks
 
@@ -175,6 +210,20 @@ Depends on external repos (bridge, mint) and third-party relay work.
    that was never fully built — all deleted in Phase 0 (D2;
    `notifications-pro.md` rescued). The implemented protocol gets a fresh
    NIP doc in Phase 6.
+6. **Slug-based ownership** is the highest-severity risk in the admin work.
+   `findLatestIndexBySlug()` has no pubkey filter, so any pubkey can publish a
+   `kind:30040` with an existing d-tag and win the lookup. D9 removes this from
+   the admin path by scoping to the authenticated pubkey; the risk returns the
+   moment any admin code path resolves a publication from a slug alone. Needs a
+   dedicated security test.
+7. **Route ordering regression**: the `unfold_site` catch-all is `/{path}` with
+   `path: '.*'`. Any admin route registered after it silently becomes a
+   category lookup and 404s. Cheap to break, cheap to test — cover it
+   functionally.
+8. **Admin migration scope creep**: moving the wizard and index editor from
+   `ROLE_ADMIN`/slug to owner/coordinate touches the publish path that already
+   works. Migrate behind the new mounts before removing the old routes, so the
+   two can be compared on the same data.
 
 ## Test Strategy (summary — details per spec)
 

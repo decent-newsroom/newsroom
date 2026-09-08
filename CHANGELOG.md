@@ -2,6 +2,8 @@
 
 ## v0.0.51
 
+- [Improvement] Removed ephemeral NIP-42 AUTH signing from direct relay requests. Direct requests now retain their initiating user's pubkey, obtain kind-22242 signatures through SigningBundle's user-scoped NIP-46 signer within the request timeout, and drop AUTH-gated requests when no eligible signature is available; anonymous workers no longer impersonate generated keys.
+- [Docs] Added Unfold spec 08 unifying publication administration: one admin implementation mounted both on the subdomain and on the main domain by magazine coordinate, a `PublicationContext` resolver, consolidation of the host-app magazine wizard and index editor into the bundle, and a publication-scoped article editor. Records that admin publication lookups must be scoped by the authenticated pubkey, because slug resolution is last-writer-wins across pubkeys.
 - [Fix] Capped synchronous relay gateway reads at three seconds and applied the configured direct lookup timeout to event-ID resolution, preventing Bookshelf relay fallbacks from exhausting PHP's request limit.
 - [Fix] The Bookshelf reader now loads missing kind-30041 chapters for Nostr-native books from index relay hints, then the chapter author's relay list when needed.
 - [Fix] My Books now resolves directory references absent from the Gutenberg index directly from the local and author-selected Nostr relays, including relay hints stored in directory tags.

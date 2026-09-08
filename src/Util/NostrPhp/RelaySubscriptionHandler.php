@@ -3,14 +3,11 @@ declare(strict_types=1);
 
 namespace App\Util\NostrPhp;
 
+use DecentNewsroom\SigningBundle\Contract\RelayAuthSignerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
-use swentel\nostr\Message\AuthMessage;
 use swentel\nostr\Message\CloseMessage;
-use swentel\nostr\Nip42\AuthEvent;
 use swentel\nostr\Relay\Relay;
 use swentel\nostr\RelayResponse\RelayResponse;
-use swentel\nostr\Sign\Sign;
 use WebSocket\Client as WsClient;
 use WebSocket\Message\Pong;
 use WebSocket\Message\Text;
@@ -21,14 +18,10 @@ use WebSocket\Message\Text;
  */
 class RelaySubscriptionHandler
 {
-    private string $nsec;
-
     public function __construct(
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly ?RelayAuthSignerInterface $relayAuthSigner = null,
     ) {
-        // Create an ephemeral key for NIP-42 auth
-        $key = new Key();
-        $this->nsec = $key->generatePrivateKey();
     }
 
     /**
@@ -60,26 +53,68 @@ class RelaySubscriptionHandler
     }
 
     /**
-     * Handle NIP-42 AUTH challenge
-     * Automatically signs and sends AUTH message
+     * Handle a NIP-42 challenge for the user that initiated the request.
+     *
+     * Anonymous workers must not authenticate with generated keys. The request
+     * is instead dropped when no user-scoped signing capability is available.
      */
-    public function handleAuth(Relay $relay, WsClient $client, string $challenge): void
+    public function handleAuth(
+        Relay $relay,
+        WsClient $client,
+        string $challenge,
+        ?string $subjectPubkeyHex = null,
+        int $timeoutSeconds = 3,
+    ): bool
     {
-        try {
-            $authEvent = new AuthEvent($relay->getUrl(), $challenge);
-            (new Sign())->signEvent($authEvent, $this->nsec);
-            $authMsg = new AuthMessage($authEvent);
-
-            $this->logger->debug('Sending NIP-42 AUTH to relay', [
-                'relay' => $relay->getUrl()
-            ]);
-
-            $client->text($authMsg->generate());
-        } catch (\Throwable $e) {
-            $this->logger->warning('Failed to send AUTH, continuing anyway', [
+        if (!$this->isHexPubkey($subjectPubkeyHex)) {
+            $this->logger->info('Dropping relay request: no authenticated user is available for NIP-42 AUTH', [
                 'relay' => $relay->getUrl(),
-                'error' => $e->getMessage()
             ]);
+
+            return false;
+        }
+
+        if ($this->relayAuthSigner === null || !$this->relayAuthSigner->supportsRelayAuth($subjectPubkeyHex)) {
+            $this->logger->info('Dropping relay request: user has no relay AUTH signing capability', [
+                'relay' => $relay->getUrl(),
+                'pubkey' => substr($subjectPubkeyHex, 0, 8) . '...',
+            ]);
+
+            return false;
+        }
+
+        try {
+            $signedEvent = $this->relayAuthSigner->signRelayAuth(
+                $subjectPubkeyHex,
+                $relay->getUrl(),
+                $challenge,
+                max(1, $timeoutSeconds),
+            );
+            if ($signedEvent === null) {
+                $this->logger->warning('Dropping relay request: user relay AUTH signature was not obtained before timeout', [
+                    'relay' => $relay->getUrl(),
+                    'pubkey' => substr($subjectPubkeyHex, 0, 8) . '...',
+                    'timeout_seconds' => $timeoutSeconds,
+                ]);
+
+                return false;
+            }
+
+            $client->text(json_encode(['AUTH', $signedEvent], JSON_THROW_ON_ERROR));
+            $this->logger->debug('Sending user-signed NIP-42 AUTH to relay', [
+                'relay' => $relay->getUrl(),
+                'pubkey' => substr($subjectPubkeyHex, 0, 8) . '...',
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->logger->warning('Dropping relay request: user relay AUTH signing failed', [
+                'relay' => $relay->getUrl(),
+                'pubkey' => substr($subjectPubkeyHex, 0, 8) . '...',
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
         }
     }
 
@@ -152,5 +187,9 @@ class RelaySubscriptionHandler
     {
         return str_starts_with($message, 'ERROR:');
     }
-}
 
+    private function isHexPubkey(?string $pubkey): bool
+    {
+        return $pubkey !== null && strlen($pubkey) === 64 && ctype_xdigit($pubkey);
+    }
+}

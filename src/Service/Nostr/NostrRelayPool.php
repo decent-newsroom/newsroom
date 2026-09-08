@@ -6,6 +6,8 @@ namespace App\Service\Nostr;
 
 use App\Util\NostrPhp\RelaySubscriptionHandler;
 use App\Util\RelayUrlNormalizer;
+use DecentNewsroom\SigningBundle\Contract\CurrentSubjectPubkeyResolverInterface;
+use DecentNewsroom\SigningBundle\Contract\RelayAuthSignerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\EventMessage;
@@ -45,7 +47,9 @@ class NostrRelayPool implements RelayPoolInterface
         private readonly string $nostrDefaultRelay,
         private readonly bool $gatewayEnabled = false,
         private readonly ?RelayGatewayClient $gatewayClient = null,
-        array $defaultRelays = []
+        array $defaultRelays = [],
+        private readonly ?RelayAuthSignerInterface $relayAuthSigner = null,
+        private readonly ?CurrentSubjectPubkeyResolverInterface $currentSubjectPubkeyResolver = null,
     ) {
         // Build relay list from RelayRegistry (replaces hardcoded PUBLIC_RELAYS)
         if (!empty($defaultRelays)) {
@@ -174,6 +178,7 @@ class NostrRelayPool implements RelayPoolInterface
     public function sendToRelays(array $relayUrls, callable $messageBuilder, ?int $timeout = null, ?string $subscriptionId = null, ?string $pubkey = null): array
     {
         $timeout = $timeout ?? self::CONNECTION_TIMEOUT;
+        $pubkey ??= $this->currentSubjectPubkeyResolver?->resolveCurrentSubjectPubkeyHex();
 
         // Exclude muted relays (never mute the local relay)
         $localRelay = $this->nostrDefaultRelay ? $this->normalizeRelayUrl($this->nostrDefaultRelay) : null;
@@ -191,7 +196,7 @@ class NostrRelayPool implements RelayPoolInterface
 
             // Local relay: direct connection (fast, no AUTH needed)
             if (!empty($localUrls)) {
-                $results += $this->sendDirect($localUrls, $messageBuilder, $timeout);
+                $results += $this->sendDirect($localUrls, $messageBuilder, $timeout, $pubkey);
             }
 
             // External relays: route through gateway
@@ -260,13 +265,13 @@ class NostrRelayPool implements RelayPoolInterface
         }
 
         // Gateway disabled: direct connection (current behavior)
-        return $this->sendDirect($relayUrls, $messageBuilder, $timeout);
+        return $this->sendDirect($relayUrls, $messageBuilder, $timeout, $pubkey);
     }
 
     /**
      * Send directly to relays via TweakedRequest (bypassing gateway).
      */
-    private function sendDirect(array $relayUrls, callable $messageBuilder, int $timeout): array
+    private function sendDirect(array $relayUrls, callable $messageBuilder, int $timeout, ?string $pubkey): array
     {
         $relays = $this->getRelays($relayUrls);
 
@@ -280,8 +285,8 @@ class NostrRelayPool implements RelayPoolInterface
         $relaySet = new \swentel\nostr\Relay\RelaySet();
         $relaySet->setRelays($relays);
 
-        $request = new \App\Util\NostrPhp\TweakedRequest($relaySet, $message, $this->logger);
-        $request->setTimeout($timeout);
+        $request = new \App\Util\NostrPhp\TweakedRequest($relaySet, $message, $this->logger, $this->relayAuthSigner);
+        $request->setTimeout($timeout)->requestedBy($pubkey);
 
         $this->logger->info('Sending request to relays via TweakedRequest', [
             'relay_count' => count($relays),
@@ -802,7 +807,10 @@ class NostrRelayPool implements RelayPoolInterface
                                 'relay' => $relayUrl,
                                 'worker' => $workerName,
                             ]);
-                            $handler->handleAuth($relay, $client, $challenge);
+                            if (!$handler->handleAuth($relay, $client, $challenge)) {
+                                $relay->disconnect();
+                                throw new \RuntimeException('Relay requires user-scoped NIP-42 AUTH');
+                            }
                             // Record that this relay requires AUTH
                             $this->healthStore->setAuthRequired($relayUrl);
                             $this->healthStore->setAuthStatus($relayUrl, 'ephemeral');
@@ -1024,7 +1032,10 @@ class NostrRelayPool implements RelayPoolInterface
                     case 'AUTH':
                         $challenge = $handler->extractAuthChallenge(json_decode($resp->getContent()));
                         if ($challenge) {
-                            $handler->handleAuth($relay, $client, $challenge);
+                            if (!$handler->handleAuth($relay, $client, $challenge)) {
+                                $relay->disconnect();
+                                throw new \RuntimeException('Relay requires user-scoped NIP-42 AUTH');
+                            }
                             $client->text($payload);
                         }
                         break;

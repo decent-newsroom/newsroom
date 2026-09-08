@@ -266,7 +266,13 @@ final class EssayistFeedService
                         // but handle gracefully if gateway is in the path
                         $challenge = $decoded[1] ?? null;
                         if ($challenge) {
-                            $handler->handleAuth($relay, $client, (string) $challenge);
+                            if (!$handler->handleAuth($relay, $client, (string) $challenge)) {
+                                $this->logger->info('EssayistFeedService: dropping anonymous AUTH-gated relay request', [
+                                    'relay' => $relayUrl,
+                                ]);
+                                $eose = true;
+                                break;
+                            }
                             // Re-send REQ after AUTH
                             $client->text($reqMsg->generate());
                         }
@@ -380,4 +386,3 @@ final class EssayistFeedService
         return $card;
     }
 }
-

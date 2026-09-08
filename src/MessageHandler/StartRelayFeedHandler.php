@@ -127,7 +127,12 @@ final class StartRelayFeedHandler
                 $msgType = $decoded[0] ?? null;
 
                 if ($msgType === 'AUTH' && count($decoded) >= 2) {
-                    $handler->handleAuth($relay, $client, (string) $decoded[1]);
+                    if (!$handler->handleAuth($relay, $client, (string) $decoded[1])) {
+                        $this->logger->info('[relay-feed] Relay requires user-scoped NIP-42 AUTH; dropping anonymous subscription', [
+                            'relay' => $relayUrl,
+                        ]);
+                        break;
+                    }
                     continue;
                 }
 

@@ -8,6 +8,12 @@ Status: draft implementation specification.
 > are `kind:38133` (not `30133`). Specs 01–05 remain valid for structure,
 > flows, and rollout, but read their kind numbers through spec 06.
 
+> **Admin mounts (2026-09):** `08-unified-publication-admin.md` is
+> authoritative for where the admin mounts, how a publication is identified,
+> and who may access it. Specs 01 and 04 describe owner admin as
+> subdomain-only; read that as one of two mounts. The admin *pages* those
+> specs define are unchanged.
+
 These specs describe the next Unfold administration layer: owner-signed publication AppData, publication-local feeds, audience tiers, payment targets, owner analytics, and content management. They are intentionally stored inside `src/UnfoldBundle/specs/` because the work is bundle-scoped and should travel with the Unfold implementation.
 
 ## Spec Map
@@ -22,6 +28,7 @@ These specs describe the next Unfold administration layer: owner-signed publicat
 | `05-tests-and-rollout.md` | Migrations, backward compatibility, cache invalidation, rollout sequence, and test coverage. |
 | `06-gated-access-and-payments.md` | Gated content contract: kinds `38133`/`30879`/`8879`/`28877`/`28878`, payment bridge, mint, and relay behavior. |
 | `07-reader-interactions.md` | Likes, bookmarks, and highlights on Unfold pages; gated-content interaction rules; subdomain signing. |
+| `08-unified-publication-admin.md` | Admin mounts (subdomain + coordinate), `PublicationContext`, host-app admin consolidation, editor integration. Authoritative for admin routing and access. |
 
 ## Terms
 
@@ -38,10 +45,11 @@ These specs describe the next Unfold administration layer: owner-signed publicat
 
 1. Add parsing DTOs and local schema fields while preserving current coordinate-only `UnfoldSite` rows.
 2. Add owner-signed AppData setup to the hosted Unfold flow.
-3. Add owner admin shell and access checks on Unfold subdomains.
+3. Add the `PublicationContext` resolver, both admin mounts, and owner access checks (spec 08).
 4. Add RSS, sitemap, robots, and footer context.
 5. Add audiences and publication payment descriptors.
 6. Add analytics and content-management pages.
+7. Fold the host-app magazine administration and the publication-scoped article editor into the bundle admin (spec 08).
 
 ## Compatibility
 

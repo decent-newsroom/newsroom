@@ -1,5 +1,11 @@
 # Owner Dashboard And Content Management
 
+> **Mounts:** `08-unified-publication-admin.md` is authoritative for where
+> these pages mount and how the publication is resolved. Read "on their own
+> subdomain" below as "in a resolved publication context", which may be a
+> subdomain or a `/mag/{mag}/admin` coordinate mount. Paths below are relative
+> to `PublicationContext.adminPathPrefix`.
+
 ## Goal
 
 Give each Unfold owner a publication-scoped admin area on their own subdomain. The admin should manage publication configuration, content organization, payment targets, audiences, and analytics without granting DN platform-admin access.

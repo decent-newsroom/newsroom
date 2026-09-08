@@ -34,3 +34,8 @@
 - Eventually, the bundle should be ready to be moved outside of the repo, and to be reusable as a part of a standalone publication with its own db and relay on any sovereign domain.
 - Reader interactions must be available on unfold subdomains: likes (kind:7 reactions) and bookmarks on articles, and readers can see existing highlights and create their own highlights (kind:9802).
 - I have a separate repo for the mint and the payment bridge. Someone else will help with the relay.
+- The end state should be a smaller, more focused project genuinely about collections, not single articles.
+  - The current magazine administration merges into unfold as its integral part, rather than living beside it.
+  - The same administration loads from the subdomain on an `/unfold/` or `/admin/` route, and also for magazines that have no subdomain, using the magazine coordinate as the pointer in the routing the way the `/mag/` routes already do.
+  - The article editor should be available in there as well.
+  - See `Specs/08-unified-publication-admin.md`.

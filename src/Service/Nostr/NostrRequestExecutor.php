@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
+use DecentNewsroom\SigningBundle\Contract\CurrentSubjectPubkeyResolverInterface;
+use DecentNewsroom\SigningBundle\Contract\RelayAuthSignerInterface;
 use App\Util\NostrPhp\TweakedRequest;
 use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
@@ -30,6 +32,8 @@ class NostrRequestExecutor
         private readonly RelayRegistry   $relayRegistry,
         private readonly LoggerInterface $logger,
         private readonly ?string         $nostrDefaultRelay = null,
+        private readonly ?RelayAuthSignerInterface $relayAuthSigner = null,
+        private readonly ?CurrentSubjectPubkeyResolverInterface $currentSubjectPubkeyResolver = null,
     ) {}
 
     /**
@@ -68,7 +72,8 @@ class NostrRequestExecutor
         return (new TweakedRequest(
             $relaySet ?? $this->relaySetFactory->getDefault(),
             $requestMessage,
-            $this->logger
+            $this->logger,
+            $this->relayAuthSigner,
         ))->stopOnEventId($stopGap);
     }
 
@@ -81,6 +86,9 @@ class NostrRequestExecutor
      */
     public function execute(TweakedRequest $request, ?string $pubkey = null, int $gatewayTimeout = 3): array
     {
+        $pubkey ??= $this->currentSubjectPubkeyResolver?->resolveCurrentSubjectPubkeyHex();
+        $request->requestedBy($pubkey);
+
         if (!$this->relayPool->isGatewayEnabled()) {
             return $request->send();
         }
@@ -135,10 +143,11 @@ class NostrRequestExecutor
             }
             $filterObjects = array_map([self::class, 'buildFilterFromArray'], $filters);
             $msg          = new RequestMessage((new Subscription())->getId(), $filterObjects);
-            $localRequest = new TweakedRequest($localRelaySet, $msg, $this->logger);
+            $localRequest = new TweakedRequest($localRelaySet, $msg, $this->logger, $this->relayAuthSigner);
             $localRequest
                 ->setTimeout($request->getTimeout())
-                ->stopOnEventId($request->getStopOnEventId());
+                ->stopOnEventId($request->getStopOnEventId())
+                ->requestedBy($pubkey);
             $results      += $localRequest->send();
         }
 

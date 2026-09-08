@@ -198,7 +198,7 @@ class SyncUserEventsHandler
             return $this->fetchViaGateway($relayUrls, $filter, $pubkey);
         }
 
-        return $this->fetchDirect($relayUrls, $filter);
+        return $this->fetchDirect($relayUrls, $filter, $pubkey);
     }
 
     /**
@@ -235,7 +235,7 @@ class SyncUserEventsHandler
      *
      * @return array<int, array> Raw event arrays extracted from RelayResponseEvent objects
      */
-    private function fetchDirect(array $relayUrls, array $filter): array
+    private function fetchDirect(array $relayUrls, array $filter, string $pubkey): array
     {
         $this->logger->info('SyncUserEventsHandler: gateway disabled, fetching via direct WebSocket', [
             'relay_count' => count($relayUrls),
@@ -264,6 +264,8 @@ class SyncUserEventsHandler
                     return new RequestMessage($subscriptionId, [$f]);
                 },
                 self::TIMEOUT,
+                null,
+                $pubkey,
             );
 
             // Flatten RelayResponseEvent objects → raw event arrays, deduplicating by ID

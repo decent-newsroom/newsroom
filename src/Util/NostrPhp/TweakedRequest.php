@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Util\NostrPhp;
 
+use DecentNewsroom\SigningBundle\Contract\RelayAuthSignerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\MessageInterface;
 use swentel\nostr\Relay\Relay;
@@ -28,8 +29,14 @@ final class TweakedRequest implements RequestInterface
 
     /** Optional: when set, CLOSE & disconnect immediately once this id arrives */
     private ?string $stopOnEventId = null;
+    private ?string $requestingPubkeyHex = null;
 
-    public function __construct(Relay|RelaySet $relay, MessageInterface $message, private readonly LoggerInterface $logger)
+    public function __construct(
+        Relay|RelaySet $relay,
+        MessageInterface $message,
+        private readonly LoggerInterface $logger,
+        ?RelayAuthSignerInterface $relayAuthSigner = null,
+    )
     {
         if ($relay instanceof RelaySet) {
             $this->relays = $relay;
@@ -41,7 +48,7 @@ final class TweakedRequest implements RequestInterface
         $this->payload = $message->generate();
 
         // Use shared handler for common relay logic
-        $this->handler = new RelaySubscriptionHandler($logger);
+        $this->handler = new RelaySubscriptionHandler($logger, $relayAuthSigner);
     }
 
     public function stopOnEventId(?string $hexId): self
@@ -53,6 +60,13 @@ final class TweakedRequest implements RequestInterface
     public function getStopOnEventId(): ?string
     {
         return $this->stopOnEventId;
+    }
+
+    public function requestedBy(?string $pubkeyHex): self
+    {
+        $this->requestingPubkeyHex = $pubkeyHex;
+
+        return $this;
     }
 
     public function getTimeout(): int
@@ -83,6 +97,7 @@ final class TweakedRequest implements RequestInterface
         $result = [];
         foreach ($this->relays->getRelays() as $relay) {
             $this->responses = []; // reset per relay
+            $authChallenge = null;
             try {
                 if (!$relay->isConnected()) {
                     $relay->connect();
@@ -151,26 +166,60 @@ final class TweakedRequest implements RequestInterface
                     }
 
                     if ($relayResponse->type === 'CLOSED') {
+                        $message = $this->handler->extractMessage(json_decode($resp->getContent()));
+                        if (
+                            str_starts_with($message, 'auth-required:')
+                            && $authChallenge !== null
+                            && $this->handler->handleAuth(
+                                $relay,
+                                $client,
+                                $authChallenge,
+                                $this->requestingPubkeyHex,
+                                $this->timeout,
+                            )
+                        ) {
+                            $client->text($this->payload);
+                            continue;
+                        }
                         $relay->disconnect();
                         break;
                     }
 
                     // NIP-42: if relay requests AUTH, perform it once, then continue.
                     if ($relayResponse->type === 'OK' && isset($relayResponse->message) && str_starts_with($relayResponse->message, 'auth-required:')) {
-                        $this->handler->handleAuth($relay, $client, $_SESSION['challenge'] ?? '');
+                        if ($authChallenge === null || !$this->handler->handleAuth(
+                            $relay,
+                            $client,
+                            $authChallenge,
+                            $this->requestingPubkeyHex,
+                            $this->timeout,
+                        )) {
+                            $relay->disconnect();
+                            break;
+                        }
                         // After AUTH, re-send the original payload
                         $client->text($this->payload);
-                        // continue loop
+                        continue;
                     }
 
                     // NIP-42: handle AUTH challenge for subscriptions
                     if ($relayResponse->type === 'AUTH') {
                         $challenge = $this->handler->extractAuthChallenge(json_decode($resp->getContent()));
                         if ($challenge) {
-                            $_SESSION['challenge'] = $challenge;
-                            $this->handler->handleAuth($relay, $client, $challenge);
+                            $authChallenge = $challenge;
+                            if (!$this->handler->handleAuth(
+                                $relay,
+                                $client,
+                                $challenge,
+                                $this->requestingPubkeyHex,
+                                $this->timeout,
+                            )) {
+                                $relay->disconnect();
+                                break;
+                            }
+                            $client->text($this->payload);
                         }
-                        // continue loop, relay should now respond to the subscription
+                        continue;
                     }
                 }
 
