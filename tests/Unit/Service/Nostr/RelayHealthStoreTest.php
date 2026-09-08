@@ -200,7 +200,7 @@ class RelayHealthStoreTest extends TestCase
     public function testAutoMuteTriggeredAtThreshold(): void
     {
         $redis = $this->createMock(\Redis::class);
-        $redis->method('hSet')->willReturn(true);
+        $redis->method('hSet')->willReturn(1);
         $redis->method('hIncrBy')->willReturn(RelayHealthStore::AUTO_MUTE_THRESHOLD);
         $redis->method('expire')->willReturn(true);
         $redis->method('sIsMember')->willReturn(false); // not already muted
@@ -219,7 +219,7 @@ class RelayHealthStoreTest extends TestCase
     public function testNoAutoMuteBeforeThreshold(): void
     {
         $redis = $this->createMock(\Redis::class);
-        $redis->method('hSet')->willReturn(true);
+        $redis->method('hSet')->willReturn(1);
         $redis->method('hIncrBy')->willReturn(RelayHealthStore::AUTO_MUTE_THRESHOLD - 1);
         $redis->method('expire')->willReturn(true);
         $redis->method('sIsMember')->willReturn(false);
@@ -235,7 +235,7 @@ class RelayHealthStoreTest extends TestCase
     public function testNoAutoMuteWhenAlreadyMuted(): void
     {
         $redis = $this->createMock(\Redis::class);
-        $redis->method('hSet')->willReturn(true);
+        $redis->method('hSet')->willReturn(1);
         $redis->method('hIncrBy')->willReturn(RelayHealthStore::AUTO_MUTE_THRESHOLD + 5);
         $redis->method('expire')->willReturn(true);
         $redis->method('sIsMember')->willReturn(true); // already muted
@@ -338,4 +338,3 @@ class RelayHealthStoreTest extends TestCase
         return $redis;
     }
 }
-

@@ -4,24 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Security;
 
+use App\Service\Nostr\NostrSigner;
+use Innis\Nostr\Core\Domain\Entity\Event;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\HttpFoundation\Response;
-use swentel\nostr\Event\Event;
-use swentel\nostr\Key\Key;
-use swentel\nostr\Sign\Sign;
 
 /**
  * Simplified authentication tests that focus on core functionality.
  */
 class NostrAuthenticatorSimpleTest extends WebTestCase
 {
-    private Key $key;
     private string $privateKey;
 
     protected function setUp(): void
     {
-        $this->key = new Key();
-        $this->privateKey = $this->key->generatePrivateKey();
+        $this->privateKey = bin2hex(random_bytes(32));
     }
 
     public function testValidAuthentication(): void
@@ -190,75 +186,50 @@ class NostrAuthenticatorSimpleTest extends WebTestCase
 
     private function createValidToken(string $method, string $url): string
     {
-        $event = new Event();
-        $event->setContent('');
-        $event->setKind(27235);
-        $event->setCreatedAt(time());
-        $event->setTags([
-            ["u", $url],
-            ["method", $method]
-        ]);
-
-        $signer = new Sign();
-        $signer->signEvent($event, $this->privateKey);
-
-        return 'Nostr ' . base64_encode($event->toJson());
+        return $this->encodeToken($this->signedEvent(27235, $method, $url)->toArray());
     }
 
     private function createTokenWithKind(int $kind, string $method, string $url): string
     {
-        $event = new Event();
-        $event->setContent('');
-        $event->setKind($kind);
-        $event->setCreatedAt(time());
-        $event->setTags([
-            ["u", $url],
-            ["method", $method]
-        ]);
-
-        $signer = new Sign();
-        $signer->signEvent($event, $this->privateKey);
-
-        return 'Nostr ' . base64_encode($event->toJson());
+        return $this->encodeToken($this->signedEvent($kind, $method, $url)->toArray());
     }
 
     private function createTokenWithTimestamp(string $method, string $url, int $timestamp): string
     {
-        $event = new Event();
-        $event->setContent('');
-        $event->setKind(27235);
-        $event->setCreatedAt($timestamp);
-        $event->setTags([
-            ["u", $url],
-            ["method", $method]
-        ]);
-
-        $signer = new Sign();
-        $signer->signEvent($event, $this->privateKey);
-
-        return 'Nostr ' . base64_encode($event->toJson());
+        return $this->encodeToken($this->signedEvent(27235, $method, $url, $timestamp)->toArray());
     }
 
     private function createTokenWithoutTag(string $tagToRemove, string $method, string $url): string
     {
-        $event = new Event();
-        $event->setContent('');
-        $event->setKind(27235);
-        $event->setCreatedAt(time());
-
         $tags = [];
         if ($tagToRemove !== 'u') {
-            $tags[] = ["u", $url];
+            $tags[] = ['u', $url];
         }
         if ($tagToRemove !== 'method') {
-            $tags[] = ["method", $method];
+            $tags[] = ['method', $method];
         }
 
-        $event->setTags($tags);
+        return $this->encodeToken($this->signedEvent(27235, $method, $url, time(), $tags)->toArray());
+    }
 
-        $signer = new Sign();
-        $signer->signEvent($event, $this->privateKey);
+    /** @param list<list<string>>|null $tags */
+    private function signedEvent(int $kind, string $method, string $url, ?int $createdAt = null, ?array $tags = null): Event
+    {
+        /** @var NostrSigner $signer */
+        $signer = static::getContainer()->get(NostrSigner::class);
 
-        return 'Nostr ' . base64_encode($event->toJson());
+        return $signer->signWithPrivateKey(
+            $kind,
+            $tags ?? [['u', $url], ['method', $method]],
+            '',
+            $this->privateKey,
+            $createdAt ?? time(),
+        );
+    }
+
+    /** @param array<string, mixed> $event */
+    private function encodeToken(array $event): string
+    {
+        return 'Nostr '.base64_encode(json_encode($event, JSON_THROW_ON_ERROR));
     }
 }

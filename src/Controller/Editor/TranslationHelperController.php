@@ -9,7 +9,8 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -134,7 +135,7 @@ class TranslationHelperController extends AbstractController
                 return null;
             }
 
-            $helper = new \swentel\nostr\Nip19\Nip19Helper();
+            $helper = new NostrNip19Service();
             $decoded = $helper->decode($naddr);
 
             if (!isset($decoded['kind'], $decoded['author'], $decoded['identifier'])) {
@@ -181,7 +182,7 @@ class TranslationHelperController extends AbstractController
         }
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $npub = $key->convertPublicKeyToBech32($pubkey);
             return substr($npub, 0, 12) . '…' . substr($npub, -4);
         } catch (\Throwable) {
@@ -189,4 +190,3 @@ class TranslationHelperController extends AbstractController
         }
     }
 }
-

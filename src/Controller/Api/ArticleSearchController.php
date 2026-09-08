@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Service\Search\ContentSearchService;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -51,7 +51,7 @@ class ArticleSearchController extends AbstractController
         }
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
         } catch (\Throwable $e) {
             return $this->json(['results' => []]);

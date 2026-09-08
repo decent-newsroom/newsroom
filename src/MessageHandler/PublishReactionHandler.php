@@ -6,8 +6,9 @@ namespace App\MessageHandler;
 
 use App\Message\PublishReactionMessage;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\RelayPublishResult;
+use Innis\Nostr\Core\Domain\Entity\Event as NostrEvent;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -28,21 +29,14 @@ final class PublishReactionHandler
             return;
         }
 
-        $eventObj = new NostrEvent();
-        $eventObj->setId((string) ($signedEvent['id'] ?? ''));
-        $eventObj->setPublicKey((string) ($signedEvent['pubkey'] ?? ''));
-        $eventObj->setCreatedAt((int) ($signedEvent['created_at'] ?? 0));
-        $eventObj->setKind((int) ($signedEvent['kind'] ?? 0));
-        $eventObj->setTags(is_array($signedEvent['tags'] ?? null) ? $signedEvent['tags'] : []);
-        $eventObj->setContent((string) ($signedEvent['content'] ?? ''));
-        $eventObj->setSignature((string) ($signedEvent['sig'] ?? ''));
+        $eventObj = NostrEvent::fromArray($signedEvent);
 
         $relayResults = $this->nostrClient->publishEvent($eventObj, $relays);
 
         $successCount = 0;
         $failCount = 0;
         foreach ($relayResults as $result) {
-            $isSuccess = $result === true || (is_object($result) && isset($result->type) && $result->type === 'OK');
+            $isSuccess = RelayPublishResult::isSuccessful($result);
             $isSuccess ? $successCount++ : $failCount++;
         }
 

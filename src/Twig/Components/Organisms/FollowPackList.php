@@ -12,7 +12,7 @@ use App\Service\Cache\RedisCacheService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 /**
  * Lists all known follow packs (kind 39089) whose members have
@@ -52,7 +52,7 @@ final class FollowPackList
         if ($user) {
             try {
                 $identifier = strtolower(trim($user->getUserIdentifier()));
-                $currentUserPubkey = (new Key())->convertToHex($identifier);
+                $currentUserPubkey = (new NostrKeyService())->convertToHex($identifier);
             } catch (\Throwable) {
                 // Keep default ordering for anonymous/unresolvable identities.
             }
@@ -154,7 +154,7 @@ final class FollowPackList
             ? $this->redisCacheService->getMultipleMetadata($authorPubkeys)
             : [];
 
-        $keyHelper = new Key();
+        $keyHelper = new NostrKeyService();
 
         // 8. Build the final output
         $result = [];

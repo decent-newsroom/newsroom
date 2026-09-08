@@ -80,7 +80,7 @@ class RelayFilterStatsStoreTest extends TestCase
         $this->assertStringNotContainsString('def1', $sig);
     }
 
-    public function testSignatureNormalizesUppercaseTagKeys(): void
+    public function testSignaturePreservesUppercaseTagKeys(): void
     {
         $store = $this->makeStore($this->createMock(\Redis::class));
 
@@ -94,9 +94,9 @@ class RelayFilterStatsStoreTest extends TestCase
             '#a' => ['30023:pubkey:slug'],
         ]);
 
-        $this->assertSame($upper, $lower);
-        $this->assertStringContainsString('#a=N1', $upper);
-        $this->assertStringNotContainsString('#A=', $upper);
+        self::assertNotSame($upper, $lower);
+        self::assertStringContainsString('#A=N1', $upper);
+        self::assertStringContainsString('#a=N1', $lower);
     }
 
     public function testSignatureForEmptyFilterIsEmpty(): void
@@ -138,15 +138,14 @@ class RelayFilterStatsStoreTest extends TestCase
     public function testRecordEoseUpdatesAggregates(): void
     {
         $redis = $this->createMock(\Redis::class);
-        $redis->method('hIncrBy')->willReturn(1);
-        $redis->method('hIncrByFloat')->willReturn(450.0);
+        $redis->expects($this->exactly(2))->method('hIncrBy')->willReturn(1);
+        $redis->expects($this->once())->method('hIncrByFloat')->willReturn(450.0);
         // First call: no current max → returns false
         $redis->method('hGet')->willReturn(false);
-        $redis->method('hSet')->willReturn(1);
-        $redis->method('expire')->willReturn(true);
+        $redis->expects($this->exactly(3))->method('hSet')->willReturn(1);
+        $redis->expects($this->once())->method('expire')->willReturn(true);
 
         $store = $this->makeStore($redis);
         $store->recordEose('wss://relay.example.com', 'kinds=[1]', 450, 12);
     }
 }
-

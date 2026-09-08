@@ -30,8 +30,8 @@ use Exception;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -85,7 +85,7 @@ class DefaultController extends AbstractController
 
         $npub = $user->getUserIdentifier();
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkey = $key->convertToHex($npub);
         } catch (\Throwable $e) {
             return $this->redirectToRoute('newsstand');
@@ -621,7 +621,7 @@ class DefaultController extends AbstractController
         $memberPubkeys = array_filter(array_unique($memberPubkeys));
 
         // Resolve member profiles
-        $nip19 = new Nip19Helper();
+        $nip19 = new NostrNip19Service();
         $members = [];
         $metadataMap = $redisCacheService->getMultipleMetadata($memberPubkeys);
         $missingProfilePubkeys = [];
@@ -733,7 +733,7 @@ class DefaultController extends AbstractController
         $user = $this->getUser();
         if ($user) {
             try {
-                $key = new \swentel\nostr\Key\Key();
+                $key = new NostrKeyService();
                 $currentPubkey = $key->convertToHex($user->getUserIdentifier());
                 $isOwner = ($currentPubkey === $magazine->getPubkey());
             } catch (\Throwable $e) {
@@ -822,7 +822,7 @@ class DefaultController extends AbstractController
             }
         }
 
-        $key = new Key();
+        $key = new NostrKeyService();
         $fpNpub = $key->convertPublicKeyToBech32($frontArticle->getPubkey());
         $fpAuthorMetadata = $redisCacheService->getMetadata($frontArticle->getPubkey());
 
@@ -1143,7 +1143,7 @@ class DefaultController extends AbstractController
         }
 
         // Get author metadata
-        $key = new Key();
+        $key = new NostrKeyService();
         $npub = $key->convertPublicKeyToBech32($chapter->getPubkey());
         $authorMetadata = $redisCacheService->getMetadata($chapter->getPubkey());
         $author = $authorMetadata->toStdClass();
@@ -1462,21 +1462,12 @@ class DefaultController extends AbstractController
             // This category's children are other 30040 index events — render as subcategory list
             $subcategoryTags = array_map(fn(string $c) => ['a', $c], $coordinates);
 
-            $catIndex = new \swentel\nostr\Event\Event();
-            $catIndex->setId($eventData['id']);
-            $catIndex->setPublicKey($eventData['pubkey']);
-            $catIndex->setCreatedAt($eventData['created_at']);
-            $catIndex->setKind($eventData['kind']);
-            $catIndex->setTags($tags);
-            $catIndex->setContent($eventData['content']);
-            $catIndex->setSignature($eventData['sig']);
-
             return $this->render('pages/category-subcategories.html.twig', [
                 'mag' => $mag,
                 'magazine' => $magazine,
                 'category' => $category,
                 'subcategoryTags' => $subcategoryTags,
-                'index' => $catIndex,
+                'index' => $tags,
             ]);
         }
 
@@ -1543,22 +1534,12 @@ class DefaultController extends AbstractController
                 }
             }
 
-            // Create a proper Event object for template compatibility
-            $catIndex = new \swentel\nostr\Event\Event();
-            $catIndex->setId($eventData['id']);
-            $catIndex->setPublicKey($eventData['pubkey']);
-            $catIndex->setCreatedAt($eventData['created_at']);
-            $catIndex->setKind($eventData['kind']);
-            $catIndex->setTags($tags);
-            $catIndex->setContent($eventData['content']);
-            $catIndex->setSignature($eventData['sig']);
-
             return $this->render('pages/category-chapters.html.twig', [
                 'mag' => $mag,
                 'magazine' => $magazine,
                 'chapters' => $chapters,
                 'category' => $category,
-                'index' => $catIndex,
+                'index' => $tags,
             ]);
         }
 
@@ -1682,22 +1663,12 @@ class DefaultController extends AbstractController
             }
         }
 
-        // Create a proper Event object for template compatibility
-        $catIndex = new \swentel\nostr\Event\Event();
-        $catIndex->setId($eventData['id']);
-        $catIndex->setPublicKey($eventData['pubkey']);
-        $catIndex->setCreatedAt($eventData['created_at']);
-        $catIndex->setKind($eventData['kind']);
-        $catIndex->setTags($tags);
-        $catIndex->setContent($eventData['content']);
-        $catIndex->setSignature($eventData['sig']);
-
         return $this->render('pages/category.html.twig', [
             'mag' => $mag,
             'magazine' => $magazine,
             'list' => $list,
             'category' => $category,
-            'index' => $catIndex
+            'index' => $tags
         ]);
     }
 
@@ -1802,7 +1773,7 @@ class DefaultController extends AbstractController
         }
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $npub = $key->convertPublicKeyToBech32($wiki->getPubkey());
         } catch (\Throwable) {
             $npub = $wiki->getPubkey();
@@ -1962,7 +1933,7 @@ class DefaultController extends AbstractController
             }
         }
 
-        $key = new Key();
+        $key = new NostrKeyService();
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
         $authorMetadata = $redisCacheService->getMetadata($article->getPubkey());
         $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility

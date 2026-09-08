@@ -13,7 +13,7 @@ use App\Service\Nostr\NostrClient;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -75,7 +75,7 @@ class MediaDiscoveryController extends AbstractController
                 );
 
                 $mediaEvents = [];
-                $nip19 = new Nip19Helper();
+                $nip19 = new NostrNip19Service();
 
                 foreach ($events as $event) {
                     $obj = new \stdClass();
@@ -179,7 +179,7 @@ class MediaDiscoveryController extends AbstractController
 
             $events = $eventRepository->findNonNSFWMediaEventsByPubkeys($filteredPubkeys, [20, 21, 22, 34235, 34236], self::MAX_DISPLAY_EVENTS);
 
-            $nip19 = new Nip19Helper();
+            $nip19 = new NostrNip19Service();
             foreach ($events as $event) {
                 $obj = new \stdClass();
                 $obj->id = $event->getId();
@@ -235,7 +235,7 @@ class MediaDiscoveryController extends AbstractController
 
             // Limit and convert
             $events = array_slice($events, 0, self::MAX_DISPLAY_EVENTS);
-            $nip19 = new Nip19Helper();
+            $nip19 = new NostrNip19Service();
 
             foreach ($events as $event) {
                 $obj = new \stdClass();

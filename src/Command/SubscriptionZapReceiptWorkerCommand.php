@@ -16,7 +16,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 /**
  * Worker that monitors for zap receipts (kind 9735) that match pending Updates Pro
@@ -45,7 +45,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
         // Normalize and convert npub to hex if needed
         $recipientPubkey = strtolower(trim($recipientPubkey));
         if (str_starts_with($recipientPubkey, 'npub1')) {
-            $key = new Key();
+            $key = new NostrKeyService();
             $this->recipientPubkeyHex = $key->convertToHex($recipientPubkey);
         } else {
             $this->recipientPubkeyHex = $recipientPubkey;

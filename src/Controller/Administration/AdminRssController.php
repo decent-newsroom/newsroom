@@ -10,10 +10,11 @@ use App\Service\ArticleEventProjector;
 use App\Service\Cache\RedisViewStore;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\RSS\RssFeedService;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -261,6 +262,7 @@ class AdminRssController extends AbstractController
     public function publish(
         Request $request,
         NostrClient $nostrClient,
+        NostrEventVerifier $eventVerifier,
         GenericEventProjector $genericEventProjector,
         ArticleEventProjector $articleEventProjector,
         UserRelayListService $userRelayListService,
@@ -277,8 +279,8 @@ class AdminRssController extends AbstractController
             $signedEvent = $data['event'];
 
             // Verify event signature
-            $eventObj = NostrEvent::fromVerified((object) $signedEvent);
-            if (!$eventObj->verify()) {
+            $eventObj = $eventVerifier->fromArray($signedEvent);
+            if (!$eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -568,10 +570,14 @@ class AdminRssController extends AbstractController
                 'message' => '',
             ];
 
-            if (is_object($response)) {
+            if ($response instanceof RelayPublishResult) {
+                $result['success'] = $response->ok;
+                $result['type'] = 'ok';
+                $result['message'] = $response->message ?? '';
+            } elseif (is_object($response)) {
                 $type = $response->type ?? '';
                 if ($type === 'OK') {
-                    $result['success'] = (bool) ($response->isSuccess ?? $response->status ?? false);
+                    $result['success'] = RelayPublishResult::isSuccessful($response);
                     $result['type'] = 'ok';
                     $result['message'] = $response->message ?? '';
                 } elseif ($type === 'AUTH') {
@@ -588,7 +594,7 @@ class AdminRssController extends AbstractController
                     $result['message'] = $response->message ?? '';
                 }
             } elseif (is_array($response)) {
-                $result['success'] = (bool) ($response['ok'] ?? false);
+                $result['success'] = RelayPublishResult::isSuccessful($response);
                 $result['type'] = 'ok';
                 $result['message'] = $response['message'] ?? '';
             }

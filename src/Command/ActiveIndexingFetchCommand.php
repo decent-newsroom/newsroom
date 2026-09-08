@@ -16,7 +16,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 /**
  * Fetches content for all active indexing subscribers from their declared relays
@@ -116,7 +116,7 @@ class ActiveIndexingFetchCommand extends Command
         $io->info(sprintf('Processing %d active subscription(s)...', count($subscriptions)));
         $io->progressStart(count($subscriptions));
 
-        $key = new Key();
+        $key = new NostrKeyService();
         $totalArticles = 0;
 
         foreach ($subscriptions as $subscription) {

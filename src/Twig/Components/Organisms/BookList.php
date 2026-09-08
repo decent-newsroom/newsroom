@@ -3,7 +3,7 @@
 namespace App\Twig\Components\Organisms;
 
 use App\Service\Graph\GraphMagazineListService;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
@@ -30,7 +30,7 @@ final class BookList
         $npub = $token?->getUserIdentifier();
         if ($npub) {
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $this->currentUserPubkey = $key->convertToHex($npub);
             } catch (\Throwable $e) {
                 // ignore

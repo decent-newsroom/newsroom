@@ -25,7 +25,7 @@ use App\Service\UserMuteListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -584,7 +584,7 @@ class HomeFeedController extends AbstractController
 
         // ── 4. Convert to stdClass for masonry template ──
         $mediaEvents = [];
-        $nip19 = new Nip19Helper();
+        $nip19 = new NostrNip19Service();
         foreach ($eventsArray as $event) {
             $obj = new \stdClass();
             $obj->id = $event->getId();

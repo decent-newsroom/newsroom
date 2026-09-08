@@ -12,6 +12,7 @@ use App\Form\MagazineCategoriesType;
 use App\Form\MagazineSetupType;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\PublicationSubdomainService;
 use App\Service\ReadingListManager;
 use App\Service\UserRolePromoter;
@@ -20,8 +21,8 @@ use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -287,7 +288,7 @@ class MagazineWizardController extends AbstractController
         $user = $this->getUser();
         if ($user && method_exists($user, 'getUserIdentifier')) {
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
             } catch (\Throwable $e) {
                 $pubkeyHex = null;
@@ -366,6 +367,7 @@ class MagazineWizardController extends AbstractController
         Request                   $request,
         EntityManagerInterface    $entityManager,
         NostrClient               $nostrClient,
+        NostrEventVerifier        $eventVerifier,
         LoggerInterface           $logger,
         UserRolePromoter          $userRolePromoter,
         EventIngestionListener    $eventIngestionListener,
@@ -377,17 +379,9 @@ class MagazineWizardController extends AbstractController
 
         $signedEvent = $data['event'];
 
-        // Convert array to swentel Event and verify
-        $eventObj = new Event();
-        $eventObj->setId($signedEvent['id'] ?? '');
-        $eventObj->setPublicKey($signedEvent['pubkey'] ?? '');
-        $eventObj->setCreatedAt($signedEvent['created_at'] ?? time());
-        $eventObj->setKind($signedEvent['kind'] ?? KindsEnum::PUBLICATION_INDEX->value);
-        $eventObj->setTags($signedEvent['tags'] ?? []);
-        $eventObj->setContent($signedEvent['content'] ?? '');
-        $eventObj->setSignature($signedEvent['sig'] ?? '');
+        $eventObj = $eventVerifier->fromArray($signedEvent);
 
-        if (!$eventObj->verify()) {
+        if (!$eventVerifier->verify($eventObj)) {
             return new JsonResponse(['error' => 'Verification failed'], 400);
         }
 
@@ -524,7 +518,7 @@ class MagazineWizardController extends AbstractController
         $draft = $this->getDraft($request);
         if ($draft && $draft->slug && $npub) {
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $pubkeyHex = $key->convertToHex($npub);
                 if ($pubkeyHex) {
                     $magazineCoordinate = sprintf('30040:%s:%s', $pubkeyHex, $draft->slug);
@@ -755,7 +749,7 @@ class MagazineWizardController extends AbstractController
         EntityManagerInterface $entityManager,
     ): void {
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkeyHex = $key->convertToHex($npub);
         } catch (\Throwable) {
             return;
@@ -931,7 +925,7 @@ class MagazineWizardController extends AbstractController
         // Try to decode as naddr
         if (str_starts_with($input, 'naddr1')) {
             try {
-                $helper = new \swentel\nostr\Nip19\Nip19Helper();
+                $helper = new NostrNip19Service();
                 $decoded = $helper->decode($input);
 
                 // The library returns 'author' (not 'pubkey') for naddr

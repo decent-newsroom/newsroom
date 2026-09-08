@@ -8,10 +8,9 @@ use App\Enum\IndexStatusEnum;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrSigner;
 use Doctrine\ORM\EntityManagerInterface;
 use FOS\ElasticaBundle\Persister\ObjectPersisterInterface;
-use swentel\nostr\Event\Event;
-use swentel\nostr\Sign\Sign;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -30,6 +29,7 @@ class NostrEventFromYamlDefinitionCommand extends Command
                                 private readonly ArticleFactory           $factory,
                                 ParameterBagInterface                     $bag,
                                 private readonly EntityManagerInterface   $entityManager,
+                                private readonly NostrSigner              $signer,
                                 private readonly ?ObjectPersisterInterface $itemPersister = null)
     {
         $this->nsec = $bag->get('nsec');
@@ -66,11 +66,7 @@ class NostrEventFromYamlDefinitionCommand extends Command
             $yamlContent = Yaml::parseFile($filePath);  // This parses the YAML file
 
             try {
-                // Deserialize YAML content into an Event object
-                $event = new Event();
-                $event->setKind(KindsEnum::PUBLICATION_INDEX->value);
                 $tags = $yamlContent['tags'];
-                $event->setTags($tags);
                 $items = array_filter($tags, function ($tag) {
                     return ($tag[0] === 'a');
                 });
@@ -79,18 +75,23 @@ class NostrEventFromYamlDefinitionCommand extends Command
                     $articleSlugsList[] = end($parts);
                 }
 
-                $signer = new Sign();
-                $signer->signEvent($event, $this->nsec);
+                $event = $this->signer->signWithPrivateKey(
+                    KindsEnum::PUBLICATION_INDEX->value,
+                    $tags,
+                    '',
+                    $this->nsec,
+                );
+                $eventData = $event->toArray();
 
                 // Persist event to database
                 $dbEvent = new \App\Entity\Event();
-                $dbEvent->setId($event->getId());
-                $dbEvent->setPubkey($event->getPublicKey());
-                $dbEvent->setCreatedAt($event->getCreatedAt());
-                $dbEvent->setKind($event->getKind());
-                $dbEvent->setTags($event->getTags());
-                $dbEvent->setContent($event->getContent() ?? '');
-                $dbEvent->setSig($event->getSignature());
+                $dbEvent->setId($eventData['id']);
+                $dbEvent->setPubkey($eventData['pubkey']);
+                $dbEvent->setCreatedAt($eventData['created_at']);
+                $dbEvent->setKind($eventData['kind']);
+                $dbEvent->setTags($eventData['tags']);
+                $dbEvent->setContent($eventData['content']);
+                $dbEvent->setSig($eventData['sig']);
                 $dbEvent->extractAndSetDTag();
                 $this->entityManager->persist($dbEvent);
                 $this->entityManager->flush();

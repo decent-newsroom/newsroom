@@ -13,7 +13,7 @@ use App\Repository\UpdateProSubscriptionRepository;
 use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 /**
  * Manages paid Updates Pro subscriptions.
@@ -46,7 +46,7 @@ class UpdateProService
         // Normalize and convert npub to hex if needed
         $recipientPubkey = strtolower(trim($recipientPubkey));
         if (str_starts_with($recipientPubkey, 'npub1')) {
-            $key = new Key();
+            $key = new NostrKeyService();
             $this->recipientPubkeyHex = $key->convertToHex($recipientPubkey);
         } else {
             $this->recipientPubkeyHex = $recipientPubkey;

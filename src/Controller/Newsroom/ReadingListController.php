@@ -13,7 +13,8 @@ use App\Helper\NavigationBuilderTrait;
 use App\Service\Cache\RedisCacheService;
 use App\Service\ReadingListManager;
 use Doctrine\ORM\EntityManagerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -50,7 +51,7 @@ class ReadingListController extends AbstractController
         $pubkeyHex = null;
         if ($user) {
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
             } catch (\Throwable $e) {
                 $pubkeyHex = null;
@@ -555,7 +556,7 @@ class ReadingListController extends AbstractController
         // Fallback to shortened npub if no name
         if (!$authorName) {
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $npub = $key->convertPublicKeyToBech32($parsed['pubkey']);
                 $authorName = substr($npub, 0, 8) . '...' . substr($npub, -4);
             } catch (\Throwable) {
@@ -586,7 +587,7 @@ class ReadingListController extends AbstractController
             }
 
             // Use the nostr library to decode naddr
-            $helper = new \swentel\nostr\Nip19\Nip19Helper();
+            $helper = new NostrNip19Service();
             $decoded = $helper->decode($naddr);
 
             // The library returns 'author' (not 'pubkey') for naddr

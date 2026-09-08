@@ -4,10 +4,7 @@ namespace App\Service\Nostr;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
-use nostriphant\NIP19\Data;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
-use swentel\nostr\Relay\RelaySet;
 
 /**
  * Facade over the focused Nostr service classes.
@@ -45,10 +42,13 @@ class NostrClient
     // Publishing
     // =========================================================================
 
-    public function publishEvent(Event $event, array $relays, int $timeout = 30, bool $ensureLocalRelay = true): array
+    public function publishEvent(object $event, array $relays, int $timeout = 30, bool $ensureLocalRelay = true): array
     {
+        $eventPubkey = $this->eventPubkey($event);
         if (empty($relays)) {
-            $relays = $this->userRelayListService->getTopRelaysForAuthor($event->getPublicKey());
+            $relays = $eventPubkey !== null
+                ? $this->userRelayListService->getTopRelaysForAuthor($eventPubkey)
+                : [];
         } elseif ($ensureLocalRelay) {
             $relays = $this->relayRegistry->ensureLocalRelayInList($relays);
             // Remove project relay URLs (e.g. wss://relay.decentnewsroom.com) from the
@@ -72,7 +72,7 @@ class NostrClient
         // does not want the event mirrored to the main content relay.
 
         $this->logger->info('Publishing event to relays', [
-            'event_id'       => $event->getId(),
+            'event_id'       => $this->eventId($event),
             'relay_count'    => count($relays),
             'relays'         => $relays,
             'timeout'        => $timeout,
@@ -83,11 +83,11 @@ class NostrClient
 
             // Publish directly to each relay independently. One relay failing
             // does not affect the others.
-            $results  = $this->executor->publish($event, $relays, $event->getPublicKey(), $timeout);
+            $results  = $this->executor->publish($event, $relays, $eventPubkey, $timeout);
             $duration = microtime(true) - $startTime;
 
             $this->logger->info('Completed relay publish', [
-                'event_id'     => $event->getId(),
+                'event_id'     => $this->eventId($event),
                 'duration'     => round($duration, 2),
                 'result_count' => count($results),
             ]);
@@ -96,7 +96,7 @@ class NostrClient
 
         } catch (\Exception $e) {
             $this->logger->error('Error publishing event to relays', [
-                'event_id' => $event->getId(),
+                'event_id' => $this->eventId($event),
                 'error'    => $e->getMessage(),
                 'trace'    => $e->getTraceAsString(),
             ]);
@@ -399,9 +399,29 @@ class NostrClient
     private function relaySetUrls(RelaySet $relaySet): array
     {
         return array_map(
-            static fn($relay): string => $relay->getUrl(),
+            static fn(RelayEndpoint $relay): string => $relay->getUrl(),
             $relaySet->getRelays(),
         );
+    }
+
+    private function eventId(object $event): ?string
+    {
+        if (method_exists($event, 'getId')) {
+            return (string) $event->getId();
+        }
+        return isset($event->id) ? (string) $event->id : null;
+    }
+
+    private function eventPubkey(object $event): ?string
+    {
+        if (method_exists($event, 'getPubkey')) {
+            $pubkey = $event->getPubkey();
+            return method_exists($pubkey, 'toHex') ? $pubkey->toHex() : (string) $pubkey;
+        }
+        if (method_exists($event, 'getPublicKey')) {
+            return $event->getPublicKey();
+        }
+        return isset($event->pubkey) ? (string) $event->pubkey : null;
     }
 
     private function containsTimeoutResponse(array $responses): bool
@@ -558,18 +578,21 @@ class NostrClient
             return null;
         }
 
-        /** @var Data $data */
-        $data = json_decode($descriptor->decoded);
+        $data = json_decode($descriptor->decoded, true);
+        if (!is_array($data) || !isset($data['kind'])) {
+            $this->logger->error('Invalid decoded descriptor payload', ['descriptor' => $descriptor]);
+            return null;
+        }
 
-        $request = isset($data->id)
+        $request = isset($data['id'])
             ? $this->executor->buildRequest(
-                kinds: [$data->kind],
-                filters: ['e' => [$data->id]],
+                kinds: [(int) $data['kind']],
+                filters: ['e' => [(string) $data['id']]],
                 relaySet: $this->relaySetFactory->getDefault()
             )
             : $this->executor->buildRequest(
-                kinds: [$data->kind],
-                filters: ['authors' => [$data->pubkey], 'd' => [$data->identifier]],
+                kinds: [(int) $data['kind']],
+                filters: ['authors' => [(string) ($data['pubkey'] ?? '')], 'd' => [(string) ($data['identifier'] ?? '')]],
                 relaySet: $this->relaySetFactory->getDefault()
             );
 

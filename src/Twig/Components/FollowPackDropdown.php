@@ -9,7 +9,7 @@ use App\Enum\KindsEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 #[AsTwigComponent]
 final class FollowPackDropdown
@@ -35,7 +35,7 @@ final class FollowPackDropdown
         }
 
         $npub = $user->getUserIdentifier();
-        $keys = new Key();
+        $keys = new NostrKeyService();
         $ownerPubkey = $keys->convertToHex($npub);
 
         $packs = $this->entityManager->getRepository(Event::class)->findBy(

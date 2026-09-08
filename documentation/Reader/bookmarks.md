@@ -50,7 +50,7 @@ Kind 10003 events were not being deduplicated in the bookmarks display. If a use
 
 **Publish flow**:
 1. Validate signed event structure and kind (must be 10003)
-2. Verify event signature via `swentel\nostr\Event\Event::verify()`
+2. Verify event signature via the host `NostrEventVerifier` adapter over Innis core
 3. Persist via `GenericEventProjector::projectEventFromNostrEvent()` — this handles:
    - Checking for existing newer versions
    - Persisting the new event

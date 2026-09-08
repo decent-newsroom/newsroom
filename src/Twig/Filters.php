@@ -8,9 +8,8 @@ use App\Entity\Article;
 use App\Entity\Event as AppEvent;
 use BitWasp\Bech32\Exception\Bech32Exception;
 use Exception;
-use swentel\nostr\Event\Event;
-use swentel\nostr\Key\Key;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrNip19Service;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 
@@ -81,7 +80,7 @@ class Filters extends AbstractExtension
 
     public function nEncode(string $eventId): string
     {
-        $nip19 = new Nip19Helper();
+        $nip19 = new NostrNip19Service();
         try {
             return $nip19->encodeNote($eventId);
         } catch (Bech32Exception) {
@@ -95,7 +94,7 @@ class Filters extends AbstractExtension
      */
     public function naddrEncode(Article|AppEvent $entity): string
     {
-        $nip19 = new Nip19Helper();
+        $nip19 = new NostrNip19Service();
 
         // Handle App\Entity\Event (e.g., magazines, lists)
         if ($entity instanceof AppEvent) {
@@ -104,25 +103,21 @@ class Filters extends AbstractExtension
                 return $nip19->encodeNote($entity->getEventId() ?? $entity->getId());
             }
 
-            // Create a swentel Event for encoding
-            $event = new Event();
-            $event->setId($entity->getEventId() ?? $entity->getId());
-            $event->setPublicKey($entity->getPubkey());
-            $event->setKind($entity->getKind());
+            $pubkey = $entity->getPubkey();
+            $kind = $entity->getKind()?->value;
+            if ($pubkey === null || $kind === null || $slug === null) {
+                return $nip19->encodeNote($entity->getEventId() ?? $entity->getId());
+            }
 
-            return $nip19->encodeAddr($event, $slug, $entity->getKind());
+            return $nip19->encodeAddr($pubkey, $slug, $kind);
         }
 
         // Handle Article entity
-        if ($entity->getRaw() !== null) {
-            $event = Event::fromVerified((object)$entity->getRaw());
-            if ($event === null) {
-                return $nip19->encodeNote($entity->getEventId());
-            }
-            return $nip19->encodeAddr($event, $entity->getSlug(), $entity->getKind()->value);
-        } else {
+        if ($entity->getRaw() === null || $entity->getPubkey() === null || $entity->getKind() === null || $entity->getSlug() === null) {
             return $nip19->encodeNote($entity->getEventId());
         }
+
+        return $nip19->encodeAddr($entity->getPubkey(), $entity->getSlug(), $entity->getKind()->value);
     }
 
     public function toNpub(string $hexPubKey): string
@@ -130,7 +125,7 @@ class Filters extends AbstractExtension
         try {
             // Normalize hex to lowercase
             $hexPubKey = strtolower(trim($hexPubKey));
-            $key = new Key();
+            $key = new NostrKeyService();
             return $key->convertPublicKeyToBech32($hexPubKey);
         } catch (\Throwable) {
             return $hexPubKey; // Return original hex if conversion fails
@@ -142,7 +137,7 @@ class Filters extends AbstractExtension
         try {
             // Normalize bech32 to lowercase (mixed case causes checksum errors)
             $npub = strtolower(trim($npub));
-            $key = new Key();
+            $key = new NostrKeyService();
             return $key->convertToHex($npub);
         } catch (\Throwable) {
             return $npub; // Return original string if conversion fails

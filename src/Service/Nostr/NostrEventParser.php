@@ -7,17 +7,10 @@ namespace App\Service\Nostr;
 use App\Dto\AdvancedMetadata;
 use App\Dto\MediaAttachment;
 use App\Dto\ZapSplit;
-use swentel\nostr\Key\Key;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 class NostrEventParser
 {
-    private Key $key;
-
-    public function __construct()
-    {
-        $this->key = new Key();
-    }
-
     /**
      * Parse tags from a Nostr event into AdvancedMetadata DTO
      *
@@ -139,7 +132,7 @@ class NostrEventParser
 
         // Convert hex to npub for display (more user-friendly)
         try {
-            $npub = $this->key->convertPublicKeyToBech32($pubkeyHex);
+            $npub = PublicKey::fromHex($pubkeyHex)?->toBech32() ?? throw new \InvalidArgumentException('Invalid public key');
         } catch (\Exception $e) {
             // If conversion fails, use hex
             $npub = $pubkeyHex;
@@ -202,4 +195,3 @@ class NostrEventParser
         return $data;
     }
 }
-

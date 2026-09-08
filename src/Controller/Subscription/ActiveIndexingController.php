@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 #[Route('/subscription/active-indexing')]
 class ActiveIndexingController extends AbstractController
@@ -37,7 +37,7 @@ class ActiveIndexingController extends AbstractController
 
             // Get NIP-65 relays for display
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $pubkeyHex = $key->convertToHex($npub);
                 $relayData = $this->userRelayListService->getRelayList($pubkeyHex);
                 $nip65Relays = $relayData['all'] ?? [];
@@ -110,7 +110,7 @@ class ActiveIndexingController extends AbstractController
         // Get NIP-65 relays for display
         $nip65Relays = [];
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkeyHex = $key->convertToHex($npub);
             $relayData = $this->userRelayListService->getRelayList($pubkeyHex);
             $nip65Relays = $relayData['all'] ?? [];

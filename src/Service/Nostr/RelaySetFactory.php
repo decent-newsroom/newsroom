@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Nostr;
 
 use App\Enum\RelayPurpose;
-use swentel\nostr\Relay\RelaySet;
 
 /**
  * Single point of responsibility for building RelaySet instances.
@@ -25,10 +24,9 @@ class RelaySetFactory
     private ?RelaySet $defaultRelaySet = null;
 
     public function __construct(
-        private readonly NostrRelayPool        $relayPool,
-        private readonly RelayRegistry         $relayRegistry,
-        private readonly UserRelayListService  $userRelayListService,
-        private readonly ?string               $nostrDefaultRelay = null,
+        private readonly RelayRegistry $relayRegistry,
+        private readonly UserRelayListService $userRelayListService,
+        private readonly ?string $nostrDefaultRelay = null,
     ) {}
 
     /**
@@ -38,7 +36,9 @@ class RelaySetFactory
     {
         $relaySet = new RelaySet();
         foreach ($relayUrls as $url) {
-            $relaySet->addRelay($this->relayPool->getRelay($url));
+            if (is_string($url) && $url !== '') {
+                $relaySet->addRelay(new RelayEndpoint($url));
+            }
         }
         return $relaySet;
     }
@@ -125,4 +125,3 @@ class RelaySetFactory
         return $this->fromUrls($this->relayRegistry->ensureLocalRelayInList($relayUrls));
     }
 }
-

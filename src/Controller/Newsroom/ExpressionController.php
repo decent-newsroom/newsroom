@@ -13,13 +13,14 @@ use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserRelayListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -374,6 +375,7 @@ class ExpressionController extends AbstractController
     public function publish(
         Request $request,
         NostrClient $nostrClient,
+        NostrEventVerifier $eventVerifier,
         GenericEventProjector $genericEventProjector,
         UserRelayListService $userRelayListService,
         LoggerInterface $logger,
@@ -403,17 +405,10 @@ class ExpressionController extends AbstractController
             }
 
             // Build a verifiable event object
-            $eventObj = new Event();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags'] ?? []);
-            $eventObj->setContent($signedEvent['content'] ?? '');
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = $eventVerifier->fromArray($signedEvent);
 
             // Verify the event signature
-            if (!$eventObj->verify()) {
+            if (!$eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -444,7 +439,7 @@ class ExpressionController extends AbstractController
 
             $successCount = 0;
             foreach ($relayResults as $result) {
-                if ($result === true || (is_object($result) && isset($result->type) && $result->type === 'OK')) {
+                if (RelayPublishResult::isSuccessful($result)) {
                     $successCount++;
                 }
             }
@@ -461,4 +456,3 @@ class ExpressionController extends AbstractController
         }
     }
 }
-

@@ -5,10 +5,11 @@ namespace App\Controller\Newsroom;
 use App\Entity\Highlight;
 use App\Enum\KindsEnum;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserRelayListService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,6 +19,7 @@ class HighlightController extends AbstractController
 {
     public function __construct(
         private readonly NostrClient $nostrClient,
+        private readonly NostrEventVerifier $eventVerifier,
         private readonly UserRelayListService $userRelayListService,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -46,17 +48,10 @@ class HighlightController extends AbstractController
             }
 
             // Convert the signed event array to a proper Event object for verification
-            $eventObj = new Event();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags']);
-            $eventObj->setContent($signedEvent['content']);
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = $this->eventVerifier->fromArray($signedEvent);
 
             // Verify the event signature
-            if (!$eventObj->verify()) {
+            if (!$this->eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -114,7 +109,7 @@ class HighlightController extends AbstractController
             $relayStatuses = [];
 
             foreach ($relayResults as $relayUrl => $result) {
-                $isSuccess = $result === true || (is_object($result) && isset($result->type) && $result->type === 'OK');
+                $isSuccess = RelayPublishResult::isSuccessful($result);
                 if ($isSuccess) {
                     $successCount++;
                 } else {

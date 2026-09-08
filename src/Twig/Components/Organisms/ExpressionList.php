@@ -10,7 +10,7 @@ use App\Enum\KindsEnum;
 use App\Service\Cache\RedisCacheService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 /**
  * Lists all known feed expressions (kind 30880) from the database,
@@ -111,7 +111,7 @@ final class ExpressionList
             ? $this->redisCacheService->getMultipleMetadata($authorPubkeys)
             : [];
 
-        $keyHelper = new Key();
+        $keyHelper = new NostrKeyService();
 
         // 5. Build the final output
         $result = [];

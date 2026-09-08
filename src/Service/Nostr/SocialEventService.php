@@ -7,9 +7,6 @@ namespace App\Service\Nostr;
 use App\Enum\KindBundles;
 use App\Enum\KindsEnum;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Subscription\Subscription;
 
 /**
  * Social interaction event operations: references, comments, zaps, highlights.
@@ -66,35 +63,11 @@ class SocialEventService
             return KindBundles::categorizeArticleSocial([]);
         }
 
-        $subscription   = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter         = new Filter();
-        $filter->setKinds(KindBundles::ARTICLE_SOCIAL);
-        $filter->setTag('#A', [$coordinate]);
-
+        $filter = ['kinds' => KindBundles::ARTICLE_SOCIAL, '#A' => [$coordinate]];
         if (is_int($since) && $since > 0) {
-            $filter->setSince($since);
+            $filter['since'] = $since;
         }
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-        $responses      = $this->relayPool->sendToRelays(
-            $relayUrls,
-            fn() => $requestMessage,
-            30,
-            $subscriptionId
-        );
-
-        $uniqueEvents = [];
-        $this->executor->process($responses, function ($event) use (&$uniqueEvents) {
-            $this->logger->debug('Received article social event', [
-                'event_id' => $event->id,
-                'kind'     => $event->kind ?? '?',
-            ]);
-            $uniqueEvents[$event->id] = $event;
-            return null;
-        });
-
-        $events = array_values($uniqueEvents);
+        $events = $this->executeFilters($relayUrls, [$filter], 30);
 
         $this->logger->info('Combined article social fetch complete', [
             'coordinate'  => $coordinate,
@@ -191,39 +164,18 @@ class SocialEventService
             return [];
         }
 
-        $subscription   = new Subscription();
-        $subscriptionId = $subscription->setId();
         $filters = [];
         $tagNames = $isCoordinate ? ['#A', '#a'] : ['#E', '#e'];
 
         foreach ($tagNames as $tagName) {
-            $filter = new Filter();
-            $filter->setTag($tagName, [$ref]);
-            $filter->setLimit(self::REFERENCE_FETCH_LIMIT);
-
+            $filter = [$tagName => [$ref], 'limit' => self::REFERENCE_FETCH_LIMIT];
             if (is_int($since) && $since > 0) {
-                $filter->setSince($since);
+                $filter['since'] = $since;
             }
-
             $filters[] = $filter;
         }
 
-        $requestMessage = new RequestMessage($subscriptionId, $filters);
-        $responses      = $this->relayPool->sendToRelays(
-            $relayUrls,
-            fn() => $requestMessage,
-            10,
-            $subscriptionId
-        );
-
-        $uniqueEvents = [];
-        $this->executor->process($responses, function ($event) use (&$uniqueEvents) {
-            $this->logger->debug('Received comment event', ['event_id' => $event->id]);
-            $uniqueEvents[$event->id] = $event;
-            return null;
-        });
-
-        return array_values($uniqueEvents);
+        return $this->executeFilters($relayUrls, $filters, 10);
     }
 
     // -------------------------------------------------------------------------
@@ -265,35 +217,16 @@ class SocialEventService
     {
         $this->logger->info('Fetching highlights from default relay');
 
-        $subscription   = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter         = new Filter();
-        $filter->setKinds([9802]);
-        $filter->setLimit($limit);
-        $filter->setSince(strtotime('-90 days'));
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
         $relayUrls = $this->nostrDefaultRelay
             ? [$this->nostrDefaultRelay]
             : [($this->relayPool->getDefaultRelays()[0] ?? null)];
         $relayUrls = array_filter($relayUrls);
 
-        $responses = $this->relayPool->sendToRelays(
-            $relayUrls,
-            fn() => $requestMessage,
-            30,
-            $subscriptionId
-        );
-
-        $uniqueEvents = [];
-        $this->executor->process($responses, function ($event) use (&$uniqueEvents) {
-            $this->logger->debug('Received highlight event', ['event_id' => $event->id]);
-            $uniqueEvents[$event->id] = $event;
-            return null;
-        });
-
-        return array_values($uniqueEvents);
+        return $this->executeFilters($relayUrls, [[
+            'kinds' => [9802],
+            'limit' => $limit,
+            'since' => strtotime('-90 days'),
+        ]], 30);
     }
 
     /**
@@ -304,15 +237,6 @@ class SocialEventService
     {
         $this->logger->info('Fetching highlights for article', ['coordinate' => $articleCoordinate]);
 
-        $subscription   = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter         = new Filter();
-        $filter->setKinds([9802]);
-        $filter->setLimit($limit);
-        $filter->setTags(['#a' => [$articleCoordinate]]);
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
         // Build relay list: local relay + default relays for broader coverage
         $relayUrls = [];
         if ($this->nostrDefaultRelay) {
@@ -320,7 +244,8 @@ class SocialEventService
         }
         $defaultRelays = $this->relayPool->getDefaultRelays();
         foreach ($defaultRelays as $relay) {
-            if (!in_array($relay, $relayUrls)) {
+            $relay = is_object($relay) ? $relay->getUrl() : (string) $relay;
+            if (!in_array($relay, $relayUrls, true)) {
                 $relayUrls[] = $relay;
             }
         }
@@ -332,7 +257,7 @@ class SocialEventService
             try {
                 $authorRelays = $this->userRelayListService->getRelaysForAuthorContent($authorPubkey, 5);
                 foreach ($authorRelays as $relay) {
-                    if (!in_array($relay, $relayUrls)) {
+                    if (!in_array($relay, $relayUrls, true)) {
                         $relayUrls[] = $relay;
                     }
                 }
@@ -357,21 +282,41 @@ class SocialEventService
             'relays' => $relayUrls,
         ]);
 
-        $responses = $this->relayPool->sendToRelays(
-            $relayUrls,
-            fn() => $requestMessage,
-            30,
-            $subscriptionId
+        return $this->executeFilters($relayUrls, [[
+            'kinds' => [9802],
+            'limit' => $limit,
+            '#a' => [$articleCoordinate],
+        ]], 30);
+    }
+
+    /**
+     * @param list<string> $relayUrls
+     * @param list<array<string, mixed>> $filters
+     * @return list<object>
+     */
+    private function executeFilters(array $relayUrls, array $filters, int $timeout): array
+    {
+        $request = new RelayQueryRequest(
+            $this->relaySetFactory->fromUrls($relayUrls),
+            array_map(
+                static fn (array $filter): array
+                    => NostrRequestExecutor::normaliseFilterArray($filter),
+                $filters,
+            ),
+        );
+        $request->setTimeout($timeout);
+
+        $events = $this->executor->process(
+            $this->executor->execute($request),
+            static fn (object $event): object => $event,
         );
 
-        $uniqueEvents = [];
-        $this->executor->process($responses, function ($event) use (&$uniqueEvents) {
-            $this->logger->debug('Received highlight event for article', ['event_id' => $event->id]);
-            $uniqueEvents[$event->id] = $event;
-            return null;
-        });
+        $unique = [];
+        foreach ($events as $event) {
+            $id = isset($event->id) ? (string) $event->id : spl_object_hash($event);
+            $unique[$id] = $event;
+        }
 
-        return array_values($uniqueEvents);
+        return array_values($unique);
     }
 }
-

@@ -74,6 +74,10 @@ class NostrEventBuilder
         // Advanced metadata tags
         if ($metadata) {
             $tags = array_merge($tags, $this->buildAdvancedTags($metadata));
+
+            if ($metadata->isProtected) {
+                $tags[] = ['-'];
+            }
         }
 
         return $tags;

@@ -100,7 +100,7 @@ Broadcast is exposed through the article overflow menu, not a standalone button 
    ↓
 5. Extracts raw event data (stored in article.raw field)
    ↓
-6. Reconstructs swentel\nostr\Event\Event object
+6. Reconstructs an Innis core `Event` object
    ↓
 7. Calls NostrClient::publishEvent()
    ↓
@@ -179,7 +179,7 @@ public function broadcastArticle(Request $request): JsonResponse
     // 1. Parse request (article_id or coordinate)
     // 2. Find article in database
     // 3. Get raw event data
-    // 4. Reconstruct Event object
+    // 4. Reconstruct an Innis core Event object
     // 5. Call NostrClient::publishEvent()
     // 6. Count successes/failures
     // 7. Return detailed results

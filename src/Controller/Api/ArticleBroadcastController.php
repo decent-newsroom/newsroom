@@ -4,11 +4,12 @@ namespace App\Controller\Api;
 
 use App\Repository\ArticleRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,6 +22,7 @@ class ArticleBroadcastController extends AbstractController
     public function __construct(
         private readonly ArticleRepository $articleRepository,
         private readonly NostrClient $nostrClient,
+        private readonly NostrEventVerifier $eventVerifier,
         private readonly LoggerInterface $logger,
         private readonly UserRelayListService $userRelayListService,
         private readonly RelayRegistry $relayRegistry,
@@ -249,7 +251,10 @@ class ArticleBroadcastController extends AbstractController
             // Reconstruct the Event object from raw data and fail with a clear
             // client-facing reason when the stored payload cannot be verified.
             try {
-                $event = Event::fromVerified((object)$rawEvent);
+                $event = $this->eventVerifier->fromArray($rawEvent);
+                if (!$this->eventVerifier->verify($event)) {
+                    throw new \InvalidArgumentException('Event signature verification failed');
+                }
             } catch (\Throwable $verificationError) {
                 $this->logger->warning('Broadcast rejected: event verification failed', [
                     'article_id' => $article->getId(),
@@ -303,10 +308,10 @@ class ArticleBroadcastController extends AbstractController
                 $message = '';
 
                 if (is_object($result)) {
-                    $success = (bool) ($result->isSuccess ?? $result->status ?? false);
+                    $success = RelayPublishResult::isSuccessful($result);
                     $message = $result->message ?? '';
                 } elseif (is_array($result)) {
-                    $success = (bool) ($result['ok'] ?? false);
+                    $success = RelayPublishResult::isSuccessful($result);
                     $message = $result['message'] ?? '';
                 }
 

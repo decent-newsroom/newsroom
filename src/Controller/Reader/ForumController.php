@@ -10,6 +10,8 @@ use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\Search\ContentSearchService;
@@ -20,7 +22,6 @@ use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -291,6 +292,7 @@ class ForumController extends AbstractController
     public function publishInterests(
         Request $request,
         NostrClient $nostrClient,
+        NostrEventVerifier $eventVerifier,
         UserRelayListService $userRelayListService,
         UserProfileService $userProfileService,
         LoggerInterface $logger,
@@ -309,16 +311,9 @@ class ForumController extends AbstractController
                 return new JsonResponse(['error' => 'Invalid event kind, expected ' . KindsEnum::INTERESTS->value], 400);
             }
 
-            $eventObj = new Event();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags']);
-            $eventObj->setContent($signedEvent['content'] ?? '');
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = $eventVerifier->fromArray($signedEvent);
 
-            if (!$eventObj->verify()) {
+            if (!$eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -340,7 +335,7 @@ class ForumController extends AbstractController
             $failCount = 0;
             $relayStatuses = [];
             foreach ($relayResults as $relayUrl => $result) {
-                $isSuccess = $result === true || (is_object($result) && isset($result->type) && $result->type === 'OK');
+                $isSuccess = RelayPublishResult::isSuccessful($result);
                 $isSuccess ? $successCount++ : $failCount++;
                 $relayStatuses[] = [
                     'relay' => $relayUrl,

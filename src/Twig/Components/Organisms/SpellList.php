@@ -11,7 +11,7 @@ use App\Service\Cache\RedisCacheService;
 use Doctrine\ORM\EntityManagerInterface;
 use nostriphant\NIP19\Bech32;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 /**
  * Lists all known spell events (kind 777, NIP-A7) from the database.
@@ -96,7 +96,7 @@ final class SpellList
             ? $this->redisCacheService->getMultipleMetadata($authorPubkeys)
             : [];
 
-        $keyHelper = new Key();
+        $keyHelper = new NostrKeyService();
         $result = [];
         foreach ($parsed as $p) {
             $event = $p['event'];

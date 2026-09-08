@@ -14,7 +14,9 @@ use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\NostrEventParser;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\ReplaceableEventCleanupService;
 use App\Service\UserRolePromoter;
@@ -27,8 +29,7 @@ use App\Message\RevalidateProfileCacheMessage;
 use App\Service\ProfileUpdateDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -93,7 +94,7 @@ class EditorController extends AbstractController
 
         $user = $this->getUser();
         if (!!$user) {
-            $key = new Key();
+            $key = new NostrKeyService();
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
 
             // Ensure user has relays - fetch if missing or empty.
@@ -192,7 +193,7 @@ class EditorController extends AbstractController
         // This route previews another user's article, but sidebar shows current user's lists for navigation.
         $advancedMetadata = null;
 
-        $key = new Key();
+        $key = new NostrKeyService();
         $pubkey = $key->convertToHex($npub);
         $slug = urldecode($slug);
         $repository = $entityManager->getRepository(Article::class);
@@ -293,6 +294,7 @@ class EditorController extends AbstractController
         NostrClient $nostrClient,
         LoggerInterface $logger,
         NostrEventParser $eventParser,
+        NostrEventVerifier $eventVerifier,
         UserEntityRepository $userRepository,
         UserRelayListService $userRelayListService,
         ArticleFactory $articleFactory,
@@ -317,9 +319,9 @@ class EditorController extends AbstractController
 
             $signedEvent = $data['event'];
             // Convert the signed event array to a proper Event object
-            $eventObj = Event::fromVerified((object)$signedEvent);
+            $eventObj = $eventVerifier->fromArray($signedEvent);
 
-            if (!$eventObj->verify()) {
+            if (!$eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -456,7 +458,7 @@ class EditorController extends AbstractController
                 // Try to get relays from the User entity in database
                 $logger->info('User session expired, attempting to get relays from event pubkey', ['pubkey' => $eventPubkeyHex]);
                 try {
-                    $key = new Key();
+                    $key = new NostrKeyService();
                     $eventNpub = $key->convertPublicKeyToBech32($eventPubkeyHex);
                     $eventUser = $userRepository->findOneBy(['npub' => $eventNpub]);
 
@@ -575,7 +577,7 @@ class EditorController extends AbstractController
             // Generate URL for the published article
             $redirectUrl = null;
             if (!$isDraft) {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $npub = $key->convertPublicKeyToBech32($article->getPubkey());
                 $redirectUrl = $this->generateUrl('author-article-slug', [
                     'npub' => $npub,
@@ -642,7 +644,7 @@ class EditorController extends AbstractController
 
                             $redirectUrl = null;
                             if (!$isDraft) {
-                                $key = new Key();
+                                $key = new NostrKeyService();
                                 $npub = $key->convertPublicKeyToBech32($savedArticle->getPubkey());
                                 $redirectUrl = $this->generateUrl('author-article-slug', [
                                     'npub' => $npub,
@@ -688,6 +690,8 @@ class EditorController extends AbstractController
      *  2. Gateway publish (external relays via RelayGatewayClient::publish()):
      *     Plain array ['ok' => bool, 'message' => string]
      *     (built by NostrRelayPool::publish() from the gateway's ok/errors maps)
+     *
+     *  3. Host-owned RelayPublishResult objects from typed relay adapters.
      */
     private function transformRelayResults(array $rawResults): array
     {
@@ -701,11 +705,15 @@ class EditorController extends AbstractController
                 'message' => '',
             ];
 
-            if (is_object($response)) {
+            if ($response instanceof RelayPublishResult) {
+                $result['success'] = $response->ok;
+                $result['type'] = 'ok';
+                $result['message'] = $response->message ?? '';
+            } elseif (is_object($response)) {
                 // Direct RelayResponseOk / RelayResponseAuth / RelayResponseNotice
                 $type = $response->type ?? '';
                 if ($type === 'OK') {
-                    $result['success'] = (bool) ($response->isSuccess ?? $response->status ?? false);
+                    $result['success'] = RelayPublishResult::isSuccessful($response);
                     $result['type']    = 'ok';
                     $result['message'] = $response->message ?? '';
                 } elseif ($type === 'AUTH') {
@@ -723,7 +731,7 @@ class EditorController extends AbstractController
                 }
             } elseif (is_array($response)) {
                 // Gateway publish result: ['ok' => bool, 'message' => string]
-                $result['success'] = (bool) ($response['ok'] ?? false);
+                $result['success'] = RelayPublishResult::isSuccessful($response);
                 $result['type']    = 'ok';
                 $result['message'] = $response['message'] ?? '';
             }

@@ -6,7 +6,10 @@ namespace App\Tests\Unit\Service\Nostr;
 
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\NostrRequestExecutor;
+use App\Service\Nostr\RelayEndpoint;
+use App\Service\Nostr\RelaySet;
 use App\Service\Nostr\RelaySetFactory;
+use App\Service\Nostr\RelayQueryRequest;
 use App\Service\Nostr\SocialEventService;
 use App\Service\Nostr\UserRelayListService;
 use PHPUnit\Framework\TestCase;
@@ -40,27 +43,29 @@ final class SocialEventServiceTest extends TestCase
                 'wss://default-2.example',
             ]);
 
-        $relayPool->expects($this->once())
-            ->method('sendToRelays')
-            ->willReturnCallback(function (array $relays, callable $messageFactory, int $timeout, string $subscriptionId) use ($coordinate): array {
-                TestCase::assertSame([
-                    'wss://local.example',
-                    'wss://author-1.example',
-                    'wss://default.example',
-                    'wss://default-2.example',
-                ], $relays);
-                TestCase::assertSame(10, $timeout);
-                TestCase::assertNotSame('', $subscriptionId);
+        $relaySetFactory->expects($this->once())
+            ->method('fromUrls')
+            ->with([
+                'wss://local.example',
+                'wss://author-1.example',
+                'wss://default.example',
+                'wss://default-2.example',
+            ])
+            ->willReturn(new RelaySet([
+                new RelayEndpoint('wss://local.example'),
+                new RelayEndpoint('wss://author-1.example'),
+                new RelayEndpoint('wss://default.example'),
+                new RelayEndpoint('wss://default-2.example'),
+            ]));
 
-                $payload = json_decode($messageFactory()->generate(), true, flags: JSON_THROW_ON_ERROR);
-                TestCase::assertCount(4, $payload);
-                TestCase::assertArrayNotHasKey('kinds', $payload[2]);
-                TestCase::assertArrayNotHasKey('kinds', $payload[3]);
-                TestCase::assertSame([$coordinate], $payload[2]['#A']);
-                TestCase::assertSame([$coordinate], $payload[3]['#a']);
-                TestCase::assertSame(500, $payload[2]['limit']);
-                TestCase::assertSame(500, $payload[3]['limit']);
-
+        $executor->expects($this->once())
+            ->method('execute')
+            ->with($this->isInstanceOf(RelayQueryRequest::class))
+            ->willReturnCallback(function (RelayQueryRequest $request) use ($coordinate): array {
+                self::assertCount(2, $request->getFilters());
+                self::assertSame([$coordinate], $request->getFilters()[0]['#A']);
+                self::assertSame([$coordinate], $request->getFilters()[1]['#a']);
+                self::assertIsArray($request->getFilters()[0]);
                 return [];
             });
 
@@ -80,4 +85,3 @@ final class SocialEventServiceTest extends TestCase
         self::assertSame([], $service->getComments($coordinate, null, $pubkey));
     }
 }
-

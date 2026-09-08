@@ -6,13 +6,13 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\RelayEndpoint;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayQueryRequest;
 use App\Service\Nostr\RelayRegistry;
+use App\Service\Nostr\RelaySet;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Subscription\Subscription;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -88,32 +88,18 @@ class BackfillProfilesCommand extends Command
             // Fetch metadata events (kind 0) from local relay
             $io->section('Fetching metadata events...');
 
-            $subscription = new Subscription();
-            $subscriptionId = $subscription->setId();
-
-            $filter = new Filter();
-            $filter->setKinds([KindsEnum::METADATA->value]); // kind 0
-            $filter->setLimit($limit);
-
-            $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-            // Send request to local relay
-            $responses = $this->relayPool->sendToRelays(
-                [$localRelay],
-                fn() => $requestMessage,
-                30,
-                $subscriptionId
+            $request = new RelayQueryRequest(
+                new RelaySet([new RelayEndpoint($localRelay)]),
+                [['kinds' => [KindsEnum::METADATA->value], 'limit' => $limit]],
             );
+            $request->setTimeout(30);
+            $responses = $this->relayPool->executeRequest($request);
 
             // Process responses
             $metadataEvents = [];
-            foreach ($responses as $relayUrl => $relayResponses) {
-                if (is_array($relayResponses)) {
-                    foreach ($relayResponses as $response) {
-                        if ($response->type === 'EVENT' && isset($response->event)) {
-                            $metadataEvents[] = $response->event;
-                        }
-                    }
+            foreach ($responses as $relayResult) {
+                foreach ($relayResult->events as $event) {
+                    $metadataEvents[] = (object) $event->toArray();
                 }
             }
 

@@ -2,7 +2,7 @@
 
 ## Problem
 
-The nostr-tools `SimplePool` (and the PHP-side `NostrRelayPool`) were being instantiated on every page, including pages that never interact with Nostr relays (e.g. static content, settings, admin views).
+The nostr-tools `SimplePool` (and the PHP-side `NostrRelayPool`) were being instantiated on every page, including pages that never interact with Nostr relays (e.g. static content, settings, admin views). The PHP pool now delegates direct relay work to the `nostr-client-bundle` factory and exposes only host-owned relay/query contracts.
 
 ### JavaScript side
 
@@ -31,6 +31,7 @@ Two Stimulus controllers on the `UserMenu` component caused the full `nostr-tool
 ### PHP
 
 - Marked `NostrRelayPool`, `NostrClient`, and `NostrRequestExecutor` as `lazy: true` in `services.yaml`. Symfony generates ghost object proxies (via `symfony/var-exporter`) that defer constructor execution until a method is actually called.
+- Direct reads, publishing, local subscriptions, and fetch-to-EOSE now use the Innis factory client. Legacy payload callers receive generic event envelopes at the application boundary, while typed callers use `RelayQueryRequest`/`RelayQueryResult`; Swentel relay and transport objects no longer leak through these services.
 
 ## Impact
 
@@ -40,4 +41,3 @@ Two Stimulus controllers on the `UserMenu` component caused the full `nostr-tool
 | Anonymous user, any page | `nostr-tools` loaded (via `utility--signer-modal`) | `nostr-tools` loaded only when login section is rendered |
 | PHP: page not using relays | `NostrRelayPool` constructor runs, builds relay list, logs | Ghost proxy created, no constructor work |
 | PHP: page using relays | Normal | First method call triggers construction (negligible overhead) |
-

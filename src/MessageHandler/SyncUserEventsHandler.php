@@ -8,16 +8,15 @@ use App\Enum\KindsEnum;
 use App\Message\SyncUserEventsMessage;
 use App\Message\WarmFollowsRelayPoolMessage;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayEndpoint;
 use App\Service\Nostr\RelayGatewayClient;
+use App\Service\Nostr\RelayQueryRequest;
 use App\Service\Nostr\RelayRegistry;
+use App\Service\Nostr\RelaySet;
 use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Relay\Relay;
-use swentel\nostr\Subscription\Subscription;
 
 /**
  * Batch-fetches all of the logged-in user's own events from their NIP-65
@@ -230,10 +229,10 @@ class SyncUserEventsHandler
 
     /**
      * Fetch directly via WebSocket (gateway disabled path).
-     * Uses NostrRelayPool::sendToRelays() with TweakedRequest so AUTH,
-     * PING/PONG, and CLOSE are handled correctly.
+     * Uses NostrRelayPool's typed Innis client request path so user-scoped
+     * AUTH and relay lifecycle handling stay at the application boundary.
      *
-     * @return array<int, array> Raw event arrays extracted from RelayResponseEvent objects
+     * @return array<int, array> Raw event arrays extracted from core events
      */
     private function fetchDirect(array $relayUrls, array $filter, string $pubkey): array
     {
@@ -242,45 +241,26 @@ class SyncUserEventsHandler
         ]);
 
         try {
-            $filterKinds   = $filter['kinds'] ?? [];
-            $filterAuthors = $filter['authors'] ?? [];
-            $filterSince   = $filter['since'] ?? null;
-            $filterLimit   = $filter['limit'] ?? self::FETCH_LIMIT;
-
-            $responses = $this->relayPool->sendToRelays(
-                $relayUrls,
-                function () use ($filterKinds, $filterAuthors, $filterSince, $filterLimit) {
-                    $subscription = new Subscription();
-                    $subscriptionId = $subscription->setId();
-
-                    $f = new Filter();
-                    $f->setKinds($filterKinds);
-                    $f->setAuthors($filterAuthors);
-                    $f->setLimit($filterLimit);
-                    if ($filterSince !== null) {
-                        $f->setSince($filterSince);
-                    }
-
-                    return new RequestMessage($subscriptionId, [$f]);
-                },
-                self::TIMEOUT,
-                null,
-                $pubkey,
+            $request = new RelayQueryRequest(
+                new RelaySet(array_map(
+                    static fn (string $url): RelayEndpoint => new RelayEndpoint($url),
+                    $relayUrls,
+                )),
+                [$filter],
             );
+            $request->setTimeout(self::TIMEOUT)->requestedBy($pubkey);
+            $responses = $this->relayPool->executeRequest($request);
 
-            // Flatten RelayResponseEvent objects → raw event arrays, deduplicating by ID
+            // Flatten typed core events to raw arrays, deduplicating by ID.
             $events  = [];
             $seenIds = [];
-            foreach ($responses as $relayResponses) {
-                foreach ($relayResponses as $item) {
-                    if (!is_object($item) || ($item->type ?? '') !== 'EVENT' || !isset($item->event)) {
-                        continue;
-                    }
-                    $event = $item->event;
-                    $id    = $event->id ?? null;
+            foreach ($responses as $relayResult) {
+                foreach ($relayResult->events as $event) {
+                    $eventData = $event->toArray();
+                    $id = $eventData['id'] ?? null;
                     if ($id && !isset($seenIds[$id])) {
                         $seenIds[$id] = true;
-                        $events[] = json_decode(json_encode($event), true);
+                        $events[] = $eventData;
                     }
                 }
             }

@@ -8,7 +8,7 @@ use App\Message\FetchMediaEventsMessage;
 use App\Repository\EventRepository;
 use App\Service\MutedPubkeysService;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -106,7 +106,7 @@ class CacheMediaDiscoveryCommand extends Command
 
                 // Convert Event entities to simple objects for caching
                 $mediaEvents = [];
-                $nip19 = new Nip19Helper();
+                $nip19 = new NostrNip19Service();
 
                 foreach ($events as $event) {
                     $obj = new \stdClass();

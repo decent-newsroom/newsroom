@@ -466,7 +466,7 @@ final class ReadingNookController extends AbstractController
                     ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($sourceValue))
                     : $sourceValue;
 
-                if (!PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
+                if (PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) === null) {
                     return null;
                 }
 

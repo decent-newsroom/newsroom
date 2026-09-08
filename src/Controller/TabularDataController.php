@@ -7,7 +7,6 @@ namespace App\Controller;
 use App\Enum\KindsEnum;
 use App\Form\TabularDataType;
 use App\Service\Nostr\NostrClient;
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,12 +24,8 @@ class TabularDataController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $data = $form->getData();
 
-            // Create the event
-            $event = new Event();
-            $event->setKind(KindsEnum::TABULAR_DATA->value);
-            $event->setContent($data['csvContent']);
-
-            // Add tags
+            // Build the unsigned event payload; the browser adds the user's
+            // identity, ID, and signature before publishing.
             $tags = [
                 ['title', $data['title']],
                 ['m', 'text/csv'],
@@ -49,9 +44,11 @@ class TabularDataController extends AbstractController
                 }
             }
 
-            foreach ($tags as $tag) {
-                $event->addTag($tag);
-            }
+            $event = [
+                'kind' => KindsEnum::TABULAR_DATA->value,
+                'content' => $data['csvContent'],
+                'tags' => $tags,
+            ];
 
             // For now, just render the event JSON
             return $this->render('tabular_data/preview.html.twig', [

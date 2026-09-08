@@ -7,7 +7,7 @@ use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
 use App\Repository\EventRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrNip19Service;
 
 /**
  * Nostr events
@@ -291,7 +291,7 @@ class Event implements EventInterface, DirectoryEventInterface
     public function encodeAsNote1(): ?string
     {
         try {
-            $nip19 = new Nip19Helper();
+            $nip19 = new NostrNip19Service();
             return $nip19->encodeNote($this->id);
         } catch (\Throwable) {
             return null;

@@ -9,7 +9,7 @@ use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Repository\ArticleRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,7 +28,7 @@ class MyContentController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function index(EntityManagerInterface $em, Request $request): Response
     {
-        $key = new Key();
+        $key = new NostrKeyService();
         $pubkeyHex = $key->convertToHex($this->getUser()->getUserIdentifier());
 
         /** @var ArticleRepository $articleRepository */

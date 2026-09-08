@@ -2,13 +2,13 @@
 
 namespace App\Twig\Components\Molecules;
 
-use swentel\nostr\Event\Event;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
 final class Card
 {
-    public ?Event $category = null; // category index passed from parent (optional)
+    /** @var list<list<string>>|null */
+    public ?array $category = null; // category index tags passed from parent (optional)
     public ?string $cat = null; // computed category slug from $category (optional)
     public ?string $mag = null; // magazine slug passed from parent (optional)
     /** @var object|array<string, mixed> */
@@ -21,14 +21,15 @@ final class Card
     public array $source_labels = [];
     public ?string $category_label = null;
 
-    public function mount(?Event $category = null): void
+    /** @param list<list<string>>|null $category */
+    public function mount(?array $category = null): void
     {
-        if ($category) {
-            $tags = $category->getTags();
-            $dTag = array_filter($tags, function($tag) {
+        if ($category !== null) {
+            $dTag = array_filter($category, function($tag) {
                 return ($tag[0] === 'd');
             });
-            $this->cat = array_pop($dTag)[1];
+            $selectedTag = array_pop($dTag);
+            $this->cat = $selectedTag[1] ?? null;
         }
     }
 

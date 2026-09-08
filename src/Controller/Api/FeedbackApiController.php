@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Service\GenericEventProjector;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\RelayPublishResult;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +27,7 @@ class FeedbackApiController extends AbstractController
     #[Route('/api/nostr/publish', name: 'api_nostr_publish', methods: ['POST'])]
     public function publish(
         Request $request,
+        NostrEventVerifier $eventVerifier,
         NostrClient $nostrClient,
         GenericEventProjector $genericEventProjector,
         LoggerInterface $logger,
@@ -56,17 +58,10 @@ class FeedbackApiController extends AbstractController
             }
 
             // Build a verifiable event object
-            $eventObj = new Event();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags'] ?? []);
-            $eventObj->setContent($signedEvent['content'] ?? '');
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = $eventVerifier->fromArray($signedEvent);
 
             // Verify the event signature
-            if (!$eventObj->verify()) {
+            if (!$eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -90,7 +85,7 @@ class FeedbackApiController extends AbstractController
 
             $successCount = 0;
             foreach ($relayResults as $result) {
-                if ($result === true || (is_object($result) && isset($result->type) && $result->type === 'OK')) {
+                if (RelayPublishResult::isSuccessful($result)) {
                     $successCount++;
                 }
             }
@@ -106,4 +101,3 @@ class FeedbackApiController extends AbstractController
         }
     }
 }
-

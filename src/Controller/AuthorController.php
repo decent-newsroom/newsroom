@@ -29,8 +29,8 @@ use Pagerfanta\Pagerfanta;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -353,7 +353,7 @@ class AuthorController extends AbstractController
 
         // Convert npub to hex pubkey
         try {
-            $keys = new Key();
+            $keys = new NostrKeyService();
             $pubkeyHex = $keys->convertToHex($npub);
         } catch (\Exception $e) {
             throw $this->createNotFoundException('Invalid npub');
@@ -778,7 +778,7 @@ class AuthorController extends AbstractController
 
         $page = $request->query->getInt('page', 2); // Default to page 2
 
-        $keys = new Key();
+        $keys = new NostrKeyService();
         $pubkey = $keys->convertToHex($npub);
 
         // Get paginated data from cache - 24 items per page
@@ -787,7 +787,7 @@ class AuthorController extends AbstractController
 
         // Encode event IDs as note1... for each event
         foreach ($mediaEvents as $event) {
-            $nip19 = new Nip19Helper();
+            $nip19 = new NostrNip19Service();
             $event->noteId = $nip19->encodeNote($event->id);
         }
 
@@ -839,7 +839,7 @@ class AuthorController extends AbstractController
         $profileId = $useVanity ? $vanityName : $npub;
         $routePrefix = $useVanity ? 'author-vanity-' : 'author-';
 
-        $keys = new Key();
+        $keys = new NostrKeyService();
         $pubkey = $keys->convertToHex($npub);
         $authorMetadata = $redisCacheService->getMetadata($pubkey);
         $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility
@@ -1527,7 +1527,7 @@ class AuthorController extends AbstractController
                     // Batch-resolve all member profiles at once
                     $metadataMap = $redisCacheService->getMultipleMetadata($memberPubkeys);
 
-                    $nip19 = new Nip19Helper();
+                    $nip19 = new NostrNip19Service();
                     $resolved = [];
                     $missingProfilePubkeys = [];
 
@@ -1583,7 +1583,7 @@ class AuthorController extends AbstractController
         // Iterate over all follows but collect only those with locally cached
         // metadata (names & avatars), so the list shows rich profiles.
         $followsProfiles = [];
-        $nip19 = new Nip19Helper();
+        $nip19 = new NostrNip19Service();
         foreach ($followsPubkeys as $hexPubkey) {
             if (count($followsProfiles) >= 50) {
                 break;
@@ -1662,7 +1662,7 @@ class AuthorController extends AbstractController
                         try {
                             $memberMeta = $redisCacheService->getMetadata($memberHex);
                             $memberStd = $memberMeta->toStdClass();
-                            $nip19 = new Nip19Helper();
+                            $nip19 = new NostrNip19Service();
                             $memberNpub = $nip19->encodeNpub($memberHex);
                             $members[] = [
                                 'npub' => $memberNpub,
@@ -1693,7 +1693,7 @@ class AuthorController extends AbstractController
         $mediaEvents = $paginatedData['events'];
 
         foreach ($mediaEvents as $event) {
-            $nip19 = new Nip19Helper();
+            $nip19 = new NostrNip19Service();
             $event->noteId = $nip19->encodeNote($event->id);
         }
 
@@ -2258,7 +2258,7 @@ class AuthorController extends AbstractController
     #[Route('/p/{pubkey}', name: 'author-redirect', requirements: ['pubkey' => '^(?!npub1)[0-9a-f]{64}$'])]
     public function authorRedirect($pubkey): Response
     {
-        $keys = new Key();
+        $keys = new NostrKeyService();
         $npub = $keys->convertPublicKeyToBech32($pubkey);
         return $this->redirectToRoute('author-profile', ['npub' => $npub]);
     }

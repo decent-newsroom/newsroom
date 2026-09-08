@@ -8,12 +8,13 @@ use App\Enum\KindsEnum;
 use App\Entity\Event as EventEntity;
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +27,7 @@ final class PublicationBroadcastController extends AbstractController
     public function __construct(
         private readonly EventRepository $eventRepository,
         private readonly NostrClient $nostrClient,
+        private readonly NostrEventVerifier $eventVerifier,
         private readonly LoggerInterface $logger,
         private readonly UserRelayListService $userRelayListService,
         private readonly RelayRegistry $relayRegistry,
@@ -209,7 +211,10 @@ final class PublicationBroadcastController extends AbstractController
             }
 
             try {
-                $event = Event::fromVerified((object) $this->toRawEventPayload($publication));
+                $event = $this->eventVerifier->fromArray($this->toRawEventPayload($publication));
+                if (!$this->eventVerifier->verify($event)) {
+                    throw new \InvalidArgumentException('Event signature verification failed');
+                }
             } catch (Throwable $verificationError) {
                 $this->logger->warning('Publication broadcast rejected: event verification failed', [
                     'event_id' => $publication->getId(),
@@ -250,10 +255,10 @@ final class PublicationBroadcastController extends AbstractController
                 $message = '';
 
                 if (is_object($result)) {
-                    $success = (bool) ($result->isSuccess ?? $result->status ?? false);
+                    $success = RelayPublishResult::isSuccessful($result);
                     $message = (string) ($result->message ?? '');
                 } elseif (is_array($result)) {
-                    $success = (bool) ($result['ok'] ?? false);
+                    $success = RelayPublishResult::isSuccessful($result);
                     $message = (string) ($result['message'] ?? '');
                 }
 
@@ -305,5 +310,3 @@ final class PublicationBroadcastController extends AbstractController
         }
     }
 }
-
-

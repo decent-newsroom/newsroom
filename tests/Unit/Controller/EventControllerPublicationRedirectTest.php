@@ -14,13 +14,12 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
+use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\UserRelayListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event as NostrEvent;
-use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -257,12 +256,10 @@ class EventControllerPublicationRedirectTest extends TestCase
 
     private function encodeNaddr(Event $event): string
     {
-        $nip19 = new Nip19Helper();
-        $nostr = new NostrEvent();
-        $nostr->setId($event->getId());
-        $nostr->setPublicKey($event->getPubkey());
-        $nostr->setKind($event->getKind());
-
-        return $nip19->encodeAddr($nostr, (string) $event->getDTag(), $event->getKind());
+        return (new NostrNip19Service())->encodeAddr(
+            $event->getPubkey(),
+            (string) $event->getDTag(),
+            $event->getKind(),
+        );
     }
 }

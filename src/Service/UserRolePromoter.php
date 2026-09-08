@@ -9,7 +9,7 @@ use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 
 /**
  * Automatically promotes users to higher roles based on their publishing activity.
@@ -62,7 +62,7 @@ class UserRolePromoter
         $pubkeyHex = strtolower(trim($pubkeyHex));
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $npub = $key->convertPublicKeyToBech32($pubkeyHex);
         } catch (\Throwable $e) {
             $this->logger->debug('UserRolePromoter: could not convert pubkey to npub', [

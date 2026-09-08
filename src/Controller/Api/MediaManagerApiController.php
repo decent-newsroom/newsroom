@@ -9,9 +9,10 @@ use App\Service\Media\MediaProviderRegistry;
 use App\Service\Media\MediaPublisher;
 use App\Service\Media\MediaRelayQueryService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,6 +31,7 @@ class MediaManagerApiController extends AbstractController
         private readonly MediaRelayQueryService $relayQueryService,
         private readonly MediaPublisher $mediaPublisher,
         private readonly NostrClient $nostrClient,
+        private readonly NostrEventVerifier $eventVerifier,
         private readonly UserRelayListService $userRelayListService,
         private readonly LoggerInterface $logger,
     ) {}
@@ -244,8 +246,8 @@ class MediaManagerApiController extends AbstractController
         }
 
         try {
-            $eventObj = NostrEvent::fromVerified((object) $signedEvent);
-            if (!$eventObj->verify()) {
+            $eventObj = $this->eventVerifier->fromArray($signedEvent);
+            if (!$this->eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['success' => false, 'error' => 'Event signature verification failed'], 400);
             }
         } catch (\Throwable $e) {
@@ -268,9 +270,7 @@ class MediaManagerApiController extends AbstractController
 
             $successCount = 0;
             foreach ($results as $result) {
-                $ok = is_object($result)
-                    ? (bool) ($result->isSuccess ?? $result->status ?? false)
-                    : (bool) ($result['ok'] ?? false);
+                $ok = RelayPublishResult::isSuccessful($result);
                 if ($ok) {
                     $successCount++;
                 }

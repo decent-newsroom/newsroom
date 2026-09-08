@@ -18,7 +18,7 @@ use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -300,7 +300,7 @@ class UpdatesController extends AbstractController
 
         // naddr1…
         if (str_starts_with($raw, 'naddr1')) {
-            $decoded = (new Nip19Helper())->decode($raw);
+            $decoded = (new NostrNip19Service())->decode($raw);
             if (!isset($decoded['kind'], $decoded['author'], $decoded['identifier'])) {
                 throw new \InvalidArgumentException('Malformed naddr');
             }

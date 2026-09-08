@@ -6,20 +6,18 @@ namespace App\Service\Admin;
 
 use App\Message\FetchRelayMonitorEventsMessage;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayEndpoint;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\RelayFilterStatsStore;
+use App\Service\Nostr\RelayQueryRequest;
+use App\Service\Nostr\RelaySet;
 use App\Repository\RelayInformationRepository;
 use App\Repository\TrustedRelayMonitorRepository;
 use App\Service\Nostr\RelayDirectoryService;
 use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Relay\Relay;
-use swentel\nostr\Request\Request;
-use swentel\nostr\Subscription\Subscription;
 
 /**
  * Service to interact with the strfry relay
@@ -104,35 +102,14 @@ class RelayAdminService
         try {
             $relayUrl = $this->getLocalRelayUrl();
 
-            // Create relay connection
-            $relay = new Relay($relayUrl);
-
-            // Create subscription
-            $subscription = new Subscription();
-            $subscriptionId = $subscription->setId();
-
-            // Create filter for recent events (kind 30023 - articles)
-            $filter = new Filter();
-            $filter->setKinds([30023, 9802]); // Articles, highlights
-            $filter->setLimit($limit);
-
-            // Create and send request
-            $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-            $request = new Request($relay, $requestMessage);
-
-            // Get response with timeout
-            $response = $request->send();
-
             $events = [];
-            if (is_array($response) && !empty($response)) {
-                foreach ($response as $relayResponse) {
-                    if (is_array($relayResponse)) {
-                        foreach ($relayResponse as $item) {
-                            if (isset($item->type) && $item->type === 'EVENT' && isset($item->event)) {
-                                $events[] = (array)$item->event;
-                            }
-                        }
-                    }
+            $request = new RelayQueryRequest(
+                new RelaySet([new RelayEndpoint($relayUrl)]),
+                [['kinds' => [30023, 9802], 'limit' => $limit]],
+            );
+            foreach ($this->relayPool->executeRequest($request) as $result) {
+                foreach ($result->events as $event) {
+                    $events[] = $event->toArray();
                 }
             }
 
@@ -149,29 +126,13 @@ class RelayAdminService
     private function estimateEventCount(string $relayUrl): int
     {
         try {
-            $relay = new Relay($relayUrl);
-            $subscription = new Subscription();
-            $subscriptionId = $subscription->setId();
-
-            // Query for a sample to check if relay has events
-            $filter = new Filter();
-            $filter->setLimit(100);
-
-            $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-            $request = new Request($relay, $requestMessage);
-            $response = $request->send();
-
             $count = 0;
-            if (is_array($response) && !empty($response)) {
-                foreach ($response as $relayResponse) {
-                    if (is_array($relayResponse)) {
-                        foreach ($relayResponse as $item) {
-                            if (isset($item->type) && $item->type === 'EVENT') {
-                                $count++;
-                            }
-                        }
-                    }
-                }
+            $request = new RelayQueryRequest(
+                new RelaySet([new RelayEndpoint($relayUrl)]),
+                [['limit' => 100]],
+            );
+            foreach ($this->relayPool->executeRequest($request) as $result) {
+                $count += count($result->events);
             }
 
             return $count;

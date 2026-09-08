@@ -3,11 +3,13 @@
 namespace App\Controller\Api;
 
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserRelayListService;
+use Innis\Nostr\Core\Domain\Entity\Event;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,6 +21,7 @@ class NotePublishController extends AbstractController
     public function __construct(
         private readonly NostrClient $nostrClient,
         private readonly UserRelayListService $userRelayListService,
+        private readonly NostrEventVerifier $eventVerifier,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -48,9 +51,9 @@ class NotePublishController extends AbstractController
         }
 
         try {
-            $eventObj = Event::fromVerified((object) $signedEvent);
+            $eventObj = $this->eventVerifier->fromArray($signedEvent);
 
-            if (!$eventObj->verify()) {
+            if (!$this->eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['success' => false, 'error' => 'Event signature verification failed'], 400);
             }
         } catch (\Throwable $e) {
@@ -71,9 +74,7 @@ class NotePublishController extends AbstractController
 
             $successCount = 0;
             foreach ($results as $result) {
-                $ok = is_object($result)
-                    ? (bool) ($result->isSuccess ?? $result->status ?? false)
-                    : (bool) ($result['ok'] ?? false);
+                $ok = RelayPublishResult::isSuccessful($result);
                 if ($ok) {
                     $successCount++;
                 }
@@ -90,4 +91,3 @@ class NotePublishController extends AbstractController
         }
     }
 }
-

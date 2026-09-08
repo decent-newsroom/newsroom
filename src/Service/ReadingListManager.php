@@ -7,7 +7,7 @@ namespace App\Service;
 use App\Dto\CategoryDraft;
 use App\Entity\Event;
 use Doctrine\ORM\EntityManagerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use function Webmozart\Assert\Tests\StaticAnalysis\startsWith;
@@ -39,7 +39,7 @@ class ReadingListManager
         }
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
         } catch (\Throwable $e) {
             return [];
@@ -196,7 +196,7 @@ class ReadingListManager
         }
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
         } catch (\Throwable $e) {
             return null;
@@ -329,7 +329,7 @@ class ReadingListManager
         }
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
         } catch (\Throwable $e) {
             return [];

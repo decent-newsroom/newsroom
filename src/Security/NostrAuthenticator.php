@@ -4,7 +4,7 @@ namespace App\Security;
 
 use App\Entity\Event;
 use Mdanter\Ecc\Crypto\Signature\SchnorrSigner;
-use swentel\nostr\Key\Key;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -234,10 +234,10 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
     private function convertToUserIdentifier(string $pubkey): string
     {
         try {
-            $key = new Key();
             // Normalize hex pubkey to lowercase
             $pubkey = strtolower(trim($pubkey));
-            return $key->convertPublicKeyToBech32($pubkey);
+            return PublicKey::fromHex($pubkey)?->toBech32()
+                ?? throw new \InvalidArgumentException('Invalid public key.');
         } catch (\Throwable $e) {
             throw new AuthenticationException('Failed to convert public key to user identifier: ' . $e->getMessage());
         }

@@ -14,7 +14,9 @@ use App\Repository\EventRepository;
 use App\Service\ActiveIndexingService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\PaymentTargetService;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
@@ -25,8 +27,7 @@ use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event as NostrEvent;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -197,6 +198,7 @@ class SettingsController extends AbstractController
         Request $request,
         NostrClient $nostrClient,
         UserRelayListService $userRelayListService,
+        NostrEventVerifier $eventVerifier,
         UserProfileService $userProfileService,
         LoggerInterface $logger,
     ): JsonResponse {
@@ -219,18 +221,10 @@ class SettingsController extends AbstractController
                 return new JsonResponse(['error' => 'Invalid event kind, expected ' . KindsEnum::METADATA->value], 400);
             }
 
-            // Convert to swentel Event object for verification and publishing
-            $eventObj = new NostrEvent();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags'] ?? []);
-            $eventObj->setContent($signedEvent['content'] ?? '');
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = $eventVerifier->fromArray($signedEvent);
 
             // Verify signature
-            if (!$eventObj->verify()) {
+            if (!$eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -273,7 +267,7 @@ class SettingsController extends AbstractController
             $successCount = 0;
             $failCount = 0;
             foreach ($relayResults as $relayUrl => $result) {
-                $isSuccess = $result === true || (is_object($result) && isset($result->type) && $result->type === 'OK');
+                $isSuccess = RelayPublishResult::isSuccessful($result);
                 if ($isSuccess) {
                     $successCount++;
                 } else {
@@ -301,6 +295,7 @@ class SettingsController extends AbstractController
         Request $request,
         NostrClient $nostrClient,
         UserRelayListService $userRelayListService,
+        NostrEventVerifier $eventVerifier,
         UserProfileService $userProfileService,
         LoggerInterface $logger,
     ): JsonResponse {
@@ -323,16 +318,9 @@ class SettingsController extends AbstractController
                 return new JsonResponse(['error' => 'Event kind not allowed'], 400);
             }
 
-            $eventObj = new NostrEvent();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags'] ?? []);
-            $eventObj->setContent($signedEvent['content'] ?? '');
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = $eventVerifier->fromArray($signedEvent);
 
-            if (!$eventObj->verify()) {
+            if (!$eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -383,7 +371,7 @@ class SettingsController extends AbstractController
 
             $successCount = 0;
             foreach ($relayResults as $result) {
-                if ($result === true || (is_object($result) && isset($result->type) && $result->type === 'OK')) {
+                if (RelayPublishResult::isSuccessful($result)) {
                     $successCount++;
                 }
             }
@@ -781,7 +769,7 @@ class SettingsController extends AbstractController
         // collect only those with locally cached metadata (names & avatars).
         // This ensures the suggestion list shows rich profiles, not raw npubs.
         $followsProfiles = [];
-        $nip19 = new Nip19Helper();
+        $nip19 = new NostrNip19Service();
         foreach ($followsPubkeys as $hexPubkey) {
             if (count($followsProfiles) >= 50) {
                 break;
@@ -1109,4 +1097,3 @@ class SettingsController extends AbstractController
         return $relays;
     }
 }
-

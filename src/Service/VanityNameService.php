@@ -10,7 +10,7 @@ use App\Enum\VanityNameStatus;
 use App\Repository\UserRelayListRepository;
 use App\Repository\VanityNameRepository;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -124,7 +124,7 @@ class VanityNameService
         }
 
         // Convert npub to hex
-        $key = new Key();
+        $key = new NostrKeyService();
         $pubkeyHex = $key->convertToHex($npub);
         $vanityName = new VanityName($name, $npub, $pubkeyHex, $paymentType);
 

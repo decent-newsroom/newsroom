@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
-use swentel\nostr\Relay\Relay;
-
 /**
  * Formal interface for the Nostr relay connection pool.
  *
@@ -17,7 +15,7 @@ interface RelayPoolInterface
     /**
      * Get (or create) a single relay connection by URL.
      */
-    public function getRelay(string $url): Relay;
+    public function getRelay(string $url): RelayEndpoint;
 
     /**
      * Get multiple relay connections, local relay first.
@@ -25,7 +23,7 @@ interface RelayPoolInterface
      * External relays are sorted by health score (highest first).
      *
      * @param string[] $urls
-     * @return Relay[]
+     * @return RelayEndpoint[]
      */
     public function getRelays(array $urls): array;
 
@@ -36,11 +34,11 @@ interface RelayPoolInterface
      * The local relay always goes direct.
      *
      * @param string[]  $relayUrls
-     * @param callable  $messageBuilder   Builds the message to send
+     * @param callable  $messageBuilder   Builds a REQ message or payload
      * @param int|null  $timeout          Optional per-relay timeout
      * @param string|null $subscriptionId Optional sub ID to CLOSE after EOSE
      * @param string|null $pubkey         User pubkey for AUTH-gated routing
-     * @return array
+     * @return array<string, array<int, object>>
      */
     public function sendToRelays(
         array $relayUrls,
@@ -51,13 +49,20 @@ interface RelayPoolInterface
     ): array;
 
     /**
+     * Execute a typed request against its relay set.
+     *
+     * @return array<string, RelayQueryResult>
+     */
+    public function executeRequest(RelayQueryRequest $request): array;
+
+    /**
      * Publish a signed event to one or more relays.
      *
      * @param string[] $relayUrls
      * @param string|null $pubkey User pubkey for gateway routing
      * @return array Per-relay publish results
      */
-    public function publish(\swentel\nostr\Event\Event $event, array $relayUrls, ?string $pubkey = null, int $timeout = 30): array;
+    public function publish(object $event, array $relayUrls, ?string $pubkey = null, int $timeout = 30): array;
 
     /**
      * Close and remove a relay connection from the pool.
@@ -80,4 +85,3 @@ interface RelayPoolInterface
      */
     public function isGatewayEnabled(): bool;
 }
-

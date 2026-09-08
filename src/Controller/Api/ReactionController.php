@@ -7,12 +7,13 @@ namespace App\Controller\Api;
 use App\Enum\KindsEnum;
 use App\Message\PublishReactionMessage;
 use App\Service\GenericEventProjector;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\UserRelayListService;
+use Innis\Nostr\Core\Domain\Entity\Event;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,6 +25,7 @@ final class ReactionController extends AbstractController
 {
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly NostrEventVerifier $eventVerifier,
     ) {
     }
 
@@ -112,16 +114,9 @@ final class ReactionController extends AbstractController
                 return new JsonResponse(['error' => 'Reaction must reference an article coordinate'], 400);
             }
 
-            $eventObj = new NostrEvent();
-            $eventObj->setId((string) $signedEvent['id']);
-            $eventObj->setPublicKey((string) $signedEvent['pubkey']);
-            $eventObj->setCreatedAt((int) $signedEvent['created_at']);
-            $eventObj->setKind((int) $signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags']);
-            $eventObj->setContent((string) $signedEvent['content']);
-            $eventObj->setSignature((string) $signedEvent['sig']);
+            $eventObj = $this->eventVerifier->fromArray($signedEvent);
 
-            if (!$eventObj->verify()) {
+            if (!$this->eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 

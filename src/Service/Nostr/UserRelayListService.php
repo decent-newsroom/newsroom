@@ -14,9 +14,6 @@ use App\Util\RelayUrlNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Subscription\Subscription;
 
 /**
  * Stale-while-revalidate relay list resolution with DB write-through.
@@ -710,26 +707,24 @@ class UserRelayListService
 
         try {
             $profileRelays = $this->relayRegistry->getProfileRelays();
-            $responses = $this->relayPool->sendToRelays(
-                $profileRelays,
-                function () use ($hex) {
-                    $subscription = new Subscription();
-                    $subscriptionId = $subscription->setId();
-                    $filter = new Filter();
-                    $filter->setKinds([KindsEnum::RELAY_LIST->value]);
-                    $filter->setAuthors([$hex]);
-                    $filter->setLimit(1);
-                    return new RequestMessage($subscriptionId, [$filter]);
-                }
+            $request = new RelayQueryRequest(
+                new RelaySet(array_map(
+                    static fn (string $url): RelayEndpoint => new RelayEndpoint($url),
+                    $profileRelays,
+                )),
+                [[
+                    'kinds' => [KindsEnum::RELAY_LIST->value],
+                    'authors' => [$hex],
+                    'limit' => 1,
+                ]],
             );
+            $responses = $this->relayPool->executeRequest($request);
 
             // Collect events from all relay responses
             $events = [];
-            foreach ($responses as $relayResponses) {
-                foreach ($relayResponses as $response) {
-                    if (isset($response->type) && $response->type === 'EVENT' && isset($response->event)) {
-                        $events[] = $response->event;
-                    }
+            foreach ($responses as $response) {
+                foreach ($response->events as $event) {
+                    $events[] = (object) $event->toArray();
                 }
             }
 
@@ -959,4 +954,3 @@ class UserRelayListService
         ];
     }
 }
-

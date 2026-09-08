@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
-use swentel\nostr\Event\Event;
-use swentel\nostr\Key\Key;
-use swentel\nostr\Sign\Sign;
+use Innis\Nostr\Core\Domain\Entity\Event;
+use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\KeyPair;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PrivateKey;
 
 /**
  * Service for signing Nostr events
@@ -14,11 +15,8 @@ use swentel\nostr\Sign\Sign;
  */
 class NostrSigner
 {
-    private Key $key;
-
-    public function __construct()
+    public function __construct(private readonly SignatureServiceInterface $signatureService)
     {
-        $this->key = new Key();
     }
 
     /**
@@ -34,21 +32,65 @@ class NostrSigner
     public function signEphemeral(int $kind, array $tags, string $content = '', ?int $createdAt = null): string
     {
         // Generate ephemeral key pair for anonymous zaps
-        $privateKey = bin2hex(random_bytes(32));
-        $publicKey = $this->key->getPublicKey($privateKey);
+        $privateKey = PrivateKey::generate();
+        $keyPair = KeyPair::fromPrivateKey($privateKey, $this->signatureService);
+        $event = Event::fromArray([
+            'pubkey' => $keyPair->getPublicKey()->toHex(),
+            'created_at' => $createdAt ?? time(),
+            'kind' => $kind,
+            'tags' => $tags,
+            'content' => $content,
+        ]);
 
-        $event = new Event();
-        $event->setKind($kind);
-        $event->setTags($tags);
-        $event->setContent($content);
-        $event->setCreatedAt($createdAt ?? time());
+        try {
+            return $event->sign($keyPair, $this->signatureService)->toJson();
+        } finally {
+            $privateKey->zero();
+        }
 
-        // Sign the event using the Sign class
-        $signer = new Sign();
-        $signer->signEvent($event, $privateKey);
+    }
 
-        // Return as JSON using Event's built-in method
-        return $event->toJson();
+    public function verify(Event $event): bool
+    {
+        return $event->verify($this->signatureService);
+    }
+
+    /**
+     * Sign an event with a configured long-lived key.
+     *
+     * This is for server-owned publishing jobs; user-authenticated requests
+     * must use the user's signed payload or RelayAuthSignerInterface instead.
+     *
+     * @param list<list<string>> $tags
+     */
+    public function signWithPrivateKey(
+        int $kind,
+        array $tags,
+        string $content,
+        string $privateKey,
+        ?int $createdAt = null,
+    ): Event {
+        $key = str_starts_with(strtolower($privateKey), 'nsec')
+            ? PrivateKey::fromBech32(strtolower($privateKey))
+            : PrivateKey::fromHex(strtolower($privateKey));
+        if ($key === null) {
+            throw new \InvalidArgumentException('Invalid Nostr private key.');
+        }
+
+        $keyPair = KeyPair::fromPrivateKey($key, $this->signatureService);
+        $event = Event::fromArray([
+            'pubkey' => $keyPair->getPublicKey()->toHex(),
+            'created_at' => $createdAt ?? time(),
+            'kind' => $kind,
+            'tags' => $tags,
+            'content' => $content,
+        ]);
+
+        try {
+            return $event->sign($keyPair, $this->signatureService);
+        } finally {
+            $key->zero();
+        }
     }
 
     /**
@@ -103,4 +145,3 @@ class NostrSigner
         return $this->signEphemeral(9734, $tags, $comment);
     }
 }
-

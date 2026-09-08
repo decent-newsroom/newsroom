@@ -17,7 +17,7 @@ use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NEvent;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -63,7 +63,7 @@ final class SpellController extends AbstractController
         [$title, $description] = $this->extractMeta($spell);
 
         try {
-            $authorNpub = (new Key())->convertPublicKeyToBech32($spell->getPubkey());
+            $authorNpub = (new NostrKeyService())->convertPublicKeyToBech32($spell->getPubkey());
         } catch (\Throwable) {
             $authorNpub = $spell->getPubkey();
         }
@@ -136,7 +136,7 @@ final class SpellController extends AbstractController
         $pubkeys = array_unique(array_map(fn(Event $e) => $e->getPubkey(), $events));
         $metadataMap = !empty($pubkeys) ? $redisCacheService->getMultipleMetadata($pubkeys) : [];
 
-        $keyHelper = new Key();
+        $keyHelper = new NostrKeyService();
         $out = [];
 
         foreach ($events as $event) {

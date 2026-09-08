@@ -463,12 +463,15 @@ class RedisCacheService
         }
     }
 
-    public function setMetadata(\swentel\nostr\Event\Event $event): void
+    /**
+     * @param array<string, mixed> $metadata
+     */
+    public function setMetadata(string $pubkey, array $metadata): void
     {
-        $cacheKey = $this->getUserCacheKey($event->getPublicKey());
+        $cacheKey = $this->getUserCacheKey($pubkey);
         try {
             $item = $this->npubCache->getItem($cacheKey);
-            $item->set(json_decode($event->getContent()));
+            $item->set($metadata);
             $item->expiresAfter(3600); // 1 hour
             $this->npubCache->save($item);
         } catch (\Exception $e) {
@@ -544,4 +547,3 @@ class RedisCacheService
     }
 
 }
-

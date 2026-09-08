@@ -4,7 +4,7 @@ namespace App\Twig\Components\Atoms;
 
 use App\Service\Nostr\Nip05VerificationService;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
@@ -50,7 +50,7 @@ final class Nip05Badge
 
         $this->valid = true;
 
-        $key = new Key();
+        $key = new NostrKeyService();
         try {
             $result = $this->nip05Service->verify($this->nip05, $key->convertToHex($this->npub));
             $this->verified = $result['verified'];

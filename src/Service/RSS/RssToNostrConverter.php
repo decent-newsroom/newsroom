@@ -4,8 +4,6 @@ namespace App\Service\RSS;
 
 use App\Enum\KindsEnum;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event;
-use swentel\nostr\Sign\Sign;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /**
@@ -15,77 +13,70 @@ class RssToNostrConverter
 {
     public function __construct(
         private readonly LoggerInterface $logger,
-        private readonly EncryptionService $encryptionService
     ) {
     }
 
     /**
      * Convert an RSS item to a Nostr longform event (kind 30023)
      *
-     * @param array $rssItem The RSS item data
-     * @return Event The created and signed Nostr event
+     * @param array<string, mixed> $rssItem The RSS item data
+     * @return array{kind:int,content:string,tags:list<list<string>>} Unsigned event payload
      */
     public function convertToNostrEvent(
         array $rssItem
-    ): Event {
-        $privateKey = 'your-private-key'; // Replace with actual private key retrieval logic
-
-        // Create the event
-        $event = new Event();
-        $event->setKind(KindsEnum::LONGFORM->value);
+    ): array {
+        $tags = [];
 
         // Set content (without appending the link)
         $content = $rssItem['content'] ?? $rssItem['description'] ?? '';
-        $event->setContent($content);
-
         // Generate unique slug from title and timestamp
         $slug = $this->generateSlug($rssItem['title'], $rssItem['pubDate']);
-        $event->addTag(['d', $slug]);
+        $tags[] = ['d', $slug];
 
         // Add title tag
         if (!empty($rssItem['title'])) {
-            $event->addTag(['title', $rssItem['title']]);
+            $tags[] = ['title', $rssItem['title']];
         }
 
         // Add summary tag
         if (!empty($rssItem['description'])) {
             $summary = $this->htmlToPlainText($rssItem['description']);
-            $event->addTag(['summary', $summary]);
+            $tags[] = ['summary', $summary];
         }
 
         // Add image tag if available
         if (!empty($rssItem['image'])) {
-            $event->addTag(['image', $rssItem['image']]);
+            $tags[] = ['image', $rssItem['image']];
         }
 
         // Add published_at tag
         if ($rssItem['pubDate'] instanceof \DateTimeImmutable) {
-            $event->addTag(['published_at', (string) $rssItem['pubDate']->getTimestamp()]);
+            $tags[] = ['published_at', (string) $rssItem['pubDate']->getTimestamp()];
         }
 
         // Add source tag for original article URL
         if (!empty($rssItem['link'])) {
-            $event->addTag(['source', $rssItem['link']]);
+            $tags[] = ['source', $rssItem['link']];
         }
 
         // Add reference to original URL (r tag for generic reference)
         if (!empty($rssItem['link'])) {
-            $event->addTag(['r', $rssItem['link']]);
+            $tags[] = ['r', $rssItem['link']];
         }
 
         // Add client tag to indicate source
-        $event->addTag(['client', 'newsroom-rss-aggregator']);
-
-        // Sign the event
-        $signer = new Sign();
-        $signer->signEvent($event, $privateKey);
+        $tags[] = ['client', 'newsroom-rss-aggregator'];
 
         $this->logger->info('Created Nostr event from RSS item', [
             'title' => $rssItem['title'],
             'slug' => $slug,
         ]);
 
-        return $event;
+        return [
+            'kind' => KindsEnum::LONGFORM->value,
+            'content' => $content,
+            'tags' => $tags,
+        ];
     }
 
     /**
@@ -133,6 +124,8 @@ class RssToNostrConverter
     /**
      * Check if a slug already exists in the database
      * This is used by the command to detect duplicates
+     *
+     * @param array<string, mixed> $rssItem
      */
     public function generateSlugForItem(array $rssItem): string
     {

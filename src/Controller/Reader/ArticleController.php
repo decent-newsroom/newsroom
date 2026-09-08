@@ -12,7 +12,7 @@ use App\Service\ReadingListNavigationService;
 use App\Service\VanityNameService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -89,7 +89,7 @@ class ArticleController  extends AbstractController
 
         $slug = urldecode($slug);
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $currentPubkey = $key->convertToHex($this->getUser()->getUserIdentifier());
         } catch (\Throwable) {
             throw $this->createAccessDeniedException('Invalid user identifier.');
@@ -156,7 +156,7 @@ class ArticleController  extends AbstractController
         // If only one author, redirect to their most recent article (already sorted by createdAt DESC)
         if ($uniqueAuthors === 1) {
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $npub = $key->convertPublicKeyToBech32($articles[0]->getPubkey());
             } catch (\Throwable) {
                 throw $this->createNotFoundException('Invalid author key.');
@@ -166,7 +166,7 @@ class ArticleController  extends AbstractController
 
         // Multiple authors: show disambiguation page with one article per author (most recent)
         $authors = [];
-        $key = new Key();
+        $key = new NostrKeyService();
         $uniqueArticles = [];
         foreach ($articlesByAuthor as $pubkey => $authorArticles) {
             // Get the most recent article for this author (first in array due to DESC sort)
@@ -228,7 +228,7 @@ class ArticleController  extends AbstractController
         $slug = urldecode($slug);
         $publications = [];
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkey = $key->convertToHex($npub);
             $publications = $publicationIndexer->findPublicationsForArticle($pubkey, $slug);
         } catch (\Throwable) {}
@@ -247,7 +247,7 @@ class ArticleController  extends AbstractController
         $slug = urldecode($slug);
         $listNav = null;
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkey = $key->convertToHex($npub);
             $listNav = $readingListNavigation->findNavigation('30023:' . $pubkey . ':' . $slug);
         } catch (\Throwable) {}
@@ -265,7 +265,7 @@ class ArticleController  extends AbstractController
         $slug = urldecode($slug);
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkey = $key->convertToHex($npub);
             $articleRoot = '30023:' . $pubkey . ':' . $slug;
         } catch (\Throwable) {
@@ -288,7 +288,7 @@ class ArticleController  extends AbstractController
         $highlights = [];
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkey = $key->convertToHex($npub);
             $articleCoordinate = '30023:' . $pubkey . ':' . $slug;
             $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
@@ -312,7 +312,7 @@ class ArticleController  extends AbstractController
         $article = null;
 
         try {
-            $key = new Key();
+            $key = new NostrKeyService();
             $pubkey = $key->convertToHex($npub);
             $article = $entityManager->getRepository(Article::class)->findOneBy([
                 'slug' => $slug,

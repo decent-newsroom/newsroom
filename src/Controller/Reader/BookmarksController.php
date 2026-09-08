@@ -11,6 +11,8 @@ use App\Message\SyncUserEventsMessage;
 use App\Repository\EventRepository;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use App\Service\Nostr\UserRelayListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
@@ -22,7 +24,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
-use swentel\nostr\Event\Event as NostrEvent;
 
 class BookmarksController extends AbstractController
 {
@@ -38,6 +39,7 @@ class BookmarksController extends AbstractController
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly NostrEventVerifier $eventVerifier,
     ) {}
 
     #[Route('/my-bookmarks', name: 'my_bookmarks')]
@@ -163,18 +165,10 @@ class BookmarksController extends AbstractController
                 return new JsonResponse(['error' => 'Signed event does not belong to the authenticated user'], 403);
             }
 
-            // Convert to swentel Event object for signature verification
-            $eventObj = new NostrEvent();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags']);
-            $eventObj->setContent($signedEvent['content'] ?? '');
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = $this->eventVerifier->fromArray($signedEvent);
 
             // Verify signature
-            if (!$eventObj->verify()) {
+            if (!$this->eventVerifier->verify($eventObj)) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
@@ -209,7 +203,7 @@ class BookmarksController extends AbstractController
             $relayStatuses = [];
 
             foreach ($relayResults as $relayUrl => $result) {
-                $isSuccess = $result === true || (is_object($result) && isset($result->type) && $result->type === 'OK');
+                $isSuccess = RelayPublishResult::isSuccessful($result);
                 if ($isSuccess) {
                     $successCount++;
                 } else {

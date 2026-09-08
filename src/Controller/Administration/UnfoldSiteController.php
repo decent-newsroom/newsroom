@@ -9,6 +9,8 @@ use App\Entity\UnfoldSite;
 use App\Enum\KindsEnum;
 use App\Repository\UnfoldSiteRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\RelayPublishResult;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,6 +35,7 @@ class UnfoldSiteController extends AbstractController
         private readonly UnfoldSiteRepository $unfoldSiteRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly NostrClient $nostrClient,
+        private readonly NostrEventVerifier $eventVerifier,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -199,15 +202,7 @@ class UnfoldSiteController extends AbstractController
                 return new JsonResponse(['error' => 'Subdomain "' . $subdomain . '" already exists'], 400);
             }
 
-            // Create swentel Event object and publish
-            $event = new \swentel\nostr\Event\Event();
-            $event->setId($signedEvent['id']);
-            $event->setPublicKey($signedEvent['pubkey']);
-            $event->setCreatedAt($signedEvent['created_at']);
-            $event->setKind($signedEvent['kind']);
-            $event->setTags($signedEvent['tags']);
-            $event->setContent($signedEvent['content'] ?? '');
-            $event->setSignature($signedEvent['sig']);
+            $event = $this->eventVerifier->fromArray($signedEvent);
 
             // Publish to relays
             $relayResults = $this->nostrClient->publishEvent($event, []);
@@ -360,11 +355,14 @@ class UnfoldSiteController extends AbstractController
             if (is_object($result)) {
                 $formatted[] = [
                     'relay' => $relay,
-                    'success' => $result->isSuccess ?? false,
+                    'success' => RelayPublishResult::isSuccessful($result),
                     'message' => $result->message ?? '',
                 ];
             } elseif (is_array($result)) {
-                $formatted[] = array_merge(['relay' => $relay], $result);
+                $formatted[] = array_merge($result, [
+                    'relay' => $relay,
+                    'success' => RelayPublishResult::isSuccessful($result),
+                ]);
             } else {
                 $formatted[] = [
                     'relay' => $relay,
@@ -409,4 +407,3 @@ class UnfoldSiteController extends AbstractController
         return $subdomain;
     }
 }
-

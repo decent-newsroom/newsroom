@@ -14,7 +14,7 @@ use App\Service\QRGenerator;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
@@ -436,7 +436,7 @@ final class ZapButton
             $amountMillisats = $invoice['amount'] * 1000;
 
             // Convert npub to hex if needed
-            $key = new Key();
+            $key = new NostrKeyService();
             if (str_starts_with($recipientIdent, 'npub1')) {
                 $recipientPubkey = $key->convertToHex($recipientIdent);
             } else {

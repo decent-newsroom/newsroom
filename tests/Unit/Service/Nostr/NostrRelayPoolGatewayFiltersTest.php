@@ -7,12 +7,12 @@ namespace App\Tests\Unit\Service\Nostr;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayGatewayClient;
 use App\Service\Nostr\RelayHealthStore;
+use App\Service\Nostr\RelayEndpoint;
+use App\Service\Nostr\RelayQueryRequest;
 use App\Service\Nostr\RelayRegistry;
+use App\Service\Nostr\RelaySet;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Subscription\Subscription;
 
 final class NostrRelayPoolGatewayFiltersTest extends TestCase
 {
@@ -44,7 +44,7 @@ final class NostrRelayPoolGatewayFiltersTest extends TestCase
                         && ($second['#a'][0] ?? null) === '30023:pubkey:slug';
                 }),
                 null,
-                8
+                11
             )
             ->willReturn(['events' => [], 'errors' => []]);
 
@@ -58,26 +58,16 @@ final class NostrRelayPoolGatewayFiltersTest extends TestCase
             []
         );
 
-        $pool->sendToRelays(
-            ['wss://relay.example'],
-            function (): RequestMessage {
-                $subscription = new Subscription();
-                $subscriptionId = $subscription->setId();
-
-                $upper = new Filter();
-                $upper->setKinds([1111, 9735]);
-                $upper->setTag('#A', ['30023:pubkey:slug']);
-
-                $lower = new Filter();
-                $lower->setKinds([1111, 9735]);
-                $lower->setTag('#a', ['30023:pubkey:slug']);
-
-                return new RequestMessage($subscriptionId, [$upper, $lower]);
-            },
-            10,
-            null,
-            null
+        $request = new RelayQueryRequest(
+            new RelaySet([new RelayEndpoint('wss://relay.example')]),
+            [
+                ['kinds' => [1111, 9735], '#A' => ['30023:pubkey:slug']],
+                ['kinds' => [1111, 9735], '#a' => ['30023:pubkey:slug']],
+            ],
         );
+        $request->setTimeout(10);
+        $request->setGatewayTimeout(11);
+
+        $pool->executeRequest($request);
     }
 }
-

@@ -12,13 +12,13 @@ use App\Repository\EventRepository;
 use App\Service\ArticleEventProjector;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\Nostr\RelayEndpoint;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayQueryRequest;
+use App\Service\Nostr\RelaySet;
 use App\Service\Nostr\UserRelayListService;
 use App\Util\CommonMark\Converter;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Subscription\Subscription;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -237,35 +237,20 @@ class FetchAuthorContentHandler
         ]);
 
         try {
-            $responses = $this->relayPool->sendToRelays(
-                $relays,
-                function () use ($pubkey, $allKinds, $since) {
-                    $subscription = new Subscription();
-                    $subscriptionId = $subscription->setId();
-
-                    $filter = new Filter();
-                    $filter->setKinds($allKinds);
-                    $filter->setAuthors([$pubkey]);
-                    $filter->setLimit(self::FETCH_LIMIT);
-
-                    if ($since > 0) {
-                        $filter->setSince($since);
-                    }
-
-                    $this->logger->info('🎯 Combined filter created', [
-                        'subscription_id' => $subscriptionId,
-                        'filter_details' => [
-                            'kinds' => $allKinds,
-                            'authors' => [$pubkey],
-                            'limit' => self::FETCH_LIMIT,
-                            'since' => $since > 0 ? $since : null,
-                        ]
-                    ]);
-
-                    return new RequestMessage($subscriptionId, [$filter]);
-                },
-                15 // Slightly higher timeout for combined fetch
+            $request = new RelayQueryRequest(
+                new RelaySet(array_map(
+                    static fn (string $url): RelayEndpoint => new RelayEndpoint($url),
+                    $relays,
+                )),
+                [array_filter([
+                    'kinds' => $allKinds,
+                    'authors' => [$pubkey],
+                    'limit' => self::FETCH_LIMIT,
+                    'since' => $since > 0 ? $since : null,
+                ], static fn (mixed $value): bool => $value !== null)],
             );
+            $request->setTimeout(15)->requestedBy($pubkey);
+            $responses = $this->relayPool->executeRequest($request);
         } catch (\Exception $e) {
             $this->logger->error('❌ Failed to send combined request to relays', [
                 'pubkey' => $pubkey,
@@ -282,20 +267,15 @@ class FetchAuthorContentHandler
         $events = [];
         $seenIds = [];
 
-        foreach ($responses as $relayUrl => $relayResponses) {
-            if (!is_array($relayResponses)) {
-                continue;
-            }
-
+        foreach ($responses as $relayUrl => $relayResult) {
             $relayEventCount = 0;
-            foreach ($relayResponses as $response) {
-                if (isset($response->type) && $response->type === 'EVENT' && isset($response->event)) {
-                    $eventId = $response->event->id ?? null;
-                    if ($eventId && !isset($seenIds[$eventId])) {
-                        $seenIds[$eventId] = true;
-                        $events[] = $response->event;
-                        $relayEventCount++;
-                    }
+            foreach ($relayResult->events as $event) {
+                $eventData = $event->toArray();
+                $eventId = $eventData['id'] ?? null;
+                if ($eventId && !isset($seenIds[$eventId])) {
+                    $seenIds[$eventId] = true;
+                    $events[] = (object) $eventData;
+                    $relayEventCount++;
                 }
             }
 

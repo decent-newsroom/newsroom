@@ -7,7 +7,7 @@ use App\Service\LNURLResolver;
 use App\Service\Nostr\NostrSigner;
 use App\Service\QRGenerator;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -159,7 +159,7 @@ class ZapApiController extends AbstractController
             }
 
             $invoices = [];
-            $key = new Key();
+            $key = new NostrKeyService();
 
             foreach ($zapSplits as $index => $split) {
                 $recipientIdent = $split['recipient'] ?? '';

@@ -2,6 +2,10 @@
 
 ## v0.0.51
 
+- [Improvement] Migrated the host relay pool, request executor, relay-set factory, and facade relay contracts to host-owned URL/filter/result types backed by `nostr-client-bundle` and Innis clients, preserving local/project relay mapping, health ordering, EOSE/idle handling, gateway fail-closed routing, and user-scoped NIP-42 AUTH.
+- [Improvement] Replaced first-party Swentel key and NIP-19 helper calls with host-owned adapters backed by Innis core and nostriphant, and removed the obsolete direct-request helper services.
+- [Improvement] Migrated the relay diagnostic command, RSS event payload conversion, and first-party Nostr test fixtures to Innis core and host-owned relay clients; Bookshelf remains the only intentional Swentel consumer.
+- [Fix] Completed relay-client migration follow-up fixes: preserved distinct `#a`/`#A` filters, propagated gateway timeouts independently, awaited publish acknowledgements, surfaced dead subscriptions for worker recreation, and normalized relay publish-result handling across first-party consumers.
 - [Improvement] Upgraded SigningBundle to v0.1.0 and moved encrypted NIP-46 remote-signer session persistence behind its host-owned `RemoteSignerSessionStoreInterface` boundary.
 - [Improvement] Migrated `EssayistFeedService` from direct `swentel/nostr-php` WebSockets to the `nostr-client-bundle`/Innis subscription client, preserving EOSE and idle-timeout handling while failing closed on anonymous NIP-42 challenges.
 - [Improvement] Migrated the public relay-feed worker from direct `swentel/nostr-php` WebSockets to `nostr-client-bundle`'s AMPHP subscription client, retaining the time-bounded relay feed and Mercure card updates without anonymous NIP-42 authentication.

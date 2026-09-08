@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Controller;
 
 use App\Controller\Api\ReactionController;
 use App\Enum\KindsEnum;
+use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Nostr\NostrSigner;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
 use Doctrine\ORM\EntityManagerInterface;
@@ -41,7 +43,10 @@ final class ReactionControllerTest extends TestCase
         $container = new Container();
         $container->set('security.token_storage', new TokenStorage());
 
-        $controller = new ReactionController($this->createMock(LoggerInterface::class));
+        $controller = new ReactionController(
+            $this->createMock(LoggerInterface::class),
+            new NostrEventVerifier($this->createMock(NostrSigner::class)),
+        );
         $controller->setContainer($container);
 
         $response = $controller->current(new Request(['coordinate' => $coordinate]), $entityManager);

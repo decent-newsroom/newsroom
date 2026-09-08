@@ -70,7 +70,7 @@ if (empty($relays)) {
 ## Technical Details
 
 ### Dependencies
-- `swentel\nostr\Key\Key` - For pubkey conversion (hex to bech32)
+- `NostrKeyService` - For pubkey conversion (hex to bech32) via Innis core/nostriphant
 - `UserEntityRepository` - For looking up User entities by npub
 - `UserRelayListService` - For stale-while-revalidate relay resolution from cache, DB, network, and fallback relays
 

@@ -7,8 +7,7 @@ namespace App\Service\Update;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Event\Event as NostrEvent;
-use swentel\nostr\Nip19\Nip19Helper;
+use App\Service\Nostr\NostrNip19Service;
 
 /**
  * Turns a notified {@see Event} into display-safe title / summary / URL for a
@@ -68,12 +67,8 @@ class UpdateRenderer
             return null;
         }
         try {
-            $nip19 = new Nip19Helper();
-            $nostr = new NostrEvent();
-            $nostr->setId($event->getId());
-            $nostr->setPublicKey($event->getPubkey());
-            $nostr->setKind($event->getKind());
-            return $nip19->encodeAddr($nostr, $dTag, $event->getKind());
+            $nip19 = new NostrNip19Service();
+            return $nip19->encodeAddr($event->getPubkey(), $dTag, $event->getKind());
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to encode update naddr', [
                 'event_id' => $event->getId(),
@@ -87,7 +82,7 @@ class UpdateRenderer
     private function encodeNote(Event $event): ?string
     {
         try {
-            $nip19 = new Nip19Helper();
+            $nip19 = new NostrNip19Service();
             return $nip19->encodeNote($event->getId());
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to encode update note id', [
@@ -129,4 +124,3 @@ class UpdateRenderer
         return mb_substr($s, 0, $max - 1) . '…';
     }
 }
-

@@ -20,7 +20,7 @@ use Psr\Log\LoggerInterface;
  *   - auth_status                 — none | ephemeral | user_authed | pending | failed
  *   - last_event_received         — timestamp (written by subscription workers)
  *
- * Written by NostrRelayPool::sendToRelays(), TweakedRequest::send(),
+ * Written by NostrRelayPool's typed direct/gateway request paths,
  * and subscription loops. Read by admin dashboard and health-based ranking.
  */
 class RelayHealthStore
@@ -513,4 +513,3 @@ class RelayHealthStore
         $this->redis->hSet($key, 'avg_latency_ms', (string) round($avg, 1));
     }
 }
-

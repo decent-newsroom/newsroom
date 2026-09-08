@@ -6,7 +6,7 @@ namespace App\Controller\Newsroom;
 
 use App\Message\FetchAuthorArticlesMessage;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -53,7 +53,7 @@ class BlogJourneyController extends AbstractController
         // Dispatch background article sync only for authenticated users
         if ($this->isGranted('ROLE_USER')) {
             try {
-                $key = new Key();
+                $key = new NostrKeyService();
                 $pubkeyHex = $key->convertToHex($this->getUser()->getUserIdentifier());
 
                 if ($pubkeyHex) {

@@ -9,7 +9,7 @@ use App\Entity\User;
 use App\Enum\IndexStatusEnum;
 use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use swentel\nostr\Key\Key;
+use App\Service\Nostr\NostrKeyService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -77,7 +77,7 @@ class QualityCheckArticlesCommand extends Command
     private function meetsCriteria(Article $article): bool
     {
         // Exclude muted users
-        $key = new Key();
+        $key = new NostrKeyService();
         // Normalize hex pubkey to lowercase
         $pubkeyHex = strtolower(trim($article->getPubkey()));
         $authorNpub = $key->convertPublicKeyToBech32($pubkeyHex);
