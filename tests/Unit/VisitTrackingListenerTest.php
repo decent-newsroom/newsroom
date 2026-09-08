@@ -7,6 +7,7 @@ namespace App\Tests\Unit;
 use App\Entity\Visit;
 use App\EventListener\VisitTrackingListener;
 use App\Repository\VisitRepository;
+use App\Service\Analytics\BotDetector;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -27,7 +28,7 @@ class VisitTrackingListenerTest extends TestCase
                 return true;
             }));
 
-        $listener = new VisitTrackingListener($visitRepository);
+        $listener = new VisitTrackingListener($visitRepository, new BotDetector());
         $request = Request::create('/api/article/publish');
 
         $listener->onKernelRequest(new RequestEvent(
@@ -53,7 +54,7 @@ class VisitTrackingListenerTest extends TestCase
                 return true;
             }));
 
-        $listener = new VisitTrackingListener($visitRepository);
+        $listener = new VisitTrackingListener($visitRepository, new BotDetector());
         $request = Request::create('/discover');
         $request->headers->set('referer', 'https://example.com/from-newsletter');
 
@@ -70,5 +71,3 @@ class VisitTrackingListenerTest extends TestCase
         self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $capturedVisit->getSessionId());
     }
 }
-
-

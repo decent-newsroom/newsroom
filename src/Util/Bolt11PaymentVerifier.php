@@ -143,4 +143,3 @@ final class Bolt11PaymentVerifier
         return $sats > 0 ? $sats : null;
     }
 }
-

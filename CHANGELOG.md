@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Fix] Restored the PHPUnit suite after the updates-pipeline migration, corrected BOLT11 payment-hash decoding, preserved NIP-98 replay rejection, and removed PHP 8.5/Symfony/Doctrine deprecation paths.
 - [Improvement] Migrated the host relay pool, request executor, relay-set factory, and facade relay contracts to host-owned URL/filter/result types backed by `nostr-client-bundle` and Innis clients, preserving local/project relay mapping, health ordering, EOSE/idle handling, gateway fail-closed routing, and user-scoped NIP-42 AUTH.
 - [Improvement] Replaced first-party Swentel key and NIP-19 helper calls with host-owned adapters backed by Innis core and nostriphant, and removed the obsolete direct-request helper services.
 - [Improvement] Migrated the relay diagnostic command, RSS event payload conversion, and first-party Nostr test fixtures to Innis core and host-owned relay clients; Bookshelf remains the only intentional Swentel consumer.

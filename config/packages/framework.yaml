@@ -1,6 +1,8 @@
 # see https://symfony.com/doc/current/reference/configuration/framework.html
 framework:
     secret: '%env(APP_SECRET)%'
+    profiler:
+        collect_serializer_data: true
     #csrf_protection: true
     property_info:
         with_constructor_extractor: true

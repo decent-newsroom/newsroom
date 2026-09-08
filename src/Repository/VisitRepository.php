@@ -58,7 +58,7 @@ class VisitRepository extends ServiceEntityRepository
         }
     }
 
-    public function getVisitCountByRoute(\DateTimeImmutable $since = null): array
+    public function getVisitCountByRoute(?\DateTimeImmutable $since = null): array
     {
         $qb = $this->createQueryBuilder('v')
             ->select('v.route, COUNT(v.id) as count')
@@ -110,7 +110,7 @@ class VisitRepository extends ServiceEntityRepository
     /**
      * Returns visits grouped by session ID with counts (top 50 by visit count).
      */
-    public function getVisitsBySession(\DateTimeImmutable $since = null): array
+    public function getVisitsBySession(?\DateTimeImmutable $since = null): array
     {
         $qb = $this->createQueryBuilder('v')
             ->select('v.sessionId, COUNT(v.id) as visitCount, MIN(v.visitedAt) as firstVisit, MAX(v.visitedAt) as lastVisit')

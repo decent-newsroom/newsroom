@@ -31,9 +31,9 @@ class NostrAuthenticatorSecurityTest extends WebTestCase
         $client->request('GET', '/login', [], [], ['HTTP_Authorization' => $token]);
         $this->assertEquals(200, $client->getResponse()->getStatusCode());
 
-        // Immediate reuse should still work (within time window)
+        // Immediate reuse must be rejected to prevent replay attacks.
         $client->request('GET', '/login', [], [], ['HTTP_Authorization' => $token]);
-        $this->assertEquals(200, $client->getResponse()->getStatusCode());
+        $this->assertEquals(401, $client->getResponse()->getStatusCode());
 
         // Test with expired token
         $expiredToken = $this->createTokenWithTimestamp('GET', 'http://localhost/login', time() - 120);

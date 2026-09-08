@@ -17,7 +17,6 @@ class FormatDetectionTest extends TestCase
         $this->converter = $ref->newInstanceWithoutConstructor();
 
         $this->isAsciiDoc = $ref->getMethod('isAsciiDoc');
-        $this->isAsciiDoc->setAccessible(true);
     }
 
     private function detect(string $content): bool
@@ -96,4 +95,3 @@ ASCIIDOC;
         $this->assertTrue($this->detect($content));
     }
 }
-

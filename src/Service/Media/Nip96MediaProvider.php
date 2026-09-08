@@ -80,12 +80,18 @@ class Nip96MediaProvider implements MediaProviderInterface
             ],
         ]);
 
-        $response = @file_get_contents($endpoint, false, $context);
-        if ($response === false) {
+        $stream = @fopen($endpoint, 'r', false, $context);
+        if ($stream === false) {
             throw new \RuntimeException('NIP-96 upload request failed');
         }
+        $response = stream_get_contents($stream);
+        $metadata = stream_get_meta_data($stream);
+        fclose($stream);
+        if ($response === false) {
+            throw new \RuntimeException('Failed to read NIP-96 upload response');
+        }
 
-        $statusCode = $this->extractStatusCode($http_response_header ?? []);
+        $statusCode = $this->extractStatusCode($metadata['wrapper_data'] ?? []);
         $json = json_decode($response, true);
 
         if (!is_array($json)) {
@@ -165,8 +171,15 @@ class Nip96MediaProvider implements MediaProviderInterface
             ],
         ]);
 
-        $response = @file_get_contents($url, false, $context);
-        $statusCode = $this->extractStatusCode($http_response_header ?? []);
+        $stream = @fopen($url, 'r', false, $context);
+        if ($stream === false) {
+            $this->logger->warning('NIP-96 delete request failed', ['provider' => $this->id, 'hash' => $hash]);
+            return false;
+        }
+        $response = stream_get_contents($stream);
+        $metadata = stream_get_meta_data($stream);
+        fclose($stream);
+        $statusCode = $this->extractStatusCode($metadata['wrapper_data'] ?? []);
 
         if ($statusCode >= 200 && $statusCode < 300) {
             $this->logger->info('NIP-96 asset deleted', ['provider' => $this->id, 'hash' => $hash]);
@@ -192,6 +205,7 @@ class Nip96MediaProvider implements MediaProviderInterface
             'accepted_mime_prefixes' => $this->getAcceptedMimePrefixes(),
         ];
     }
+
 
     /**
      * Normalize NIP-96 upload response using nip94_event.tags when present.
@@ -289,4 +303,3 @@ class Nip96MediaProvider implements MediaProviderInterface
         return 0;
     }
 }
-

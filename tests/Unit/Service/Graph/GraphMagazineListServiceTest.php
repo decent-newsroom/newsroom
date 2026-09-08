@@ -29,7 +29,6 @@ class GraphMagazineListServiceTest extends TestCase
     public function testIsTopLevelMagazine(?array $eventRow, bool $expected, string $message): void
     {
         $method = new \ReflectionMethod($this->service, 'isTopLevelMagazine');
-        $method->setAccessible(true);
 
         $this->assertSame($expected, $method->invoke($this->service, $eventRow), $message);
     }

@@ -10,9 +10,11 @@ use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Essayist\EssayistMemberActivityService;
+use App\Service\Nostr\NostrLinkParser;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 final class EssayistMemberActivityServiceTest extends TestCase
 {
@@ -27,7 +29,11 @@ final class EssayistMemberActivityServiceTest extends TestCase
 
         $eventRepository->expects($this->never())->method('findByFilter');
 
-        $service = new EssayistMemberActivityService($userRepository, $eventRepository);
+        $service = new EssayistMemberActivityService(
+            $userRepository,
+            $eventRepository,
+            new NostrLinkParser(new NullLogger()),
+        );
 
         $this->assertSame([], $service->getRecentActivity());
     }
@@ -66,7 +72,11 @@ final class EssayistMemberActivityServiceTest extends TestCase
             }))
             ->willReturn($events);
 
-        $service = new EssayistMemberActivityService($userRepository, $eventRepository);
+        $service = new EssayistMemberActivityService(
+            $userRepository,
+            $eventRepository,
+            new NostrLinkParser(new NullLogger()),
+        );
 
         $activity = $service->getRecentActivity();
 
@@ -88,5 +98,3 @@ final class EssayistMemberActivityServiceTest extends TestCase
         return $event;
     }
 }
-
-

@@ -64,12 +64,18 @@ class BlossomMediaProvider implements MediaProviderInterface
             ],
         ]);
 
-        $response = @file_get_contents($url, false, $context);
-        if ($response === false) {
+        $stream = @fopen($url, 'r', false, $context);
+        if ($stream === false) {
             throw new \RuntimeException('Blossom upload request failed');
         }
+        $response = stream_get_contents($stream);
+        $metadata = stream_get_meta_data($stream);
+        fclose($stream);
+        if ($response === false) {
+            throw new \RuntimeException('Failed to read Blossom upload response');
+        }
 
-        $statusCode = $this->extractStatusCode($http_response_header ?? []);
+        $statusCode = $this->extractStatusCode($metadata['wrapper_data'] ?? []);
         if ($statusCode >= 400) {
             throw new \RuntimeException('Blossom upload failed with status ' . $statusCode . ': ' . $response);
         }
@@ -140,8 +146,15 @@ class BlossomMediaProvider implements MediaProviderInterface
             ],
         ]);
 
-        $response = @file_get_contents($url, false, $context);
-        $statusCode = $this->extractStatusCode($http_response_header ?? []);
+        $stream = @fopen($url, 'r', false, $context);
+        if ($stream === false) {
+            $this->logger->warning('Blossom delete request failed', ['provider' => $this->id, 'hash' => $hash]);
+            return false;
+        }
+        $response = stream_get_contents($stream);
+        $metadata = stream_get_meta_data($stream);
+        fclose($stream);
+        $statusCode = $this->extractStatusCode($metadata['wrapper_data'] ?? []);
 
         if ($statusCode >= 200 && $statusCode < 300) {
             $this->logger->info('Blossom asset deleted', ['provider' => $this->id, 'hash' => $hash]);
@@ -166,6 +179,7 @@ class BlossomMediaProvider implements MediaProviderInterface
             'accepted_mime_prefixes' => $this->getAcceptedMimePrefixes(),
         ];
     }
+
 
     /**
      * Normalize a Blossom Blob Descriptor into a NormalizedMedia.
@@ -263,4 +277,3 @@ class BlossomMediaProvider implements MediaProviderInterface
         return $ok ? $data : false;
     }
 }
-

@@ -258,7 +258,7 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
         );
     }
 
-    public function start(Request $request, AuthenticationException $authException = null): Response
+    public function start(Request $request, ?AuthenticationException $authException = null): Response
     {
         $message = 'Authentication required';
         if ($authException) {

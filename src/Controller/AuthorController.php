@@ -88,9 +88,12 @@ class AuthorController extends AbstractController
      */
     #[Route('/{vanity}/lists', name: 'author-vanity-reading-lists')]
     #[Route('/p/{npub}/lists', name: 'author-reading-lists', requirements: ['npub' => '^npub1.*'])]
-    public function readingLists(string $npub = null, string $vanity = null,
-                                EntityManagerInterface $em,
-                                LoggerInterface $logger): Response
+    public function readingLists(
+        EntityManagerInterface $em,
+        LoggerInterface $logger,
+        ?string $npub = null,
+        ?string $vanity = null,
+    ): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-reading-lists');
         if ($resolved instanceof Response) {
@@ -144,9 +147,13 @@ class AuthorController extends AbstractController
      */
     #[Route('/{vanity}/list/{slug}', name: 'author-vanity-reading-list')]
     #[Route('/p/{npub}/list/{slug}', name: 'reading-list', requirements: ['npub' => '^npub1.*'])]
-    public function readingList(string $slug, string $npub = null, string $vanity = null,
-                                EntityManagerInterface $em,
-                                LoggerInterface $logger): Response
+    public function readingList(
+        string $slug,
+        EntityManagerInterface $em,
+        LoggerInterface $logger,
+        ?string $npub = null,
+        ?string $vanity = null,
+    ): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-reading-list', ['slug' => $slug]);
         if ($resolved instanceof Response) {
@@ -335,12 +342,17 @@ class AuthorController extends AbstractController
      */
     #[Route('/{vanity}/curation/{kind}/{slug}', name: 'author-vanity-curation-set', requirements: ['kind' => '30004|30005|30006'])]
     #[Route('/p/{npub}/curation/{kind}/{slug}', name: 'curation-set', requirements: ['npub' => '^npub1.*', 'kind' => '30004|30005|30006'])]
-    public function curationSet(int $kind, string $slug, string $npub = null, string $vanity = null,
-                                EntityManagerInterface $em,
-                                MessageBusInterface $messageBus,
-                                NostrClient $nostrClient,
-                                GenericEventProjector $genericEventProjector,
-                                LoggerInterface $logger): Response
+    public function curationSet(
+        int $kind,
+        string $slug,
+        EntityManagerInterface $em,
+        MessageBusInterface $messageBus,
+        NostrClient $nostrClient,
+        GenericEventProjector $genericEventProjector,
+        LoggerInterface $logger,
+        ?string $npub = null,
+        ?string $vanity = null,
+    ): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-curation-set', ['kind' => $kind, 'slug' => $slug]);
         if ($resolved instanceof Response) {
@@ -767,7 +779,7 @@ class AuthorController extends AbstractController
      */
     #[Route('/{vanity}/media/load-more', name: 'author-vanity-media-load-more')]
     #[Route('/p/{npub}/media/load-more', name: 'author-media-load-more', requirements: ['npub' => '^npub1.*'])]
-    public function mediaLoadMore(Request $request, RedisCacheService $redisCacheService, string $npub = null, string $vanity = null): Response
+    public function mediaLoadMore(Request $request, RedisCacheService $redisCacheService, ?string $npub = null, ?string $vanity = null): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-media-load-more');
         if ($resolved instanceof Response) {
@@ -823,8 +835,8 @@ class AuthorController extends AbstractController
         RedisViewStore $viewStore,
         RedisViewFactory $viewFactory,
         EntityManagerInterface $em,
-        string $npub = null,
-        string $vanity = null
+        ?string $npub = null,
+        ?string $vanity = null
     ): Response {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => $tab]);
         if ($resolved instanceof Response) {
@@ -2210,7 +2222,7 @@ class AuthorController extends AbstractController
      */
     #[Route('/{vanity}', name: 'author-vanity-profile', priority: -10)]
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
-    public function index(string $npub = null, string $vanity = null): Response
+    public function index(?string $npub = null, ?string $vanity = null): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => 'overview']);
         if ($resolved instanceof Response) {

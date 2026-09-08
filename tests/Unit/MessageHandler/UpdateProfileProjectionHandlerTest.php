@@ -39,11 +39,9 @@ class UpdateProfileProjectionHandlerTest extends TestCase
         ];
 
         $method = new \ReflectionMethod($handler, 'parseUserMetadata');
-        $method->setAccessible(true);
 
         $metadata = $method->invoke($handler, $rawEvent, str_repeat('a', 64));
 
         $this->assertSame(['https://example.com', 'https://blog.example.com'], $metadata->website);
     }
 }
-

@@ -36,7 +36,7 @@ class AdvancedMetadata
 
     /** @var string[] Source/reference URLs (r tags) */
     #[Assert\All([
-        new Assert\Url(message: 'Each source must be a valid URL'),
+        new Assert\Url(requireTld: false, message: 'Each source must be a valid URL'),
     ])]
     public array $sources = [];
 

@@ -241,15 +241,21 @@ class ImageUploadController extends AbstractController
             ],
         ]);
 
-        $response = @file_get_contents($url, false, $context);
-        if ($response === false) {
+        $stream = @fopen($url, 'r', false, $context);
+        if ($stream === false) {
             throw new \RuntimeException('Upstream request failed');
         }
 
+        $response = stream_get_contents($stream);
+        $metadata = stream_get_meta_data($stream);
+        fclose($stream);
+
+        if ($response === false) {
+            throw new \RuntimeException('Failed to read upstream response');
+        }
+
         $statusCode = 200;
-        $responseHeaders = function_exists('http_get_last_response_headers')
-            ? (http_get_last_response_headers() ?: [])
-            : ($http_response_header ?? []);
+        $responseHeaders = $metadata['wrapper_data'] ?? [];
 
         foreach ($responseHeaders as $hdr) {
             if (preg_match('#^HTTP/\\S+\\s+(\\d{3})#', $hdr, $m)) {
@@ -436,4 +442,3 @@ class ImageUploadController extends AbstractController
 
         return new JsonResponse($data, $status, $headers, $json);
     }}
-

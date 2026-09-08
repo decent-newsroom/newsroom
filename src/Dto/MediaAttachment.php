@@ -9,7 +9,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class MediaAttachment
 {
     #[Assert\NotBlank(message: 'URL is required')]
-    #[Assert\Url(message: 'Must be a valid URL')]
+    #[Assert\Url(requireTld: false, message: 'Must be a valid URL')]
     public string $url = '';
 
     #[Assert\NotBlank(message: 'MIME type is required')]

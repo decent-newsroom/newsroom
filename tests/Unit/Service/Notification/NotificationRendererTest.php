@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Service\Notification;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Service\Notification\NotificationRenderer;
+use App\Service\Update\UpdateRenderer;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -14,7 +14,7 @@ class NotificationRendererTest extends TestCase
 {
     public function testPublicationWithNestedIndexLinksToGenericNaddrEventPage(): void
     {
-        $renderer = new NotificationRenderer(new NullLogger());
+        $renderer = new UpdateRenderer(new NullLogger());
 
         $event = $this->makeEvent(
             KindsEnum::PUBLICATION_INDEX->value,
@@ -33,7 +33,7 @@ class NotificationRendererTest extends TestCase
 
     public function testPublicationWithNestedArticlesLinksToGenericNaddrEventPage(): void
     {
-        $renderer = new NotificationRenderer(new NullLogger());
+        $renderer = new UpdateRenderer(new NullLogger());
 
         $event = $this->makeEvent(
             KindsEnum::PUBLICATION_INDEX->value,
@@ -52,7 +52,7 @@ class NotificationRendererTest extends TestCase
 
     public function testLongformLinksToGenericNaddrEventPage(): void
     {
-        $renderer = new NotificationRenderer(new NullLogger());
+        $renderer = new UpdateRenderer(new NullLogger());
 
         $event = $this->makeEvent(
             KindsEnum::LONGFORM->value,
@@ -71,7 +71,7 @@ class NotificationRendererTest extends TestCase
 
     public function testNonAddressableEventFallsBackToNoteRoute(): void
     {
-        $renderer = new NotificationRenderer(new NullLogger());
+        $renderer = new UpdateRenderer(new NullLogger());
 
         $event = $this->makeEvent(
             KindsEnum::TEXT_NOTE->value,
@@ -102,5 +102,4 @@ class NotificationRendererTest extends TestCase
         return $e;
     }
 }
-
 

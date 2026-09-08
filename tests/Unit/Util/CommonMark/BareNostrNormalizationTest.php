@@ -23,7 +23,6 @@ class BareNostrNormalizationTest extends TestCase
         // Create an instance without invoking the constructor (all deps are mocked away)
         $this->converter = $converterClass->newInstanceWithoutConstructor();
         $this->method = $converterClass->getMethod('normalizeBareNostrEntities');
-        $this->method->setAccessible(true);
     }
 
     private function normalize(string $input): string
@@ -128,4 +127,3 @@ class BareNostrNormalizationTest extends TestCase
         $this->assertStringNotContainsString('nostr:nostr:', $result);
     }
 }
-

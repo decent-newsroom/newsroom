@@ -28,16 +28,12 @@ class MathRenderingTest extends TestCase
         $this->converter = $ref->newInstanceWithoutConstructor();
 
         $this->normalizeNostrMath = $ref->getMethod('normalizeNostrMathMarkup');
-        $this->normalizeNostrMath->setAccessible(true);
 
         $this->extractPlaceholders = $ref->getMethod('extractMathPlaceholders');
-        $this->extractPlaceholders->setAccessible(true);
 
         $this->restorePlaceholders = $ref->getMethod('restoreMathPlaceholders');
-        $this->restorePlaceholders->setAccessible(true);
 
         $this->mathPlaceholdersProp = $ref->getProperty('mathPlaceholders');
-        $this->mathPlaceholdersProp->setAccessible(true);
     }
 
     private function nostrNormalize(string $input): string

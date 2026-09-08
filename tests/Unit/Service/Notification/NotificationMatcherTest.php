@@ -5,24 +5,24 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Notification;
 
 use App\Entity\Event;
-use App\Entity\NotificationSubscription;
+use App\Entity\UpdateSubscription;
 use App\Entity\User;
 use App\Enum\KindsEnum;
-use App\Enum\NotificationSourceTypeEnum;
+use App\Enum\UpdateSourceTypeEnum;
 use App\Repository\EventRepository;
-use App\Repository\NotificationSubscriptionRepository;
-use App\Service\Notification\NotificationMatcher;
+use App\Repository\UpdateSubscriptionRepository;
+use App\Service\Update\UpdateMatcher;
 use PHPUnit\Framework\TestCase;
 
 class NotificationMatcherTest extends TestCase
 {
     public function testShortCircuitsOnNonNotifiedKind(): void
     {
-        $subRepo = $this->createMock(NotificationSubscriptionRepository::class);
+        $subRepo = $this->createMock(UpdateSubscriptionRepository::class);
         $subRepo->expects(self::never())->method('findActiveBySourceValues');
         $eventRepo = $this->createMock(EventRepository::class);
 
-        $matcher = new NotificationMatcher($subRepo, $eventRepo);
+        $matcher = new UpdateMatcher($subRepo, $eventRepo);
 
         $event = $this->makeEvent(KindsEnum::REACTION->value, 'pubkey1');
         self::assertSame([], $matcher->match($event));
@@ -31,12 +31,12 @@ class NotificationMatcherTest extends TestCase
     public function testMatchesLongformOnNpubSubscription(): void
     {
         $user = $this->makeUser(1);
-        $sub = new NotificationSubscription($user, NotificationSourceTypeEnum::NPUB, 'pubkey1');
+        $sub = new UpdateSubscription($user, UpdateSourceTypeEnum::NPUB, 'pubkey1');
 
-        $subRepo = $this->createMock(NotificationSubscriptionRepository::class);
+        $subRepo = $this->createMock(UpdateSubscriptionRepository::class);
         $subRepo->method('findActiveBySourceValues')
-            ->willReturnCallback(function (NotificationSourceTypeEnum $type, array $values) use ($sub) {
-                if ($type === NotificationSourceTypeEnum::NPUB && in_array('pubkey1', $values, true)) {
+            ->willReturnCallback(function (UpdateSourceTypeEnum $type, array $values) use ($sub) {
+                if ($type === UpdateSourceTypeEnum::NPUB && in_array('pubkey1', $values, true)) {
                     return [$sub];
                 }
                 return [];
@@ -45,7 +45,7 @@ class NotificationMatcherTest extends TestCase
 
         $eventRepo = $this->createMock(EventRepository::class);
 
-        $matcher = new NotificationMatcher($subRepo, $eventRepo);
+        $matcher = new UpdateMatcher($subRepo, $eventRepo);
         $event = $this->makeEvent(KindsEnum::LONGFORM->value, 'pubkey1', dTag: 'my-article');
         $matches = $matcher->match($event);
         self::assertCount(1, $matches);
@@ -57,14 +57,14 @@ class NotificationMatcherTest extends TestCase
         // Even if user is subscribed to pubkey1, kind 1, 7, 9735, 9802, 1111, 30041
         // must never produce notifications in v1.
         $user = $this->makeUser(1);
-        $sub = new NotificationSubscription($user, NotificationSourceTypeEnum::NPUB, 'pubkey1');
+        $sub = new UpdateSubscription($user, UpdateSourceTypeEnum::NPUB, 'pubkey1');
 
-        $subRepo = $this->createMock(NotificationSubscriptionRepository::class);
+        $subRepo = $this->createMock(UpdateSubscriptionRepository::class);
         $subRepo->method('findActiveBySourceValues')->willReturn([$sub]);
         $subRepo->method('findAllActiveGrouped')->willReturn(['npubs' => [], 'publications' => [], 'sets' => []]);
         $eventRepo = $this->createMock(EventRepository::class);
 
-        $matcher = new NotificationMatcher($subRepo, $eventRepo);
+        $matcher = new UpdateMatcher($subRepo, $eventRepo);
 
         foreach ([
             KindsEnum::TEXT_NOTE->value,
@@ -83,12 +83,12 @@ class NotificationMatcherTest extends TestCase
     {
         $user = $this->makeUser(1);
         $coord = '30040:pubkey1:my-mag';
-        $sub = new NotificationSubscription($user, NotificationSourceTypeEnum::PUBLICATION, $coord);
+        $sub = new UpdateSubscription($user, UpdateSourceTypeEnum::PUBLICATION, $coord);
 
-        $subRepo = $this->createMock(NotificationSubscriptionRepository::class);
+        $subRepo = $this->createMock(UpdateSubscriptionRepository::class);
         $subRepo->method('findActiveBySourceValues')
-            ->willReturnCallback(function (NotificationSourceTypeEnum $type, array $values) use ($sub, $coord) {
-                if ($type === NotificationSourceTypeEnum::PUBLICATION && in_array($coord, $values, true)) {
+            ->willReturnCallback(function (UpdateSourceTypeEnum $type, array $values) use ($sub, $coord) {
+                if ($type === UpdateSourceTypeEnum::PUBLICATION && in_array($coord, $values, true)) {
                     return [$sub];
                 }
                 return [];
@@ -96,7 +96,7 @@ class NotificationMatcherTest extends TestCase
         $subRepo->method('findAllActiveGrouped')->willReturn(['npubs' => [], 'publications' => [], 'sets' => []]);
         $eventRepo = $this->createMock(EventRepository::class);
 
-        $matcher = new NotificationMatcher($subRepo, $eventRepo);
+        $matcher = new UpdateMatcher($subRepo, $eventRepo);
         $event = $this->makeEvent(KindsEnum::PUBLICATION_INDEX->value, 'pubkey1', dTag: 'my-mag');
         $matches = $matcher->match($event);
         self::assertCount(1, $matches);
@@ -107,15 +107,15 @@ class NotificationMatcherTest extends TestCase
         // The same user is subscribed via both NPUB and NIP51_SET to sources that
         // both match the same event. We must get exactly one subscription back.
         $user = $this->makeUser(42);
-        $subNpub = new NotificationSubscription($user, NotificationSourceTypeEnum::NPUB, 'pubkey1');
-        $subSet = new NotificationSubscription($user, NotificationSourceTypeEnum::NIP51_SET, '30000:pubkey2:my-set');
+        $subNpub = new UpdateSubscription($user, UpdateSourceTypeEnum::NPUB, 'pubkey1');
+        $subSet = new UpdateSubscription($user, UpdateSourceTypeEnum::NIP51_SET, '30000:pubkey2:my-set');
 
-        $subRepo = $this->createMock(NotificationSubscriptionRepository::class);
+        $subRepo = $this->createMock(UpdateSubscriptionRepository::class);
         $subRepo->method('findActiveBySourceValues')->willReturnCallback(
-            function (NotificationSourceTypeEnum $type) use ($subNpub, $subSet) {
+            function (UpdateSourceTypeEnum $type) use ($subNpub, $subSet) {
                 return match ($type) {
-                    NotificationSourceTypeEnum::NPUB => [$subNpub],
-                    NotificationSourceTypeEnum::NIP51_SET => [$subSet],
+                    UpdateSourceTypeEnum::NPUB => [$subNpub],
+                    UpdateSourceTypeEnum::NIP51_SET => [$subSet],
                     default => [],
                 };
             }
@@ -130,7 +130,7 @@ class NotificationMatcherTest extends TestCase
         $eventRepo = $this->createMock(EventRepository::class);
         $eventRepo->method('findByNaddr')->willReturn($setEvent);
 
-        $matcher = new NotificationMatcher($subRepo, $eventRepo);
+        $matcher = new UpdateMatcher($subRepo, $eventRepo);
         $event = $this->makeEvent(KindsEnum::LONGFORM->value, 'pubkey1', dTag: 'hello');
         $matches = $matcher->match($event);
         self::assertCount(1, $matches, 'same user across multiple subscriptions must dedup');
@@ -162,4 +162,3 @@ class NotificationMatcherTest extends TestCase
         return $user;
     }
 }
-

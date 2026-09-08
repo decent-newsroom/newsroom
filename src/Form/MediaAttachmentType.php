@@ -27,7 +27,7 @@ class MediaAttachmentType extends AbstractType
                 ],
                 'constraints' => [
                     new Assert\NotBlank(message: 'URL is required'),
-                    new Assert\Url(message: 'Must be a valid URL'),
+                    new Assert\Url(requireTld: false, message: 'Must be a valid URL'),
                 ],
             ])
             ->add('mimeType', TextType::class, [
@@ -54,4 +54,3 @@ class MediaAttachmentType extends AbstractType
         ]);
     }
 }
-

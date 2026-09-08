@@ -3,27 +3,25 @@
 namespace App\Tests\Service;
 
 use App\Entity\Event;
-use App\Message\UpdateProfileProjectionMessage;
 use App\Service\ProfileEventIngestionService;
+use App\Service\ProfileUpdateDispatcher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Tests for ProfileEventIngestionService
  */
 class ProfileEventIngestionServiceTest extends TestCase
 {
-    private MessageBusInterface $messageBus;
+    private ProfileUpdateDispatcher $profileUpdateDispatcher;
     private LoggerInterface $logger;
     private ProfileEventIngestionService $service;
 
     protected function setUp(): void
     {
-        $this->messageBus = $this->createMock(MessageBusInterface::class);
+        $this->profileUpdateDispatcher = $this->createMock(ProfileUpdateDispatcher::class);
         $this->logger = $this->createMock(LoggerInterface::class);
-        $this->service = new ProfileEventIngestionService($this->messageBus, $this->logger);
+        $this->service = new ProfileEventIngestionService($this->profileUpdateDispatcher, $this->logger);
     }
 
     public function testHandleEventIngestionWithMetadataEvent(): void
@@ -37,15 +35,11 @@ class ProfileEventIngestionServiceTest extends TestCase
         $event->setTags([]);
         $event->setSig('sig123');
 
-        // Expect message to be dispatched
-        $this->messageBus
+        $this->profileUpdateDispatcher
             ->expects($this->once())
             ->method('dispatch')
-            ->with($this->callback(function ($message) use ($event) {
-                return $message instanceof UpdateProfileProjectionMessage
-                    && $message->getPubkeyHex() === $event->getPubkey();
-            }))
-            ->willReturn(new Envelope(new \stdClass()));
+            ->with($event->getPubkey())
+            ->willReturn(true);
 
         $this->service->handleEventIngestion($event);
     }
@@ -64,12 +58,11 @@ class ProfileEventIngestionServiceTest extends TestCase
         ]);
         $event->setSig('sig456');
 
-        // Expect message to be dispatched
-        $this->messageBus
+        $this->profileUpdateDispatcher
             ->expects($this->once())
             ->method('dispatch')
-            ->with($this->isInstanceOf(UpdateProfileProjectionMessage::class))
-            ->willReturn(new Envelope(new \stdClass()));
+            ->with($event->getPubkey())
+            ->willReturn(true);
 
         $this->service->handleEventIngestion($event);
     }
@@ -85,8 +78,7 @@ class ProfileEventIngestionServiceTest extends TestCase
         $event->setTags([]);
         $event->setSig('sig789');
 
-        // Expect NO message to be dispatched
-        $this->messageBus
+        $this->profileUpdateDispatcher
             ->expects($this->never())
             ->method('dispatch');
 
@@ -104,15 +96,12 @@ class ProfileEventIngestionServiceTest extends TestCase
 
         $events = [$event1, $event2, $event3];
 
-        // Expect only ONE message to be dispatched (deduplicated by pubkey)
-        $this->messageBus
+        // Expect only one pubkey to be included in the batch.
+        $this->profileUpdateDispatcher
             ->expects($this->once())
-            ->method('dispatch')
-            ->with($this->callback(function ($message) use ($pubkey) {
-                return $message instanceof UpdateProfileProjectionMessage
-                    && $message->getPubkeyHex() === $pubkey;
-            }))
-            ->willReturn(new Envelope(new \stdClass()));
+            ->method('dispatchBatch')
+            ->with([$pubkey])
+            ->willReturn(1);
 
         $this->service->handleBatchEventIngestion($events);
     }
@@ -128,12 +117,11 @@ class ProfileEventIngestionServiceTest extends TestCase
 
         $events = [$event1, $event2, $event3];
 
-        // Expect TWO messages to be dispatched (one per unique pubkey with profile events)
-        $this->messageBus
-            ->expects($this->exactly(2))
-            ->method('dispatch')
-            ->with($this->isInstanceOf(UpdateProfileProjectionMessage::class))
-            ->willReturn(new Envelope(new \stdClass()));
+        $this->profileUpdateDispatcher
+            ->expects($this->once())
+            ->method('dispatchBatch')
+            ->with([$pubkey1, $pubkey2])
+            ->willReturn(2);
 
         $this->service->handleBatchEventIngestion($events);
     }

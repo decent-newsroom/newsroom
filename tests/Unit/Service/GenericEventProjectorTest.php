@@ -6,14 +6,27 @@ namespace App\Tests\Unit\Service;
 
 use App\Entity\Event;
 use App\Repository\EventRepository;
+use App\Repository\DeletedEventRepository;
+use App\Service\ArticlePublicationIndexer;
+use App\Service\EventDeletionService;
 use App\Service\GenericEventProjector;
+use App\Service\HighlightProjector;
+use App\Service\ReplaceableEventCleanupService;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\NostrEventIngressGuard;
+use App\Service\Nostr\Projector\RelayDiscoveryEventProjector;
 use App\Service\UserRolePromoter;
+use DecentNewsroom\NostrKernelBundle\Contract\Event\EventNormalizerInterface;
+use DecentNewsroom\NostrKernelBundle\Domain\Event\EventKind;
+use DecentNewsroom\NostrKernelBundle\Domain\Event\EventTags;
+use DecentNewsroom\NostrKernelBundle\Domain\Event\NostrEvent;
+use DecentNewsroom\NostrKernelBundle\Domain\Identity\Pubkey;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class GenericEventProjectorTest extends TestCase
 {
@@ -40,7 +53,27 @@ class GenericEventProjectorTest extends TestCase
             $this->createMock(EventIngestionListener::class),
             $this->createMock(UserRolePromoter::class),
             $this->createMock(RecordIdentityService::class),
+            $this->createMock(ReplaceableEventCleanupService::class),
+            $this->createMock(DeletedEventRepository::class),
+            $this->createMock(EventDeletionService::class),
+            $this->createMock(MessageBusInterface::class),
+            $this->createMock(RelayDiscoveryEventProjector::class),
+            $this->createMock(ArticlePublicationIndexer::class),
+            $this->createMock(HighlightProjector::class),
+            new NostrEventIngressGuard($this->normalizer()),
         );
+    }
+
+    private function normalizer(): EventNormalizerInterface
+    {
+        $normalizer = $this->createMock(EventNormalizerInterface::class);
+        $normalizer->method('normalize')->willReturn(new NostrEvent(
+            new EventKind(0),
+            new Pubkey(str_repeat('a', 64)),
+            EventTags::fromRaw([]),
+        ));
+
+        return $normalizer;
     }
 
     public function testProjectEventFromNostrEvent(): void

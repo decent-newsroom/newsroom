@@ -210,16 +210,21 @@ readonly class Nip05VerificationService
             ]
         ]);
 
-        $response = @file_get_contents($url, false, $context);
+        $stream = @fopen($url, 'r', false, $context);
+        if ($stream === false) {
+            $this->logger->warning('Failed to fetch well-known document', ['url' => $url]);
+            return ['success' => false, 'data' => null];
+        }
+        $response = stream_get_contents($stream);
+        $metadata = stream_get_meta_data($stream);
+        fclose($stream);
 
         // Check for redirects in response headers
-        if (isset($http_response_header)) {
-            foreach ($http_response_header as $header) {
+        foreach ($metadata['wrapper_data'] ?? [] as $header) {
                 if (preg_match('/^HTTP\/\d\.\d\s+(301|302|303|307|308)/', $header)) {
                     $this->logger->warning('NIP-05 verification rejected due to redirect', ['url' => $url]);
                     return ['success' => false, 'data' => null];
                 }
-            }
         }
 
         if ($response === false) {
@@ -404,4 +409,3 @@ readonly class Nip05VerificationService
         return $nip05;
     }
 }
-

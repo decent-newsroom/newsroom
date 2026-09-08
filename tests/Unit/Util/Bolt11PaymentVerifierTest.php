@@ -18,11 +18,11 @@ use PHPUnit\Framework\TestCase;
 final class Bolt11PaymentVerifierTest extends TestCase
 {
     /**
-     * BOLT11 spec test vector (mainnet, 2500 uBTC = 250 sats).
+     * BOLT11 test vector (mainnet, 2500 uBTC = 250,000 sats).
      * Payment hash: 0001020304050607080900010203040506070809000102030405060708090102
      * Preimage:     sha256 preimage that produces the above hash.
      *
-     * Source: https://github.com/lightning/bolts/blob/master/11-payment-encoding.md#examples
+     * It is encoded at test time to retain a valid Bech32 checksum.
      */
     private const SPEC_INVOICE =
         'lnbc2500u1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpuaztx' .
@@ -39,13 +39,13 @@ final class Bolt11PaymentVerifierTest extends TestCase
 
     public function testExtractPaymentHashFromSpecInvoice(): void
     {
-        $hash = Bolt11PaymentVerifier::extractPaymentHash(self::SPEC_INVOICE);
+        $hash = Bolt11PaymentVerifier::extractPaymentHash(self::validSpecInvoice());
         self::assertSame(self::SPEC_PAYMENT_HASH, $hash);
     }
 
     public function testExtractPaymentHashCaseInsensitive(): void
     {
-        $hash = Bolt11PaymentVerifier::extractPaymentHash(strtoupper(self::SPEC_INVOICE));
+        $hash = Bolt11PaymentVerifier::extractPaymentHash(strtoupper(self::validSpecInvoice()));
         self::assertSame(self::SPEC_PAYMENT_HASH, $hash);
     }
 
@@ -87,13 +87,13 @@ final class Bolt11PaymentVerifierTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/64-character hex/');
-        Bolt11PaymentVerifier::verifyPreimage('short', self::SPEC_INVOICE);
+        Bolt11PaymentVerifier::verifyPreimage('short', self::validSpecInvoice());
     }
 
     public function testVerifyPreimageRejectsInvalidPreimageChars(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        Bolt11PaymentVerifier::verifyPreimage(str_repeat('gg', 32), self::SPEC_INVOICE);
+        Bolt11PaymentVerifier::verifyPreimage(str_repeat('gg', 32), self::validSpecInvoice());
     }
 
     public function testVerifyPreimageRejectsInvalidInvoice(): void
@@ -112,7 +112,7 @@ final class Bolt11PaymentVerifierTest extends TestCase
         // test environment (no real sigs), but the hash mismatch is caught first.
         // We just need to confirm it doesn't return true:
         try {
-            $result = Bolt11PaymentVerifier::verifyPreimage($wrongPreimage, self::SPEC_INVOICE);
+            $result = Bolt11PaymentVerifier::verifyPreimage($wrongPreimage, self::validSpecInvoice());
             self::assertFalse($result, 'Wrong preimage must not verify');
         } catch (\InvalidArgumentException) {
             // Acceptable — the invoice parse itself failed before hash comparison
@@ -135,14 +135,25 @@ final class Bolt11PaymentVerifierTest extends TestCase
     public static function amountProvider(): array
     {
         return [
-            '2500u = 250 sats'      => ['lnbc2500u1…anything', 250],
+            '2500u = 250000 sats'   => ['lnbc2500u1…anything', 250_000],
             '5000n = 500 sats'      => ['lnbc5000n1…anything', 500],
             '1m = 100000 sats'      => ['lnbc1m1…anything', 100_000],
-            'testnet 1000u = 100'   => ['lntb1000u1…anything', 100],
+            'testnet 1000u = 100000' => ['lntb1000u1…anything', 100_000],
             '50000p = 5 sats'       => ['lnbc50000p1…anything', 5],
             'garbage'               => ['not-an-invoice', null],
         ];
     }
+
+    private static function validSpecInvoice(): string
+    {
+        $paymentHashBytes = array_values(unpack('C*', hex2bin(self::SPEC_PAYMENT_HASH)));
+        $paymentHashWords = \BitWasp\Bech32\convertBits($paymentHashBytes, 32, 8, 5);
+
+        return \BitWasp\Bech32\encode('lnbc2500u', array_merge(
+            array_fill(0, 7, 0),
+            [1, 1, 20],
+            $paymentHashWords,
+            array_fill(0, 104, 0),
+        ));
+    }
 }
-
-
