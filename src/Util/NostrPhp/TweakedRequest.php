@@ -10,8 +10,6 @@ use swentel\nostr\Relay\Relay;
 use swentel\nostr\Relay\RelaySet;
 use swentel\nostr\RelayResponse\RelayResponse;
 use swentel\nostr\RequestInterface;
-use WebSocket\Client;
-use WebSocket\Client as WsClient;
 use WebSocket\Message\Text;
 
 /**

@@ -7,21 +7,21 @@ namespace App\MessageHandler;
 use App\Message\StartRelayFeedMessage;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\RelayRegistry;
-use App\Util\NostrPhp\RelaySubscriptionHandler;
+use DecentNewsroom\NostrClientBundle\Contract\NostrClientFactoryInterface;
+use Innis\Nostr\Core\Application\Port\EventHandlerInterface;
+use Innis\Nostr\Core\Domain\Entity\Event;
+use Innis\Nostr\Core\Domain\Entity\Filter;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
-
+use Innis\Nostr\Core\Domain\ValueObject\Protocol\RelayUrl;
+use Innis\Nostr\Core\Domain\ValueObject\Protocol\SubscriptionId;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Relay\Relay;
-use swentel\nostr\Subscription\Subscription;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
-use WebSocket\Message\Ping;
-use WebSocket\Message\Text;
+
+use function Amp\delay;
 
 /**
  * Opens a time-bounded WebSocket subscription to an arbitrary relay
@@ -49,6 +49,7 @@ final class StartRelayFeedHandler
         private readonly MessageBusInterface $bus,
         private readonly RelayRegistry $relayRegistry,
         private readonly LoggerInterface $logger,
+        private readonly NostrClientFactoryInterface $nostrClientFactory,
     ) {}
 
     public function __invoke(StartRelayFeedMessage $message): void
@@ -71,104 +72,74 @@ final class StartRelayFeedHandler
             // the internal Docker URL (LOCAL) to avoid an unnecessary external round-trip.
             $connectUrl = $this->relayRegistry->resolveToLocalUrl($relayUrl);
 
-            $relay  = new Relay($connectUrl);
-            $relay->connect();
+            $relay = RelayUrl::fromString($connectUrl);
+            $client = $this->nostrClientFactory->create();
+            $subscriptionId = SubscriptionId::fromString('relay-feed-' . bin2hex(random_bytes(6)));
+            $filter = Filter::fromArray([
+                'kinds' => [30023],
+                'since' => time() - self::LOOKBACK_SECONDS,
+            ]);
 
-            $client = $relay->getClient();
-            $client->setTimeout(20);
+            try {
+                $client->connect($relay, $this->nostrClientFactory->createDefaultConnectionConfig());
+                $client->subscribe(
+                    $relay,
+                    $filter,
+                    new class(function (Event $event) use ($key, $relayUrl): void {
+                        $eventId = $event->toArray()['id'] ?? null;
+                        if (!is_string($eventId) || $this->buffer->alreadySeen($key, $eventId)) {
+                            return;
+                        }
 
-            $subscription   = new Subscription();
-            $subscriptionId = $subscription->setId();
+                        $card = $this->extractCard($event, $relayUrl);
+                        if ($card === null) {
+                            return;
+                        }
 
-            $filter = new Filter();
-            $filter->setKinds([30023]);
-            $filter->setSince(time() - self::LOOKBACK_SECONDS);
+                        $this->buffer->markSeen($key, $eventId);
+                        $this->buffer->pushToBuffer($key, $card);
+                        $this->hub->publish(new Update('/relay-feed/' . $key, json_encode($card, JSON_THROW_ON_ERROR)));
+                    }) implements EventHandlerInterface {
+                        private readonly \Closure $onEvent;
 
-            $reqMsg = new RequestMessage($subscriptionId, [$filter]);
-            $client->text($reqMsg->generate());
+                        public function __construct(callable $onEvent)
+                        {
+                            $this->onEvent = \Closure::fromCallable($onEvent);
+                        }
 
-            $handler   = new RelaySubscriptionHandler($this->logger);
-            $startTime = time();
+                        public function handleEvent(Event $event, SubscriptionId $subscriptionId): void
+                        {
+                            ($this->onEvent)($event);
+                        }
 
-            while (true) {
-                if ((time() - $startTime) >= self::WINDOW_SECONDS) {
-                    $this->logger->info('[relay-feed] Window elapsed, closing subscription', ['key' => $key]);
-                    break;
+                        public function handleEose(SubscriptionId $subscriptionId): void
+                        {
+                        }
+
+                        public function handleClosed(SubscriptionId $subscriptionId, string $message): void
+                        {
+                        }
+
+                        public function handleNotice(RelayUrl $relayUrl, string $message): void
+                        {
+                        }
+                    },
+                    $subscriptionId,
+                );
+
+                $deadline = microtime(true) + self::WINDOW_SECONDS;
+                while (microtime(true) < $deadline) {
+                    delay(0.25);
                 }
 
+                $this->logger->info('[relay-feed] Window elapsed, closing subscription', ['key' => $key]);
+            } finally {
                 try {
-                    $resp = $client->receive();
-                } catch (\Throwable $e) {
-                    if ($handler->isTimeoutError($e)) {
-                        continue;
-                    }
-                    if ($handler->isBadMessageError($e)) {
-                        continue;
-                    }
-                    throw $e;
+                    $client->unsubscribe($relay, $subscriptionId);
+                } finally {
+                    $client->close();
                 }
-
-                if ($resp instanceof Ping) {
-                    $handler->handlePing($client);
-                    continue;
-                }
-
-                if (!$resp instanceof Text) {
-                    continue;
-                }
-
-                $content = $resp->getContent();
-                $decoded = json_decode($content);
-
-                if (!$decoded || !is_array($decoded)) {
-                    continue;
-                }
-
-                $msgType = $decoded[0] ?? null;
-
-                if ($msgType === 'AUTH' && count($decoded) >= 2) {
-                    if (!$handler->handleAuth($relay, $client, (string) $decoded[1])) {
-                        $this->logger->info('[relay-feed] Relay requires user-scoped NIP-42 AUTH; dropping anonymous subscription', [
-                            'relay' => $relayUrl,
-                        ]);
-                        break;
-                    }
-                    continue;
-                }
-
-                if ($msgType !== 'EVENT') {
-                    continue;
-                }
-
-                $event = $decoded[2] ?? null;
-                if (!is_object($event)) {
-                    continue;
-                }
-
-                $eventId = $event->id ?? null;
-                if (!$eventId || $this->buffer->alreadySeen($key, (string) $eventId)) {
-                    continue;
-                }
-
-                $card = $this->extractCard($event, $relayUrl);
-                if ($card === null) {
-                    continue;
-                }
-
-                $this->buffer->markSeen($key, (string) $eventId);
-                $this->buffer->pushToBuffer($key, $card);
-
-                // Publish to Mercure as a public (non-private) update.
-                // With the hub's `anonymous` directive enabled, unauthenticated
-                // EventSource connections can receive these events without a JWT.
-                $this->hub->publish(new Update(
-                    '/relay-feed/' . $key,
-                    json_encode($card),
-                ));
             }
-
-            $handler->sendClose($client, $subscriptionId);
-            $client->close();
 
         } catch (\Throwable $e) {
             $this->logger->error('[relay-feed] Subscription error', [
@@ -193,12 +164,13 @@ final class StartRelayFeedHandler
      *
      * @return array{id:string, pubkey:string, npub:string, created_at:int, title:string, summary:string, image:string, d_tag:string, naddr:string, relay:string}|null
      */
-    private function extractCard(object $event, string $relayUrl): ?array
+    private function extractCard(Event $event, string $relayUrl): ?array
     {
-        $id        = $event->id      ?? null;
-        $pubkey    = $event->pubkey  ?? null;
-        $createdAt = $event->created_at ?? 0;
-        $tags      = is_array($event->tags ?? null) ? $event->tags : [];
+        $eventData = $event->toArray();
+        $id        = $eventData['id'] ?? null;
+        $pubkey    = $eventData['pubkey'] ?? null;
+        $createdAt = $eventData['created_at'] ?? 0;
+        $tags      = is_array($eventData['tags'] ?? null) ? $eventData['tags'] : [];
 
         if (!$id || !$pubkey) {
             return null;

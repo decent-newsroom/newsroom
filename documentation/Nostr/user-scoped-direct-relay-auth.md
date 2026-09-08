@@ -16,3 +16,7 @@ unauthenticated and are dropped if a relay requires NIP-42 AUTH.
 Browser-extension (NIP-07) fallback remains a relay-gateway responsibility.
 It requires a browser/Mercure round trip and is not safe to block a direct
 server-side WebSocket request on.
+
+The public relay-feed worker uses `nostr-client-bundle` directly. Because its
+subscription is anonymous, AUTH-gated relays do not supply events rather than
+receiving an ephemeral or user-impersonating signature.

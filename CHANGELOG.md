@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Improvement] Migrated the public relay-feed worker from direct `swentel/nostr-php` WebSockets to `nostr-client-bundle`'s AMPHP subscription client, retaining the time-bounded relay feed and Mercure card updates without anonymous NIP-42 authentication.
 - [Improvement] Removed ephemeral NIP-42 AUTH signing from direct relay requests. Direct requests now retain their initiating user's pubkey, obtain kind-22242 signatures through SigningBundle's user-scoped NIP-46 signer within the request timeout, and drop AUTH-gated requests when no eligible signature is available; anonymous workers no longer impersonate generated keys.
 - [Docs] Added Unfold spec 08 unifying publication administration: one admin implementation mounted both on the subdomain and on the main domain by magazine coordinate, a `PublicationContext` resolver, consolidation of the host-app magazine wizard and index editor into the bundle, and a publication-scoped article editor. Records that admin publication lookups must be scoped by the authenticated pubkey, because slug resolution is last-writer-wins across pubkeys.
 - [Fix] Capped synchronous relay gateway reads at three seconds and applied the configured direct lookup timeout to event-ID resolution, preventing Bookshelf relay fallbacks from exhausting PHP's request limit.
