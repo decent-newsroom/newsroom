@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Improvement] Removed the direct Elasticsearch My Books fallback; REST resolution failures are now logged and remain visible through the unavailable state.
 - [Improvement] Upgraded BookshelfBundle to v0.1.2 so My Books uses its built-in Decent Newsroom Books API and Mercury result merger; removed the redundant host API envelope adapter and loader.
 - [Fix] Restored article placeholder relay fetching by using the request executor's filter-array normalizer when building relay requests.
 - [Fix] Restored the PHPUnit suite after the updates-pipeline migration, corrected BOLT11 payment-hash decoding, preserved NIP-98 replay rejection, and removed PHP 8.5/Symfony/Doctrine deprecation paths.

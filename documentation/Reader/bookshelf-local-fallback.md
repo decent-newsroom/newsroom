@@ -8,7 +8,9 @@ The My Books list is a parameterized replaceable kind `30045` event with the sta
 
 The bundle queries both sources and merges their results by publication coordinate. For duplicate replaceable publications, the newest `createdAt` revision wins. The merged list retains the directory's declared order, so books found by only one source still appear in the expected position. A transport or HTTP failure from either source does not discard results returned by the other source.
 
-If both HTTP sources fail, My Books queries the configured Books Elasticsearch alias directly through `BookshelfEsBookLoader`; the unavailable notice appears only when that final lookup is unavailable too.
+If the bundle's Books API and Mercury resolution both fail, My Books logs the
+failure and displays its unavailable notice. It does not bypass the REST API
+through a direct Elasticsearch query.
 
 For references still unresolved after those indexed sources, `BookshelfRelayBookLoader` fetches the kind `30040` publication directly using the normal Nostr coordinate and event-ID lookups. Those lookups check the local relay, any relay hints in the directory tag, and the publication author's regular relays. Relay-resolved books are merged into their declared directory positions.
 
@@ -31,7 +33,8 @@ When a reader opens a Nostr-native book, its kind `30040` index is used to colle
 
 ## Limitations
 
-- If both Mercury and the local Books API are unavailable, My Books displays its normal availability notice.
+- If both Mercury and the Decent Newsroom Books API are unavailable, My Books logs
+  the failure and displays its normal availability notice.
 - The relay refresh is best-effort: an unavailable relay leaves the locally projected directory intact.
 
 ## Related NIPs / NKBIPs

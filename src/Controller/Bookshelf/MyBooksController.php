@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace App\Controller\Bookshelf;
 
 use App\Bookshelf\BookshelfDirectoryRefreshService;
-use App\Bookshelf\BookshelfEsBookLoader;
 use App\Bookshelf\BookshelfRelayBookLoader;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
-use App\Api\Books\Http\ApiException;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -28,8 +27,8 @@ final class MyBooksController extends AbstractController
         BookshelfDirectoryRefreshService $directoryRefreshService,
         BookshelfDirectoryService $directoryService,
         MercuryBookService $bookService,
-        BookshelfEsBookLoader $esBookLoader,
         BookshelfRelayBookLoader $relayBookLoader,
+        LoggerInterface $logger,
     ): Response {
         $user = $this->getUser();
         \assert($user !== null);
@@ -43,17 +42,17 @@ final class MyBooksController extends AbstractController
 
         try {
             $books = $bookService->getBooksForReferences($references);
-        } catch (MercuryApiException) {
-            try {
-                $books = $esBookLoader->getBooksForReferences($references);
-            } catch (ApiException) {
-                $books = [];
-                $available = false;
-            }
+        } catch (MercuryApiException $exception) {
+            $logger->warning('My Books API resolution failed.', [
+                'pubkey' => substr($pubkey, 0, 16) . '...',
+                'reference_count' => count($references),
+                'error' => $exception->getMessage(),
+            ]);
+            $books = [];
+            $available = false;
         }
 
         $books = $relayBookLoader->fillMissingBooks($references, $books);
-        $available = $available || $books !== [];
 
         return $this->render('@Bookshelf/bookshelf/my_books.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav(true),
