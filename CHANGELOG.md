@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Improvement] Upgraded BookshelfBundle to v0.1.2 so My Books uses its built-in Decent Newsroom Books API and Mercury result merger; removed the redundant host API envelope adapter and loader.
 - [Fix] Restored article placeholder relay fetching by using the request executor's filter-array normalizer when building relay requests.
 - [Fix] Restored the PHPUnit suite after the updates-pipeline migration, corrected BOLT11 payment-hash decoding, preserved NIP-98 replay rejection, and removed PHP 8.5/Symfony/Doctrine deprecation paths.
 - [Improvement] Migrated the host relay pool, request executor, relay-set factory, and facade relay contracts to host-owned URL/filter/result types backed by `nostr-client-bundle` and Innis clients, preserving local/project relay mapping, health ordering, EOSE/idle handling, gateway fail-closed routing, and user-scoped NIP-42 AUTH.

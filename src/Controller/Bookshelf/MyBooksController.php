@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller\Bookshelf;
 
-use App\Bookshelf\BookshelfBookLoader;
 use App\Bookshelf\BookshelfDirectoryRefreshService;
 use App\Bookshelf\BookshelfEsBookLoader;
 use App\Bookshelf\BookshelfRelayBookLoader;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
-use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use App\Api\Books\Http\ApiException;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,7 +27,7 @@ final class MyBooksController extends AbstractController
     public function index(
         BookshelfDirectoryRefreshService $directoryRefreshService,
         BookshelfDirectoryService $directoryService,
-        BookshelfBookLoader $bookLoader,
+        MercuryBookService $bookService,
         BookshelfEsBookLoader $esBookLoader,
         BookshelfRelayBookLoader $relayBookLoader,
     ): Response {
@@ -42,7 +42,7 @@ final class MyBooksController extends AbstractController
         $available = true;
 
         try {
-            $books = $bookLoader->getBooksForReferences($references);
+            $books = $bookService->getBooksForReferences($references);
         } catch (MercuryApiException) {
             try {
                 $books = $esBookLoader->getBooksForReferences($references);

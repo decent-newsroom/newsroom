@@ -12,7 +12,7 @@
         "ext-redis": "*",
         "ext-simplexml": "*",
         "decent-newsroom/asciidoc-html": "^0.1.0",
-        "decent-newsroom/bookshelf-bundle": "@dev",
+        "decent-newsroom/bookshelf-bundle": "^0.1.1",
         "decent-newsroom/identity-bundle": "@dev",
         "decent-newsroom/nostr-client-bundle": "^0.1",
         "decent-newsroom/relay-gateway-bundle": "@dev",

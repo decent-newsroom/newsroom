@@ -8,7 +8,7 @@ use App\Bookshelf\BookshelfRelayBookLoader;
 use AsciiDocConverter;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
-use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiException;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Psr\Log\LoggerInterface;

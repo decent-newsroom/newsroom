@@ -1,13 +1,12 @@
 # Bookshelf Local Relay and API Fallback
 
-`/bookshelf/my-books` refreshes the signed My Books directory from the instance's local Nostr relay before rendering. Saved publication references are resolved through both the external Mercury service and this application's read-only Books API.
+`/bookshelf/my-books` refreshes the signed My Books directory from the instance's local Nostr relay before rendering. The BookshelfBundle resolves saved publication references through the Decent Newsroom Books API and Mercury.
 
 ## Overview
 
 The My Books list is a parameterized replaceable kind `30045` event with the stable `d` tag `my-book-collection`. A browser may publish a newer copy through another client or relay, so a database-only lookup can be stale. The page probes the configured local relay on each My Books load and projects a returned event through the normal generic projector. NIP-01 replaceable-event ordering keeps the newest revision and ignores stale relay copies.
 
-The book resolver queries Mercury and the local Books API, then merges their results by publication coordinate. For duplicate replaceable publications, the newest `createdAt` revision wins. The merged list retains the directory's declared order, so books found by only one source still appear in the expected position. A transport or HTTP failure from either source does not discard results returned by the other source. Both paths use the bundle's same event-to-book mapping, preserving missing-item handling.
-The public Books API deliberately returns bare event arrays and objects. `BooksApiMercuryHttpClient` adapts only the internal fallback response to Mercury's `data` envelope and constrains internal event-filter requests to the API's 100-result maximum, leaving the public API contract unchanged.
+The bundle queries both sources and merges their results by publication coordinate. For duplicate replaceable publications, the newest `createdAt` revision wins. The merged list retains the directory's declared order, so books found by only one source still appear in the expected position. A transport or HTTP failure from either source does not discard results returned by the other source.
 
 If both HTTP sources fail, My Books queries the configured Books Elasticsearch alias directly through `BookshelfEsBookLoader`; the unavailable notice appears only when that final lookup is unavailable too.
 
@@ -21,14 +20,13 @@ When a reader opens a Nostr-native book, its kind `30040` index is used to colle
 2. `BookshelfDirectoryRefreshService` asks the configured local relay for `30045:<pubkey>:my-book-collection`.
 3. A returned event is persisted through `GenericEventProjector`; its replaceable-event checks retain only the current revision.
 4. `BookshelfDirectoryService` reads the resulting local directory and extracts book references.
-5. `BookshelfBookLoader` resolves the references through Mercury and the local Books API, merges duplicate coordinates, and restores directory order.
+5. `MercuryBookService` resolves the references through the bundle's Books API and Mercury clients, merges duplicate coordinates, and restores directory order.
 6. `BookshelfRelayBookLoader` retrieves remaining Nostr-original publications from regular relays and merges them into the same order.
 
 ## Configuration
 
 | Parameter / environment variable | Default | Description |
 |---|---|---|
-| `BOOKS_LOCAL_API_BASE_URL` | `http://php/books` | Internal base URL for the local Books API fallback |
 | `NOSTR_DEFAULT_RELAY` | `ws://strfry:7777` in Docker | Local relay checked for the current directory |
 
 ## Limitations
