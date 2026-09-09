@@ -2,6 +2,7 @@
 
 ## v0.0.51
 
+- [Fix] Made article-card naddr lookup null-safe so persisted Article entities render through their canonical article routes instead of raising a Twig runtime error.
 - [Improvement] Removed the direct Elasticsearch My Books fallback; REST resolution failures are now logged and remain visible through the unavailable state.
 - [Improvement] Upgraded BookshelfBundle to v0.1.2 so My Books uses its built-in Decent Newsroom Books API and Mercury result merger; removed the redundant host API envelope adapter and loader.
 - [Fix] Restored article placeholder relay fetching by using the request executor's filter-array normalizer when building relay requests.

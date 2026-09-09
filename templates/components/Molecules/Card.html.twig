@@ -1,5 +1,5 @@
 {% if article is defined %}
-    {% set itemNaddr = attribute(article, 'naddr', [], 'any', true) ? attribute(article, 'naddr') : null %}
+    {% set itemNaddr = article.naddr|default(null) %}
     {% set articleKind = article.kind.value|default(article.kind|default(30023)) %}
     {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? articleKind ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
 
