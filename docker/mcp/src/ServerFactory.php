@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace DecentNewsroom\Mcp;
 
+use DecentNewsroom\Mcp\Client\BooksApiClient;
 use DecentNewsroom\Mcp\Client\NewsroomApiClient;
 use DecentNewsroom\Mcp\Resource\ArticleResources;
+use DecentNewsroom\Mcp\Resource\BookResources;
 use DecentNewsroom\Mcp\Tool\ArticleTools;
+use DecentNewsroom\Mcp\Tool\BookTools;
 use PhpMcp\Server\Server;
 use Symfony\Component\HttpClient\HttpClient;
 
@@ -32,15 +35,22 @@ final class ServerFactory
             $baseUrl,
             $internalToken,
         );
+        $booksClient = new BooksApiClient(
+            HttpClient::create(['timeout' => 15]),
+            $baseUrl,
+        );
 
         $container = new ArrayContainer([
             NewsroomApiClient::class => $client,
+            BooksApiClient::class => $booksClient,
             ArticleTools::class => new ArticleTools($client),
             ArticleResources::class => new ArticleResources($client),
+            BookTools::class => new BookTools($booksClient),
+            BookResources::class => new BookResources($booksClient),
         ]);
 
         $server = Server::make()
-            ->withServerInfo('Decent Newsroom Articles', '1.0.0')
+            ->withServerInfo('Decent Newsroom Articles and Books', '1.1.0')
             ->withContainer($container)
             ->build();
 

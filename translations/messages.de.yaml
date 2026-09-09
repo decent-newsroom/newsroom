@@ -108,6 +108,25 @@ footer:
     project: 'Projekt'
     developer: 'Entwickler'
     sitemap: 'Sitemap'
+    mcp: 'MCP'
+
+mcp:
+    heading: 'Mit Decent Newsroom verbinden'
+    tagline: 'Unseren öffentlichen Model Context Protocol Server nutzen'
+    intro: 'Verbinden Sie einen MCP-kompatiblen KI-Client, um Decent-Newsroom-Artikel und Nostr-Publikationsbücher zu durchsuchen.'
+    endpoint:
+        heading: 'Server-Endpunkt'
+        description: 'Verwenden Sie diesen öffentlichen Streamable-HTTP-Endpunkt:'
+    connect:
+        heading: 'Client verbinden'
+        description: 'Fügen Sie diese Konfiguration in einen MCP-kompatiblen Client wie Claude Desktop oder Cursor ein. Kein Benutzerkonto und kein Zugriffstoken sind erforderlich.'
+    capabilities:
+        heading: 'Verfügbare Inhalte'
+        description: 'Der Server stellt schreibgeschützte Werkzeuge und Ressourcen bereit für:'
+        articles: 'Suche und Abruf von Langform-Artikeln'
+        books: 'Suche und Abruf von Nostr-Publikationsbüchern und Abschnitten'
+        resources: 'Einzelne Artikel und Bücher per URI als Kontext anhängen'
+    readOnly: 'Der MCP-Server ist schreibgeschützt und kann keine Inhalte veröffentlichen, bearbeiten oder löschen.'
 
 # ── Beitrag ────────────────────────────────────────────────────────
 contribution:

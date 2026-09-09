@@ -1,0 +1,42 @@
+{% extends 'layout-full.html.twig' %}
+
+{% block title %}{{ 'mcp.heading'|trans }} | {{ brand_name }}{% endblock %}
+
+{% block body %}
+    <main class="d-flex gap-3 static">
+        <twig:Atoms:PageHeading heading="{{ 'mcp.heading'|trans }}" tagline="{{ 'mcp.tagline'|trans }}" />
+
+        <section>
+            <p>{{ 'mcp.intro'|trans }}</p>
+        </section>
+
+        <section>
+            <h2>{{ 'mcp.endpoint.heading'|trans }}</h2>
+            <p>{{ 'mcp.endpoint.description'|trans }}</p>
+            <p><code>{{ mcpUrl }}</code></p>
+        </section>
+
+        <section>
+            <h2>{{ 'mcp.connect.heading'|trans }}</h2>
+            <p>{{ 'mcp.connect.description'|trans }}</p>
+            <pre><code>{
+  "mcpServers": {
+    "decent-newsroom": {
+      "url": "{{ mcpUrl }}"
+    }
+  }
+}</code></pre>
+        </section>
+
+        <section>
+            <h2>{{ 'mcp.capabilities.heading'|trans }}</h2>
+            <p>{{ 'mcp.capabilities.description'|trans }}</p>
+            <ul>
+                <li>{{ 'mcp.capabilities.articles'|trans }}</li>
+                <li>{{ 'mcp.capabilities.books'|trans }}</li>
+                <li>{{ 'mcp.capabilities.resources'|trans }}</li>
+            </ul>
+            <p>{{ 'mcp.readOnly'|trans }}</p>
+        </section>
+    </main>
+{% endblock %}

@@ -108,6 +108,25 @@ footer:
     project: 'Projekt'
     developer: 'Razvijalec'
     sitemap: 'Zemljevid strani'
+    mcp: 'MCP'
+
+mcp:
+    heading: 'Povežite se z Decent Newsroom'
+    tagline: 'Uporabite naš javni strežnik Model Context Protocol'
+    intro: 'Povežite AI-odjemalca, združljivega z MCP, za iskanje člankov Decent Newsroom in knjig Nostr publikacij.'
+    endpoint:
+        heading: 'Strežniška končna točka'
+        description: 'Uporabite to javno Streamable HTTP končno točko:'
+    connect:
+        heading: 'Povežite odjemalca'
+        description: 'To nastavitev dodajte v odjemalca, združljivega z MCP, kot sta Claude Desktop ali Cursor. Uporabniški račun ali žeton za dostop nista potrebna.'
+    capabilities:
+        heading: 'Kaj lahko uporabljate'
+        description: 'Strežnik ponuja orodja in vire samo za branje za:'
+        articles: 'Iskanje in pridobivanje dolgih člankov'
+        books: 'Iskanje in pridobivanje knjig in razdelkov Nostr publikacij'
+        resources: 'Pripenjanje posameznih člankov in knjig kot kontekst prek URI-ja'
+    readOnly: 'Strežnik MCP je samo za branje in ne more objavljati, urejati ali brisati vsebine.'
 
 # ── Prispevek ─────────────────────────────────────────────────────
 contribution:

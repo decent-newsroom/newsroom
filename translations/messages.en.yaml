@@ -108,6 +108,25 @@ footer:
     project: 'Project'
     developer: 'Developer'
     sitemap: 'Sitemap'
+    mcp: 'MCP'
+
+mcp:
+    heading: 'Connect to Decent Newsroom'
+    tagline: 'Use our public Model Context Protocol server'
+    intro: 'Connect an MCP-compatible AI client to search Decent Newsroom articles and Nostr publication books.'
+    endpoint:
+        heading: 'Server endpoint'
+        description: 'Use this public Streamable HTTP endpoint:'
+    connect:
+        heading: 'Connect your client'
+        description: 'Add this configuration to an MCP-compatible client such as Claude Desktop or Cursor. No user account or access token is required.'
+    capabilities:
+        heading: 'What you can access'
+        description: 'The server provides read-only tools and resources for:'
+        articles: 'Searching and retrieving long-form articles'
+        books: 'Searching and retrieving Nostr publication books and sections'
+        resources: 'Attaching individual articles and books as context by URI'
+    readOnly: 'The MCP server is read-only and cannot publish, edit, or delete content.'
 
 # ── Contribution sidebar ──────────────────────────────────────────
 contribution:

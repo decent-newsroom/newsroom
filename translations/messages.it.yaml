@@ -107,6 +107,25 @@ footer:
     project: 'Progetto'
     developer: 'Sviluppatore'
     sitemap: 'Mappa del sito'
+    mcp: 'MCP'
+
+mcp:
+    heading: 'Connettiti a Decent Newsroom'
+    tagline: 'Usa il nostro server pubblico Model Context Protocol'
+    intro: 'Connetti un client IA compatibile con MCP per cercare articoli di Decent Newsroom e libri di pubblicazioni Nostr.'
+    endpoint:
+        heading: 'Endpoint del server'
+        description: 'Usa questo endpoint HTTP Streamable pubblico:'
+    connect:
+        heading: 'Connetti il tuo client'
+        description: 'Aggiungi questa configurazione a un client compatibile con MCP come Claude Desktop o Cursor. Non sono richiesti un account utente o un token di accesso.'
+    capabilities:
+        heading: 'Cosa puoi consultare'
+        description: 'Il server fornisce strumenti e risorse in sola lettura per:'
+        articles: 'Cercare e recuperare articoli long-form'
+        books: 'Cercare e recuperare libri e sezioni di pubblicazioni Nostr'
+        resources: 'Allegare singoli articoli e libri come contesto tramite URI'
+    readOnly: 'Il server MCP è in sola lettura e non può pubblicare, modificare o eliminare contenuti.'
 
 # ── Contribution sidebar ──────────────────────────────────────────
 contribution:

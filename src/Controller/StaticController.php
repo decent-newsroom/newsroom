@@ -8,6 +8,7 @@ use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\MarkdownConverter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,6 +16,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class StaticController extends AbstractController
 {
+    public function __construct(
+        #[Autowire('%mcp.domain%')]
+        private readonly string $mcpDomain,
+    ) {
+    }
 
     #[Route('/about', name: 'app_static_about')]
     public function about(): Response
@@ -45,6 +51,14 @@ class StaticController extends AbstractController
     public function pricing(): Response
     {
         return $this->render('static/pricing.html.twig');
+    }
+
+    #[Route('/mcp', name: 'app_static_mcp')]
+    public function mcp(): Response
+    {
+        return $this->render('static/mcp.html.twig', [
+            'mcpUrl' => sprintf('https://%s/mcp', $this->mcpDomain),
+        ]);
     }
 
     #[Route('/tos', name: 'app_static_tos')]
@@ -98,6 +112,7 @@ class StaticController extends AbstractController
             '/about',
             '/changelog',
             '/essayist',
+            '/mcp',
             '/pricing',
             '/roadmap',
             '/tos',

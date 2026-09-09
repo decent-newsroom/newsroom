@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.52
+
+- [Feature] Extended the standalone MCP server with read-only Books API tools for publication search, book lookup, section search, and `dn://book/{eventId}` resources.
+- [Change] Made the public MCP endpoint accessible without a client bearer token while preserving its internal newsroom API token.
+- [Feature] Added a global footer link and public usage page for connecting MCP-compatible clients to the newsroom server.
+
+
 ## v0.0.51
 
 - [Fix] Made article-card naddr lookup null-safe so persisted Article entities render through their canonical article routes instead of raising a Twig runtime error.

@@ -270,13 +270,12 @@ services:
   #
   # Activate with: docker compose --profile mcp up -d
   #
-  # Auth model (two layers):
-  #   - MCP client -> mcp:      bearer token MCP_AUTH_TOKEN, enforced at the edge
-  #                             (reverse proxy / Caddy) in front of this service.
+  # Access model:
+  #   - MCP client -> mcp:      public read-only access.
   #   - mcp -> newsroom app:    shared secret INTERNAL_API_TOKEN (X-Internal-Token).
   #
   # The published port is for local testing only; in production keep this service
-  # on the internal network behind a proxy that enforces the bearer token.
+  # on the internal network behind Caddy.
   mcp:
     build:
       context: ./docker/mcp
@@ -289,7 +288,6 @@ services:
     environment:
       NEWSROOM_INTERNAL_API_BASE: ${NEWSROOM_INTERNAL_API_BASE:-http://php}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-changeme}
-      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-changeme}
       MCP_HTTP_HOST: ${MCP_HTTP_HOST:-0.0.0.0}
       MCP_HTTP_PORT: ${MCP_HTTP_PORT:-9000}
     ports:
@@ -405,4 +403,3 @@ volumes:
 ###> strfry-essayist relay ###
   strfry_essayist_data:
 ###< strfry-essayist relay ###
-

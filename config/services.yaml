@@ -86,6 +86,8 @@ parameters:
     # service). Must match INTERNAL_API_TOKEN in the mcp service. Fails closed:
     # when empty, all /internal/api requests are rejected.
     internal_api.token: '%env(default::INTERNAL_API_TOKEN)%'
+    mcp.domain_default: 'chat.localhost'
+    mcp.domain: '%env(default:mcp.domain_default:MCP_DOMAIN)%'
 
 services:
     # default configuration for services in *this* file

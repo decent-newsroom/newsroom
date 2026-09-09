@@ -1,32 +1,31 @@
-# MCP server (articles)
+# MCP server (articles and books)
 
 A standalone [Model Context Protocol](https://modelcontextprotocol.io) server that
-exposes the Decent Newsroom long-form article corpus **read-only** to MCP-capable
-AI clients (Claude Desktop, Cursor, etc.).
+exposes the Decent Newsroom long-form article corpus and Nostr publication books
+**read-only** to MCP-capable AI clients (Claude Desktop, Cursor, etc.).
 
 It is a **fully independent service** living in `docker/mcp/` (alongside other
 self-contained services like `docker/essayist-gateway/`) with
 its own `composer.json`, `Dockerfile` and tests. It never touches PostgreSQL or
 Elasticsearch directly — it reads all data through a token-guarded internal HTTP
-API on the newsroom app, so the two can be developed and deployed independently.
+APIs on the newsroom app, so the two can be developed and deployed independently.
 
 ## Architecture
 
 ```
-[AI client] --stdio | HTTP (Bearer MCP_AUTH_TOKEN)--> [mcp service]
+[AI client] --stdio | HTTP (public)------------------> [mcp service]
      --internal HTTP (X-Internal-Token)--> [newsroom /internal/api/articles/*]
-          --> ContentSearchService --> Elasticsearch / PostgreSQL
+     --internal HTTP----------------------> [newsroom /books/api/*]
+          --> article search / Books Elasticsearch alias
 ```
-
-Two independent auth layers:
 
 | Boundary | Secret | Enforced by |
 |----------|--------|-------------|
-| MCP client → `mcp` (HTTP) | `MCP_AUTH_TOKEN` (bearer) | reverse proxy / Caddy in front of the service |
 | `mcp` → newsroom app | `INTERNAL_API_TOKEN` (`X-Internal-Token`) | `App\EventSubscriber\InternalApiTokenSubscriber` (fails closed) |
 
-The stdio transport has no network surface (the client launches the binary
-locally), so only the internal-API token applies there.
+The MCP HTTP endpoint is public. The stdio transport has no network surface;
+both transports use the internal-API token only for MCP-to-newsroom article
+requests.
 
 ## Internal API contract (newsroom app)
 
@@ -68,7 +67,7 @@ the newest revision.
 
 ## MCP tools
 
-All read-only, thin passthroughs to the internal API.
+Article tools are read-only, thin passthroughs to the token-guarded internal API.
 
 | Tool | Arguments | Description |
 |------|-----------|-------------|
@@ -82,13 +81,32 @@ All read-only, thin passthroughs to the internal API.
 Resource template: `dn://article/{coordinate}` returns a single article (full
 content) so clients can attach it as context by URI.
 
+## Books API contract
+
+The MCP service also consumes the newsroom's read-only Books API at
+`/books/api`. It reads the configured external Elasticsearch alias and has no
+database or relay fallback.
+
+| Tool | Arguments | Description |
+|------|-----------|-------------|
+| `search_books` | `query`, `title`, `author`, `language`, `subject`, `d`, `identifier`, `limit` | Searches kind 30040 publication indexes. All search fields are optional. |
+| `get_book` | `eventId` | Retrieves a kind 30040 publication index by its exact Nostr event ID. |
+| `search_book_sections` | `query`, `limit` | Full-text searches kind 30041 publication sections. |
+
+Resource template: `dn://book/{eventId}` returns a kind 30040 publication
+index, allowing clients to attach a book's Nostr event as context. See
+[`documentation/API/books-api.md`](../API/books-api.md) for the canonical Books
+API contract.
+
 ## Configuration (`mcp` service)
+
+The public newsroom footer links to `/mcp`, which displays the configured MCP
+endpoint and a client configuration example.
 
 | Env | Purpose |
 |-----|---------|
 | `NEWSROOM_INTERNAL_API_BASE` | Base URL of the newsroom internal API (e.g. `http://php`). |
 | `INTERNAL_API_TOKEN` | Shared secret; must match the newsroom app. |
-| `MCP_AUTH_TOKEN` | Bearer token required from HTTP clients (enforced at the proxy). |
 | `MCP_HTTP_HOST` / `MCP_HTTP_PORT` | HTTP transport bind address/port. |
 
 See `docker/mcp/.env.example`. On the newsroom side, set the matching `INTERNAL_API_TOKEN`
@@ -103,9 +121,8 @@ See `docker/mcp/.env.example`. On the newsroom side, set the matching `INTERNAL_
 docker compose --profile mcp up -d --build mcp
 ```
 
-The service listens on `MCP_HTTP_PORT` (default 9000) at `/mcp`. Put a reverse
-proxy (Caddy) in front of it to enforce the `Authorization: Bearer` token before
-exposing it publicly — the SDK's HTTP transport has no built-in auth hook.
+The service listens on `MCP_HTTP_PORT` (default 9000) at `/mcp`. In production,
+Caddy proxies the public MCP subdomain to the service.
 
 ### stdio (local desktop clients)
 
@@ -141,8 +158,7 @@ docker compose run --rm -T mcp php bin/mcp-stdio
 {
   "mcpServers": {
     "decent-newsroom": {
-      "url": "https://mcp.example.com/mcp",
-      "headers": { "Authorization": "Bearer <MCP_AUTH_TOKEN>" }
+      "url": "https://mcp.example.com/mcp"
     }
   }
 }
@@ -155,8 +171,8 @@ The `docker/mcp/` project has its own toolchain (no relation to the newsroom app
 ```bash
 cd docker/mcp
 composer install
-vendor/bin/phpunit          # NewsroomApiClient + ArticleTools unit tests
-php bin/mcp-stdio           # boots the server; discovers 6 tools + 1 template
+vendor/bin/phpunit
+php bin/mcp-stdio           # boots the server; discovers 9 tools + 2 templates
 ```
 
 Newsroom-side tests for the internal contract:
@@ -176,19 +192,17 @@ There is **no database migration** — the internal API reuses existing tables.
 ### 1. Generate and set secrets in `.env.prod.local`
 
 ```bash
-# Two independent secrets — do NOT reuse the same value.
+# Shared secret used only for MCP-to-newsroom article API requests.
 php -r "echo 'INTERNAL_API_TOKEN='.bin2hex(random_bytes(32)).PHP_EOL;"
-php -r "echo 'MCP_AUTH_TOKEN='.bin2hex(random_bytes(32)).PHP_EOL;"
 ```
 
 Append to `.env.prod.local`:
 
 ```dotenv
-# MCP service
-INTERNAL_API_TOKEN=<generated-1>     # shared by the php app AND the mcp service
-MCP_AUTH_TOKEN=<generated-2>         # bearer token clients must present
+# MCP service and newsroom app
+INTERNAL_API_TOKEN=<generated>       # shared by the php app AND the mcp service
 NEWSROOM_INTERNAL_API_BASE=http://php
-# Do NOT publish port 9000 in prod — Caddy fronts it (see step 3).
+# Do NOT publish port 9000 in prod — Caddy fronts it.
 ```
 
 The `php` prod service loads `.env.prod.local` via `env_file`, so it picks up
@@ -203,12 +217,12 @@ essayist), and `ports: !reset []` drops the published host port so it is only
 reachable as `mcp:9000` on the internal network. Nothing to do here beyond
 setting the secrets in step 1.
 
-### 3. Front it with Caddy + bearer enforcement (reuse the `chat` subdomain)
+### 3. Route the public MCP endpoint through Caddy (reuse the `chat` subdomain)
 
 The Caddy route is **already applied** in `frankenphp/Caddyfile` (the
 `@mcpHost` / `@mcpHostForwarded` handlers): requests to the `chat.` host are
-intercepted before the catch-all, rejected with `401` unless they carry
-`Authorization: Bearer {$MCP_AUTH_TOKEN}`, then proxied to `mcp:9000`.
+intercepted before the catch-all and proxied to `mcp:9000` without client
+authentication.
 
 We reuse the **existing, idle `chat.` subdomain** instead of standing up a new
 `mcp.` one — its DNS record and TLS cert are already in place, so there is
@@ -218,10 +232,8 @@ We reuse the **existing, idle `chat.` subdomain** instead of standing up a new
 MCP_DOMAIN=chat.decentnewsroom.com
 ```
 
-`MCP_AUTH_TOKEN` is already available to Caddy — the `php` container loads it via
-`env_file: .env.prod.local`. If you front everything with an **external** proxy
-(nginx/Cloudflare/Traefik), enforce the same bearer check there for
-`chat.decentnewsroom.com` and forward to the container instead.
+If you front everything with an **external** proxy
+(nginx/Cloudflare/Traefik), forward `chat.decentnewsroom.com` to the container.
 
 > Hygiene note: the `chat.` name no longer describes what it serves. Fine for now
 > since it's idle, but consider renaming to a dedicated `mcp.` subdomain later —
@@ -249,26 +261,24 @@ docker compose exec php sh -lc 'curl -s -o /dev/null -w "%{http_code}\n" \
 docker compose exec php sh -lc 'curl -s -H "X-Internal-Token: $INTERNAL_API_TOKEN" \
   "http://php/internal/api/articles/latest?limit=1"'
 
-# c) mcp reaches the app and discovers tools (expect: tools=6 templates=1):
+# c) mcp reaches the app and discovers tools (expect: tools=9 templates=2):
 docker compose exec mcp php -r 'require "vendor/autoload.php";
   $s=DecentNewsroom\Mcp\ServerFactory::build();
   echo "tools=".count($s->getRegistry()->getTools())." templates=".count($s->getRegistry()->getResourceTemplates()).PHP_EOL;'
 
-# d) Public endpoint enforces the bearer token (from outside):
-curl -s -o /dev/null -w "%{http_code}\n" https://chat.your-domain.com/mcp          # 401
-curl -s -H "Authorization: Bearer <MCP_AUTH_TOKEN>" https://chat.your-domain.com/mcp # 200/SSE
+# d) Public endpoint is reachable without client credentials:
+curl -s -o /dev/null -w "%{http_code}\n" https://chat.your-domain.com/mcp
 ```
 
 ### 6. Register a client
 
-Give the client the public URL and bearer token:
+Give the client the public URL:
 
 ```json
 {
   "mcpServers": {
     "decent-newsroom": {
-      "url": "https://chat.your-domain.com/mcp",
-      "headers": { "Authorization": "Bearer <MCP_AUTH_TOKEN>" }
+      "url": "https://chat.your-domain.com/mcp"
     }
   }
 }
@@ -282,18 +292,18 @@ surface (it is only reachable on the internal network and requires the token).
 
 ### Don't forget
 
-- [ ] `INTERNAL_API_TOKEN` and `MCP_AUTH_TOKEN` are **different** random secrets.
+- [ ] `INTERNAL_API_TOKEN` is a random secret shared only by the MCP service and newsroom app.
 - [ ] `.env.prod.local` is never committed.
 - [ ] Rebuilt the **php** image (internal API is app code), not just `mcp`.
 - [ ] Port 9000 is **not** published publicly (`ports: !reset []`).
-- [ ] Bearer enforcement is active at Caddy/proxy before exposing `chat.` publicly.
+- [ ] The public `chat.` MCP endpoint has no client-authentication requirement.
 - [ ] `MCP_DOMAIN=chat.your-domain.com` set; existing chat DNS/TLS reused (no new record needed).
 - [ ] No DB migration required — do not run one for this feature.
 
 ## Design notes
 
-- **Only coupling is the JSON contract** of `/internal/api/articles`. Keep the
-  presenter fields additive.
+- **Only coupling is the JSON contract** of `/internal/api/articles` and
+  `/books/api`. Keep both response shapes additive.
 - **Limits, dedup and draft exclusion** live in the newsroom internal API (single
   source of truth); the MCP tools stay dumb passthroughs.
 - **No writes.** The MCP surface is strictly read-only; there is no publishing or
