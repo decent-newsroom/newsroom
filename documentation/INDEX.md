@@ -39,6 +39,7 @@ Package-owned docs live with their Composer packages instead of this host docume
 - [Discover Page](Reader/discover-page.md) — Latest articles with bot filtering
 - [Follows Feed](Reader/follows-feature-implementation.md) — Articles from followed npubs
 - [Magazine Wizard](Newsroom/magazine-wizard.md) — 4-step magazine creation flow
+- [Magazine Index Deletion](Admin/magazine-index-deletion.md) — Coordinate-scoped recursive removal of stale magazine indexes
 - [Magazine Manifest](Newsroom/magazine-manifest.md) — Machine-readable JSON API for magazines
 - [Magazine Existing Lists](Reader/magazine-existing-list-attachment.md) — Attach existing reading lists to magazines
 - [Kind 30040 Ingestion](Newsroom/kind-30040-ingestion.md) — Publication index event processing

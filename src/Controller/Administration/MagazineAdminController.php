@@ -6,9 +6,9 @@ namespace App\Controller\Administration;
 
 use App\Entity\Article;
 use App\Entity\Event;
-use App\Entity\Nzine;
 use App\Enum\KindsEnum;
 use App\Repository\HiddenCoordinateRepository;
+use App\Service\Magazine\MagazineIndexDeletionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Redis as RedisClient;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -75,72 +75,36 @@ class MagazineAdminController extends AbstractController
         return $this->redirectToRoute('admin_magazines');
     }
 
-    #[Route('/admin/magazines/{npub}/delete', name: 'admin_magazine_delete', methods: ['POST'])]
+    #[Route('/admin/magazines/delete-indexes', name: 'admin_magazine_delete_indexes', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function delete(string $npub, EntityManagerInterface $em): Response
+    public function deleteIndexes(Request $request, MagazineIndexDeletionService $magazineIndexDeletionService): Response
     {
+        if (!$this->isCsrfTokenValid('admin_magazine_delete_indexes', $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid security token.');
+
+            return $this->redirectToRoute('admin_magazines');
+        }
+
+        $coordinate = $request->request->getString('coordinate');
         try {
-            // Find and delete all events associated with this nzine (main index + category indices)
-            $events = $em->getRepository(Event::class)->findBy([
-                'pubkey' => $npub,
-                'kind' => KindsEnum::PUBLICATION_INDEX->value
-            ]);
+            $result = $magazineIndexDeletionService->deleteRecursively($coordinate);
+        } catch (\InvalidArgumentException) {
+            $this->addFlash('error', 'Invalid magazine coordinate.');
 
-            $deletedCount = count($events);
+            return $this->redirectToRoute('admin_magazines');
+        }
 
-            foreach ($events as $event) {
-                $em->remove($event);
-            }
-
-            // Also delete the Nzine entity itself
-            $nzine = $em->getRepository(\App\Entity\Nzine::class)->findOneBy(['npub' => $npub]);
-            if ($nzine) {
-                $em->remove($nzine);
-            }
-
-            $em->flush();
-
+        if ($result->deletedIndexes === 0) {
+            $this->addFlash('warning', 'The magazine index no longer exists.');
+        } else {
             $this->addFlash('success', sprintf(
-                'Deleted nzine and %d associated index events.',
-                $deletedCount
+                'Deleted %d magazine index event(s) and %d magazine projection(s).',
+                $result->deletedIndexes,
+                $result->deletedMagazineProjections,
             ));
-        } catch (\Exception $e) {
-            $this->addFlash('error', 'Failed to delete nzine: ' . $e->getMessage());
         }
 
         return $this->redirectToRoute('admin_magazines');
-    }
-
-    #[Route('/admin/magazines/orphaned', name: 'admin_magazines_orphaned')]
-    #[IsGranted('ROLE_ADMIN')]
-    public function listOrphaned(EntityManagerInterface $em): Response
-    {
-
-        // Find nzines (entities)
-        $nzines = $em->getRepository(\App\Entity\Nzine::class)->findAll();
-        $nzineNpubs = array_map(fn($n) => $n->getNpub(), $nzines);
-
-        // Also find malformed nzines (have Nzine entity but no or broken indices)
-        $malformed = [];
-        foreach ($nzines as $nzine) {
-            $npub = $nzine->getNpub();
-            $hasIndices = isset($indexesByPubkey[$npub]) && !empty($indexesByPubkey[$npub]);
-
-            if (!$hasIndices || empty($nzine->getSlug())) {
-                $malformed[] = [
-                    'nzine' => $nzine,
-                    'npub' => $npub,
-                    'slug' => $nzine->getSlug(),
-                    'state' => $nzine->getState(),
-                    'categories' => count($nzine->getMainCategories()),
-                    'indices' => $indexesByPubkey[$npub] ?? [],
-                ];
-            }
-        }
-
-        return $this->render('admin/magazines_orphaned.html.twig', [
-            'malformed' => $nzines,
-        ]);
     }
 
     private function getMagazinesFromDatabase(EntityManagerInterface $em, RedisClient $redis, CacheInterface $redisCache): array

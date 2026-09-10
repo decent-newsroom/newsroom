@@ -39,11 +39,7 @@
                 <span class="text-danger">NULL</span>
               {% endif %}
             </td>
-            <td>
-              <form method="post" action="{{ path('admin_magazine_delete', {npub: item.npub}) }}" style="display: inline;" onsubmit="return confirm('Delete this malformed nzine and all its indices? This cannot be undone.');">
-                <button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
-              </form>
-            </td>
+            <td>Delete the magazine's root index from the main magazines page.</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -57,8 +53,7 @@
     <ul class="mb-0">
       <li>Malformed nzines usually result from incomplete wizard flows or failed publishes</li>
       <li>Orphaned indices can occur when nzine entities are manually deleted from the database</li>
-      <li>Always use the delete function here rather than manual database deletion</li>
+      <li>Delete an identified magazine from the main magazines page rather than manually deleting database rows</li>
     </ul>
   </div>
 {% endblock %}
-

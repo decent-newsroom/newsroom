@@ -39,6 +39,11 @@
                     <button type="submit" class="btn btn-sm" title="Hide this magazine from the public newsstand">🚫 Hide</button>
                   </form>
                 {% endif %}
+                <form method="post" action="{{ path('admin_magazine_delete_indexes') }}" style="display:inline;" onsubmit="return confirm('Delete this magazine index and all nested indexes permanently? This cannot be undone. Referenced articles will not be deleted.');">
+                  <input type="hidden" name="_token" value="{{ csrf_token('admin_magazine_delete_indexes') }}">
+                  <input type="hidden" name="coordinate" value="{{ mag.coordinate }}">
+                  <button type="submit" class="btn btn-sm btn-danger" title="Permanently delete this magazine's indexes">🗑 Delete indexes</button>
+                </form>
               {% endif %}
             </summary>
             {% if mag.categories is not empty %}

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.53
+
+- [Feature] Added CSRF-protected, coordinate-scoped recursive deletion of stale magazine index trees from the magazines admin page, preserving referenced articles and unrelated indexes.
+
+
 ## v0.0.52
 
 - [Feature] Extended the standalone MCP server with read-only Books API tools for publication search, book lookup, section search, and `dn://book/{eventId}` resources.
