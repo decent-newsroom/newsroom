@@ -22,13 +22,13 @@
     {% if author %}
     "author": {
         "@type": "Person",
-        "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
+        "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }}
         {% if npub %}
-        "url": "{{ url('author-profile', {'npub': npub}) }}",
-        "identifier": {{ npub|json_encode|raw }},
+        ,"url": "{{ url('author-profile', {'npub': npub}) }}"
+        ,"identifier": {{ npub|json_encode|raw }}
         {% endif %}
         {% if author.picture is defined and author.picture %}
-        "image": {{ author.picture|json_encode|raw }}
+        ,"image": {{ author.picture|json_encode|raw }}
         {% endif %}
     },
     {% endif %}
@@ -108,18 +108,18 @@
     "@type": "Person",
     "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
     "identifier": {{ npub|json_encode|raw }},
-    "url": "{{ url('author-profile', {'npub': npub}) }}",
+    "url": "{{ url('author-profile', {'npub': npub}) }}"
     {% if author.image is defined and author.image %}
-    "image": {{ author.image|json_encode|raw }},
+    ,"image": {{ author.image|json_encode|raw }}
     {% endif %}
     {% if author.about is defined and author.about %}
-    "description": {{ author.about|striptags|json_encode|raw }},
+    ,"description": {{ author.about|striptags|json_encode|raw }}
     {% endif %}
     {% if author.nip05 is defined and author.nip05 %}
-    "email": {{ author.nip05|json_encode|raw }},
+    ,"email": {{ author.nip05|json_encode|raw }}
     {% endif %}
     {% if author.website is defined and author.website %}
-    "sameAs": {{ author.website|json_encode|raw }}
+    ,"sameAs": {{ author.website|json_encode|raw }}
     {% endif %}
 }
 {% endmacro %}
@@ -169,4 +169,3 @@
     "publisher": {{ _self.organization()|raw }}
 }
 {% endmacro %}
-
