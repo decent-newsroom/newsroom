@@ -2,23 +2,23 @@
 
 ## Overview
 
-Unfold is a self-contained bundle (`src/UnfoldBundle/`) that renders magazines on custom subdomains. Each `UnfoldSite` entity maps a subdomain to a magazine coordinate, and the bundle handles routing, theming, and content rendering.
+Unfold is a self-contained bundle (`packages/unfold-bundle/`) that renders magazines on custom subdomains. Each `UnfoldSite` entity maps a subdomain to a magazine coordinate, and the bundle handles routing, theming, and content rendering.
 
 ## Architecture
 
 | Component | File |
 |-----------|------|
-| Bundle | `src/UnfoldBundle/UnfoldBundle.php` |
-| Site controller | `src/UnfoldBundle/Controller/SiteController.php` |
-| Theme controller | `src/UnfoldBundle/Controller/ThemeAssetController.php` |
-| Request listener | `src/UnfoldBundle/EventListener/UnfoldRequestListener.php` |
-| Host resolver | `src/UnfoldBundle/Http/HostResolver.php` |
-| Route matcher | `src/UnfoldBundle/Http/RouteMatcher.php` |
-| Config loader | `src/UnfoldBundle/Config/SiteConfigLoader.php` |
-| Content provider | `src/UnfoldBundle/Content/ContentProvider.php` |
-| Context builder | `src/UnfoldBundle/Theme/ContextBuilder.php` |
-| Handlebars renderer | `src/UnfoldBundle/Theme/HandlebarsRenderer.php` |
-| SWR cache | `src/UnfoldBundle/Cache/StaleWhileRevalidateCache.php` |
+| Bundle | `packages/unfold-bundle/src/UnfoldBundle.php` |
+| Site controller | `packages/unfold-bundle/src/Controller/SiteController.php` |
+| Theme controller | `packages/unfold-bundle/src/Controller/ThemeAssetController.php` |
+| Request listener | `packages/unfold-bundle/src/EventListener/UnfoldRequestListener.php` |
+| Host resolver | `packages/unfold-bundle/src/Http/HostResolver.php` |
+| Route matcher | `packages/unfold-bundle/src/Http/RouteMatcher.php` |
+| Config loader | `packages/unfold-bundle/src/Config/SiteConfigLoader.php` |
+| Content provider | `packages/unfold-bundle/src/Content/ContentProvider.php` |
+| Context builder | `packages/unfold-bundle/src/Theme/ContextBuilder.php` |
+| Handlebars renderer | `packages/unfold-bundle/src/Theme/HandlebarsRenderer.php` |
+| SWR cache | `packages/unfold-bundle/src/Cache/StaleWhileRevalidateCache.php` |
 
 ## Dynamic Subdomain Routing
 
@@ -45,4 +45,3 @@ The `SiteConfigCacheWarmer` performs the following steps when warming:
 ## Zaps on Unfold Pages
 
 Unfold pages include basic zap invoice support — resolving the magazine author's `lud16` address and displaying a Lightning QR code.
-

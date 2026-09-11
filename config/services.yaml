@@ -113,8 +113,6 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
-            - '../src/UnfoldBundle/DependencyInjection/'
-            - '../src/UnfoldBundle/UnfoldBundle.php'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -329,32 +327,44 @@ services:
     App\Service\Search\UserSearchInterface:
         factory: ['@App\Service\Search\UserSearchFactory', 'create']
 
-    # UnfoldBundle services
-    App\UnfoldBundle\Contract\SiteRegistryInterface:
+    # Unfold package host adapters
+    DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface:
         alias: App\Unfold\SiteRegistryAdapter
 
-    App\UnfoldBundle\Contract\EventReadGatewayInterface:
+    DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface:
         alias: App\Unfold\EventReadGatewayAdapter
 
-    App\UnfoldBundle\Contract\PublicationTreeLookupInterface:
+    DecentNewsroom\UnfoldBundle\Contract\PublicationTreeLookupInterface:
         alias: App\Unfold\PublicationTreeLookupAdapter
 
-    App\UnfoldBundle\Cache\StaleWhileRevalidateCache:
+    DecentNewsroom\UnfoldBundle\Contract\MarkdownConverterInterface:
+        alias: App\Unfold\MarkdownConverterAdapter
+
+    DecentNewsroom\UnfoldBundle\Contract\ProfileMetadataProviderInterface:
+        alias: App\Unfold\ProfileMetadataAdapter
+
+    DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface:
+        alias: App\Unfold\CommentProviderAdapter
+
+    DecentNewsroom\UnfoldBundle\Contract\PublicationRefreshInterface:
+        alias: App\Unfold\PublicationRefreshAdapter
+
+    DecentNewsroom\UnfoldBundle\Cache\StaleWhileRevalidateCache:
         arguments:
             $cache: '@unfold.cache'
 
-    App\UnfoldBundle\Config\SiteConfigLoader:
+    DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader:
         arguments:
-            $swrCache: '@App\UnfoldBundle\Cache\StaleWhileRevalidateCache'
+            $swrCache: '@DecentNewsroom\UnfoldBundle\Cache\StaleWhileRevalidateCache'
 
-    App\UnfoldBundle\Content\ContentProvider:
+    DecentNewsroom\UnfoldBundle\Content\ContentProvider:
         arguments:
-            $swrCache: '@App\UnfoldBundle\Cache\StaleWhileRevalidateCache'
+            $swrCache: '@DecentNewsroom\UnfoldBundle\Cache\StaleWhileRevalidateCache'
             $treeLookup: '@App\Unfold\PublicationTreeLookupAdapter'
 
-    App\UnfoldBundle\Http\HostResolver: ~
+    DecentNewsroom\UnfoldBundle\Http\HostResolver: ~
     
-    App\UnfoldBundle\Http\RouteMatcher: ~
+    DecentNewsroom\UnfoldBundle\Http\RouteMatcher: ~
 
     # Retry on stale/lost database connections.
     # Critical for FrankenPHP worker mode where PHP workers are long-lived
@@ -363,24 +373,24 @@ services:
         tags:
             - { name: doctrine.middleware }
 
-    App\UnfoldBundle\EventListener\UnfoldRequestListener:
+    DecentNewsroom\UnfoldBundle\EventListener\UnfoldRequestListener:
         arguments:
             $baseDomain: '%base_domain%'
     
-    App\UnfoldBundle\Theme\ContextBuilder:
+    DecentNewsroom\UnfoldBundle\Theme\ContextBuilder:
         arguments:
             $cache: '@unfold.cache'
     
-    App\UnfoldBundle\Theme\HandlebarsRenderer:
+    DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer:
         arguments:
-            $projectDir: '%kernel.project_dir%'
+            $themesPath: '%unfold.themes_path%'
 
-    App\UnfoldBundle\Controller\SiteController:
+    DecentNewsroom\UnfoldBundle\Controller\SiteController:
         tags: ['controller.service_arguments']
 
-    App\UnfoldBundle\Controller\ThemeAssetController:
+    DecentNewsroom\UnfoldBundle\Controller\ThemeAssetController:
         arguments:
-            $projectDir: '%kernel.project_dir%'
+            $themesPath: '%unfold.themes_path%'
         tags: ['controller.service_arguments']
 
     App\Controller\Api\CurationSyncController:

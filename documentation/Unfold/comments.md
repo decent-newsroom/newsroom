@@ -8,8 +8,8 @@ Comments (kind 1111) and zap receipts (kind 9735) are now displayed on UnfoldBun
 
 | Component | File |
 |-----------|------|
-| Context builder | `src/UnfoldBundle/Theme/ContextBuilder.php` |
-| Post template | `src/UnfoldBundle/Resources/themes/default/post.hbs` |
+| Context builder | `packages/unfold-bundle/src/Theme/ContextBuilder.php` |
+| Post template | `packages/unfold-bundle/Resources/themes/default/post.hbs` |
 
 ## Implementation Details
 
@@ -79,4 +79,3 @@ Compare with the main app (`src/Twig/Components/Organisms/Comments.php`), which 
 - Full zap UI
 
 Future enhancements could add these features to UnfoldBundle if needed.
-

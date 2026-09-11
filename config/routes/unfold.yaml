@@ -3,5 +3,17 @@
 # The UnfoldRequestListener validates subdomains dynamically against the database
 # and only allows requests for registered UnfoldSite subdomains to proceed.
 
+unfold_zap_api_invoice:
+    path: /unfold/api/zap/invoice
+    controller: App\Unfold\ZapApiController::createInvoice
+    methods: [POST]
+    condition: "request.attributes.has('_unfold_site')"
+
+unfold_zap_api_invoice_split:
+    path: /unfold/api/zap/invoice-split
+    controller: App\Unfold\ZapApiController::createInvoiceSplit
+    methods: [POST]
+    condition: "request.attributes.has('_unfold_site')"
+
 unfold_bundle:
-    resource: '../../src/UnfoldBundle/Resources/config/routes.yaml'
+    resource: '@UnfoldBundle/Resources/config/routes.yaml'

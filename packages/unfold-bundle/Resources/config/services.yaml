@@ -1,0 +1,9 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    DecentNewsroom\UnfoldBundle\:
+        resource: '../../src/'
+        exclude:
+            - '../../src/DependencyInjection/'

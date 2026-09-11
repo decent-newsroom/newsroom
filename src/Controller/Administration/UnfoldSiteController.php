@@ -378,7 +378,7 @@ class UnfoldSiteController extends AbstractController
      */
     private function getAvailableThemes(): array
     {
-        $themesPath = $this->getParameter('kernel.project_dir') . '/src/UnfoldBundle/Resources/themes';
+        $themesPath = $this->getParameter('unfold.themes_path');
         $themes = [];
 
         if (is_dir($themesPath)) {

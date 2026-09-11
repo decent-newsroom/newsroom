@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Unfold;
 
 use App\Repository\UnfoldSiteRepository;
-use App\UnfoldBundle\Contract\PublicationSite;
-use App\UnfoldBundle\Contract\SiteRegistryInterface;
+use DecentNewsroom\UnfoldBundle\Contract\PublicationSite;
+use DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface;
 
 final readonly class SiteRegistryAdapter implements SiteRegistryInterface
 {

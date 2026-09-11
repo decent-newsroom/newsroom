@@ -32,7 +32,7 @@
             <directory>tests/Security</directory>
         </testsuite>
         <testsuite name="UnfoldBundle">
-            <directory>tests/UnfoldBundle</directory>
+            <directory>packages/unfold-bundle/tests</directory>
         </testsuite>
         <testsuite name="Util">
             <directory>tests/Util</directory>

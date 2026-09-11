@@ -6,8 +6,8 @@ namespace App\Unfold;
 
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
-use App\UnfoldBundle\Contract\EventReadGatewayInterface;
-use App\UnfoldBundle\Contract\NostrEvent;
+use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 
 final readonly class EventReadGatewayAdapter implements EventReadGatewayInterface
 {

@@ -26,4 +26,5 @@ return [
     DecentNewsroom\RelayGatewayBundle\RelayGatewayBundle::class => ['all' => true],
     DecentNewsroom\SigningBundle\SigningBundle::class => ['all' => true],
     DecentNewsroom\IdentityBundle\IdentityBundle::class => ['all' => true],
+    DecentNewsroom\UnfoldBundle\UnfoldBundle::class => ['all' => true],
 ];

@@ -4,11 +4,5 @@ controllers:
         namespace: App\Controller
     type: attribute
 
-unfold_controllers:
-    resource:
-        path: ../src/UnfoldBundle/Controller/
-        namespace: App\UnfoldBundle\Controller
-    type: attribute
-
 books_api:
     resource: routes/books_api.yaml

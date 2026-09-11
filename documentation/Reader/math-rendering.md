@@ -93,5 +93,4 @@ The pipeline distinguishes math from currency:
 |------|------|
 | `src/Util/CommonMark/Converter.php` | Server-side math extraction and restoration |
 | `assets/controllers/utility/katex_controller.js` | Stimulus controller for KaTeX rendering |
-| `src/UnfoldBundle/Resources/themes/default/assets/katex-init.js` | UnfoldBundle KaTeX initializer |
-
+| `packages/unfold-bundle/Resources/themes/default/assets/katex-init.js` | UnfoldBundle KaTeX initializer |

@@ -203,7 +203,7 @@ Dual-mode search with factory-based selection:
 - `RedisViewStore` writes them; controllers read from cache first, DB fallback
 - Rebuilt by cron commands (`app:cache-latest-articles`, `app:cache-latest-highlights`)
 
-### UnfoldBundle (`src/UnfoldBundle/`)
+### UnfoldBundle (`packages/unfold-bundle/`)
 
 Magazine subdomain hosting:
 - Renders magazines at custom subdomains

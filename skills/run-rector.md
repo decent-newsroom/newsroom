@@ -124,7 +124,7 @@ return RectorConfig::configure()
         ],
 
         // Skip an entire directory
-        __DIR__ . '/src/UnfoldBundle',
+        __DIR__ . '/packages/unfold-bundle/src',
     ]);
 ```
 
@@ -206,4 +206,3 @@ They complement each other: PHPStan identifies the problems, Rector fixes them.
 - [ ] Run PHPStan: `vendor/bin/phpstan analyse`
 - [ ] Commit Rector changes in a dedicated commit (separate from feature work)
 - [ ] `CHANGELOG.md` entry added (e.g. `[Improvement] Applied Rector PHP 8.3 modernisation across src/`)
-

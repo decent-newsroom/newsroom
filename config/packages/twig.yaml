@@ -1,7 +1,7 @@
 twig:
     file_name_pattern: '*.twig'
     paths:
-        '%kernel.project_dir%/src/UnfoldBundle/Resources/views': Unfold
+        '%kernel.project_dir%/vendor/decent-newsroom/unfold-bundle/Resources/views': Unfold
     globals:
         brand_name: 'Decent Newsroom'
         brand_version: 'v0.0.52 Preprint'

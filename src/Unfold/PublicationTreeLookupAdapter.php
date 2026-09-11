@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Unfold;
 
 use App\Service\Graph\GraphLookupService;
-use App\UnfoldBundle\Contract\NostrEvent;
-use App\UnfoldBundle\Contract\PublicationTreeLookupInterface;
+use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
+use DecentNewsroom\UnfoldBundle\Contract\PublicationTreeLookupInterface;
 
 final readonly class PublicationTreeLookupAdapter implements PublicationTreeLookupInterface
 {

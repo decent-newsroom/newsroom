@@ -4,12 +4,14 @@ namespace App\Tests\Unit\UnfoldBundle;
 
 use App\Entity\Event;
 use App\Repository\EventRepository;
-use App\UnfoldBundle\Config\SiteConfig;
-use App\UnfoldBundle\Content\CategoryData;
-use App\UnfoldBundle\Content\PostData;
-use App\UnfoldBundle\Theme\ContextBuilder;
-use App\UnfoldBundle\Theme\HandlebarsRenderer;
-use App\Util\CommonMark\MarkdownConverterInterface;
+use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
+use DecentNewsroom\UnfoldBundle\Content\CategoryData;
+use DecentNewsroom\UnfoldBundle\Content\PostData;
+use DecentNewsroom\UnfoldBundle\Theme\ContextBuilder;
+use DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer;
+use DecentNewsroom\UnfoldBundle\Contract\MarkdownConverterInterface;
+use App\Unfold\CommentProviderAdapter;
+use App\Unfold\ProfileMetadataAdapter;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
@@ -28,13 +30,13 @@ class UnfoldDemoTest extends TestCase
 
     protected function setUp(): void
     {
-        $projectDir = dirname(__DIR__, 3);
+        $themesPath = dirname(__DIR__, 3) . '/packages/unfold-bundle/Resources/themes';
         $kernelCacheDir = sys_get_temp_dir() . '/unfold-test-cache-' . uniqid('', true);
         if (!is_dir($kernelCacheDir)) {
             mkdir($kernelCacheDir, 0777, true);
         }
 
-        $this->renderer = new HandlebarsRenderer(new NullLogger(), $projectDir, $kernelCacheDir);
+        $this->renderer = new HandlebarsRenderer(new NullLogger(), $themesPath, $kernelCacheDir);
 
         // Create a mock Converter that performs basic HTML escaping
         $converter = $this->createMock(MarkdownConverterInterface::class);
@@ -67,7 +69,12 @@ class UnfoldDemoTest extends TestCase
         $this->eventRepository = $this->createMock(EventRepository::class);
         $this->eventRepository->method('findCommentsByCoordinate')->willReturn([]);
 
-        $this->contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $this->eventRepository);
+        $this->contextBuilder = new ContextBuilder(
+            $converter,
+            $cache,
+            new ProfileMetadataAdapter($redisCacheService),
+            new CommentProviderAdapter($this->eventRepository),
+        );
     }
 
     public function testRenderHomePageWithDefaultTheme(): void
@@ -310,7 +317,12 @@ class UnfoldDemoTest extends TestCase
             ->with('30023:abc123:hello-world')
             ->willReturn([$zap]);
 
-        $contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $eventRepository);
+        $contextBuilder = new ContextBuilder(
+            $converter,
+            $cache,
+            new ProfileMetadataAdapter($redisCacheService),
+            new CommentProviderAdapter($eventRepository),
+        );
 
         $context = $contextBuilder->buildPostContext($siteConfig, [], $post);
         $html = $this->renderer->render('post', $context);
@@ -378,7 +390,12 @@ class UnfoldDemoTest extends TestCase
             ->with('30023:abc123:hello-world')
             ->willReturn([$comment]);
 
-        $contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $eventRepository);
+        $contextBuilder = new ContextBuilder(
+            $converter,
+            $cache,
+            new ProfileMetadataAdapter($redisCacheService),
+            new CommentProviderAdapter($eventRepository),
+        );
 
         $context = $contextBuilder->buildPostContext($siteConfig, [], $post);
         $html = $this->renderer->render('post', $context);
@@ -462,7 +479,12 @@ class UnfoldDemoTest extends TestCase
             ->with('30023:abc123:hello-world')
             ->willReturn([$comment, $zap]);
 
-        $contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $eventRepository);
+        $contextBuilder = new ContextBuilder(
+            $converter,
+            $cache,
+            new ProfileMetadataAdapter($redisCacheService),
+            new CommentProviderAdapter($eventRepository),
+        );
 
         $context = $contextBuilder->buildPostContext($siteConfig, [], $post);
         $html = $this->renderer->render('post', $context);
@@ -497,4 +519,3 @@ class UnfoldDemoTest extends TestCase
         echo "✓ Asset paths use default theme\n";
     }
 }
-

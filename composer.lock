@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "033f3feec419dc1042fc455eddc75dee",
+    "content-hash": "d1f7d93dcea1fbc132c9f4bebfd2cf3f",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1917,6 +1917,60 @@
                 "source": "https://github.com/decent-newsroom/signing-bundle"
             },
             "time": "2026-09-08T13:43:36+00:00"
+        },
+        {
+            "name": "decent-newsroom/unfold-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/unfold-bundle",
+                "reference": "a20d60f124f094b051149a00e7ced13f8d36fa83"
+            },
+            "require": {
+                "nostriphant/nip-19": "^2.0",
+                "php": "^8.3",
+                "psr/cache": "^3.0",
+                "psr/log": "^3.0",
+                "symfony/config": "^7.4",
+                "symfony/console": "^7.4",
+                "symfony/dependency-injection": "^7.4",
+                "symfony/event-dispatcher": "^7.4",
+                "symfony/framework-bundle": "^7.4",
+                "symfony/http-foundation": "^7.4",
+                "symfony/http-kernel": "^7.4",
+                "symfony/mime": "^7.4",
+                "symfony/routing": "^7.4",
+                "symfony/yaml": "^7.4",
+                "zordius/lightncandy": "^1.2"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5",
+                "symfony/cache": "^7.4"
+            },
+            "type": "symfony-bundle",
+            "extra": {
+                "symfony": {
+                    "require": "7.4.*"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "DecentNewsroom\\UnfoldBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DecentNewsroom\\UnfoldBundle\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Reusable Symfony bundle for rendering Nostr publications on subdomains",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "dflydev/dot-access-data",
@@ -17484,7 +17538,8 @@
         "decent-newsroom/expression-bundle": 20,
         "decent-newsroom/identity-bundle": 20,
         "decent-newsroom/nostr-kernel-bundle": 20,
-        "decent-newsroom/relay-gateway-bundle": 20
+        "decent-newsroom/relay-gateway-bundle": 20,
+        "decent-newsroom/unfold-bundle": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

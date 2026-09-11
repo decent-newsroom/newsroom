@@ -20,6 +20,9 @@
     "decent-newsroom/signing-bundle": {
         "version": "dev-main"
     },
+    "decent-newsroom/unfold-bundle": {
+        "version": "dev-main"
+    },
     "doctrine/deprecations": {
         "version": "1.1",
         "recipe": {
