@@ -5,21 +5,27 @@ declare(strict_types=1);
 namespace App\Tests\UnfoldBundle\Content;
 
 use App\UnfoldBundle\Content\CategoryData;
+use App\UnfoldBundle\Contract\NostrEvent;
 use PHPUnit\Framework\TestCase;
 
 final class CategoryDataTest extends TestCase
 {
     public function testFromEventParsesSummaryFromTag(): void
     {
-        $event = (object) [
-            'tags' => [
+        $event = new NostrEvent(
+            id: 'event-id',
+            pubkey: 'pubkey',
+            kind: 30040,
+            content: '',
+            tags: [
                 ['d', 'my-category'],
                 ['title', 'My Category'],
                 ['summary', 'A short summary'],
                 ['a', '30023:pubkey:article-1'],
             ],
-            'content' => '',
-        ];
+            createdAt: 1,
+            sig: 'signature',
+        );
 
         $cat = CategoryData::fromEvent($event, '30040:pubkey:my-category');
 
@@ -32,16 +38,21 @@ final class CategoryDataTest extends TestCase
 
     public function testFromEventParsesSummaryFromJsonContentFallback(): void
     {
-        $event = (object) [
-            'tags' => [
-                ['d', 'my-category'],
-                ['title', ''],
-            ],
-            'content' => json_encode([
+        $event = new NostrEvent(
+            id: 'event-id',
+            pubkey: 'pubkey',
+            kind: 30040,
+            content: json_encode([
                 'title' => 'Title in JSON',
                 'description' => 'Summary in JSON',
             ], JSON_THROW_ON_ERROR),
-        ];
+            tags: [
+                ['d', 'my-category'],
+                ['title', ''],
+            ],
+            createdAt: 1,
+            sig: 'signature',
+        );
 
         $cat = CategoryData::fromEvent($event, '30040:pubkey:my-category');
 
@@ -49,4 +60,3 @@ final class CategoryDataTest extends TestCase
         self::assertSame('Summary in JSON', $cat->summary);
     }
 }
-

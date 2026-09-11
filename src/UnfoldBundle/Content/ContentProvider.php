@@ -2,17 +2,18 @@
 
 namespace App\UnfoldBundle\Content;
 
-use App\Service\Graph\GraphLookupService;
-use App\Service\Nostr\NostrClient;
 use App\UnfoldBundle\Cache\StaleWhileRevalidateCache;
 use App\UnfoldBundle\Config\SiteConfig;
+use App\UnfoldBundle\Contract\EventReadGatewayInterface;
+use App\UnfoldBundle\Contract\NostrEvent;
+use App\UnfoldBundle\Contract\PublicationTreeLookupInterface;
 use Psr\Log\LoggerInterface;
 
 /**
  * Provides content by traversing the magazine event tree.
  *
- * Primary path: GraphLookupService (local DB via parsed_reference + current_record).
- * Fallback path: NostrClient relay round-trips (used when graph data is missing).
+ * Primary path: the optional publication-tree lookup (host graph adapter).
+ * Fallback path: the event gateway's relay reads (used when graph data is missing).
  *
  * The graph path resolves the entire magazine tree in a single recursive SQL query,
  * eliminating the N+1 relay requests that caused slow cache warming and first-visit failures.
@@ -23,10 +24,10 @@ class ContentProvider
     private const STALE_TTL = 3600;  // 1 hour - serve stale while revalidating
 
     public function __construct(
-        private readonly NostrClient $nostrClient,
+        private readonly EventReadGatewayInterface $eventGateway,
         private readonly StaleWhileRevalidateCache $swrCache,
         private readonly LoggerInterface $logger,
-        private readonly ?GraphLookupService $graphLookup = null,
+        private readonly ?PublicationTreeLookupInterface $treeLookup = null,
     ) {}
 
     /**
@@ -58,7 +59,7 @@ class ContentProvider
         }
 
         // Try graph-backed fast path first
-        if ($this->graphLookup !== null) {
+        if ($this->treeLookup !== null) {
             $result = $this->fetchCategoriesFromGraph($site);
             if (!empty($result)) {
                 return $result;
@@ -92,20 +93,16 @@ class ContentProvider
             'category_count' => count($site->categories),
         ]);
 
-        $children = $this->graphLookup->resolveChildren($site->naddr);
+        $children = $this->treeLookup->findChildren($site->naddr);
 
         if (empty($children)) {
             return [];
         }
 
-        // Collect event IDs and fetch rows in one query
-        $eventIds = array_column($children, 'current_event_id');
-        $eventRows = $this->graphLookup->fetchEventRows($eventIds);
-
-        // Build a coord→child map
+        // Build a coord→event map while retaining the configured category order.
         $childByCoord = [];
         foreach ($children as $child) {
-            $childByCoord[$child['coord']] = $child;
+            $childByCoord[$this->eventCoordinate($child)] = $child;
         }
 
         // Build CategoryData, preserving category order from site config
@@ -118,12 +115,7 @@ class ContentProvider
                 continue;
             }
 
-            $eventRow = $eventRows[$child['current_event_id']] ?? null;
-            if ($eventRow === null) {
-                continue;
-            }
-
-            $categories[] = CategoryData::fromEvent($this->rowToEventObject($eventRow), $coordinate);
+            $categories[] = CategoryData::fromEvent($child, $coordinate);
         }
 
         if (!empty($categories)) {
@@ -139,15 +131,16 @@ class ContentProvider
      */
     private function fetchCategoriesFromRelay(SiteConfig $site): array
     {
-        $eventsMap = $this->nostrClient->getEventsByCoordinates($site->categories);
+        $eventsMap = $this->eventGateway->findByCoordinates($site->categories);
 
         $categories = [];
         foreach ($site->categories as $coordinate) {
-            if (!isset($eventsMap[$coordinate])) {
+            $event = $this->findEvent($eventsMap, $coordinate);
+            if ($event === null) {
                 $this->logger->warning('Category event not found (batch)', ['coordinate' => $coordinate]);
                 continue;
             }
-            $categories[] = CategoryData::fromEvent($eventsMap[$coordinate], $coordinate);
+            $categories[] = CategoryData::fromEvent($event, $coordinate);
         }
 
         return $categories;
@@ -178,7 +171,7 @@ class ContentProvider
     private function fetchCategoryPostsInternal(string $categoryCoordinate): array
     {
         // Try graph-backed fast path first
-        if ($this->graphLookup !== null) {
+        if ($this->treeLookup !== null) {
             $result = $this->fetchCategoryPostsFromGraph($categoryCoordinate);
             if (!empty($result)) {
                 return $result;
@@ -206,22 +199,15 @@ class ContentProvider
      */
     private function fetchCategoryPostsFromGraph(string $categoryCoordinate): array
     {
-        $children = $this->graphLookup->resolveChildren($categoryCoordinate);
+        $children = $this->treeLookup->findChildren($categoryCoordinate);
 
         if (empty($children)) {
             return [];
         }
 
-        $eventIds = array_column($children, 'current_event_id');
-        $eventRows = $this->graphLookup->fetchEventRows($eventIds);
-
         $posts = [];
         foreach ($children as $child) {
-            $eventRow = $eventRows[$child['current_event_id']] ?? null;
-            if ($eventRow === null) {
-                continue;
-            }
-            $posts[] = PostData::fromEvent($this->rowToEventObject($eventRow));
+            $posts[] = PostData::fromEvent($child);
         }
 
         if (!empty($posts)) {
@@ -249,15 +235,16 @@ class ContentProvider
             return [];
         }
 
-        $eventsMap = $this->nostrClient->getEventsByCoordinates($category->articleCoordinates);
+        $eventsMap = $this->eventGateway->findByCoordinates($category->articleCoordinates);
 
         $posts = [];
         foreach ($category->articleCoordinates as $articleCoordinate) {
-            if (!isset($eventsMap[$articleCoordinate])) {
+            $event = $this->findEvent($eventsMap, $articleCoordinate);
+            if ($event === null) {
                 $this->logger->warning('Post event not found (batch)', ['coordinate' => $articleCoordinate]);
                 continue;
             }
-            $posts[] = PostData::fromEvent($eventsMap[$articleCoordinate]);
+            $posts[] = PostData::fromEvent($event);
         }
 
         return $posts;
@@ -304,7 +291,7 @@ class ContentProvider
     public function getPost(string $slug, SiteConfig $site): ?PostData
     {
         // Try graph-backed fast path: search through all descendants
-        if ($this->graphLookup !== null) {
+        if ($this->treeLookup !== null) {
             $post = $this->fetchPostBySlugFromGraph($slug, $site);
             if ($post !== null) {
                 return $post;
@@ -330,15 +317,11 @@ class ContentProvider
      */
     private function fetchPostBySlugFromGraph(string $slug, SiteConfig $site): ?PostData
     {
-        $descendants = $this->graphLookup->resolveDescendants($site->naddr, 3);
+        $descendants = $this->treeLookup->findDescendants($site->naddr, 3);
 
         foreach ($descendants as $desc) {
-            if (str_ends_with($desc['coord'], ':' . $slug)) {
-                $eventRows = $this->graphLookup->fetchEventRows([$desc['current_event_id']]);
-                $eventRow = $eventRows[$desc['current_event_id']] ?? null;
-                if ($eventRow !== null) {
-                    return PostData::fromEvent($this->rowToEventObject($eventRow));
-                }
+            if ($this->eventIdentifier($desc) === $slug) {
+                return PostData::fromEvent($desc);
             }
         }
 
@@ -357,7 +340,7 @@ class ContentProvider
         }
 
         try {
-            $event = $this->nostrClient->getEventByNaddr($decoded);
+            $event = $this->eventGateway->findByCoordinate($coordinate);
             if ($event === null) {
                 $this->logger->warning('Category event not found', ['coordinate' => $coordinate]);
                 return null;
@@ -385,7 +368,7 @@ class ContentProvider
         }
 
         try {
-            $event = $this->nostrClient->getEventByNaddr($decoded);
+            $event = $this->eventGateway->findByCoordinate($coordinate);
             if ($event === null) {
                 $this->logger->warning('Post event not found', ['coordinate' => $coordinate]);
                 return null;
@@ -402,30 +385,9 @@ class ContentProvider
     }
 
     /**
-     * Convert a database row array to a stdClass event object matching NostrClient format.
-     */
-    private function rowToEventObject(array $row): object
-    {
-        $tags = $row['tags'] ?? '[]';
-        if (is_string($tags)) {
-            $tags = json_decode($tags, true) ?? [];
-        }
-
-        return (object) [
-            'id' => $row['id'],
-            'pubkey' => $row['pubkey'],
-            'kind' => (int) $row['kind'],
-            'content' => $row['content'] ?? '',
-            'tags' => $tags,
-            'created_at' => (int) ($row['created_at'] ?? 0),
-            'sig' => $row['sig'] ?? '',
-        ];
-    }
-
-    /**
      * Find a child record by coordinate, handling case differences in pubkeys.
      */
-    private function findChildByCoord(array $childByCoord, string $coordinate): ?array
+    private function findChildByCoord(array $childByCoord, string $coordinate): ?NostrEvent
     {
         // Exact match
         if (isset($childByCoord[$coordinate])) {
@@ -445,6 +407,47 @@ class ContentProvider
         }
 
         return null;
+    }
+
+    private function findEvent(array $events, string $coordinate): ?NostrEvent
+    {
+        $normalized = $this->normalizeCoordinate($coordinate);
+        foreach ($events as $eventCoordinate => $event) {
+            if ($event instanceof NostrEvent
+                && ($eventCoordinate === $normalized || $this->normalizeCoordinate((string) $eventCoordinate) === $normalized)
+            ) {
+                return $event;
+            }
+        }
+
+        return null;
+    }
+
+    private function eventCoordinate(NostrEvent $event): string
+    {
+        return sprintf('%d:%s:%s', $event->kind, strtolower($event->pubkey), $this->eventIdentifier($event));
+    }
+
+    private function eventIdentifier(NostrEvent $event): string
+    {
+        foreach ($event->tags as $tag) {
+            if (($tag[0] ?? null) === 'd' && isset($tag[1])) {
+                return $tag[1];
+            }
+        }
+
+        return '';
+    }
+
+    private function normalizeCoordinate(string $coordinate): string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3) {
+            return strtolower($coordinate);
+        }
+        $parts[1] = strtolower($parts[1]);
+
+        return implode(':', $parts);
     }
 
     /**
@@ -481,4 +484,3 @@ class ContentProvider
         $this->logger->info('Invalidated site content cache', ['naddr' => $site->naddr]);
     }
 }
-

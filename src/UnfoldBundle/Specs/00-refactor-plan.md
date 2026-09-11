@@ -126,6 +126,23 @@ Independent of everything else — ship early.
 - Reuse `PaymentTargetService` parsing where possible; it currently handles
   personal `kind:10133` — extend, don't fork.
 
+### Phase 4a — Audience Preview
+
+Ship the audience foundation before payment, mint, and relay integrations exist:
+
+- Eligible publication owners can publish `38133` payment targets and `30879`
+  audience definitions, linked from AppData.
+- Publication pages render audience cards as **Gated access coming soon**, with
+  their title, description, price, and duration. An optional notify-me or
+  interest action may be added, but no checkout or entitlement claim is shown.
+- Dashboard subscription analytics remain explicitly not connected and show no
+  fabricated subscriber or revenue counts.
+- Audience definitions are real, public publication configuration; they do not
+  make any article exclusive and they must not cause an `s` tag to be published.
+
+This milestone creates visible progress and lets owners prepare their offers
+without promising access that the external services cannot yet enforce.
+
 ### Phase 5 — Gated publishing path
 
 - Scope/audience tag on articles (`30023`) and indexes (`30040`/`30041`)
@@ -136,6 +153,9 @@ Independent of everything else — ship early.
   to all user write relays and would leak gated content across Nostr.
 - Requires an active DN subdomain subscription (existing
   `PublicationSubdomainSubscription`) to enable gating for a publication.
+- Do not enable this phase until Q3 is agreed with the relay implementer and
+  the centralized guard has unit and Gherkin coverage. A faux paywall or a
+  scoped event sent to ordinary write relays would leak paid content.
 
 ### Phase 6 — Access chain integration (Spec 06)
 
@@ -174,20 +194,28 @@ Depends on external repos (bridge, mint) and third-party relay work.
 | D10 | Host-app magazine administration folds into the bundle (wizard, index editing, content assignment), scoped to the publication owner. Platform moderation and billing stay on the main domain under `ROLE_ADMIN`. | Owner decision (2026-09): one administration surface, not two. Preserves the distinction between owning a publication and operating the platform. |
 | D11 | The standalone `/article-editor/*` surface is kept; the publication admin reuses the same editor with a `PublicationContext` injected. | Owner decision (2026-09). Absorbing the editor entirely would block context-free authoring; duplicating it would fork the publish path. Coupling stays in a thin wrapper so the standalone editor keeps zero collection dependencies. |
 | D12 | Wizard draft state moves from the `mag_wizard` session key to Redis keyed by coordinate. | A session-scoped draft cannot cross the two mounts, and the single session key forbids more than one draft per user. Also removes Q7 from the admin path. |
+| D13 | The relay authorizes a gated WebSocket subscription when the client sends `["AUTHZ", "<subscription-id>", <kind:28878 event>]` before its matching `REQ`. | The authorization is explicitly bound to one subscription and follows the NIP-42 authentication model without altering REQ filter semantics. |
+| D14 | Gated event scopes use repeatable `["s", "30879:<owner-pubkey>:<audience-dtag>"]` tags. | Single-letter tags are relay-indexable and provide one canonical scope representation. |
+| D15 | The payment bridge delivers `kind:8879` attestations directly to the mint over HTTPS/API. | Attestations stay out of relay storage; the bridge may separately return a receipt to the subscriber. |
+| D16 | Gated relay publisher-write authorization is out of scope for v1. | A publication-owner-signed event routed through the centralized home-relay-only guard may be written without a separate token. |
+| D17 | `UnfoldSite` and `PublicationSubdomainSubscription` remain separate and are linked by an explicit foreign key. | Separates publication claim/configuration from platform billing while providing a reliable relationship. |
+| D18 | DN session cookies are scoped to the base domain for subdomain reader interactions. | This preserves the existing authenticated experience across publication subdomains; signer approval remains per-origin. |
+| D19 | Magazine projection identity must move from globally unique slug to publication coordinate in a separate follow-up before public publication features expand. | The current global slug uniqueness cannot represent colliding d-tags from different owners. |
+| D20 | Root publication d-tags are immutable after creation. | `/mag/{dtag}/admin` remains stable without introducing a separate coordinate URL encoding. |
 
 ## Open Questions (blocking later phases)
 
 | # | Question | Blocks |
 |---|---|---|
 | Q1 | ~~`30879` semantics vs NIP-99.~~ **Resolved → D7**: new kind, NIP-99 tag vocabulary only. | — |
-| Q2 | Token transport: a Nostr REQ cannot natively carry an event. How does the client present `28878` to the relay — NIP-42-style AUTH extension, a custom `["AUTH-TOKEN", <event>]` message, or a tag-based filter convention? Must be agreed with the relay implementer. | Phase 6 |
-| Q3 | Scope tag name and format on gated events: earlier drafts used `["scope", <coordinate>]` or `["G", "a:..."]` (deleted NIP-SB). Spec 06 proposes a single answer — confirm with relay implementer (single-letter tags are relay-indexable). | Phase 5 |
-| Q4 | `8879` attestation is a regular (stored) kind linking a pubkey to a purchased scope. Where may it be stored? Proposal: bridge→mint direct delivery only, never broadcast (privacy). | Phase 6 |
-| Q5 | Does the relay keep any publisher-write authorization (old `18101`), or is write access out of scope for the new model? | Phase 6 |
-| Q6 | `UnfoldSite` vs `PublicationSubdomainSubscription`: merge or keep joined by subdomain? Proposal: keep separate (claim/config vs billing), add explicit FK. | Phase 1 |
-| Q7 | Subdomain auth: are DN session cookies valid on `*.<base-domain>`? If not — widen cookie scope or add a subdomain login flow. NIP-07 signer approval is per-origin either way. **Narrowed by D12**: no longer blocks the admin (drafts move to Redis keyed by coordinate), but still blocks reader interactions on subdomains. | Phase 2b |
-| Q8 | `Magazine.slug` is `unique: true`, so the projection cannot represent two pubkeys publishing `kind:30040` with the same d-tag — the second collides on insert. Is this dropping data today, and should the projection key on coordinate instead? Out of scope for Spec 08 (which sidesteps it), but it is a latent correctness bug. | — (record, don't fix here) |
-| Q9 | Does the coordinate mount need a stable admin URL when an owner renames the d-tag, or is the admin URL allowed to move with the slug? | Phase 3 |
+| Q2 | ~~Token transport.~~ **Resolved → D13**: clients send `["AUTHZ", "<subscription-id>", <kind:28878 event>]` before the matching `REQ`. | — |
+| Q3 | ~~Scope tag name and format.~~ **Resolved → D14**: repeatable `s` tags contain the `30879` audience coordinate. | — |
+| Q4 | ~~`8879` attestation delivery.~~ **Resolved → D15**: bridge-to-mint HTTPS/API only; never broadcast. | — |
+| Q5 | ~~Publisher-write authorization.~~ **Resolved → D16**: out of scope for v1. | — |
+| Q6 | ~~`UnfoldSite` and subscription relationship.~~ **Resolved → D17**: separate entities with an explicit FK. | — |
+| Q7 | ~~Subdomain authenticated sessions.~~ **Resolved → D18**: scope the DN session cookie to the base domain. NIP-07 approval remains per-origin. | — |
+| Q8 | ~~Magazine projection identity.~~ **Resolved → D19**: make coordinate the projection identity in a separate follow-up before public publication features expand. | — |
+| Q9 | ~~Stable coordinate-mount URL after d-tag rename.~~ **Resolved → D20**: root publication d-tags are immutable. | — |
 
 ## Known Issues / Risks
 

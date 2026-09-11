@@ -7,6 +7,7 @@ use App\Service\GenericEventProjector;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrClient;
 use App\UnfoldBundle\Config\SiteConfigLoader;
+use App\UnfoldBundle\Contract\PublicationSite;
 use App\UnfoldBundle\Content\ContentProvider;
 use Psr\Log\LoggerInterface;
 
@@ -29,32 +30,37 @@ class SiteConfigCacheWarmer
      */
     public function warmSite(UnfoldSite $site): bool
     {
+        return $this->warmPublicationSite(new PublicationSite($site->getSubdomain(), $site->getCoordinate()));
+    }
+
+    public function warmPublicationSite(PublicationSite $site): bool
+    {
         try {
             $this->logger->info('Warming cache for UnfoldSite', [
-                'subdomain' => $site->getSubdomain(),
-                'coordinate' => $site->getCoordinate(),
+                'subdomain' => $site->subdomain,
+                'coordinate' => $site->coordinate,
             ]);
 
             // 0. Refresh magazine tree from network so the local DB + graph tables
             //    have the latest events before we build the cache.
             $this->logger->info('Refreshing magazine tree from network...');
-            $this->refreshMagazineTreeFromNetwork($site->getCoordinate());
+            $this->refreshMagazineTreeFromNetwork($site->coordinate);
 
             // 1. Invalidate the SiteConfig cache first so loadFromCoordinate fetches fresh data.
             //    Without this, a fresh/stale SWR entry would be returned as-is (the background
             //    register_shutdown_function refresh never fires in console commands).
             $this->logger->info('Invalidating existing SiteConfig cache...');
-            $this->siteConfigLoader->invalidateFromCoordinate($site->getCoordinate());
+            $this->siteConfigLoader->invalidateFromCoordinate($site->coordinate);
 
             // 2. Load and cache the SiteConfig (forced fresh fetch because we just invalidated)
             $this->logger->info('Loading SiteConfig from coordinate...');
-            $siteConfig = $this->siteConfigLoader->loadFromCoordinate($site->getCoordinate());
+            $siteConfig = $this->siteConfigLoader->loadFromCoordinate($site->coordinate);
 
             // Check if we got a placeholder
             if ($siteConfig->title === 'Loading...') {
                 $this->logger->warning('Got placeholder SiteConfig - fetch may have failed', [
-                    'subdomain' => $site->getSubdomain(),
-                    'coordinate' => $site->getCoordinate(),
+                    'subdomain' => $site->subdomain,
+                    'coordinate' => $site->coordinate,
                 ]);
                 return false;
             }
@@ -87,7 +93,7 @@ class SiteConfigCacheWarmer
             $this->contentProvider->getHomePosts($siteConfig, 3);
 
             $this->logger->info('Cache warmed successfully', [
-                'subdomain' => $site->getSubdomain(),
+                'subdomain' => $site->subdomain,
                 'title' => $siteConfig->title,
                 'categories' => count($categories),
             ]);
@@ -95,8 +101,8 @@ class SiteConfigCacheWarmer
             return true;
         } catch (\Exception $e) {
             $this->logger->error('Failed to warm cache for UnfoldSite', [
-                'subdomain' => $site->getSubdomain(),
-                'coordinate' => $site->getCoordinate(),
+                'subdomain' => $site->subdomain,
+                'coordinate' => $site->coordinate,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -221,6 +227,11 @@ class SiteConfigCacheWarmer
         $this->siteConfigLoader->invalidateFromCoordinate($site->getCoordinate());
     }
 
+    public function invalidatePublicationSite(PublicationSite $site): void
+    {
+        $this->siteConfigLoader->invalidateFromCoordinate($site->coordinate);
+    }
+
     /**
      * Warm cache for multiple sites
      *
@@ -234,6 +245,26 @@ class SiteConfigCacheWarmer
 
         foreach ($sites as $site) {
             if ($this->warmSite($site)) {
+                $success++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return ['success' => $success, 'failed' => $failed];
+    }
+
+    /**
+     * @param iterable<PublicationSite> $sites
+     * @return array{success: int, failed: int}
+     */
+    public function warmAllPublicationSites(iterable $sites): array
+    {
+        $success = 0;
+        $failed = 0;
+
+        foreach ($sites as $site) {
+            if ($this->warmPublicationSite($site)) {
                 $success++;
             } else {
                 $failed++;

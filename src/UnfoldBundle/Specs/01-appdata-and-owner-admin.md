@@ -20,8 +20,8 @@ Optional tags:
 
 ```json
 ["about", "30023:<pubkey>:<dtag>", "<relay_hint?>"]
-["audience", "38110:<owner_pubkey>:<dtag>", "<relay_hint?>"]
-["payment_targets", "30133:<owner_pubkey>:<dtag>", "<relay_hint?>"]
+["audience", "30879:<owner_pubkey>:<dtag>", "<relay_hint?>"]
+["payment_targets", "38133:<owner_pubkey>:<dtag>", "<relay_hint?>"]
 ["home_relay", "wss://relay.example.com"]
 ["theme", "default"]
 ```
@@ -42,7 +42,11 @@ Legacy compatibility:
 - `coordinate`: existing root publication coordinate fallback.
 - `ownerPubkey`: hex pubkey that owns the publication.
 - `appDataCoordinate`: optional `30078:<owner_pubkey>:<dtag>` coordinate for the signed Unfold AppData.
+- `PublicationSubdomainSubscription`: a separate billing entity linked by an explicit foreign key.
 - timestamps as today.
+
+The root publication d-tag is immutable once created. This keeps the
+coordinate-mount administration URL stable.
 
 Backfill rule:
 

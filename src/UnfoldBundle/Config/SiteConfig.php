@@ -2,6 +2,8 @@
 
 namespace App\UnfoldBundle\Config;
 
+use App\UnfoldBundle\Contract\NostrEvent;
+
 /**
  * Site configuration derived from AppData + root magazine event (kind 30040)
  */
@@ -29,9 +31,9 @@ readonly class SiteConfig
     /**
      * Create SiteConfig from a raw Nostr event object and AppData
      */
-    public static function fromEvent(object $event, string $naddr, string $theme = 'default'): self
+    public static function fromEvent(NostrEvent $event, string $naddr, string $theme = 'default'): self
     {
-        $tags = $event->tags ?? [];
+        $tags = $event->tags;
         $title = '';
         $description = '';
         $logo = null;
@@ -52,7 +54,7 @@ readonly class SiteConfig
         }
 
         // Fallback: try content as JSON for title/description
-        if (empty($title) && !empty($event->content)) {
+        if (empty($title) && $event->content !== '') {
             $content = json_decode($event->content, true);
             if (is_array($content)) {
                 $title = $content['title'] ?? $content['name'] ?? '';
@@ -67,7 +69,7 @@ readonly class SiteConfig
             description: $description,
             logo: $logo,
             categories: $categories,
-            pubkey: $event->pubkey ?? '',
+            pubkey: $event->pubkey,
             theme: $theme,
         );
     }
@@ -85,4 +87,3 @@ readonly class SiteConfig
         return implode(':', $parts);
     }
 }
-

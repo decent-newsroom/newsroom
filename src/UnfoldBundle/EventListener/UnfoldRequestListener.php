@@ -2,7 +2,7 @@
 
 namespace App\UnfoldBundle\EventListener;
 
-use App\Repository\UnfoldSiteRepository;
+use App\UnfoldBundle\Contract\SiteRegistryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,7 +42,7 @@ class UnfoldRequestListener
     ];
 
     public function __construct(
-        private readonly UnfoldSiteRepository $unfoldSiteRepository,
+        private readonly SiteRegistryInterface $siteRegistry,
         private readonly string $baseDomain,
         private readonly ?LoggerInterface $logger = null,
     ) {}
@@ -70,7 +70,7 @@ class UnfoldRequestListener
         // Wrapped in try/catch: a DB failure here (e.g., stale connection in worker mode)
         // must not crash the worker and produce a 502. Instead, fall through to normal routing.
         try {
-            $unfoldSite = $this->unfoldSiteRepository->findBySubdomain($subdomain);
+            $unfoldSite = $this->siteRegistry->findBySubdomain($subdomain);
         } catch (\Throwable $e) {
             $this->logger?->error('UnfoldRequestListener: DB lookup failed, falling through to normal routing', [
                 'subdomain' => $subdomain,
@@ -143,4 +143,3 @@ class UnfoldRequestListener
         return in_array(strtolower($subdomain), self::RESERVED_SUBDOMAINS, true);
     }
 }
-

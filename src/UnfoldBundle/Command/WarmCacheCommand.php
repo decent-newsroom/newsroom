@@ -2,8 +2,8 @@
 
 namespace App\UnfoldBundle\Command;
 
-use App\Repository\UnfoldSiteRepository;
 use App\UnfoldBundle\Cache\SiteConfigCacheWarmer;
+use App\UnfoldBundle\Contract\SiteRegistryInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,7 +18,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class WarmCacheCommand extends Command
 {
     public function __construct(
-        private readonly UnfoldSiteRepository $unfoldSiteRepository,
+        private readonly SiteRegistryInterface $siteRegistry,
         private readonly SiteConfigCacheWarmer $cacheWarmer,
     ) {
         parent::__construct();
@@ -37,7 +37,7 @@ class WarmCacheCommand extends Command
         $subdomain = $input->getOption('subdomain');
 
         if ($subdomain) {
-            $site = $this->unfoldSiteRepository->findBySubdomain($subdomain);
+            $site = $this->siteRegistry->findBySubdomain($subdomain);
 
             if ($site === null) {
                 $io->error(sprintf('UnfoldSite not found for subdomain: %s', $subdomain));
@@ -46,7 +46,7 @@ class WarmCacheCommand extends Command
 
             $io->info(sprintf('Warming cache for subdomain: %s', $subdomain));
 
-            if ($this->cacheWarmer->warmSite($site)) {
+            if ($this->cacheWarmer->warmPublicationSite($site)) {
                 $io->success('Cache warmed successfully!');
                 return Command::SUCCESS;
             } else {
@@ -56,7 +56,8 @@ class WarmCacheCommand extends Command
         }
 
         // Warm all sites
-        $sites = $this->unfoldSiteRepository->findAll();
+        $sites = $this->siteRegistry->findAll();
+        $sites = is_array($sites) ? $sites : iterator_to_array($sites, false);
         $count = count($sites);
 
         if ($count === 0) {
@@ -66,7 +67,7 @@ class WarmCacheCommand extends Command
 
         $io->info(sprintf('Warming cache for %d site(s)...', $count));
 
-        $results = $this->cacheWarmer->warmAll($sites);
+        $results = $this->cacheWarmer->warmAllPublicationSites($sites);
 
         if ($results['failed'] === 0) {
             $io->success(sprintf('All %d site(s) cached successfully!', $results['success']));

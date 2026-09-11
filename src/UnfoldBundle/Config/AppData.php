@@ -2,6 +2,8 @@
 
 namespace App\UnfoldBundle\Config;
 
+use App\UnfoldBundle\Contract\NostrEvent;
+
 /**
  * Unfold App Data from NIP-78 event (kind 30078)
  *
@@ -29,9 +31,9 @@ readonly class AppData
     /**
      * Create AppData from a raw NIP-78 event object
      */
-    public static function fromEvent(object $event, string $naddr): self
+    public static function fromEvent(NostrEvent $event, string $naddr): self
     {
-        $tags = $event->tags ?? [];
+        $tags = $event->tags;
         $magazineNaddr = '';
         $theme = 'default';
 
@@ -55,7 +57,7 @@ readonly class AppData
             naddr: $naddr,
             magazineNaddr: $magazineNaddr,
             theme: $theme,
-            title: $event->content ?? '',
+            title: $event->content,
         );
     }
 
@@ -82,4 +84,3 @@ readonly class AppData
         return "Unfold App Config for '{$magazineName}'";
     }
 }
-

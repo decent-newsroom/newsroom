@@ -2,10 +2,9 @@
 
 namespace App\UnfoldBundle\Config;
 
-use App\Enum\KindsEnum;
-use App\Repository\EventRepository;
-use App\Service\Nostr\NostrClient;
 use App\UnfoldBundle\Cache\StaleWhileRevalidateCache;
+use App\UnfoldBundle\Contract\EventReadGatewayInterface;
+use App\UnfoldBundle\Contract\NostrEvent;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Log\LoggerInterface;
@@ -30,10 +29,9 @@ class SiteConfigLoader
     private const STALE_TTL = 3600;  // 1 hour - serve stale while revalidating
 
     public function __construct(
-        private readonly NostrClient $nostrClient,
+        private readonly EventReadGatewayInterface $eventGateway,
         private readonly StaleWhileRevalidateCache $swrCache,
         private readonly LoggerInterface $logger,
-        private readonly EventRepository $eventRepository,
     ) {}
 
     /**
@@ -68,7 +66,10 @@ class SiteConfigLoader
 
         // 2. Load magazine event using magazineNaddr from AppData
         $magazineDecoded = $this->decodeNaddr($appData->magazineNaddr);
-        $magazineEvent = $this->nostrClient->getEventByNaddr($magazineDecoded);
+        $magazineEvent = $this->eventGateway->findByCoordinate(
+            $this->toCoordinate($magazineDecoded),
+            $magazineDecoded['relays'],
+        );
 
         if ($magazineEvent === null) {
             throw new \RuntimeException(sprintf(
@@ -130,22 +131,22 @@ class SiteConfigLoader
             $decoded = $this->parseCoordinate($coordinate);
 
             // Verify it's a kind 30040 event
-            if ($decoded['kind'] !== KindsEnum::PUBLICATION_INDEX->value) {
+            if ($decoded['kind'] !== 30040) {
                 throw new \InvalidArgumentException(sprintf(
                     'Expected magazine event (kind %d), got kind %d',
-                    KindsEnum::PUBLICATION_INDEX->value,
+                    30040,
                     $decoded['kind']
                 ));
             }
 
-            // Try database first (fast path)
-            $this->logger->info('Checking database for magazine event', [
+            // The host gateway performs the database-first lookup and relay fallback.
+            $this->logger->info('Looking up magazine event through the host gateway', [
                 'kind' => $decoded['kind'],
                 'pubkey' => substr($decoded['pubkey'], 0, 8) . '...',
                 'identifier' => $decoded['identifier'],
             ]);
 
-            $magazineEvent = $this->loadEventFromDatabase($decoded);
+            $magazineEvent = $this->loadEvent($decoded);
         } catch (\Throwable $e) {
             $this->logger->error('Failed to parse coordinate or check database', [
                 'coordinate' => $coordinate,
@@ -153,27 +154,6 @@ class SiteConfigLoader
                 'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
-        }
-
-        // Fallback to network if not in database
-        if ($magazineEvent === null) {
-            $this->logger->info('Magazine not in database, fetching from network', [
-                'coordinate' => $coordinate,
-                'pubkey' => substr($decoded['pubkey'], 0, 8) . '...',
-                'identifier' => $decoded['identifier'],
-            ]);
-
-            $magazineEvent = $this->nostrClient->getEventByNaddr($decoded);
-
-            if ($magazineEvent === null) {
-                $this->logger->error('Failed to fetch magazine event from network', [
-                    'coordinate' => $coordinate,
-                    'pubkey' => substr($decoded['pubkey'], 0, 8) . '...',
-                    'identifier' => $decoded['identifier'],
-                ]);
-            }
-        } else {
-            $this->logger->debug('Magazine event found in database');
         }
 
         if ($magazineEvent === null) {
@@ -288,24 +268,16 @@ class SiteConfigLoader
         $decoded = $this->decodeNaddr($magazineNaddr);
 
         // Verify it's a kind 30040 event
-        if ($decoded['kind'] !== KindsEnum::PUBLICATION_INDEX->value) {
+        if ($decoded['kind'] !== 30040) {
             throw new \InvalidArgumentException(sprintf(
                 'Expected magazine event (kind %d), got kind %d',
-                KindsEnum::PUBLICATION_INDEX->value,
+                30040,
                 $decoded['kind']
             ));
         }
 
-        // Try database first (fast path)
-        $magazineEvent = $this->loadEventFromDatabase($decoded);
-
-        // Fallback to network if not in database
-        if ($magazineEvent === null) {
-            $this->logger->debug('Magazine not in database, fetching from network', [
-                'naddr' => $magazineNaddr
-            ]);
-            $magazineEvent = $this->nostrClient->getEventByNaddr($decoded);
-        }
+        // The host gateway performs the database-first lookup and relay fallback.
+        $magazineEvent = $this->loadEvent($decoded);
 
         if ($magazineEvent === null) {
             throw new \RuntimeException(sprintf(
@@ -330,28 +302,12 @@ class SiteConfigLoader
     /**
      * Try to load event from database first (fast path)
      */
-    private function loadEventFromDatabase(array $decoded): ?object
+    private function loadEvent(array $decoded): ?NostrEvent
     {
-        $event = $this->eventRepository->findByNaddr(
-            $decoded['kind'],
-            $decoded['pubkey'],
-            $decoded['identifier']
+        return $this->eventGateway->findByCoordinate(
+            $this->toCoordinate($decoded),
+            $decoded['relays'],
         );
-
-        if ($event === null) {
-            return null;
-        }
-
-        // Convert Entity to stdClass object matching NostrClient format
-        return (object) [
-            'id' => $event->getId(),
-            'pubkey' => $event->getPubkey(),
-            'kind' => $event->getKind(),
-            'content' => $event->getContent(),
-            'tags' => $event->getTags(),
-            'created_at' => $event->getCreatedAt(),
-            'sig' => $event->getSig(),
-        ];
     }
 
     /**
@@ -362,15 +318,18 @@ class SiteConfigLoader
         $decoded = $this->decodeNaddr($naddr);
 
         // Verify it's a kind 30078 event
-        if ($decoded['kind'] !== KindsEnum::APP_DATA->value) {
+        if ($decoded['kind'] !== 30078) {
             throw new \InvalidArgumentException(sprintf(
                 'Expected AppData event (kind %d), got kind %d',
-                KindsEnum::APP_DATA->value,
+                30078,
                 $decoded['kind']
             ));
         }
 
-        $event = $this->nostrClient->getEventByNaddr($decoded);
+        $event = $this->eventGateway->findByCoordinate(
+            $this->toCoordinate($decoded),
+            $decoded['relays'],
+        );
 
         if ($event === null) {
             throw new \RuntimeException(sprintf('Could not fetch AppData event for naddr: %s', $naddr));
@@ -408,6 +367,19 @@ class SiteConfigLoader
     }
 
     /**
+     * @param array{kind: int, pubkey: string, identifier: string} $decoded
+     */
+    private function toCoordinate(array $decoded): string
+    {
+        return sprintf(
+            '%d:%s:%s',
+            (int) $decoded['kind'],
+            strtolower((string) $decoded['pubkey']),
+            (string) $decoded['identifier'],
+        );
+    }
+
+    /**
      * Invalidate cached SiteConfig for a given AppData naddr
      */
     public function invalidate(string $appDataNaddr): void
@@ -437,4 +409,3 @@ class SiteConfigLoader
         $this->logger->info('Invalidated SiteConfig cache (coordinate)', ['coordinate' => $coordinate]);
     }
 }
-

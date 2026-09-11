@@ -78,10 +78,8 @@ leak vector:
 - NIP-07 extension permissions are **per-origin**: readers must approve the
   signer on each `<subdomain>.<base-domain>` separately. Expected; document
   in the UI ("approve your signer for this site").
-- DN session state must be valid on the subdomain. If session cookies are
-  currently scoped to the main domain only, widen to the base domain or
-  implement a lightweight subdomain login — decision needed at
-  implementation time (open question Q7 in the master plan).
+- DN session cookies are scoped to the base domain so authenticated reader
+  sessions are available on publication subdomains.
 - NIP-46 remote signing works cross-origin and is the smoother path for
   returning readers; reuse the existing signer modal flow.
 

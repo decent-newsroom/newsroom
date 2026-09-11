@@ -2,6 +2,8 @@
 
 namespace App\UnfoldBundle\Content;
 
+use App\UnfoldBundle\Contract\NostrEvent;
+
 /**
  * Category data derived from category event (kind 30040)
  */
@@ -25,9 +27,9 @@ readonly class CategoryData
     /**
      * Create CategoryData from a raw Nostr event object
      */
-    public static function fromEvent(object $event, string $coordinate): self
+    public static function fromEvent(NostrEvent $event, string $coordinate): self
     {
-        $tags = $event->tags ?? [];
+        $tags = $event->tags;
         $slug = '';
         $title = '';
         $summary = '';
@@ -48,7 +50,7 @@ readonly class CategoryData
         }
 
         // Fallback: try content as JSON for title/summary
-        if ((!empty($event->content)) && (empty($title) || empty($summary))) {
+        if ($event->content !== '' && (empty($title) || empty($summary))) {
             $content = json_decode($event->content, true);
             if (is_array($content)) {
                 if (empty($title)) {

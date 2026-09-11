@@ -105,8 +105,8 @@ Gated events (articles `30023`, indexes `30040`/`30041`) carry:
 ["s", "30879:<owner_pubkey>:<audience-dtag>"]
 ```
 
-- Proposal: single-letter `s` so relays can index it (subject to Q3 —
-  confirm with the relay implementer; prior drafts used `scope`/`G`).
+- `s` is the canonical, relay-indexable scope tag; do not use the prior
+  `scope` or `G` alternatives.
 - Repeatable: content may belong to several audiences; possession of a valid
   token for **any** listed scope grants read access.
 - Publishing guard: events carrying `s` MUST be sent only to the publication
@@ -188,9 +188,10 @@ to the relay.
    - `s` matches (one of) the event's `s` tag(s) exactly,
    - `expiration` is in the future.
 4. NIP-42 AUTH is required before any gated content is returned.
-5. Token transport is **unresolved** (Q2): candidates are a custom
-   `["AUTH-TOKEN", <28878-event>]` client message or an extended NIP-42
-   exchange. Must be settled with the relay implementer before Phase 6.
+5. Before a gated `REQ`, the client sends
+   `["AUTHZ", "<subscription-id>", <28878-event>]`. The relay binds the
+   validated authorization to that subscription ID only; it does not alter
+   REQ filter semantics or authorize other subscriptions on the connection.
 
 ## Mint Behavior (normative for the mint repo)
 
@@ -203,8 +204,9 @@ to the relay.
 ## Privacy
 
 - `8879` publicly links a person to a paid subscription. It MUST NOT be
-  broadcast to public relays. Transport is bridge→mint (and optionally
-  bridge→subscriber over NIP-17 DM or direct HTTPS response).
+  broadcast to public relays. The payment bridge delivers it directly to the
+  mint over HTTPS/API; it may separately return it to the subscriber as a
+  receipt.
 - `28877`/`28878` are ephemeral and sent point-to-point; they never enter
   public relay storage.
 - DN analytics must not expose subscriber identity to publication owners
@@ -215,6 +217,22 @@ to the relay.
 Enabling gating for a publication requires an active DN subdomain
 subscription (`PublicationSubdomainSubscription`). That subscription grants
 access to the gated relay and to the scope/audience setup in the dashboard.
+
+Publisher-write authorization is out of scope for v1. The publication owner's
+signed gated events may be written to the home relay, subject to the central
+home-relay-only routing guard.
+
+## Pre-Integration Audience Preview
+
+Before the payment bridge, mint, and gated relay are integrated, Unfold may let
+eligible owners publish `38133` payment targets and `30879` audience offers.
+Readers see those offers as **Gated access coming soon**. They are not
+checkout-enabled and do not claim to grant access.
+
+The bundle MUST NOT publish scoped content during this preview. Publishing an
+`s` tag waits for the relay's agreed scope-tag format, the centralized
+home-relay-only publishing chokepoint, and its test coverage. This prevents an
+unprotected event from being fanned out to ordinary Nostr relays.
 
 ## AppData Linkage
 

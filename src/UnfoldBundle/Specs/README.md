@@ -37,9 +37,19 @@ These specs describe the next Unfold administration layer: owner-signed publicat
 - `UnfoldSite`: the local row that maps a subdomain to the publication configuration used by the bundle.
 - Publication owner: the hex pubkey that controls the root publication index coordinate.
 - AppData: owner-signed NIP-78 `kind:30078` event describing the Unfold publication.
-- Audience: a subscription tier for a publication, represented by a `kind:38110` Scope Definition.
+- Audience: a subscription tier for a publication, represented by a
+  `kind:30879` scope/audience definition.
 - Publication payment descriptor: a publication-specific, addressable payment target event that can differ from the owner's personal `kind:10133` payment targets.
 - Home relay: the publication's preferred relay URL for fetching and publishing publication context.
+
+## Pre-Integration Delivery
+
+The bundle can ship an **Audience Preview** before the payment bridge, mint, and
+gated relay are available. Owners configure and publish `38133` payment targets
+and `30879` audiences; readers see the configured offers as **Gated access
+coming soon**. This preview has no checkout, entitlement, or subscription
+analytics and does not publish scoped content. See
+`02-audiences-and-payment-targets.md` and `06-gated-access-and-payments.md`.
 
 ## Rollout Order
 
@@ -48,8 +58,10 @@ These specs describe the next Unfold administration layer: owner-signed publicat
 3. Add the `PublicationContext` resolver, both admin mounts, and owner access checks (spec 08).
 4. Add RSS, sitemap, robots, and footer context.
 5. Add audiences and publication payment descriptors.
-6. Add analytics and content-management pages.
-7. Fold the host-app magazine administration and the publication-scoped article editor into the bundle admin (spec 08).
+6. Ship the Audience Preview without checkout, entitlement, or scoped-content
+   publishing.
+7. Add analytics and content-management pages.
+8. Fold the host-app magazine administration and the publication-scoped article editor into the bundle admin (spec 08).
 
 ## Compatibility
 

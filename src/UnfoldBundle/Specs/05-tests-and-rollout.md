@@ -27,16 +27,15 @@ Unit-test AppData parsing/building:
 
 Unit-test audience parsing:
 
-- `38110` title and summary.
-- `G` and `a` publication scope.
+- `30879` title, summary, and required price.
+- Publication `a` coordinate.
 - Multiple `price` tags.
-- `SATS` price mirrored to legacy `subscription`.
 - `expires_in` parsing.
-- Optional `payment_descriptor`.
+- Optional `payment_targets`.
 
-Unit-test payment descriptor parsing:
+Unit-test publication payment target parsing:
 
-- `30133` `d`, `G`, and publication `a` tags.
+- `38133` `d` and publication `a` tags.
 - Multiple NIP-A3 `payto` tags.
 - Duplicate payment target handling consistent with existing `PaymentTargetService`.
 
@@ -71,7 +70,11 @@ Protocol feature spec:
 5. Add RSS/sitemap/robots routes.
 6. Add footer context and template updates.
 7. Add audience and publication payment descriptor management.
-8. Add analytics and content-management workflows.
+8. Ship Audience Preview: display configured offers as coming soon without
+   checkout, entitlement claims, or fabricated subscription analytics.
+9. Add analytics and content-management workflows.
+10. Enable scoped publishing only after the relay contract and the centralized
+    home-relay-only publishing guard are covered by unit and Gherkin tests.
 
 ## Verification Commands
 

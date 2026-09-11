@@ -330,6 +330,15 @@ services:
         factory: ['@App\Service\Search\UserSearchFactory', 'create']
 
     # UnfoldBundle services
+    App\UnfoldBundle\Contract\SiteRegistryInterface:
+        alias: App\Unfold\SiteRegistryAdapter
+
+    App\UnfoldBundle\Contract\EventReadGatewayInterface:
+        alias: App\Unfold\EventReadGatewayAdapter
+
+    App\UnfoldBundle\Contract\PublicationTreeLookupInterface:
+        alias: App\Unfold\PublicationTreeLookupAdapter
+
     App\UnfoldBundle\Cache\StaleWhileRevalidateCache:
         arguments:
             $cache: '@unfold.cache'
@@ -341,7 +350,7 @@ services:
     App\UnfoldBundle\Content\ContentProvider:
         arguments:
             $swrCache: '@App\UnfoldBundle\Cache\StaleWhileRevalidateCache'
-            $graphLookup: '@App\Service\Graph\GraphLookupService'
+            $treeLookup: '@App\Unfold\PublicationTreeLookupAdapter'
 
     App\UnfoldBundle\Http\HostResolver: ~
     

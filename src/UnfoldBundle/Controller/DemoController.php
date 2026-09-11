@@ -33,8 +33,8 @@ class DemoController extends AbstractController
 
         return $this->render('@Unfold/demo.html.twig', [
             'host' => $host,
-            'subdomain' => $unfoldSite?->getSubdomain() ?? 'not found',
-            'naddr' => $unfoldSite?->getNaddr(),
+            'subdomain' => $unfoldSite?->subdomain ?? 'not found',
+            'naddr' => $unfoldSite?->coordinate,
             'siteFound' => $unfoldSite !== null,
         ]);
     }

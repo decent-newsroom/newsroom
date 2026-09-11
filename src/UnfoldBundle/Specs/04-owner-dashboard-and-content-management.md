@@ -76,15 +76,18 @@ Magazine index editing:
 
 Payment target setup:
 
-- Edit publication-level `30133` payment descriptor rows.
-- Publish `30133` through owner signer.
+- Edit publication-level `38133` payment target rows.
+- Publish `38133` through owner signer.
 - Update AppData `payment_targets` reference after publish.
 
 Audience setup:
 
-- Edit `38110` audience title, summary, prices, duration, image, and optional payment descriptor.
-- Publish `38110` through owner signer.
+- Edit `30879` audience title, summary, prices, duration, image, and optional payment targets.
+- Publish `30879` through owner signer.
 - Update AppData repeated `audience` references after publish.
+- Until the access chain is connected, display these offers as **Gated access
+  coming soon** and do not show checkout, entitlement, subscriber, or revenue
+  data.
 
 ## Failure States
 

@@ -2,8 +2,8 @@
 
 namespace App\UnfoldBundle\Http;
 
-use App\Entity\UnfoldSite;
-use App\Repository\UnfoldSiteRepository;
+use App\UnfoldBundle\Contract\PublicationSite;
+use App\UnfoldBundle\Contract\SiteRegistryInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -12,14 +12,14 @@ use Symfony\Component\HttpFoundation\RequestStack;
 class HostResolver
 {
     public function __construct(
-        private readonly UnfoldSiteRepository $unfoldSiteRepository,
+        private readonly SiteRegistryInterface $siteRegistry,
         private readonly RequestStack $requestStack,
     ) {}
 
     /**
      * Extract subdomain from current request's Host header and look up UnfoldSite
      */
-    public function resolve(): ?UnfoldSite
+    public function resolve(): ?PublicationSite
     {
         $request = $this->requestStack->getCurrentRequest();
         if ($request === null) {
@@ -33,15 +33,15 @@ class HostResolver
             return null;
         }
 
-        return $this->unfoldSiteRepository->findBySubdomain($subdomain);
+        return $this->siteRegistry->findBySubdomain($subdomain);
     }
 
     /**
      * Resolve by explicit subdomain (useful for testing or direct lookup)
      */
-    public function resolveBySubdomain(string $subdomain): ?UnfoldSite
+    public function resolveBySubdomain(string $subdomain): ?PublicationSite
     {
-        return $this->unfoldSiteRepository->findBySubdomain($subdomain);
+        return $this->siteRegistry->findBySubdomain($subdomain);
     }
 
     /**
@@ -85,4 +85,3 @@ class HostResolver
         return null;
     }
 }
-

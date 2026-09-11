@@ -2,6 +2,8 @@
 
 namespace App\UnfoldBundle\Content;
 
+use App\UnfoldBundle\Contract\NostrEvent;
+
 /**
  * Post/article data derived from article event (kind 30023)
  */
@@ -37,14 +39,14 @@ readonly class PostData
     /**
      * Create PostData from a raw Nostr event object
      */
-    public static function fromEvent(object $event): self
+    public static function fromEvent(NostrEvent $event): self
     {
-        $tags = $event->tags ?? [];
+        $tags = $event->tags;
         $slug = '';
         $title = '';
         $summary = '';
         $image = null;
-        $publishedAt = $event->created_at ?? time();
+        $publishedAt = $event->createdAt;
         $lud16 = null;
         $lud06 = null;
         $zapSplits = [];
@@ -71,15 +73,15 @@ readonly class PostData
             };
         }
 
-        $kind = $event->kind ?? 30023;
-        $pubkey = $event->pubkey ?? '';
+        $kind = $event->kind;
+        $pubkey = $event->pubkey;
         $coordinate = "{$kind}:{$pubkey}:{$slug}";
 
         return new self(
             slug: $slug,
             title: $title,
             summary: $summary,
-            content: $event->content ?? '',
+            content: $event->content,
             image: $image,
             publishedAt: $publishedAt,
             pubkey: $pubkey,
@@ -98,4 +100,3 @@ readonly class PostData
         return date($format, $this->publishedAt);
     }
 }
-

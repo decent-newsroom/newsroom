@@ -45,15 +45,15 @@ class SiteController
 
         // 2. Load SiteConfig from magazine coordinate (kind 30040)
         // SiteConfigLoader returns a placeholder config if fetch fails, so no exception handling needed
-        $siteConfig = $this->siteConfigLoader->loadFromCoordinate($unfoldSite->getCoordinate());
+        $siteConfig = $this->siteConfigLoader->loadFromCoordinate($unfoldSite->coordinate);
 
         // Check if we got a placeholder config (content still loading)
         $isPlaceholder = $siteConfig->title === 'Loading...' || empty($siteConfig->pubkey);
 
         if ($isPlaceholder) {
             $this->logger->warning('Serving placeholder config - content may still be loading', [
-                'subdomain' => $unfoldSite->getSubdomain(),
-                'coordinate' => $unfoldSite->getCoordinate(),
+                'subdomain' => $unfoldSite->subdomain,
+                'coordinate' => $unfoldSite->coordinate,
             ]);
         }
 
@@ -70,7 +70,7 @@ class SiteController
 
         // Log route matching for debugging
         $this->logger->debug('Unfold route matched', [
-            'subdomain' => $unfoldSite->getSubdomain(),
+            'subdomain' => $unfoldSite->subdomain,
             'path' => $path,
             'route_type' => $route['type'],
             'categories_count' => count($categories),
@@ -135,4 +135,3 @@ class SiteController
         return new Response($html);
     }
 }
-

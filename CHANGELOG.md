@@ -2,6 +2,9 @@
 
 ## v0.0.53
 
+- [Improvement] Added newsroom adapters for Unfold site, event-read, and publication-tree contracts, and migrated site configuration/content consumers to persistence-agnostic DTO gateways with database-first and relay fallback behavior.
+- [Improvement] Added Unfold package-boundary contracts for site registry, immutable Nostr event reads, optional publication-tree lookup, and optional NIP-57 zap invoice generation ahead of Composer extraction.
+- [Docs] Aligned Unfold audience and publication payment-target specs on kinds `30879` and `38133`, and documented the pre-integration Audience Preview that exposes configured offers without checkout, entitlements, or scoped-content publishing.
 - [Feature] Added CSRF-protected, coordinate-scoped recursive deletion of stale magazine index trees from the magazines admin page, preserving referenced articles and unrelated indexes.
 
 
