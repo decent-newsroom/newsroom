@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Made Unfold site creation Turbo-safe by building and signing its AppData event at click time and sending the subdomain as a scoped publish field.
 - [Improvement] Extracted Unfold into the internal `decent-newsroom/unfold-bundle` Composer package with package-relative resources and explicit newsroom adapter contracts.
 - [Fix] Generated valid article and person JSON-LD when optional author metadata is absent, avoiding trailing commas in structured data.
 - [Improvement] Added newsroom adapters for Unfold site, event-read, and publication-tree contracts, and migrated site configuration/content consumers to persistence-agnostic DTO gateways with database-first and relay fallback behavior.

@@ -14,7 +14,7 @@
                 </div>
                 <div class="card-body">
                     {# Form to collect data for AppData event #}
-                    <form id="unfoldSiteForm">
+                    <form id="unfoldSiteForm" data-controller="admin--unfold-site">
                         {# Step 1: Subdomain #}
                         <div class="mb-4">
                             <label for="subdomain" class="form-label">Subdomain <span class="text-danger">*</span></label>
@@ -25,6 +25,8 @@
                                        name="subdomain"
                                        placeholder="mymagazine"
                                        pattern="[a-z0-9\-]+"
+                                       data-admin--unfold-site-target="subdomainInput"
+                                       data-action="input->admin--unfold-site#updatePreview"
                                        required>
                                 <span class="input-group-text">.{{ app.request.host }}</span>
                             </div>
@@ -35,7 +37,9 @@
                         <div class="mb-4">
                             <label for="magazine_select" class="form-label">Select Magazine <span class="text-danger">*</span></label>
                             {% if magazines is not empty %}
-                            <select class="form-select" id="magazine_select" name="magazine_select" required>
+                            <select class="form-select" id="magazine_select" name="magazine_select" required
+                                    data-admin--unfold-site-target="magazineSelect"
+                                    data-action="change->admin--unfold-site#updatePreview">
                                 <option value="">-- Choose a magazine --</option>
                                 {% for mag in magazines %}
                                 <option value="{{ mag.coordinate }}"
@@ -47,8 +51,9 @@
                             </select>
 
                             {# Show selected coordinate as feedback #}
-                            <div id="selected_coordinate_display" class="mt-2 small text-muted" style="display: none;">
-                                <strong>Coordinate:</strong> <code id="selected_coordinate_text"></code>
+                            <div id="selected_coordinate_display" class="mt-2 small text-muted" style="display: none;"
+                                 data-admin--unfold-site-target="coordinateDisplay">
+                                <strong>Coordinate:</strong> <code id="selected_coordinate_text" data-admin--unfold-site-target="coordinateText"></code>
                             </div>
                             {% else %}
                             <div class="alert alert-warning">
@@ -61,7 +66,9 @@
                         {# Step 3: Theme Selection #}
                         <div class="mb-4">
                             <label for="theme" class="form-label">Theme</label>
-                            <select class="form-select" id="theme" name="theme">
+                            <select class="form-select" id="theme" name="theme"
+                                    data-admin--unfold-site-target="themeSelect"
+                                    data-action="change->admin--unfold-site#updatePreview">
                                 {% for t in themes %}
                                 <option value="{{ t }}" {{ t == 'casper' ? 'selected' : '' }}>{{ t|capitalize }}</option>
                                 {% endfor %}
@@ -74,7 +81,8 @@
                         {# Event Preview #}
                         <div class="mb-4">
                             <label class="form-label">AppData Event Preview</label>
-                            <pre id="eventPreview" class="bg-light p-3 rounded small" style="max-height: 200px; overflow-y: auto;"></pre>
+                            <pre id="eventPreview" class="bg-light p-3 rounded small" style="max-height: 200px; overflow-y: auto;"
+                                 data-admin--unfold-site-target="preview"></pre>
                         </div>
 
                         {# Sign and Publish using existing Stimulus controller #}
@@ -82,7 +90,7 @@
                             'event': '{}',
                             'publishUrl': path('admin_unfold_publish'),
                             'redirectUrl': path('admin_unfold_index')
-                        }) }} id="signerContainer">
+                        }) }} id="signerContainer" data-admin--unfold-site-target="signer">
 
                             <div data-nostr--nostr-single-sign-target="status"></div>
 
@@ -90,7 +98,8 @@
                                 <button type="button"
                                         class="btn btn-primary"
                                         data-nostr--nostr-single-sign-target="publishButton"
-                                        data-action="click->nostr--nostr-single-sign#signAndPublish"
+                                        data-admin--unfold-site-target="publishButton"
+                                        data-action="click->admin--unfold-site#signAndPublish"
                                         id="publishButton">
                                     <i class="bi bi-pen"></i> Sign &amp; Publish
                                 </button>
@@ -137,161 +146,6 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const subdomainInput = document.getElementById('subdomain');
-    const magazineSelect = document.getElementById('magazine_select');
-    const coordinateDisplay = document.getElementById('selected_coordinate_display');
-    const coordinateText = document.getElementById('selected_coordinate_text');
-    const themeSelect = document.getElementById('theme');
-    const previewEl = document.getElementById('eventPreview');
-    const signerContainer = document.getElementById('signerContainer');
-
-    // Current coordinate for the event
-    let currentCoordinate = '';
-
-    // Update coordinate when magazine is selected
-    if (magazineSelect) {
-        magazineSelect.addEventListener('change', function() {
-            currentCoordinate = this.value; // Value is already the coordinate
-
-            // Show coordinate feedback
-            if (coordinateDisplay && coordinateText && currentCoordinate) {
-                coordinateDisplay.style.display = 'block';
-                coordinateText.textContent = currentCoordinate;
-            } else if (coordinateDisplay) {
-                coordinateDisplay.style.display = 'none';
-            }
-
-            updateEventPreview();
-        });
-    }
-
-    function updateEventPreview() {
-        const subdomain = subdomainInput.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '') || 'my-site';
-        const theme = themeSelect.value;
-
-        // Use coordinate for 'a' tag (format: kind:pubkey:identifier)
-        const aTagValue = currentCoordinate || '<kind:pubkey:identifier>';
-
-        const event = {
-            kind: 30078,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [
-                ["d", subdomain],
-                ["a", aTagValue],
-                ["theme", theme],
-                ["alt", "Unfold App Config"]
-            ],
-            content: "Unfold App Config for '" + subdomain + "'"
-        };
-
-        previewEl.textContent = JSON.stringify(event, null, 2);
-
-        // Build the event for the signer (without created_at - signer adds it)
-        const eventForSigner = {
-            kind: 30078,
-            tags: [
-                ["d", subdomain],
-                ["a", aTagValue],
-                ["theme", theme],
-                ["alt", "Unfold App Config"]
-            ],
-            content: "Unfold App Config for '" + subdomain + "'"
-        };
-
-        // Update the Stimulus controller's event value using setAttribute
-        // (dataset camelCase conversion doesn't work reliably for nested namespaces)
-        signerContainer.setAttribute('data-nostr--nostr-single-sign-event-value', JSON.stringify(eventForSigner));
-
-        // Also store subdomain for the publish request
-        signerContainer.dataset.unfoldSubdomain = subdomain;
-    }
-
-    // Update preview on input changes
-    subdomainInput.addEventListener('input', updateEventPreview);
-    themeSelect.addEventListener('change', updateEventPreview);
-
-    // Initial preview
-    updateEventPreview();
-
-    // Override the publish button to dispatch nostr:sign event with correct data
-    const publishButton = signerContainer.querySelector('[data-action*="signAndPublish"]');
-    if (publishButton) {
-        // Remove the original Stimulus action and handle it ourselves
-        publishButton.removeAttribute('data-action');
-
-        publishButton.addEventListener('click', function(e) {
-            e.preventDefault();
-
-            // Validate form first
-            const subdomain = subdomainInput.value.trim();
-
-            if (!subdomain) {
-                alert('Please enter a subdomain.');
-                subdomainInput.focus();
-                return;
-            }
-
-            if (!currentCoordinate) {
-                alert('Please select a magazine.');
-                if (magazineSelect) magazineSelect.focus();
-                return;
-            }
-
-            // Validate coordinate format (kind:pubkey:identifier)
-            const coordParts = currentCoordinate.split(':');
-            if (coordParts.length !== 3) {
-                alert('Invalid coordinate format. Expected: kind:pubkey:identifier');
-                return;
-            }
-
-            // Build the event to sign
-            const eventToSign = {
-                kind: 30078,
-                tags: [
-                    ["d", subdomain],
-                    ["a", currentCoordinate],
-                    ["theme", themeSelect.value],
-                    ["alt", "Unfold App Config"]
-                ],
-                content: "Unfold App Config for '" + subdomain + "'"
-            };
-
-            // Store subdomain for the fetch interceptor
-            signerContainer.dataset.unfoldSubdomain = subdomain;
-
-            // Dispatch nostr:sign event which the controller listens for
-            const signEvent = new CustomEvent('nostr:sign', {
-                bubbles: true,
-                detail: {
-                    nostrEvent: eventToSign,
-                    formData: { subdomain: subdomain }
-                }
-            });
-            signerContainer.dispatchEvent(signEvent);
-        });
-    }
-});
-
-// Intercept the fetch to add subdomain to the request
-const originalFetch = window.fetch;
-window.fetch = function(url, options) {
-    if (url.includes('/admin/unfold/publish') && options && options.body) {
-        try {
-            const body = JSON.parse(options.body);
-            const signerContainer = document.getElementById('signerContainer');
-            if (signerContainer && signerContainer.dataset.unfoldSubdomain) {
-                body.subdomain = signerContainer.dataset.unfoldSubdomain;
-                options.body = JSON.stringify(body);
-            }
-        } catch (e) {
-            console.error('Failed to add subdomain to request:', e);
-        }
-    }
-    return originalFetch.apply(this, arguments);
-};
-</script>
 {% endblock %}
 
 {% block aside %}

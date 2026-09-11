@@ -38,16 +38,38 @@ export default class extends Controller {
   }
 
   handleSignEvent(e) {
-    const { nostrEvent, formData } = e.detail;
-    // Update eventValue for signing
-    this.showStatus('Event received for signing. Ready to sign and publish.');
-    this.eventValue = JSON.stringify(nostrEvent);
-    // Store formData for later use in publishing
-    this.handoffFormData = formData;
-    // Trigger signing
-    this.signAndPublish(new Event('submit')).then(r => {
-      this.showStatus('Signing process completed.');
-    });
+    const { nostrEvent, formData, requestFields } = e.detail || {};
+    this.signAndPublishEvent(nostrEvent, requestFields, formData)
+      .then((success) => {
+        if (success) {
+          this.showStatus('Signing process completed.');
+        }
+      })
+      .catch((error) => {
+        console.error('[nostr_single_sign] Event handoff failed:', error);
+        this.showError(error.message || 'Publish failed');
+      });
+  }
+
+  async signAndPublishEvent(nostrEvent, requestFields = {}, formData = undefined) {
+    if (!nostrEvent || typeof nostrEvent !== 'object' || Array.isArray(nostrEvent)) {
+      this.showError('Invalid event for signing.');
+      return false;
+    }
+
+    try {
+      const serializedEvent = JSON.stringify(nostrEvent);
+      const eventSkeleton = JSON.parse(serializedEvent);
+      this.eventValue = serializedEvent;
+
+      this.showStatus('Event received for signing. Ready to sign and publish.');
+
+      return this.signAndPublish(new Event('submit'), requestFields, formData, eventSkeleton);
+    } catch (error) {
+      console.error('[nostr_single_sign] Failed to serialize event:', error);
+      this.showError('Invalid event for signing.');
+      return false;
+    }
   }
 
   preparePreview() {
@@ -69,9 +91,18 @@ export default class extends Controller {
     } catch (_) {}
   }
 
-  async signAndPublish(event) {
+  async signAndPublish(event, requestFields = undefined, formData = undefined, eventSkeleton = undefined) {
     event.preventDefault();
     console.log('[nostr_single_sign] Sign and publish triggered');
+
+    let skeleton;
+    try {
+      skeleton = eventSkeleton || JSON.parse(this.eventValue || '{}');
+    } catch (error) {
+      console.error('[nostr_single_sign] Failed to parse event:', error);
+      this.showError('Invalid event for signing.');
+      return false;
+    }
 
     const session = getRemoteSignerSession();
     console.log('[nostr_single_sign] Remote signer session:', session);
@@ -97,13 +128,13 @@ export default class extends Controller {
       } else {
         this.showError(`No Nostr signer available: ${e.message}. Please connect Amber or install a Nostr signer extension.`);
       }
-      return;
+      return false;
     }
 
     if (!this.publishUrlValue) {
       console.error('[nostr_single_sign] Missing config', { publishUrl: this.publishUrlValue});
       this.showError('Missing config');
-      return;
+      return false;
     }
 
     if (this.hasPublishButtonTarget) {
@@ -114,7 +145,6 @@ export default class extends Controller {
       const pubkey = await signer.getPublicKey();
       console.log('[nostr_single_sign] Public key obtained:', pubkey);
 
-      const skeleton = JSON.parse(this.eventValue || '{}');
       // Update content from textarea if present
       const textarea = this.element.querySelector('textarea');
       if (textarea) {
@@ -130,7 +160,7 @@ export default class extends Controller {
       console.log('[nostr_single_sign] Event signed successfully:', signed);
 
       this.showStatus('Publishing…');
-      const result = await this.publishSigned(signed);
+      const result = await this.publishSigned(signed, requestFields, formData);
       console.log('[nostr_single_sign] Event published successfully');
 
       // Handle redirect based on whether it's a draft or published article
@@ -145,9 +175,12 @@ export default class extends Controller {
           window.location.href = redirectUrl;
         }, 1500);
       }
+
+      return true;
     } catch (e) {
       console.error('[nostr_single_sign] Error during sign/publish:', e);
       this.showError(e.message || 'Publish failed');
+      return false;
     } finally {
       if (this.hasPublishButtonTarget) {
         this.publishButtonTarget.disabled = false;
@@ -155,11 +188,15 @@ export default class extends Controller {
     }
   }
 
-  async publishSigned(signedEvent) {
-    // Build request body - include formData if available (from editor handoff)
+  async publishSigned(signedEvent, requestFields = undefined, formData = undefined) {
+    // Include explicitly supplied top-level fields without changing legacy formData handoffs.
     const body = { event: signedEvent };
-    if (this.handoffFormData) {
-      body.formData = this.handoffFormData;
+
+    if (requestFields && typeof requestFields === 'object' && !Array.isArray(requestFields)) {
+      Object.assign(body, requestFields);
+    }
+    if (formData) {
+      body.formData = formData;
     }
 
     const res = await fetch(this.publishUrlValue, {
