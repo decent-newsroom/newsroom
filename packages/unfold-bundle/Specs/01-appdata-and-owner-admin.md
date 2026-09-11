@@ -11,9 +11,11 @@ AppData remains a NIP-78 `kind:30078` event. It must be signed by the publicatio
 Required tags:
 
 ```json
-["d", "<site-identifier>"]
-["publication", "30040:<owner_pubkey>:<dtag>", "<relay_hint?>"]
-["alt", "Unfold App Config"]
+  "tags": [
+      ["d", "<site-identifier>"],
+      ["publication", "30040:<owner_pubkey>:<dtag>", "<relay_hint?>"],
+      ["alt", "Unfold App Config"]
+    ]
 ```
 
 Optional tags:

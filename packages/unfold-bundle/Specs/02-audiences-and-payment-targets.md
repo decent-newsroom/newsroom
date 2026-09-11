@@ -25,7 +25,7 @@ KindsEnum::SCOPE_DEFINITION = 30879
 
 Minimum required tags:
 
-```json
+```
 ["d", "<audience-dtag>"]
 ["a", "30040:<owner_pubkey>:<publication-dtag>"]
 ["title", "<card title>"]
@@ -34,7 +34,7 @@ Minimum required tags:
 
 Optional tags:
 
-```json
+```
 ["summary", "<card description>"]
 ["expires_in", "<seconds>"]
 ["image", "<url>"]
@@ -84,7 +84,7 @@ Event rules:
 
 Required tags:
 
-```json
+```
 ["d", "<descriptor-dtag>"]
 ["a", "30040:<owner_pubkey>:<publication-dtag>"]
 ["payto", "<type>", "<authority>"]
@@ -92,7 +92,7 @@ Required tags:
 
 Optional tags:
 
-```json
+```
 ["title", "<display title>"]
 ["summary", "<display summary>"]
 ["published_at", "<unix_seconds>"]
@@ -102,7 +102,7 @@ Optional tags:
 
 AppData links to payment and audience events by coordinate:
 
-```json
+```
 ["audience", "30879:<owner_pubkey>:supporter", "<relay_hint?>"]
 ["payment_targets", "38133:<owner_pubkey>:daily-letters-payments", "<relay_hint?>"]
 ```
