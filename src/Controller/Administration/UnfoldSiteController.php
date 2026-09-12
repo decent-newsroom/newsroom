@@ -67,7 +67,62 @@ class UnfoldSiteController extends AbstractController
         return $this->render('admin/unfold/new.html.twig', [
             'themes' => $themes,
             'magazines' => $magazines,
+            'localCreationEnabled' => $this->getParameter('kernel.environment') === 'dev',
         ]);
+    }
+
+    /**
+     * Create an Unfold site in the local development database without publishing an AppData event.
+     */
+    #[Route('/local', name: 'admin_unfold_create_local', methods: ['POST'])]
+    public function createLocal(Request $request): Response
+    {
+        if ($this->getParameter('kernel.environment') !== 'dev') {
+            throw $this->createNotFoundException();
+        }
+
+        if (!$this->isCsrfTokenValid('admin_unfold_create_local', $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid security token.');
+
+            return $this->redirectToRoute('admin_unfold_new');
+        }
+
+        $subdomain = $this->sanitizeSubdomain((string) $request->request->get('subdomain', ''));
+        $coordinate = trim((string) $request->request->get('magazine_select', ''));
+
+        if ($subdomain === '' || $coordinate === '') {
+            $this->addFlash('error', 'Subdomain and magazine coordinate are required.');
+
+            return $this->redirectToRoute('admin_unfold_new');
+        }
+
+        if (!$this->isMagazineCoordinate($coordinate)) {
+            $this->addFlash('error', 'Invalid magazine coordinate. Expected: 30040:pubkey:identifier.');
+
+            return $this->redirectToRoute('admin_unfold_new');
+        }
+
+        if ($this->unfoldSiteRepository->findBySubdomain($subdomain)) {
+            $this->addFlash('error', sprintf('Subdomain "%s" already exists.', $subdomain));
+
+            return $this->redirectToRoute('admin_unfold_new');
+        }
+
+        $site = new UnfoldSite();
+        $site->setSubdomain($subdomain);
+        $site->setCoordinate($coordinate);
+
+        $this->entityManager->persist($site);
+        $this->entityManager->flush();
+
+        $this->logger->info('Created local development Unfold site', [
+            'subdomain' => $subdomain,
+            'coordinate' => $coordinate,
+        ]);
+
+        $this->addFlash('success', 'Local Unfold site created without publishing to relays.');
+
+        return $this->redirectToRoute('admin_unfold_index');
     }
 
     /**
@@ -405,5 +460,10 @@ class UnfoldSiteController extends AbstractController
         $subdomain = trim($subdomain, '-');
 
         return $subdomain;
+    }
+
+    private function isMagazineCoordinate(string $coordinate): bool
+    {
+        return preg_match('/^30040:[a-f0-9]{64}:.+$/i', $coordinate) === 1;
     }
 }

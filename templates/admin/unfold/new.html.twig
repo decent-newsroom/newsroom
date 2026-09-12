@@ -15,6 +15,9 @@
                 <div class="card-body">
                     {# Form to collect data for AppData event #}
                     <form id="unfoldSiteForm" data-controller="admin--unfold-site">
+                        {% if localCreationEnabled %}
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin_unfold_create_local') }}">
+                        {% endif %}
                         {# Step 1: Subdomain #}
                         <div class="mb-4">
                             <label for="subdomain" class="form-label">Subdomain <span class="text-danger">*</span></label>
@@ -103,10 +106,21 @@
                                         id="publishButton">
                                     <i class="bi bi-pen"></i> Sign &amp; Publish
                                 </button>
+                                {% if localCreationEnabled %}
+                                    <button type="submit"
+                                            class="btn btn-outline-secondary"
+                                            formaction="{{ path('admin_unfold_create_local') }}"
+                                            formmethod="post">
+                                        Create Locally
+                                    </button>
+                                {% endif %}
                                 <a href="{{ path('admin_unfold_index') }}" class="btn btn-outline-secondary">Cancel</a>
                             </div>
                         </div>
                     </form>
+                    {% if localCreationEnabled %}
+                        <p class="form-text mt-3 mb-0">Creates a mapping only in this development database. No event is signed or sent to a relay.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>

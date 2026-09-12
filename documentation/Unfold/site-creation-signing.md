@@ -20,7 +20,7 @@ Administrators create hosted magazine sites from `/admin/unfold/new`. The form v
 
 | File | Role |
 |---|---|
-| `assets/controllers/admin/admin_unfold_site_controller.js` | Turbo-safe form state, validation, preview, and signing handoff |
+| `assets/controllers/admin/unfold_site_controller.js` | Turbo-safe form state, validation, preview, and signing handoff |
 | `assets/controllers/nostr/nostr_single_sign_controller.js` | Signs an explicit event and forwards scoped request fields |
 | `templates/admin/unfold/new.html.twig` | Connects the form and nested signer controllers |
 | `src/Controller/Administration/UnfoldSiteController.php` | Publishes AppData events and stores site mappings |
