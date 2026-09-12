@@ -5,6 +5,19 @@ if (!ini_get('date.timezone')) {
     ini_set('date.timezone', 'UTC');
 }
 
+$projectRoot = dirname(__DIR__);
+$hasConfigurationOption = false;
+foreach ($_SERVER['argv'] as $argument) {
+    if ('--configuration' === $argument || '-c' === $argument || str_starts_with($argument, '-c')) {
+        $hasConfigurationOption = true;
+        break;
+    }
+}
+
+if (!$hasConfigurationOption && is_file($projectRoot.'/phpunit.xml.dist')) {
+    array_splice($_SERVER['argv'], 1, 0, ['--configuration', $projectRoot.'/phpunit.xml.dist']);
+}
+
 if (is_file(dirname(__DIR__).'/vendor/phpunit/phpunit/phpunit')) {
     if (PHP_VERSION_ID >= 80000) {
         require dirname(__DIR__).'/vendor/phpunit/phpunit/phpunit';

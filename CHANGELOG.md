@@ -2,6 +2,8 @@
 
 ## v0.0.53
 
+- [Fix] Exposed the Unfold discovery controller to Symfony so RSS, sitemap, and robots routes resolve correctly.
+- [Feature] Added publication-local Unfold RSS, category feeds, sitemap, and robots discovery documents on registered subdomains.
 - [Feature] Added a development-only local Unfold site creation path that persists the subdomain mapping without signing or publishing an AppData event to relays.
 - [Fix] Made Unfold site creation Turbo-safe by building and signing its AppData event at click time and sending the subdomain as a scoped publish field.
 - [Improvement] Extracted Unfold into the internal `decent-newsroom/unfold-bundle` Composer package with package-relative resources and explicit newsroom adapter contracts.

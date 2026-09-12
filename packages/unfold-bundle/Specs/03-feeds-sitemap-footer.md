@@ -1,5 +1,9 @@
 # Feeds, Sitemap, Robots, And Footer
 
+> **Implementation status (2026-09):** RSS, category RSS, sitemap, robots, and
+> the `/feed.xml` redirect are delivered. The two-level footer and its
+> AppData-derived owner links remain pending.
+
 ## Goal
 
 Each Unfold publication should expose machine-readable discovery endpoints using publication-local URLs. The default theme footer should distinguish DN platform links from publication-owner links.
@@ -8,11 +12,11 @@ Each Unfold publication should expose machine-readable discovery endpoints using
 
 Add explicit Unfold routes before the catch-all site controller:
 
-- `GET /rss.xml`: publication RSS feed.
-- `GET /feed.xml`: alias for `/rss.xml`.
-- `GET /{category}/rss.xml`: category RSS feed.
-- `GET /sitemap.xml`: publication sitemap.
-- `GET /robots.txt`: optional publication robots response.
+- [x] `GET /rss.xml`: publication RSS feed.
+- [x] `GET /feed.xml`: `308` permanent redirect to `/rss.xml`.
+- [x] `GET /{category}/rss.xml`: category RSS feed.
+- [x] `GET /sitemap.xml`: publication sitemap.
+- [x] `GET /robots.txt`: publication robots response.
 
 These routes must run before `RouteMatcher` static-file rejection, because `.xml` and `.txt` paths are currently considered static-like and would otherwise 404.
 
@@ -43,10 +47,10 @@ Response headers:
 
 The publication sitemap includes:
 
-- Home page `/`.
-- About page if AppData has an `about` coordinate and the route is implemented.
-- Category pages from the publication index.
-- Article pages from all category descendants.
+- [x] Home page `/`.
+- [ ] About page if AppData has an `about` coordinate and the route is implemented.
+- [x] Category pages from the publication index.
+- [x] Article pages from all category descendants.
 - RSS/feed URLs may be listed with low priority only if useful for crawler discovery.
 
 All `loc` values must be absolute URLs for the current Unfold host. Do not use main-domain `/mag` or `/p` routes.

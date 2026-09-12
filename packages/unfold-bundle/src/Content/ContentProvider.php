@@ -269,6 +269,72 @@ class ContentProvider
     }
 
     /**
+     * Get the newest posts in a publication, across every category.
+     *
+     * Unlike getHomePosts(), this deliberately fetches the complete category
+     * collections before applying one publication-wide limit. This makes the
+     * result suitable for discovery documents such as RSS and sitemaps.
+     *
+     * @return PostData[]
+     */
+    public function getPublicationPosts(SiteConfig $site, int $limit = 50): array
+    {
+        $limit = max(0, min(50, $limit));
+        $cacheKey = 'publication_posts_' . md5($site->naddr) . '_' . $limit;
+
+        return $this->swrCache->get(
+            $cacheKey,
+            fn() => $this->fetchPublicationPostsInternal($site, $limit),
+            self::FRESH_TTL,
+            self::STALE_TTL,
+            []
+        );
+    }
+
+    /**
+     * @return PostData[]
+     */
+    private function fetchPublicationPostsInternal(SiteConfig $site, int $limit): array
+    {
+        if ($limit === 0) {
+            return [];
+        }
+
+        $postsByCoordinate = [];
+        $order = 0;
+
+        foreach ($this->getCategories($site) as $category) {
+            foreach ($this->getCategoryPosts($category->coordinate) as $post) {
+                $coordinate = strtolower($post->coordinate);
+                if (isset($postsByCoordinate[$coordinate])) {
+                    continue;
+                }
+
+                $postsByCoordinate[$coordinate] = [
+                    'post' => $post,
+                    'order' => $order++,
+                ];
+            }
+        }
+
+        uasort(
+            $postsByCoordinate,
+            static function (array $left, array $right): int {
+                $publishedAt = $right['post']->publishedAt <=> $left['post']->publishedAt;
+
+                return $publishedAt !== 0
+                    ? $publishedAt
+                    : $left['order'] <=> $right['order'];
+            }
+        );
+
+        return array_values(array_map(
+            static fn(array $entry): PostData => $entry['post'],
+            array_slice($postsByCoordinate, 0, $limit)
+        ));
+    }
+
+    /**
      * Fetch home posts (internal fetcher for cache)
      * @return PostData[]
      */
@@ -476,6 +542,7 @@ class ContentProvider
         $this->swrCache->invalidate('categories_' . md5($site->naddr));
         $this->swrCache->invalidate('home_posts_' . md5($site->naddr) . '_10');
         $this->swrCache->invalidate('home_posts_' . md5($site->naddr) . '_3');
+        $this->swrCache->invalidate('publication_posts_' . md5($site->naddr) . '_50');
 
         foreach ($site->categories as $coordinate) {
             $this->swrCache->invalidate('category_posts_' . md5($coordinate));

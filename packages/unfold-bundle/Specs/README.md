@@ -56,7 +56,8 @@ analytics and does not publish scoped content. See
 1. Add parsing DTOs and local schema fields while preserving current coordinate-only `UnfoldSite` rows.
 2. Add owner-signed AppData setup to the hosted Unfold flow.
 3. Add the `PublicationContext` resolver, both admin mounts, and owner access checks (spec 08).
-4. Add RSS, sitemap, robots, and footer context.
+4. **Partially delivered:** RSS, sitemap, robots, and `/feed.xml` redirect are
+   available; footer context remains pending.
 5. Add audiences and publication payment descriptors.
 6. Ship the Audience Preview without checkout, entitlement, or scoped-content
    publishing.

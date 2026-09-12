@@ -7,3 +7,6 @@ services:
         resource: '../../src/'
         exclude:
             - '../../src/DependencyInjection/'
+
+    DecentNewsroom\UnfoldBundle\Controller\DiscoveryController:
+        tags: ['controller.service_arguments']

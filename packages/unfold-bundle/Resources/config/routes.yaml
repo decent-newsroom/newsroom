@@ -21,6 +21,39 @@ unfold_theme_assets:
     methods: [GET]
     condition: "request.attributes.has('_unfold_site')"
 
+# Publication discovery documents
+unfold_rss:
+    path: /rss.xml
+    controller: DecentNewsroom\UnfoldBundle\Controller\DiscoveryController::rss
+    methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
+
+unfold_feed:
+    path: /feed.xml
+    controller: DecentNewsroom\UnfoldBundle\Controller\DiscoveryController::feed
+    methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
+
+unfold_category_rss:
+    path: /{category}/rss.xml
+    controller: DecentNewsroom\UnfoldBundle\Controller\DiscoveryController::categoryRss
+    requirements:
+        category: '[^/]+'
+    methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
+
+unfold_sitemap:
+    path: /sitemap.xml
+    controller: DecentNewsroom\UnfoldBundle\Controller\DiscoveryController::sitemap
+    methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
+
+unfold_robots:
+    path: /robots.txt
+    controller: DecentNewsroom\UnfoldBundle\Controller\DiscoveryController::robots
+    methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
+
 # Main site controller - catch-all
 unfold_site:
     path: /{path}

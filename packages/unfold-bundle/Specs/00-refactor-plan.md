@@ -66,6 +66,9 @@ earlier ones. Specs referenced in parentheses.
 
 ### Phase 2 — Feeds, sitemap, robots, footer (Spec 03)
 
+> **Status (2026-09):** RSS, category RSS, sitemap, robots, and the `/feed.xml`
+> redirect are delivered. The AppData-dependent footer work remains pending.
+
 Independent of everything else — ship early.
 
 - `/rss.xml`, `/feed.xml`, `/{category}/rss.xml`, `/sitemap.xml`,
