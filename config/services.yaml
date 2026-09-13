@@ -327,6 +327,9 @@ services:
     App\Service\Search\UserSearchInterface:
         factory: ['@App\Service\Search\UserSearchFactory', 'create']
 
+    DecentNewsroom\UnfoldBundle\Contract\PublicationAdminIdentityInterface:
+        alias: App\Unfold\PublicationAdminIdentityAdapter
+
     # Unfold package host adapters
     DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface:
         alias: App\Unfold\PublicationSettingsStore

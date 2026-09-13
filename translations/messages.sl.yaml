@@ -1373,3 +1373,22 @@ unfold_setup:
     invalid_theme: 'Izbrana tema ni veljavna.'
     save_failed: 'Strani ni bilo mogoče shraniti. Poskusite znova.'
 
+
+unfold_admin:
+    title: "Upravljanje publikacije"
+    navigation: "Navigacija publikacije"
+    overview: "Pregled"
+    settings: "Nastavitve"
+    visit: "Obišči publikacijo"
+    metadata_unavailable: "Metapodatki publikacije trenutno niso na voljo. Nastavitve lahko še vedno urejate."
+    coordinate: "Koordinata publikacije"
+    owner: "Lastnik"
+    theme: "Tema"
+    hosting: "Gostovanje"
+    not_hosted: "Brez gostovanja"
+    discovery: "Viri publikacije"
+    rss: "Vir RSS"
+    sitemap: "Zemljevid strani"
+    immutable: "Koordinata trajno določa to publikacijo in je ni mogoče spremeniti."
+    save: "Shrani nastavitve"
+    saved: "Nastavitve shranjene."

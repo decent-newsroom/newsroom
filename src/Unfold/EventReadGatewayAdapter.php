@@ -32,7 +32,7 @@ final readonly class EventReadGatewayAdapter implements EventReadGatewayInterfac
             'pubkey' => $pubkey,
             'identifier' => $identifier,
             'relays' => $relayHints,
-        ]);
+        ], allowRelayListNetworkFetch: false, throwOnFailure: true);
 
         return $event === null ? null : $this->fromObject($event);
     }

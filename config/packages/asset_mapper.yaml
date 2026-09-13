@@ -2,7 +2,8 @@ framework:
     asset_mapper:
         # The paths to make available to the asset mapper.
         paths:
-            - assets/
+            assets/: ''
+            '%kernel.project_dir%/vendor/decent-newsroom/unfold-bundle/assets/': 'unfold'
         missing_import_mode: strict
 
 sensiolabs_typescript:

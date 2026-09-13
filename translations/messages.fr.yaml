@@ -1373,3 +1373,22 @@ unfold_setup:
     invalid_theme: 'Le thème sélectionné est invalide.'
     save_failed: 'Le site n’a pas pu être enregistré. Veuillez réessayer.'
 
+
+unfold_admin:
+    title: "Administration de la publication"
+    navigation: "Navigation de la publication"
+    overview: "Vue d’ensemble"
+    settings: "Paramètres"
+    visit: "Voir la publication"
+    metadata_unavailable: "Les métadonnées de la publication sont temporairement indisponibles. Vous pouvez toujours modifier les paramètres."
+    coordinate: "Coordonnée de la publication"
+    owner: "Propriétaire"
+    theme: "Thème"
+    hosting: "Hébergement"
+    not_hosted: "Non hébergée"
+    discovery: "Flux de la publication"
+    rss: "Flux RSS"
+    sitemap: "Plan du site"
+    immutable: "La coordonnée identifie cette publication de manière permanente et ne peut pas être modifiée."
+    save: "Enregistrer les paramètres"
+    saved: "Paramètres enregistrés."

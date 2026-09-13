@@ -206,7 +206,8 @@ final class UnfoldSetupServiceTest extends TestCase
         $renderer = $this->createMock(HandlebarsRenderer::class);
         $renderer->method('getAvailableThemes')->willReturn($themes);
 
-        return new UnfoldSetupService($sites, $settings, $entityManager, $loader, $renderer);
+        return new UnfoldSetupService($sites, $settings, $entityManager, $loader,
+            new \DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager($settings, $renderer, $loader));
     }
 
     private function transactionalEntityManager(): EntityManagerInterface

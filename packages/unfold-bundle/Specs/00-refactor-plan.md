@@ -1,13 +1,13 @@
 # Unfold Refactor — Master Plan
 
-Status: staged refactor. Internal Composer extraction and discovery routes are
-already delivered. The current slice implements local setup and persistent theme
-settings; owner administration, scoped access, and portable export remain planned.
+Status: staged refactor. Internal Composer extraction, discovery routes, shared
+local setup, and persistent theme settings are delivered. Owner administration
+now provides overview/settings on both mounts. Wizard migration, analytics,
+content/footer configuration, and gated access remain planned.
 
 This document sequences the Unfold refactor into shippable phases, records the
 decisions already made, and lists the open questions that block later phases.
 Specs 01–05 use the event kinds and cross-service contract in spec 06.
-The former AppData-first setup decision is superseded by D4 below.
 
 ## Big Picture
 
@@ -22,8 +22,7 @@ Unfold becomes a self-contained publication platform:
 - Packaging: already extracted into the internal Composer package; independent
   distribution and standalone hosting remain future work.
 - Identity: exactly one immutable root magazine coordinate identifies an Unfold.
-- Portability: a future custom definition event derived from the working scoped
-  access model; it is never a prerequisite for setup or settings saves.
+- Publication definition: respecification is deferred until gated access is complete.
 
 The product bias is **collections, not single articles**: the host app's
 magazine administration folds into the bundle, and single-article authoring
@@ -59,14 +58,15 @@ earlier ones. Specs referenced in parentheses.
 
 ### Phase 1 — Shared setup and persistent local settings (Spec 01, Spec 05)
 
+**Delivered.**
+
 - Persist the current theme setting by the full immutable root coordinate, using
   bundle-owned settings contracts and host storage adapters.
 - Share setup between operator creation/editing and subscription activation.
-  Validate and save locally without fetching, signing, or publishing AppData.
+  Validate and save through the coordinate-keyed local settings store.
 - Preserve existing mappings, URLs, and default-theme behavior for old rows.
-  Keep legacy AppData loading isolated for compatibility.
 - Keep hosting mappings and billing separate from publication settings.
-- Do not add speculative audience/mint fields or an `app_data_coordinate` column.
+- Do not add speculative audience/mint fields.
 - Future subdomain-first onboarding reserves hosting separately until a root
   coordinate is attached; do not make incomplete reservations publicly renderable.
 
@@ -95,6 +95,10 @@ Independent of everything else — ship early.
 - Uses the agreed subdomain session decision D18; signer approval remains per-origin.
 
 ### Phase 3 — Unified publication admin: mounts, shell, wizard, analytics (Spec 08, Spec 04)
+
+**Delivered foundation:** both owner-scoped mounts, publication context, overview,
+theme settings with shared validation, and validated login continuation. Wizard,
+draft migration, and analytics remain pending.
 
 - `PublicationContext` + two resolvers (host, coordinate); every admin
   controller depends on the context only (Spec 08).
@@ -182,19 +186,13 @@ Depends on external repos (bridge, mint) and third-party relay work.
 - Write the as-implemented protocol NIP at `documentation/NIP/` (replacing
   the deleted draft NIP-SB) once the contract has survived integration.
 
-### Phase 7 — Portable definition and independent distribution
+### Phase 7 — Publication definition and independent distribution
 
-- Internal Composer extraction is complete. Preserve bundle-owned interfaces and
-  host adapters in every earlier phase; future admin context must not depend on
-  host Doctrine entities.
-- Inventory the relationships required to reconstruct the working scoped-access
-  publication on a clean host, then design the custom portable definition event.
-- Keep the single root coordinate identity. Do not allocate a kind/schema now.
-  Define import conflicts, revisions, missing references, and ownership then.
-- Exclude billing state, receipts, tokens, and secrets; imported service references
-  cannot automatically establish operator trust. Export never blocks local saves.
-- Independent repository/distribution and standalone-host validation remain future
-  work; they do not require repeating the completed package-boundary extraction.
+- Respecify publication-definition events only after gated access is complete.
+  No event schema, kind, or compatibility implementation is planned now.
+- Internal Composer extraction is complete. Preserve bundle-owned contracts and
+  host adapters; admin context must not depend on host Doctrine entities.
+- Independent distribution and standalone-host validation remain future work.
 
 ## Decision Log
 
@@ -203,7 +201,7 @@ Depends on external repos (bridge, mint) and third-party relay work.
 | D1 | Wishlist kinds win: `30879` (audience) replaces `38110`; `38133` (publication payment targets) replaces the provisional `30133`. | REFACTOR.md declares prior proposals superseded. |
 | D2 | Superseded docs are **deleted**, not kept with banners: `documentation/Subscriptions/`, `documentation/Business/Subscriptions/`, `documentation/Business/Submissions/`, `documentation/NIP/SB.md`. Design history stays in git; a new NIP doc describing the *actually implemented* gated-access protocol replaces NIP-SB along the way (Phase 6 deliverable). | Owner decision (2026-08); dead drafts were generating confusion, and spec 06 is now the single forward-looking contract. |
 | D3 | Bridge+mint+token model replaces the SB relay-issued-grant model (`8110`/`8102`/`8112`/`8103`/`8113`, publish grants `18101`/`8101`). | Relay stays a dumb token validator; payment verification concentrates in bridge+mint, which live in separate repos anyway. |
-| D4 | Setup and settings are independent of any definition event. Local settings own local choices; referenced signed events own their contents; hosting and billing stay separate. A future custom portable event is derived after scoped access works. | Owner correction (2026-09): replaces the AppData-authoritative model. Portability must not force event publication into setup or every configuration change. |
+| D4 | Local settings own local choices; referenced signed events own their contents; hosting and billing stay separate. Publication-definition events will be respecified only after gated access is complete. | Owner correction (2026-09): remove superseded definition-event requirements and compatibility work from active plans. |
 | D5 | v1 home relay is fixed to `premium.decentnewsroom.com`; mint and bridge are DN-operated. | Wishlist. Access-service configuration will be introduced with gating, independently of a definition event. |
 | D6 | Cap and dedupe everything derived from relays (feed size 50, etc.). | Matches Spec 03 and repo-wide guardrails. |
 | D7 | `30879` is a new kind, not NIP-99 `30402`. Digital access resources have no `location`/`g` and never reach `status: sold`; NIP-99 has live marketplace implementations (Shopstr, Plebeian Market, Amethyst) that would mis-render audience offers as listings. Reuse only the NIP-99 tag vocabulary (`title`/`summary`/`image`/`published_at`/`price` array). Verified `30879`, `38133`, `8879`, `28877`, `28878` unallocated in the upstream NIPs kind table (2026-08); register in `nostr-protocol/registry-of-kinds` when stable. | Spec 06. |

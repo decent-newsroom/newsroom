@@ -238,12 +238,10 @@ unprotected event from being fanned out to ordinary Nostr relays.
 
 Local settings will select `30879` audiences and the default `38133` payment
 target by coordinate. Each signed event remains authoritative for its contents.
-Access-service configuration is separate from hosting/billing. No AppData
-publication is required when configuring or changing these relationships.
+Access-service configuration is separate from hosting/billing.
 
-A future custom portable definition will describe the relationships established
-by this working model. Its schema and event kind are deferred; it must retain
-exactly one immutable root magazine coordinate and exclude private access state.
+Publication-definition events will be respecified only after gated access is
+complete. No definition-event schema or implementation is planned here.
 
 ## Application Read Boundary
 

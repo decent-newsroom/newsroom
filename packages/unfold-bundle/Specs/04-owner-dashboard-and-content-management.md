@@ -6,7 +6,9 @@
 > subdomain or a `/mag/{mag}/admin` coordinate mount. Paths below are relative
 > to `PublicationContext.adminPathPrefix`.
 
-Status: planned owner administration, separate from the implemented operator setup.
+Status: owner overview and theme settings are delivered on both mounts. Analytics,
+content management, audiences, payment targets, and the expanded dashboard remain
+planned. Operator setup remains a separate host administration surface.
 
 ## Goal
 
@@ -14,21 +16,28 @@ Give each Unfold owner a publication-scoped admin area on their own subdomain. T
 
 ## Admin Navigation
 
-Initial pages:
+Delivered pages:
 
 - `/admin`: dashboard overview.
 - `/admin/settings`: local publication settings.
+
+Planned pages:
+
 - `/admin/content`: article/category management.
 - `/admin/index`: magazine index editing.
 - `/admin/audiences`: audience tier management.
 - `/admin/payment-targets`: publication payment descriptor management.
 - `/admin/analytics`: visitor analytics and future subscription analytics.
 
-Every page must use the owner access rule from `01-appdata-and-owner-admin.md`.
+Every page must use the owner access rule from `01-owner-admin.md`.
 
 ## Dashboard
 
-Show:
+The delivered overview shows publication identity, theme, hosting status, and
+public/discovery links when hosting exists. Content-management links and additional
+readiness states below accompany their future workflows.
+
+Full dashboard target:
 
 - Publication title, optional subdomain, immutable root coordinate, and owner pubkey.
 - Saved local settings and the relevant publication event metadata.

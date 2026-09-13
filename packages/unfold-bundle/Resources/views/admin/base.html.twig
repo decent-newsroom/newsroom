@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% block title %}{{ 'unfold_admin.title'|trans }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ asset('unfold/admin.css') }}">
+</head>
+<body>
+<header class="publication-admin-header">
+    <a href="{{ publication.adminPathPrefix }}">{{ 'unfold_admin.title'|trans }}</a>
+    <nav aria-label="{{ 'unfold_admin.navigation'|trans }}">
+        <a href="{{ publication.adminPathPrefix }}">{{ 'unfold_admin.overview'|trans }}</a>
+        <a href="{{ publication.adminPathPrefix }}/settings">{{ 'unfold_admin.settings'|trans }}</a>
+        {% if publication.publicUrl %}
+            <a href="{{ publication.publicUrl }}" target="_blank" rel="noopener noreferrer">{{ 'unfold_admin.visit'|trans }}</a>
+        {% endif %}
+    </nav>
+</header>
+<main class="publication-admin-main">
+    {% for message in app.flashes('unfold_success') %}
+        <p role="status">{{ message|trans }}</p>
+    {% endfor %}
+    {% block body %}{% endblock %}
+</main>
+</body>
+</html>

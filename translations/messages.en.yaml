@@ -1755,3 +1755,22 @@ unfold_setup:
     invalid_theme: 'The selected theme is invalid.'
     save_failed: 'The site could not be saved. Please try again.'
 
+
+unfold_admin:
+    title: "Publication administration"
+    navigation: "Publication navigation"
+    overview: "Overview"
+    settings: "Settings"
+    visit: "Visit publication"
+    metadata_unavailable: "Publication metadata is temporarily unavailable. You can still edit settings."
+    coordinate: "Publication coordinate"
+    owner: "Owner"
+    theme: "Theme"
+    hosting: "Hosting"
+    not_hosted: "Not hosted"
+    discovery: "Publication feeds"
+    rss: "RSS feed"
+    sitemap: "Sitemap"
+    immutable: "The coordinate permanently identifies this publication and cannot be changed."
+    save: "Save settings"
+    saved: "Settings saved."

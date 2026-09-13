@@ -53,7 +53,7 @@ final class EventReadGatewayAdapterTest extends TestCase
                 'pubkey' => 'abcdef',
                 'identifier' => 'main',
                 'relays' => [],
-            ])
+            ], false, false, null, null, true)
             ->willReturn((object) [
                 'id' => 'relay-event',
                 'pubkey' => 'ABCDEF',
@@ -70,5 +70,37 @@ final class EventReadGatewayAdapterTest extends TestCase
         self::assertNotNull($result);
         self::assertSame('relay-event', $result->id);
         self::assertSame(456, $result->createdAt);
+    }
+
+    public function testCleanEmptyLookupRemainsMissing(): void
+    {
+        $repository = $this->createMock(EventRepository::class);
+        $repository->method('findByNaddr')->willReturn(null);
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::once())->method('getEventByNaddr')
+            ->with([
+                'kind' => 30040,
+                'pubkey' => 'abcdef',
+                'identifier' => 'main',
+                'relays' => ['wss://hint.example.test'],
+            ], false, false, null, null, true)
+            ->willReturn(null);
+
+        self::assertNull((new EventReadGatewayAdapter($repository, $client))
+            ->findByCoordinate('30040:ABCDEF:main', ['wss://hint.example.test']));
+    }
+
+    public function testTimedOutLookupPropagatesAsInfrastructureFailure(): void
+    {
+        $repository = $this->createMock(EventRepository::class);
+        $repository->method('findByNaddr')->willReturn(null);
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::once())->method('getEventByNaddr')
+            ->with(self::anything(), false, false, null, null, true)
+            ->willThrowException(new \RuntimeException('Nostr coordinate lookup timed out.'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Nostr coordinate lookup timed out.');
+        (new EventReadGatewayAdapter($repository, $client))->findByCoordinate('30040:ABCDEF:main');
     }
 }

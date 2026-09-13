@@ -1,8 +1,10 @@
 # Unified Publication Admin And Mounts
 
-Status: draft implementation specification.
+Status: both owner-admin mounts, publication context, overview, and local theme
+settings are delivered. Wizard/draft migration, analytics, content management,
+and article-editor integration remain planned.
 
-Complements the local setup model in `01-appdata-and-owner-admin.md` and the
+Complements the local setup model in `01-owner-admin.md` and the
 planned pages in `04-owner-dashboard-and-content-management.md`. This spec is
 authoritative for *where they mount, how the publication is identified, and who
 may access them*.
@@ -11,8 +13,8 @@ may access them*.
 
 One publication administration implementation, reachable from two mounts, with
 the publication permanently identified by exactly one immutable root magazine
-coordinate. This owner-admin consolidation remains future work; local operator
-setup and theme persistence do not imply these mounts are delivered.
+coordinate. Overview and theme settings now share this administration surface.
+The wider owner-admin consolidation described below remains future work.
 
 The subdomain becomes a presentation feature, not an administration
 prerequisite. A magazine with no subdomain gets the same admin as a hosted
@@ -27,7 +29,7 @@ makes the article editor available inside a publication context.
 | Mount | Publication resolved from | Subdomain required | Route condition |
 |---|---|---|---|
 | `https://<sub>.<base>/admin/…` | Host → `_unfold_site` → bundle site DTO | yes | `request.attributes.has('_unfold_site')` |
-| `https://<base>/mag/{mag}/admin/…` | Route `{mag}` + current user pubkey | no | none |
+| `https://<base>/mag/{mag}/admin/…` | Route `{mag}` + current user pubkey | no | configured main domain only |
 
 Both mounts resolve to the same `PublicationContext` and dispatch to the same
 controllers, templates, and form types. No controller may read the host or the
@@ -96,34 +98,35 @@ projection bug; record it, do not fix it inside this work.
 
 ## Route Mounting Rules
 
-The bundle currently declares every route with
-`condition: "request.attributes.has('_unfold_site')"`, so it cannot serve
-apex-domain routes at all. Two changes:
+The delivered routing separates publication-owner administration from public
+subdomain rendering:
 
 1. Split `Resources/config/routes.yaml` into a subdomain collection (keeps the
-   condition) and an apex admin collection (no condition, prefixed
-   `/mag/{mag}/admin`).
+   condition) and a main-domain-only admin collection prefixed `/mag/{mag}/admin`.
 2. Both admin collections must be imported **before** the `unfold_site`
    catch-all. `unfold_site` is `/{path}` with `path: '.*'`; without ordering it
    swallows `/admin/*`, and `RouteMatcher` would then read `admin` as a category
    slug and return `PAGE_NOT_FOUND`.
 
-`RouteMatcher` itself needs no change once ordering is correct, but it should
-gain an explicit reserved-prefix guard so a category literally named `admin`
+`RouteMatcher` reserves `/admin` and its descendants so public category routing
 cannot shadow the admin shell.
 
 ## Access Rule
 
-Extends `01-appdata-and-owner-admin.md`, unified across both mounts:
+Extends `01-owner-admin.md`, unified across both mounts:
 
-- Anonymous → redirect to login.
+- Anonymous → redirect to the main-domain login with a validated continuation
+  to the requested admin page. Continuations accept only recognized admin paths
+  on the configured main domain or a registered publication host.
+- Shared session cookies across the main domain and publication subdomains are
+  required for authentication to survive the return to a subdomain.
 - Subdomain mount → compare the session pubkey (npub converted to hex) against
   `PublicationContext.ownerPubkey`; non-owners get access denied.
 - Coordinate mount → ownership is structural per the constraint above.
 - `ROLE_ADMIN` does **not** grant publication ownership on either mount. DN
   operators keep a separate, narrow moderation surface.
 
-## Draft State
+## Planned Draft State
 
 The magazine wizard is currently session-backed (`SESSION_KEY = 'mag_wizard'` in
 `MagazineWizardController`). A single session-scoped draft cannot survive the
@@ -134,15 +137,15 @@ reader-session decision; durable drafts still require their own store).
 Replace it with a Redis-backed draft keyed by
 `unfold:draft:<coordinate>` (or `<pubkey>:<dtag>` before first publish):
 
-- Removes Q7 from the admin path entirely; cookie scope becomes a Phase 2b
-  reader-interaction question only.
+- Separates wizard persistence from the session; authentication across hosts
+  still requires the shared cookie configuration.
 - Lets an owner resume a draft from either mount.
 - Allows more than one publication draft per user, which the current single
   session key forbids.
 - Needs an explicit TTL and an owner-initiated discard, replacing
   `mag_wizard_cancel`.
 
-## Consolidation Map
+## Planned Consolidation Map
 
 What moves into the bundle admin, and what it replaces.
 
@@ -159,7 +162,7 @@ The distinction to preserve: **publication ownership** is owner-scoped and lives
 in the bundle; **platform moderation and billing** stay `ROLE_ADMIN` on the main
 domain.
 
-## Article Editor Integration
+## Planned Article Editor Integration
 
 Decision: the standalone editor stays; the admin editor is the same code with a
 publication context injected.
@@ -186,8 +189,10 @@ Additional to spec 04:
 
 - Coordinate mount, no `kind:30040` for `(dtag, currentUserPubkey)` → 404.
 - Coordinate mount, anonymous user → login redirect, never slug-only resolution.
-- Subdomain mount, site mapping present but coordinate malformed → operator
-  diagnostic screen, not a publication admin shell.
+- Subdomain mount, site mapping present but coordinate malformed → unavailable/
+  repair state without an editable publication admin shell.
+- Hosted metadata unavailable → retain access to local settings.
+- Coordinate lookup infrastructure failure → unavailable response, distinct from 404.
 - Draft coordinate no longer matches the resolved publication → discard prompt,
   never silent overwrite.
 
@@ -202,4 +207,4 @@ Additional to spec 04:
   `unfold_site`.
 - Security: a pubkey that publishes a colliding d-tag cannot reach another
   pubkey's admin on either mount.
-- Functional: article publish + index append, including the append-retry path.
+- Future content slice: article publish + index append, including the append-retry path.

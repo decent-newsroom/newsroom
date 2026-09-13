@@ -245,6 +245,7 @@ class NostrClient
         bool $allowRelayListNetworkFetch = true,
         ?int $gatewayTimeout = null,
         ?int $directTimeout = null,
+        bool $throwOnFailure = false,
     ): ?object
     {
         $this->logger->info('Getting event by naddr', ['decoded' => $decoded, 'hintOnly' => $hintOnly]);
@@ -299,6 +300,11 @@ class NostrClient
                 'found_event_id' => $event->id ?? null,
             ]);
 
+            if ($throwOnFailure && $event === null && $outcome !== 'empty') {
+                throw new \RuntimeException($outcome === 'timeout'
+                    ? 'Nostr coordinate lookup timed out.' : 'Nostr coordinate lookup failed.');
+            }
+
             return $event;
         }
 
@@ -351,7 +357,8 @@ class NostrClient
 
         $outcome = $event !== null
             ? 'found'
-            : (in_array('timeout', [$primaryOutcome, $fallbackOutcome], true) ? 'timeout' : 'empty');
+            : (in_array('timeout', [$primaryOutcome, $fallbackOutcome], true) ? 'timeout'
+                : (in_array('failed', [$primaryOutcome, $fallbackOutcome], true) ? 'failed' : 'empty'));
 
         $this->logger->info('Completed naddr lookup', [
             'kind' => $kind,
@@ -364,6 +371,11 @@ class NostrClient
             'fallback_outcome' => $fallbackOutcome,
             'found_event_id' => $event->id ?? null,
         ]);
+
+        if ($throwOnFailure && $event === null && $outcome !== 'empty') {
+            throw new \RuntimeException($outcome === 'timeout'
+                ? 'Nostr coordinate lookup timed out.' : 'Nostr coordinate lookup failed.');
+        }
 
         return $event;
     }
@@ -390,7 +402,20 @@ class NostrClient
             return [$event, 'found'];
         }
 
-        return [null, $this->containsTimeoutResponse($responses) ? 'timeout' : 'empty'];
+        if ($this->containsTimeoutResponse($responses)) {
+            return [null, 'timeout'];
+        }
+        // Absence is conclusive only when each relay completed its query.
+        // Transport failures and CLOSED/AUTH responses must not become a false 404.
+        if ($responses === []) {
+            return [null, 'failed'];
+        }
+        foreach ($responses as $response) {
+            if (!$response instanceof RelayQueryResult || $response->error !== null || !$response->eose) {
+                return [null, 'failed'];
+            }
+        }
+        return [null, 'empty'];
     }
 
     /**

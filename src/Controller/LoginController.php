@@ -15,12 +15,18 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 class LoginController extends AbstractController
 {
     #[Route('/login', name: 'app_login', methods: ['GET','POST'])]
-     public function index(#[CurrentUser] ?User $user, Request $request): Response
+     public function index(#[CurrentUser] ?User $user, Request $request, \App\Unfold\PublicationAdminLogin $publicationLogin): Response
     {
         if (null !== $user) {
             // Authenticated: for API calls still return JSON for backward compatibility.
             if ($request->isXmlHttpRequest() || str_contains($request->headers->get('Accept',''), 'application/json')) {
                 return new JsonResponse(['message' => 'Authentication Successful'], 200);
+            }
+            $continuation = $request->query->get('unfold_return', '');
+            if (is_string($continuation) && ($destination = $publicationLogin->resolveReturnUrl($continuation, $request, $user)) !== null) {
+                $response = $this->redirect($destination, 303);
+                $response->headers->set('Cache-Control', 'private, no-store');
+                return $response;
             }
             return $this->render('login/index.html.twig', [ 'authenticated' => true ]);
         }

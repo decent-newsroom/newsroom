@@ -1374,3 +1374,22 @@ unfold_setup:
     invalid_theme: 'El tema seleccionado no es válido.'
     save_failed: 'No se pudo guardar el sitio. Inténtalo de nuevo.'
 
+
+unfold_admin:
+    title: "Administración de la publicación"
+    navigation: "Navegación de la publicación"
+    overview: "Resumen"
+    settings: "Configuración"
+    visit: "Visitar publicación"
+    metadata_unavailable: "Los metadatos de la publicación no están disponibles temporalmente. Puedes seguir editando la configuración."
+    coordinate: "Coordenada de la publicación"
+    owner: "Propietario"
+    theme: "Tema"
+    hosting: "Alojamiento"
+    not_hosted: "Sin alojamiento"
+    discovery: "Fuentes de la publicación"
+    rss: "Fuente RSS"
+    sitemap: "Mapa del sitio"
+    immutable: "La coordenada identifica permanentemente esta publicación y no se puede cambiar."
+    save: "Guardar configuración"
+    saved: "Configuración guardada."

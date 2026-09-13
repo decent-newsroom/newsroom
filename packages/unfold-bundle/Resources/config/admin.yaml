@@ -1,0 +1,11 @@
+overview:
+    path: ''
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationAdminController::overview
+    methods: [GET]
+    defaults: { _unfold_admin: true }
+
+settings:
+    path: /settings
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationAdminController::settings
+    methods: [GET, POST]
+    defaults: { _unfold_admin: true }

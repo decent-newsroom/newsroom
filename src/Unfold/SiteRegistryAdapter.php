@@ -24,6 +24,13 @@ final readonly class SiteRegistryAdapter implements SiteRegistryInterface
             : new PublicationSite($site->getSubdomain(), $site->getCoordinate());
     }
 
+    public function findByCoordinate(string $coordinate): ?PublicationSite
+    {
+        $coordinate = \DecentNewsroom\UnfoldBundle\Config\PublicationSettings::normalizeCoordinate($coordinate);
+        $site = $this->repository->findOneBy(['coordinate' => $coordinate], ['createdAt' => 'ASC', 'id' => 'ASC']);
+        return $site === null ? null : new PublicationSite($site->getSubdomain(), $site->getCoordinate());
+    }
+
     /**
      * @return iterable<PublicationSite>
      */

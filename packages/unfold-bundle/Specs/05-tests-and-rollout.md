@@ -1,11 +1,10 @@
 # Tests And Rollout
 
-## First Slice: Local Setup And Settings
+## Delivered: Local Setup And Settings
 
-The first slice aligns these specs, shares setup between operator administration
-and subscription activation, and persists the current theme setting by immutable
-root coordinate. It does not deliver owner administration, reservations, gated
-access, audience/payment management, or a replacement portable event.
+Shared setup between operator administration and subscription activation and
+persistent theme settings keyed by immutable root coordinate are delivered.
+Reservations, gated access, and audience/payment management remain deferred.
 
 Schema requirements:
 
@@ -13,8 +12,7 @@ Schema requirements:
   `30040:<pubkey>:<dtag>` root coordinate.
 - Existing coordinate-only site mappings remain valid and use the default theme
   when no settings row exists.
-- Do not add an `app_data_coordinate` dependency or require an owner-pubkey
-  backfill: ownership can be derived from the root coordinate.
+- Ownership is derived from the root coordinate; no owner-pubkey backfill is required.
 - Keep subdomain mapping and billing separate from publication settings.
 
 Targeted setup coverage:
@@ -27,9 +25,8 @@ Targeted setup coverage:
   mappings; conflicting roots/subdomains are rejected rather than reassigned.
 - An existing Unfold cannot be retargeted to another root coordinate.
 - Settings updates invalidate the affected runtime configuration caches.
-- Setup and editing work without signing or publishing kind `30078`.
+- Setup and theme editing save locally without event signing.
 - Operator writes retain access checks and CSRF protection in every environment.
-- Legacy AppData readers, if retained, remain compatibility-only.
 
 ## Later Parser And Protocol Coverage
 
@@ -42,20 +39,24 @@ Changing an audience/payment selection persists its local reference without
 requiring a second umbrella event publication. Test that refreshing referenced
 events does not overwrite independent local selections.
 
-Do not add an AppData linkage feature spec for new setup. Add a portable-definition
-round-trip spec only after the future custom event is designed from the working
-scoped-access model.
+Publication-definition event tests are deferred until respecification after gated
+access is complete.
 
-## Later Functional Coverage
-
-Owner administration:
+## Required Coverage For Delivered Owner Administration
 
 - Both mounts resolve the same full root coordinate and settings.
 - Owners have access, non-owners are denied, and anonymous visitors log in.
 - A colliding d-tag from another pubkey cannot affect ownership or settings.
-- Ordinary settings save without a signer; signed content/configuration events
-  with a mismatched owner pubkey are rejected.
+- Theme settings save without a signer, with coordinate-scoped CSRF validation.
+- Invalid themes, submitted-coordinate tampering, and persistence failures do not
+  change unrelated settings; successful saves invalidate site configuration.
+- Host lookup denies non-owners before metadata reads; malformed mappings show an
+  unavailable state. Coordinate lookup distinguishes missing events from failures.
+- Route ordering reserves `/admin`; requests do not share stale publication context.
+- Login continuation accepts only recognized admin paths on approved hosts.
 - Operator routes remain separate from publication-owner routes.
+
+## Discovery And Later Gated-Access Coverage
 
 Discovery:
 
@@ -72,8 +73,8 @@ reader's request, HTML metadata, feeds, or sitemaps.
 
 ## Rollout Sequence
 
-1. Align documentation, introduce persistent local settings, and share setup.
-2. Add both owner admin mounts and coordinate-based access checks.
+1. **Delivered:** persistent local settings and shared setup.
+2. **Delivered:** both owner admin mounts, overview, theme settings, and owner checks.
 3. Complete footer configuration; RSS/sitemap/robots are already delivered.
 4. Consolidate owner content management and publication-scoped editing.
 5. Add audience/payment events and local selections; optionally ship Audience
@@ -81,8 +82,7 @@ reader's request, HTML metadata, feeds, or sitemaps.
 6. Enable scoped publishing only with the central home-relay-only guard and
    authorization-aware read/cache paths, covered by unit and protocol tests.
 7. Integrate bridge, mint, and relay against the agreed contract.
-8. Derive and test a custom portable definition by reconstructing the same
-   publication on a clean host.
+8. Respecify publication-definition events only after gated access is complete.
 
 Run targeted PHPUnit and template checks inside Docker for each implemented
 slice. Documentation-only changes require consistency and link checks, not new

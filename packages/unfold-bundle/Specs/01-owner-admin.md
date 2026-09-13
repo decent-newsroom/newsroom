@@ -1,8 +1,8 @@
 # Local Setup And Owner Administration
 
-Status: local setup and persistent theme settings are the first implementation
-slice. Owner administration and the additional settings below remain planned.
-The filename is retained for existing references; AppData-first setup is superseded.
+Status: shared local setup, persistent theme settings, and owner administration
+with overview/settings on both mounts are delivered. Additional settings, wizard
+migration, analytics, and content management remain planned.
 
 ## Goal And Identity
 
@@ -10,9 +10,8 @@ An Unfold is permanently identified by exactly one root magazine coordinate,
 `30040:<owner_pubkey>:<dtag>`. The full coordinate is immutable. Descendant
 indexes remain part of that root publication; there is no multi-root model.
 
-Creating, configuring, editing, activating, or rendering an Unfold must not
-require fetching, signing, or publishing a kind `30078` AppData event. Owner
-administration must not introduce that prerequisite later.
+Local setup and theme changes use the settings store directly. Publication-definition
+event design is deferred until gated access is complete.
 
 ## Configuration Boundaries
 
@@ -45,19 +44,19 @@ local settings. A setup or settings save does not publish an umbrella event.
 4. Editing settings keeps the root coordinate fixed. Public rendering resolves
    that coordinate and applies its stored theme.
 
-No signer or relay publication is involved. Legacy AppData loading remains an
-isolated compatibility path, not a setup source of truth. Existing coordinate
-mappings and URLs remain valid.
+No signer or relay publication is involved. Existing coordinate mappings and URLs
+remain valid.
 
-## Planned Owner Administration
+## Owner Administration
 
 Spec `08-unified-publication-admin.md` defines both mounts:
 
 - On the subdomain: `/admin` and its child pages.
 - On the main domain: `/mag/{mag}/admin` and equivalent child pages.
 
-Planned pages include settings, audiences, payment targets, content, and
-analytics. Use `/admin/settings`, not a mandatory AppData-signing page.
+Overview and `/admin/settings` are delivered on both mounts. Settings edit only
+the theme, using the shared validation and coordinate-keyed local store. Audiences,
+payment targets, content, analytics, and wizard migration remain planned.
 
 Access rules:
 
@@ -80,15 +79,8 @@ Readiness is capability-specific: publication configured, hosting active, and
 access integration ready are separate states. Missing audiences or payment
 services must not block ordinary publication management.
 
-## Deferred Portable Definition
+## Deferred Publication Definition
 
-Portability remains a goal. After scoped publishing, authorized reads, audiences,
-and payment integration establish the real relationships, design a custom event
-that can reconstruct an Unfold on a clean host. Do not allocate a kind or freeze
-its schema in this refactor. It will describe the same single root identity.
-
-Import/export, reference resolution, revision handling, and conflict rules must
-be specified then. Exclude receipts, access tokens, credentials, and DN billing
-state. Imported service references cannot establish operator trust by themselves.
-Publishing the definition must remain independent of saving settings or running
-the site.
+Publication-definition events will be respecified only after gated access is
+complete. No event schema, kind allocation, import/export, or compatibility
+implementation is included in the current plan.

@@ -1924,13 +1924,14 @@
             "dist": {
                 "type": "path",
                 "url": "packages/unfold-bundle",
-                "reference": "a20d60f124f094b051149a00e7ced13f8d36fa83"
+                "reference": "6900317b17f8dc0647d596c70732a0f1b1cb1d0f"
             },
             "require": {
                 "nostriphant/nip-19": "^2.0",
                 "php": "^8.3",
                 "psr/cache": "^3.0",
                 "psr/log": "^3.0",
+                "symfony/asset": "^7.4",
                 "symfony/config": "^7.4",
                 "symfony/console": "^7.4",
                 "symfony/dependency-injection": "^7.4",
@@ -1940,6 +1941,8 @@
                 "symfony/http-kernel": "^7.4",
                 "symfony/mime": "^7.4",
                 "symfony/routing": "^7.4",
+                "symfony/security-csrf": "^7.4",
+                "symfony/twig-bundle": "^7.4",
                 "symfony/yaml": "^7.4",
                 "zordius/lightncandy": "^1.2"
             },

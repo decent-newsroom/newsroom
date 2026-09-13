@@ -103,8 +103,8 @@ Optional tags:
 This is planned audience/payment work, beyond the theme-only setup slice.
 Local settings select audience and default payment-target events by their full
 coordinates, preserving any relay hints. The signed events remain authoritative
-for offer and payment contents. No AppData or other umbrella event is needed.
-The future portable representation will be derived after scoped access works.
+for offer and payment contents. Publication-definition events will be respecified
+only after gated access is complete.
 
 Audiences may override the publication default payment targets with their own
 `payment_targets` tag. When both exist, the audience reference wins for that

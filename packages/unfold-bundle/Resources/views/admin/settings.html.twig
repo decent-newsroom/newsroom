@@ -1,0 +1,20 @@
+{% extends '@Unfold/admin/base.html.twig' %}
+{% block body %}
+    <h1>{{ 'unfold_admin.settings'|trans }}</h1>
+    <p>{{ 'unfold_admin.immutable'|trans }}</p>
+    <p><code>{{ publication.coordinate }}</code></p>
+    {% if error %}<p role="alert">{{ error|trans }}</p>{% endif %}
+    <form method="post" action="{{ publication.adminPathPrefix }}/settings">
+        <input type="hidden" name="_token" value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}">
+        <label for="publication-theme">{{ 'unfold_admin.theme'|trans }}</label>
+        <select name="theme" id="publication-theme" required>
+            {% if selectedTheme not in themes %}
+                <option value="{{ selectedTheme }}" selected>{{ selectedTheme }}</option>
+            {% endif %}
+            {% for theme in themes %}
+                <option value="{{ theme }}"{% if theme == selectedTheme %} selected{% endif %}>{{ theme }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">{{ 'unfold_admin.save'|trans }}</button>
+    </form>
+{% endblock %}

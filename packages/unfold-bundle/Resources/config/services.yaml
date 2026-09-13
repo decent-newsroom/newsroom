@@ -7,6 +7,11 @@ services:
         resource: '../../src/'
         exclude:
             - '../../src/DependencyInjection/'
+            - '../../src/Admin/PublicationContext.php'
+            - '../../src/Admin/PublicationMount.php'
+
+    DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationAdminController:
+        tags: ['controller.service_arguments']
 
     DecentNewsroom\UnfoldBundle\Controller\DiscoveryController:
         tags: ['controller.service_arguments']

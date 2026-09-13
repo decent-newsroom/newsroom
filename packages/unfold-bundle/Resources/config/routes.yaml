@@ -3,6 +3,14 @@
 # These routes only match when UnfoldRequestListener has identified a valid Unfold subdomain
 # The listener sets _unfold_site request attribute for registered subdomains
 
+unfold_admin_host:
+    resource: admin.yaml
+    prefix: /admin
+    trailing_slash_on_root: false
+    name_prefix: unfold_admin_host_
+    defaults: { _unfold_mount: subdomain }
+    condition: "request.attributes.has('_unfold_site')"
+
 # Demo route for testing subdomain setup
 unfold_demo:
     path: /demo

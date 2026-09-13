@@ -33,6 +33,11 @@ class RouteMatcher
     {
         $path = '/' . ltrim($path, '/');
 
+        // Administration is reserved even if an index contains a category named admin.
+        if ($path === '/admin' || str_starts_with($path, '/admin/')) {
+            return ['type' => self::PAGE_NOT_FOUND];
+        }
+
         // Quick reject for static file requests (favicon.ico, robots.txt, etc.)
         if ($this->isStaticFileRequest($path)) {
             return ['type' => self::PAGE_NOT_FOUND];

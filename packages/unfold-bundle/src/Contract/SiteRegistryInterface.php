@@ -8,6 +8,9 @@ interface SiteRegistryInterface
 {
     public function findBySubdomain(string $subdomain): ?PublicationSite;
 
+    /** The oldest mapping for this coordinate, if any. */
+    public function findByCoordinate(string $coordinate): ?PublicationSite;
+
     /**
      * @return iterable<PublicationSite>
      */

@@ -1,0 +1,13 @@
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.6; }
+body { margin: 0; }
+.publication-admin-header, .publication-admin-main { max-width: 64rem; margin: auto; padding: 1.5rem; }
+.publication-admin-header { border-bottom: 1px solid currentColor; }
+nav { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-block: 1rem; }
+dt { font-weight: bold; margin-top: 1rem; }
+dd { margin: 0; overflow-wrap: anywhere; }
+code { overflow-wrap: anywhere; }
+form { display: grid; gap: 1rem; max-width: 30rem; }
+select, button { font: inherit; padding: .65rem; border: 1px solid currentColor; border-radius: 0; }
+button { cursor: pointer; }
+a { text-underline-offset: .2em; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }

@@ -9,7 +9,7 @@ use App\Repository\UnfoldSiteRepository;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface;
-use DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer;
+use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
 use Doctrine\ORM\EntityManagerInterface;
 
 /** Shared local setup. Callers retain owner/operator/billing access checks. */
@@ -20,7 +20,7 @@ class UnfoldSetupService
         private readonly PublicationSettingsStoreInterface $settings,
         private readonly EntityManagerInterface $entityManager,
         private readonly SiteConfigLoader $configLoader,
-        private readonly HandlebarsRenderer $renderer,
+        private readonly PublicationSettingsManager $settingsManager,
     ) {}
 
     /** A retry reuses the same mapping; omitted theme preserves existing settings. */
@@ -63,17 +63,12 @@ class UnfoldSetupService
 
     public function getSettings(string $coordinate): PublicationSettings
     {
-        return $this->settings->find($coordinate) ?? new PublicationSettings($coordinate);
+        return $this->settingsManager->get($coordinate);
     }
 
     private function resolveSettings(string $coordinate, ?string $theme): PublicationSettings
     {
-        $settings = $theme === null ? $this->getSettings($coordinate) : new PublicationSettings($coordinate, $theme);
-        if (!in_array($settings->theme, $this->renderer->getAvailableThemes(), true)) {
-            throw new \InvalidArgumentException('unfold_setup.invalid_theme');
-        }
-
-        return $settings;
+        return $this->settingsManager->resolve($coordinate, $theme);
     }
 
     private function normalizeSubdomain(string $subdomain): string

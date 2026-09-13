@@ -1384,3 +1384,22 @@ unfold_setup:
     invalid_theme: 'Das ausgewählte Theme ist ungültig.'
     save_failed: 'Die Site konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.'
 
+
+unfold_admin:
+    title: "Publikationsverwaltung"
+    navigation: "Publikationsnavigation"
+    overview: "Übersicht"
+    settings: "Einstellungen"
+    visit: "Publikation besuchen"
+    metadata_unavailable: "Die Metadaten der Publikation sind vorübergehend nicht verfügbar. Sie können die Einstellungen weiterhin bearbeiten."
+    coordinate: "Publikationskoordinate"
+    owner: "Eigentümer"
+    theme: "Design"
+    hosting: "Hosting"
+    not_hosted: "Nicht gehostet"
+    discovery: "Publikationsfeeds"
+    rss: "RSS-Feed"
+    sitemap: "Sitemap"
+    immutable: "Die Koordinate identifiziert diese Publikation dauerhaft und kann nicht geändert werden."
+    save: "Einstellungen speichern"
+    saved: "Einstellungen gespeichert."

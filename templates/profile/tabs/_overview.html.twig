@@ -222,7 +222,7 @@
             <div class="overview-section">
                 <div class="w-container">
                     {% for pack in existingFollowPacks %}
-                        <article class="card article-card follow-pack-card{% if not pack.image %} article-card--text-only{% endif %}">
+                        <article class="card article-card follow-pack-card{% if not pack.image|default(null) %} article-card--text-only{% endif %}">
                             <div class="article-card__body">
                                 <div class="article-card__content">
                                     <div class="metadata">
@@ -248,10 +248,10 @@
                                     {% endif %}
                                 </div>
 
-                                {% if pack.image %}
+                                {% if pack.image|default(null) %}
                                     <figure class="article-card__media follow-pack-card__media">
                                         <img
-                                            src="{{ pack.image }}"
+                                            src="{{ pack.image|default(null) }}"
                                             alt="{{ 'card.coverImageAlt'|trans({'%title%': pack.title ?? pack.dTag}) }}"
                                             loading="lazy"
                                             decoding="async"
@@ -270,7 +270,7 @@
             <div class="overview-section">
                 <div class="w-container">
                     {% for pack in featuredInFollowPacks %}
-                        <article class="card article-card follow-pack-card{% if not pack.image %} article-card--text-only{% endif %}">
+                        <article class="card article-card follow-pack-card{% if not pack.image|default(null) %} article-card--text-only{% endif %}">
                             <div class="article-card__body">
                                 <div class="article-card__content">
                                     <div class="metadata">
@@ -297,10 +297,10 @@
                                     {% endif %}
                                 </div>
 
-                                {% if pack.image %}
+                                {% if pack.image|default(null) %}
                                     <figure class="article-card__media follow-pack-card__media">
                                         <img
-                                            src="{{ pack.image }}"
+                                            src="{{ pack.image|default(null) }}"
                                             alt="{{ 'card.coverImageAlt'|trans({'%title%': pack.title ?? pack.dTag}) }}"
                                             loading="lazy"
                                             decoding="async"

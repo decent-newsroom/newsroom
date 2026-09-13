@@ -18,9 +18,9 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * 3. Looking up the subdomain in the database (UnfoldSite entity)
  * 4. Setting a request attribute that controllers can use
  *
- * Priority is set high (32) to run before routing occurs.
+ * Priority is set high (33) to run before routing occurs.
  */
-#[AsEventListener(event: KernelEvents::REQUEST, priority: 32)]
+#[AsEventListener(event: KernelEvents::REQUEST, priority: 33)]
 class UnfoldRequestListener
 {
     /**
@@ -131,8 +131,8 @@ class UnfoldRequestListener
             return $hostParts[0];
         }
 
-        // Handle multi-level subdomains - return the first part
-        return $hostParts[0];
+        // A mapping registers exactly one host, not arbitrary nested aliases.
+        return null;
     }
 
     /**
