@@ -6,12 +6,12 @@ for this step.
 
 ## Package-owned dependencies
 
-The following implementation belongs in the future Unfold package:
+The following implementation belongs to the extracted Unfold package:
 
 | Surface | Current location | Notes |
 | --- | --- | --- |
 | Bundle and DI extension | `packages/unfold-bundle/src/UnfoldBundle.php`, `DependencyInjection/` | Symfony bundle entry point, configuration tree, and package-relative service loader. |
-| Publication configuration | `Config/` | `AppData`, `SiteConfig`, and coordinate/NIP-19 parsing are Unfold domain concerns. |
+| Publication configuration | `Config/` | `SiteConfig`, local settings contracts, and coordinate/NIP-19 parsing are Unfold domain concerns. `AppData` remains legacy compatibility only. |
 | Publication content mapping | `Content/` | `CategoryData`, `PostData`, and route/content traversal behavior are package-owned. |
 | HTTP rendering | `Controller/`, `Http/`, `Theme/`, `EventListener/` | Subdomain detection, page matching, rendered site responses, and theme asset delivery belong to the package. |
 | Cache orchestration | `Cache/` | Stale-while-revalidate semantics and publication cache warming belong to the package, but their storage and event-ingestion implementations must be injected. |
@@ -27,9 +27,10 @@ services remain host dependencies behind the contracts below.
 
 ## Host integration points
 
-No class inside `packages/unfold-bundle/src` may retain an `App\` dependency after
-extraction. Replace these direct imports with bundle contracts and newsroom
-adapters:
+No class inside `packages/unfold-bundle/src` may introduce an `App\` dependency.
+The following inventory records the original host integration seams and design
+requirements; its line references are historical. The implemented package contracts
+are listed below and supersede the original direct-import descriptions:
 
 | Host dependency | Current consumers | Required package seam |
 | --- | --- | --- |
@@ -77,11 +78,11 @@ adapters:
 | Zap invoices | The optional `ZapInvoiceServiceInterface` remains package-facing, but the current NIP-57 endpoint stays host-owned until a clean adapter can be introduced without leaking newsroom services. |
 | Creator administration | The package will own publication-owner administration after `PublicationContext` is implemented. DN platform moderation and billing remain host-only. |
 
-The current loader mixes direct relay reads with an `EventRepository` fast path
-(`Config/SiteConfigLoader.php:141-189`), while `ContentProvider` already
-supports the selected optional-graph model (`ContentProvider.php:25-30, 60-80`).
-`UnfoldSiteController` must not move mechanically because it mixes platform
-`ROLE_ADMIN` operations, host event persistence, and browser signing.
+The original loader mixed relay reads with an `EventRepository` fast path;
+the extracted loader now consumes the host event-read gateway. Operator
+`UnfoldSiteController` remains host-owned and uses shared local setup without
+browser signing. Future owner administration must use bundle contracts rather
+than moving the operator controller mechanically.
 
 ## Implemented internal package increment
 
@@ -117,7 +118,8 @@ than package dependencies. Docker Composer validation, cache/container
 compilation, router inspection, PHP linting, package tests, adapter tests, and
 rendering tests have completed successfully.
 
-Implement `PublicationContext` before moving creator administration. The later
-extraction must satisfy the Phase 7 direction to introduce bundle-owned
-interfaces plus host adapters before following the package extraction process
-(`Specs/00-refactor-plan.md:172-179`).
+Implement `PublicationContext` before moving creator administration. Internal
+Composer extraction is complete; independent distribution and standalone-host
+validation remain future work. Preserve existing interfaces and host adapters
+when adding local settings or administration. The master plan's Phase 7 now
+covers the later portable definition and independent distribution.

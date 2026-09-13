@@ -1,89 +1,90 @@
 # Tests And Rollout
 
-## Migrations
+## First Slice: Local Setup And Settings
 
-Expected local schema changes:
+The first slice aligns these specs, shares setup between operator administration
+and subscription activation, and persists the current theme setting by immutable
+root coordinate. It does not deliver owner administration, reservations, gated
+access, audience/payment management, or a replacement portable event.
 
-- Add `owner_pubkey` to `unfold_site`, nullable for migration then required after backfill.
-- Add `app_data_coordinate` to `unfold_site`, nullable.
-- Add indexes for owner lookup and subdomain-owner filtering.
+Schema requirements:
 
-Backfill:
+- Add persistence for local publication settings keyed uniquely by the full
+  `30040:<pubkey>:<dtag>` root coordinate.
+- Existing coordinate-only site mappings remain valid and use the default theme
+  when no settings row exists.
+- Do not add an `app_data_coordinate` dependency or require an owner-pubkey
+  backfill: ownership can be derived from the root coordinate.
+- Keep subdomain mapping and billing separate from publication settings.
 
-- Parse `UnfoldSite.coordinate` as `kind:pubkey:dtag`.
-- Store the middle field as `owner_pubkey`.
-- Leave malformed coordinates untouched and report them in a diagnostic command or migration warning.
+Targeted setup coverage:
 
-## Parser Coverage
+- Valid coordinate and theme settings round-trip through the host adapter.
+- Malformed coordinates and unsupported themes are rejected.
+- Existing rows without local settings render with the default theme.
+- Operator create/edit and subscription activation use the shared setup service.
+- Activation retries preserve existing local settings and do not create duplicate
+  mappings; conflicting roots/subdomains are rejected rather than reassigned.
+- An existing Unfold cannot be retargeted to another root coordinate.
+- Settings updates invalidate the affected runtime configuration caches.
+- Setup and editing work without signing or publishing kind `30078`.
+- Operator writes retain access checks and CSRF protection in every environment.
+- Legacy AppData readers, if retained, remain compatibility-only.
 
-Unit-test AppData parsing/building:
+## Later Parser And Protocol Coverage
 
-- Named `publication`, `about`, repeated `audience`, `payment_targets`, `home_relay`, `theme`, and `alt` tags.
-- Legacy unmarked `a` publication fallback.
-- Named `publication` taking precedence over legacy `a`.
-- Relay hints preserved on addressable references.
-- Invalid coordinate shapes rejected for linked events.
-- `home_relay` normalized and invalid URLs rejected.
+When audience and payment management lands, cover `30879` title, summary,
+publication coordinate, repeated prices, duration, and optional payment-target
+reference; cover `38133` identity, publication coordinate, repeated NIP-A3
+`payto` tags, and duplicate handling consistent with `PaymentTargetService`.
 
-Unit-test audience parsing:
+Changing an audience/payment selection persists its local reference without
+requiring a second umbrella event publication. Test that refreshing referenced
+events does not overwrite independent local selections.
 
-- `30879` title, summary, and required price.
-- Publication `a` coordinate.
-- Multiple `price` tags.
-- `expires_in` parsing.
-- Optional `payment_targets`.
+Do not add an AppData linkage feature spec for new setup. Add a portable-definition
+round-trip spec only after the future custom event is designed from the working
+scoped-access model.
 
-Unit-test publication payment target parsing:
+## Later Functional Coverage
 
-- `38133` `d` and publication `a` tags.
-- Multiple NIP-A3 `payto` tags.
-- Duplicate payment target handling consistent with existing `PaymentTargetService`.
+Owner administration:
 
-## Functional Coverage
+- Both mounts resolve the same full root coordinate and settings.
+- Owners have access, non-owners are denied, and anonymous visitors log in.
+- A colliding d-tag from another pubkey cannot affect ownership or settings.
+- Ordinary settings save without a signer; signed content/configuration events
+  with a mismatched owner pubkey are rejected.
+- Operator routes remain separate from publication-owner routes.
 
-Owner admin:
+Discovery:
 
-- Owner can access `/admin` on their Unfold subdomain.
-- Non-owner receives access denied.
-- Anonymous visitor is redirected to login.
-- DN admin behavior is covered for explicitly documented operator routes only.
-- Signed AppData with mismatched pubkey is rejected.
+- `/rss.xml` returns RSS XML; `/feed.xml` redirects to it.
+- Category feeds contain only category articles; unknown categories return 404.
+- Sitemap entries and feed links use publication-local absolute URLs.
+- About URLs appear only when that setting and route are implemented.
+- Content types and cache headers match the discovery spec.
 
-Feeds and sitemap:
-
-- `/rss.xml` and `/feed.xml` return RSS XML and publication-local absolute URLs.
-- `/{category}/rss.xml` returns only category articles.
-- Unknown category feed returns 404.
-- `/sitemap.xml` returns XML with home, category, article, and about URLs.
-- Cache headers and content types match the spec.
-
-Protocol feature spec:
-
-- Add a Gherkin feature covering owner-signed AppData linking publication, about article, audiences, payment descriptor, and home relay.
+Gated access must cover publishing guards and authorization across every read
+source: relay, database, graph, and caches. A denied request must not trigger a
+broader fallback. Test that authorized content cannot leak through another
+reader's request, HTML metadata, feeds, or sitemaps.
 
 ## Rollout Sequence
 
-1. Add schema fields and DTO/parser tests.
-2. Backfill owner pubkeys from existing coordinates.
-3. Add AppData parsing and owner-signed setup.
-4. Add owner admin access shell.
-5. Add RSS/sitemap/robots routes.
-6. Add footer context and template updates.
-7. Add audience and publication payment descriptor management.
-8. Ship Audience Preview: display configured offers as coming soon without
-   checkout, entitlement claims, or fabricated subscription analytics.
-9. Add analytics and content-management workflows.
-10. Enable scoped publishing only after the relay contract and the centralized
-    home-relay-only publishing guard are covered by unit and Gherkin tests.
+1. Align documentation, introduce persistent local settings, and share setup.
+2. Add both owner admin mounts and coordinate-based access checks.
+3. Complete footer configuration; RSS/sitemap/robots are already delivered.
+4. Consolidate owner content management and publication-scoped editing.
+5. Add audience/payment events and local selections; optionally ship Audience
+   Preview without checkout, entitlement claims, or fabricated analytics.
+6. Enable scoped publishing only with the central home-relay-only guard and
+   authorization-aware read/cache paths, covered by unit and protocol tests.
+7. Integrate bridge, mint, and relay against the agreed contract.
+8. Derive and test a custom portable definition by reconstructing the same
+   publication on a clean host.
 
-## Verification Commands
-
-Preferred commands, run inside the Docker container when the `php` service is running:
-
-```bash
-docker compose exec php bin/phpunit --testsuite UnfoldBundle
-docker compose exec php bin/phpunit --testsuite Unit --filter 'AppData|Audience|PaymentDescriptor'
-docker compose exec php bin/console lint:twig templates
-```
-
-For docs-only edits in this spec folder, tests are optional, but markdown should be kept linkable and readable.
+Run targeted PHPUnit and template checks inside Docker for each implemented
+slice. Documentation-only changes require consistency and link checks, not new
+runtime tests. Preserve working entry points until replacement workflows are
+verified.

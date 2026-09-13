@@ -5,28 +5,20 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Entity\Event;
-use App\Entity\UnfoldSite;
 use App\Enum\KindsEnum;
 use App\Repository\UnfoldSiteRepository;
-use App\Service\Nostr\NostrClient;
-use App\Service\Nostr\NostrEventVerifier;
-use App\Service\Nostr\RelayPublishResult;
+use App\Unfold\UnfoldSetupService;
+use DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-/**
- * Admin controller for managing Unfold Sites (subdomain ↔ AppData naddr mapping)
- *
- * This allows admins to:
- * 1. Create AppData events (kind 30078) that link magazines to themes
- * 2. Map subdomains to AppData naddrs for hosted magazine rendering
- */
+/** Operator management of local Unfold settings and hosting mappings. */
 #[Route('/admin/unfold')]
 #[IsGranted('ROLE_ADMIN')]
 class UnfoldSiteController extends AbstractController
@@ -34,8 +26,9 @@ class UnfoldSiteController extends AbstractController
     public function __construct(
         private readonly UnfoldSiteRepository $unfoldSiteRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly NostrClient $nostrClient,
-        private readonly NostrEventVerifier $eventVerifier,
+        private readonly UnfoldSetupService $setup,
+        private readonly HandlebarsRenderer $renderer,
+        private readonly TranslatorInterface $translator,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -53,74 +46,50 @@ class UnfoldSiteController extends AbstractController
     }
 
     /**
-     * Create a new Unfold site with AppData event
+     * Create a new Unfold site using local settings
      */
     #[Route('/new', name: 'admin_unfold_new', methods: ['GET'])]
     public function new(): Response
     {
         // Available themes
-        $themes = $this->getAvailableThemes();
+        $themes = $this->renderer->getAvailableThemes();
 
-        // Get all published magazines with their naddrs
+        // Get all published magazines with their permanent coordinates
         $magazines = $this->getMagazinesWithCoordinates();
 
         return $this->render('admin/unfold/new.html.twig', [
             'themes' => $themes,
             'magazines' => $magazines,
-            'localCreationEnabled' => $this->getParameter('kernel.environment') === 'dev',
         ]);
     }
 
-    /**
-     * Create an Unfold site in the local development database without publishing an AppData event.
-     */
-    #[Route('/local', name: 'admin_unfold_create_local', methods: ['POST'])]
-    public function createLocal(Request $request): Response
+    #[Route('/new', name: 'admin_unfold_create', methods: ['POST'])]
+    public function create(Request $request): Response
     {
-        if ($this->getParameter('kernel.environment') !== 'dev') {
-            throw $this->createNotFoundException();
-        }
-
-        if (!$this->isCsrfTokenValid('admin_unfold_create_local', $request->request->get('_token'))) {
-            $this->addFlash('error', 'Invalid security token.');
+        if (!$this->isCsrfTokenValid('admin_unfold_create', $request->request->get('_token'))) {
+            $this->addFlash('error', $this->translator->trans('unfold_setup.invalid_csrf'));
 
             return $this->redirectToRoute('admin_unfold_new');
         }
 
-        $subdomain = $this->sanitizeSubdomain((string) $request->request->get('subdomain', ''));
-        $coordinate = trim((string) $request->request->get('magazine_select', ''));
+        try {
+            $this->setup->create(
+                (string) $request->request->get('subdomain', ''),
+                (string) $request->request->get('coordinate', ''),
+                $request->request->has('theme') ? (string) $request->request->get('theme') : null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            $this->addFlash('error', $this->translator->trans($e->getMessage()));
 
-        if ($subdomain === '' || $coordinate === '') {
-            $this->addFlash('error', 'Subdomain and magazine coordinate are required.');
+            return $this->redirectToRoute('admin_unfold_new');
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to save Unfold setup', ['exception' => $e]);
+            $this->addFlash('error', $this->translator->trans('unfold_setup.save_failed'));
 
             return $this->redirectToRoute('admin_unfold_new');
         }
 
-        if (!$this->isMagazineCoordinate($coordinate)) {
-            $this->addFlash('error', 'Invalid magazine coordinate. Expected: 30040:pubkey:identifier.');
-
-            return $this->redirectToRoute('admin_unfold_new');
-        }
-
-        if ($this->unfoldSiteRepository->findBySubdomain($subdomain)) {
-            $this->addFlash('error', sprintf('Subdomain "%s" already exists.', $subdomain));
-
-            return $this->redirectToRoute('admin_unfold_new');
-        }
-
-        $site = new UnfoldSite();
-        $site->setSubdomain($subdomain);
-        $site->setCoordinate($coordinate);
-
-        $this->entityManager->persist($site);
-        $this->entityManager->flush();
-
-        $this->logger->info('Created local development Unfold site', [
-            'subdomain' => $subdomain,
-            'coordinate' => $coordinate,
-        ]);
-
-        $this->addFlash('success', 'Local Unfold site created without publishing to relays.');
+        $this->addFlash('success', $this->translator->trans('unfold_setup.created'));
 
         return $this->redirectToRoute('admin_unfold_index');
     }
@@ -200,104 +169,6 @@ class UnfoldSiteController extends AbstractController
     }
 
     /**
-     * API endpoint to publish signed AppData event and create UnfoldSite
-     */
-    #[Route('/publish', name: 'admin_unfold_publish', methods: ['POST'])]
-    public function publish(Request $request): JsonResponse
-    {
-        try {
-            $data = json_decode($request->getContent(), true);
-
-            if (!isset($data['event'])) {
-                return new JsonResponse(['error' => 'Missing signed event'], 400);
-            }
-
-            $signedEvent = $data['event'];
-            $subdomain = $data['subdomain'] ?? null;
-
-            // Validate the signed event
-            if (!isset($signedEvent['id'], $signedEvent['sig'], $signedEvent['pubkey'], $signedEvent['kind'])) {
-                return new JsonResponse(['error' => 'Invalid signed event structure'], 400);
-            }
-
-            // Verify it's a kind 30078 event
-            if ($signedEvent['kind'] !== KindsEnum::APP_DATA->value) {
-                return new JsonResponse([
-                    'error' => sprintf('Event must be kind %d (AppData), got %d', KindsEnum::APP_DATA->value, $signedEvent['kind'])
-                ], 400);
-            }
-
-            // Extract d-tag
-            $dTag = $this->extractTag($signedEvent['tags'] ?? [], 'd');
-            if (empty($dTag)) {
-                return new JsonResponse(['error' => 'AppData event must have a d-tag'], 400);
-            }
-
-            // Extract magazine coordinate from 'a' tag
-            $magazineCoordinate = $this->extractTag($signedEvent['tags'] ?? [], 'a');
-            if (empty($magazineCoordinate)) {
-                return new JsonResponse(['error' => 'AppData event must have an "a" tag with magazine coordinate'], 400);
-            }
-
-            // Validate coordinate format (kind:pubkey:identifier)
-            $coordParts = explode(':', $magazineCoordinate, 3);
-            if (count($coordParts) !== 3) {
-                return new JsonResponse(['error' => 'Invalid magazine coordinate format in "a" tag'], 400);
-            }
-
-            // Use subdomain from request or d-tag as fallback
-            $subdomain = $this->sanitizeSubdomain($subdomain ?: $dTag);
-
-            if (empty($subdomain)) {
-                return new JsonResponse(['error' => 'Subdomain is required'], 400);
-            }
-
-            // Check if subdomain already exists
-            if ($this->unfoldSiteRepository->findBySubdomain($subdomain)) {
-                return new JsonResponse(['error' => 'Subdomain "' . $subdomain . '" already exists'], 400);
-            }
-
-            $event = $this->eventVerifier->fromArray($signedEvent);
-
-            // Publish to relays
-            $relayResults = $this->nostrClient->publishEvent($event, []);
-
-            $this->logger->info('Published AppData event', [
-                'event_id' => $signedEvent['id'],
-                'subdomain' => $subdomain,
-                'coordinate' => $magazineCoordinate,
-                'results' => $relayResults,
-            ]);
-
-            // Create the UnfoldSite record - store the coordinate directly
-            $site = new UnfoldSite();
-            $site->setSubdomain($subdomain);
-            $site->setCoordinate($magazineCoordinate);
-
-            $this->entityManager->persist($site);
-            $this->entityManager->flush();
-
-            return new JsonResponse([
-                'success' => true,
-                'message' => 'Unfold site created successfully',
-                'subdomain' => $subdomain,
-                'coordinate' => $magazineCoordinate,
-                'siteId' => $site->getId(),
-                'relayResults' => $this->formatRelayResults($relayResults),
-            ]);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to publish AppData event', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return new JsonResponse([
-                'error' => 'Failed to publish: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Edit an existing Unfold site
      */
     #[Route('/{id}/edit', name: 'admin_unfold_edit', methods: ['GET', 'POST'])]
@@ -310,41 +181,38 @@ class UnfoldSiteController extends AbstractController
         }
 
         if ($request->isMethod('POST')) {
-            $subdomain = $this->sanitizeSubdomain($request->request->get('subdomain', ''));
-            $coordinate = trim($request->request->get('coordinate', ''));
+            if (!$this->isCsrfTokenValid('admin_unfold_edit' . $id, $request->request->get('_token'))) {
+                $this->addFlash('error', $this->translator->trans('unfold_setup.invalid_csrf'));
 
-            if (empty($subdomain) || empty($coordinate)) {
-                $this->addFlash('error', 'Subdomain and magazine coordinate are required.');
-                return $this->redirectToRoute('admin_unfold_edit', ['id' => $site->getId()]);
+                return $this->redirectToRoute('admin_unfold_edit', ['id' => $id]);
             }
 
-            // Validate coordinate format
-            $coordParts = explode(':', $coordinate, 3);
-            if (count($coordParts) !== 3) {
-                $this->addFlash('error', 'Invalid coordinate format. Expected: kind:pubkey:identifier');
-                return $this->redirectToRoute('admin_unfold_edit', ['id' => $site->getId()]);
+            try {
+                $this->setup->update(
+                    $site,
+                    (string) $request->request->get('subdomain', ''),
+                    (string) $request->request->get('theme', 'default'),
+                );
+            } catch (\InvalidArgumentException $e) {
+                $this->addFlash('error', $this->translator->trans($e->getMessage()));
+
+                return $this->redirectToRoute('admin_unfold_edit', ['id' => $id]);
+            } catch (\Throwable $e) {
+                $this->logger->error('Failed to update Unfold setup', ['exception' => $e]);
+                $this->addFlash('error', $this->translator->trans('unfold_setup.save_failed'));
+
+                return $this->redirectToRoute('admin_unfold_edit', ['id' => $id]);
             }
 
-            // Check if subdomain already exists (excluding current site)
-            $existing = $this->unfoldSiteRepository->findBySubdomain($subdomain);
-            if ($existing && $existing->getId() !== $site->getId()) {
-                $this->addFlash('error', 'Subdomain "' . $subdomain . '" already exists.');
-                return $this->redirectToRoute('admin_unfold_edit', ['id' => $site->getId()]);
-            }
+            $this->addFlash('success', $this->translator->trans('unfold_setup.updated'));
 
-            $site->setSubdomain($subdomain);
-            $site->setCoordinate($coordinate);
-
-            $this->entityManager->flush();
-
-            $this->addFlash('success', 'Unfold site updated successfully.');
             return $this->redirectToRoute('admin_unfold_index');
         }
 
         return $this->render('admin/unfold/edit.html.twig', [
             'site' => $site,
-            'themes' => $this->getAvailableThemes(),
-            'magazines' => $this->getMagazinesWithCoordinates(),
+            'themes' => $this->renderer->getAvailableThemes(),
+            'selectedTheme' => $this->setup->getSettings($site->getCoordinate())->theme,
         ]);
     }
 
@@ -386,84 +254,4 @@ class UnfoldSiteController extends AbstractController
         ]);
     }
 
-
-    /**
-     * Extract a tag value by name
-     */
-    private function extractTag(array $tags, string $name): ?string
-    {
-        foreach ($tags as $tag) {
-            if (is_array($tag) && isset($tag[0], $tag[1]) && $tag[0] === $name) {
-                return $tag[1];
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Format relay results for JSON response
-     */
-    private function formatRelayResults(array $results): array
-    {
-        $formatted = [];
-        foreach ($results as $relay => $result) {
-            if (is_object($result)) {
-                $formatted[] = [
-                    'relay' => $relay,
-                    'success' => RelayPublishResult::isSuccessful($result),
-                    'message' => $result->message ?? '',
-                ];
-            } elseif (is_array($result)) {
-                $formatted[] = array_merge($result, [
-                    'relay' => $relay,
-                    'success' => RelayPublishResult::isSuccessful($result),
-                ]);
-            } else {
-                $formatted[] = [
-                    'relay' => $relay,
-                    'success' => (bool)$result,
-                ];
-            }
-        }
-        return $formatted;
-    }
-
-    /**
-     * Get available themes
-     */
-    private function getAvailableThemes(): array
-    {
-        $themesPath = $this->getParameter('unfold.themes_path');
-        $themes = [];
-
-        if (is_dir($themesPath)) {
-            foreach (scandir($themesPath) as $item) {
-                if ($item === '.' || $item === '..') {
-                    continue;
-                }
-                if (is_dir($themesPath . '/' . $item)) {
-                    $themes[] = $item;
-                }
-            }
-        }
-
-        return $themes ?: ['casper'];
-    }
-
-    /**
-     * Sanitize subdomain input
-     */
-    private function sanitizeSubdomain(string $subdomain): string
-    {
-        $subdomain = strtolower(trim($subdomain));
-        $subdomain = preg_replace('/[^a-z0-9-]/', '', $subdomain);
-        $subdomain = trim($subdomain, '-');
-
-        return $subdomain;
-    }
-
-    private function isMagazineCoordinate(string $coordinate): bool
-    {
-        return preg_match('/^30040:[a-f0-9]{64}:.+$/i', $coordinate) === 1;
-    }
 }

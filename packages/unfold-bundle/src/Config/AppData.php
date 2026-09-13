@@ -7,8 +7,8 @@ use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 /**
  * Unfold App Data from NIP-78 event (kind 30078)
  *
- * This is the configuration stored on Nostr that defines an Unfold site.
- * The UnfoldSite entity maps subdomains to the naddr of this app data event.
+ * Legacy compatibility format. Local setup and rendering use the permanent
+ * root publication coordinate and locally persisted settings instead.
  *
  * Event structure:
  * - kind: 30078

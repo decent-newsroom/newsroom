@@ -98,14 +98,13 @@ Optional tags:
 ["published_at", "<unix_seconds>"]
 ```
 
-## AppData Linkage
+## Local Configuration References
 
-AppData links to payment and audience events by coordinate:
-
-```
-["audience", "30879:<owner_pubkey>:supporter", "<relay_hint?>"]
-["payment_targets", "38133:<owner_pubkey>:daily-letters-payments", "<relay_hint?>"]
-```
+This is planned audience/payment work, beyond the theme-only setup slice.
+Local settings select audience and default payment-target events by their full
+coordinates, preserving any relay hints. The signed events remain authoritative
+for offer and payment contents. No AppData or other umbrella event is needed.
+The future portable representation will be derived after scoped access works.
 
 Audiences may override the publication default payment targets with their own
 `payment_targets` tag. When both exist, the audience reference wins for that
@@ -119,9 +118,9 @@ The owner admin should support:
 - Publishing a signed `30879` event for each audience.
 - Creating and editing publication payment targets.
 - Publishing a signed `38133` event for publication targets.
-- Updating AppData so the new audience/payment-target coordinates are listed.
+- Persisting the selected audience/payment-target coordinates in local settings.
 
-Deleting an audience should mean publishing a new AppData revision without that `audience` tag. Hard deletion of old Nostr events is out of scope.
+Removing an audience from this publication's offer list removes its local selection. It does not delete the event or revoke already issued access; audience retirement and entitlement handling belong to access integration. No umbrella event is republished.
 
 ## Audience Preview Before Access Integration
 

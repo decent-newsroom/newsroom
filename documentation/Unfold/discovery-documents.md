@@ -19,8 +19,8 @@ ordered newest first and deduplicated by article coordinate. An unknown category
 returns `404 Not Found`.
 
 The sitemap includes the publication home page, known category pages, and
-article pages. It does not yet include future AppData `about` or `audiences`
-documents. `robots.txt` points crawlers at the publication's `/sitemap.xml`.
+article pages. It does not yet include future locally configured about pages
+or audience offer pages. `robots.txt` points crawlers at the publication's `/sitemap.xml`.
 
-Owner pages, footer behavior, and AppData documents remain separate Unfold work
+Owner pages, footer behavior, and a future portable definition remain separate Unfold work
 and are not part of these discovery routes.

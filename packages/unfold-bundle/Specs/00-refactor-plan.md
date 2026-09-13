@@ -1,11 +1,13 @@
 # Unfold Refactor — Master Plan
 
-Status: planning. Source of intent: `REFACTOR.md` (the wishlist).
+Status: staged refactor. Internal Composer extraction and discovery routes are
+already delivered. The current slice implements local setup and persistent theme
+settings; owner administration, scoped access, and portable export remain planned.
 
 This document sequences the Unfold refactor into shippable phases, records the
 decisions already made, and lists the open questions that block later phases.
-Specs `01`–`05` remain valid for structure and flows; **their kind numbers are
-superseded** by `06-gated-access-and-payments.md` (see Decision Log).
+Specs 01–05 use the event kinds and cross-service contract in spec 06.
+The former AppData-first setup decision is superseded by D4 below.
 
 ## Big Picture
 
@@ -17,8 +19,11 @@ Unfold becomes a self-contained publication platform:
   domain by coordinate (`/mag/{mag}/admin`), so a subdomain is a presentation
   feature rather than an administration prerequisite (Spec 08).
 - Money: payment targets → payment bridge → mint → gated relay access chain.
-- Endgame: bundle extracted from this repo, runnable on any sovereign domain
-  with its own DB and relay.
+- Packaging: already extracted into the internal Composer package; independent
+  distribution and standalone hosting remain future work.
+- Identity: exactly one immutable root magazine coordinate identifies an Unfold.
+- Portability: a future custom definition event derived from the working scoped
+  access model; it is never a prerequisite for setup or settings saves.
 
 The product bias is **collections, not single articles**: the host app's
 magazine administration folds into the bundle, and single-article authoring
@@ -42,7 +47,7 @@ never as in-process code — this is also what makes extraction possible.
 Ordered so each phase ships value on its own and later phases depend only on
 earlier ones. Specs referenced in parentheses.
 
-### Phase 0 — Documentation and kind alignment (this changeset)
+### Phase 0 — Documentation and kind alignment
 
 - Master plan (this file) + gated-access contract spec (`06`).
 - Supersession notice on Spec `02`; superseded drafts deleted per D2
@@ -50,24 +55,25 @@ earlier ones. Specs referenced in parentheses.
   `documentation/Business/Submissions/`, `documentation/NIP/SB.md`);
   `notifications-pro.md` rescued to `documentation/notifications-pro.md`
   (live paid feature, unrelated to the superseded model).
-- Later, with first code: add `KindsEnum` cases `38133`, `30879`, `8879`,
-  `28877`, `28878`.
+- Add event kinds with their corresponding future workflows, not with basic setup.
 
-### Phase 1 — Ownership and AppData (Spec 01, Spec 05 migrations)
+### Phase 1 — Shared setup and persistent local settings (Spec 01, Spec 05)
 
-- `UnfoldSite` gains `ownerPubkey` + `appDataCoordinate`; backfill from
-  coordinate; migration + diagnostic for malformed rows.
-- Owner-signed NIP-78 `kind:30078` AppData (browser signer, never DN-signed).
-- AppData parser/builder in bundle config layer; DB-first, relay fallback.
-- Both onboarding orders work: publication-first and subdomain-first
-  (wishlist line: "create a publication first or claim a subdomain first").
-  Subdomain-first creates an `UnfoldSite` shell without a coordinate; the
-  wizard (Phase 3) completes it.
+- Persist the current theme setting by the full immutable root coordinate, using
+  bundle-owned settings contracts and host storage adapters.
+- Share setup between operator creation/editing and subscription activation.
+  Validate and save locally without fetching, signing, or publishing AppData.
+- Preserve existing mappings, URLs, and default-theme behavior for old rows.
+  Keep legacy AppData loading isolated for compatibility.
+- Keep hosting mappings and billing separate from publication settings.
+- Do not add speculative audience/mint fields or an `app_data_coordinate` column.
+- Future subdomain-first onboarding reserves hosting separately until a root
+  coordinate is attached; do not make incomplete reservations publicly renderable.
 
 ### Phase 2 — Feeds, sitemap, robots, footer (Spec 03)
 
 > **Status (2026-09):** RSS, category RSS, sitemap, robots, and the `/feed.xml`
-> redirect are delivered. The AppData-dependent footer work remains pending.
+> redirect are delivered. The publication footer settings work remains pending.
 
 Independent of everything else — ship early.
 
@@ -86,7 +92,7 @@ Independent of everything else — ship early.
   bookmark/highlight Stimulus controllers) behind bundle interfaces.
 - Public-content interactions can ship right after Phase 2; **gated**-content
   interactions (highlight scope tagging) depend on the Phase 5 chokepoint.
-- Requires subdomain auth/signing decision (Q7).
+- Uses the agreed subdomain session decision D18; signer approval remains per-origin.
 
 ### Phase 3 — Unified publication admin: mounts, shell, wizard, analytics (Spec 08, Spec 04)
 
@@ -97,8 +103,8 @@ Independent of everything else — ship early.
   `/{path}` catch-all.
 - Owner-pubkey access rule (Spec 01); coordinate mount scopes lookups by
   `(dtag, currentUserPubkey)` so ownership is structural (Spec 08).
-- Getting-started wizard: pick/create publication → sign AppData →
-  optional theme/about → optional subdomain → done. Covers both onboarding
+- Getting-started wizard: pick/create root publication → save local settings →
+  optional about configuration → optional subdomain → done. Covers both onboarding
   orders; subdomain step is no longer terminal.
 - Wizard draft moves from `mag_wizard` session state to Redis keyed by
   coordinate, so drafts survive both mounts.
@@ -124,8 +130,8 @@ Independent of everything else — ship early.
 
 - Publication payment targets: `kind:38133` (addressable NIP-A3 `payto`).
 - Audiences / scope definitions: `kind:30879`.
-- Dashboard pages to create/edit/sign both; AppData references updated after
-  publish.
+- Dashboard pages to create/edit/sign both; persist the selected references in
+  local settings after publishing the relevant events. No umbrella event update.
 - Reuse `PaymentTargetService` parsing where possible; it currently handles
   personal `kind:10133` — extend, don't fork.
 
@@ -134,7 +140,7 @@ Independent of everything else — ship early.
 Ship the audience foundation before payment, mint, and relay integrations exist:
 
 - Eligible publication owners can publish `38133` payment targets and `30879`
-  audience definitions, linked from AppData.
+  audience definitions, selected in local publication settings.
 - Publication pages render audience cards as **Gated access coming soon**, with
   their title, description, price, and duration. An optional notify-me or
   interest action may be added, but no checkout or entitlement claim is shown.
@@ -146,7 +152,7 @@ Ship the audience foundation before payment, mint, and relay integrations exist:
 This milestone creates visible progress and lets owners prepare their offers
 without promising access that the external services cannot yet enforce.
 
-### Phase 5 — Gated publishing path
+### Phase 5 — Gated publishing and authorization-aware reads
 
 - Scope/audience tag on articles (`30023`) and indexes (`30040`/`30041`)
   marks content as gated.
@@ -156,9 +162,12 @@ without promising access that the external services cannot yet enforce.
   to all user write relays and would leak gated content across Nostr.
 - Requires an active DN subdomain subscription (existing
   `PublicationSubdomainSubscription`) to enable gating for a publication.
-- Do not enable this phase until Q3 is agreed with the relay implementer and
-  the centralized guard has unit and Gherkin coverage. A faux paywall or a
-  scoped event sent to ordinary write relays would leak paid content.
+- Authorize reads across the database, graph, relay fallbacks, and shared caches.
+  Preserve scope information, prevent cross-reader cache leaks, and define safe
+  previews for HTML metadata, feeds, and sitemaps. Access denied must never
+  trigger an unrestricted fallback.
+- Do not enable scoped publishing until these read paths and the central publish
+  guard have unit and protocol coverage, including quoted gated interactions.
 
 ### Phase 6 — Access chain integration (Spec 06)
 
@@ -168,18 +177,24 @@ Depends on external repos (bridge, mint) and third-party relay work.
   `28877` holder assertion to mint → `28878` authorization → REQ to gated
   relay with token.
 - Client-side: token acquisition/refresh, attaching tokens to gated REQs.
-- Blocked on the open protocol questions in spec 06 (esp. token transport).
+- Depends on implementations and integration testing of the agreed spec 06
+  contract; token transport and scope tag decisions are already recorded.
 - Write the as-implemented protocol NIP at `documentation/NIP/` (replacing
   the deleted draft NIP-SB) once the contract has survived integration.
 
-### Phase 7 — Extraction readiness
+### Phase 7 — Portable definition and independent distribution
 
-- Audit bundle dependencies on host app (`UnfoldSite`, `Visit`,
-  `PaymentTargetService`, Redis cache, `NostrClient`); introduce bundle-owned
-  interfaces with host-app adapters.
-- Then follow the `extract-symfony-bundle-to-package` skill.
-- Not a blocker for any earlier phase, but every phase should avoid *new*
-  hard couplings to host-app internals.
+- Internal Composer extraction is complete. Preserve bundle-owned interfaces and
+  host adapters in every earlier phase; future admin context must not depend on
+  host Doctrine entities.
+- Inventory the relationships required to reconstruct the working scoped-access
+  publication on a clean host, then design the custom portable definition event.
+- Keep the single root coordinate identity. Do not allocate a kind/schema now.
+  Define import conflicts, revisions, missing references, and ownership then.
+- Exclude billing state, receipts, tokens, and secrets; imported service references
+  cannot automatically establish operator trust. Export never blocks local saves.
+- Independent repository/distribution and standalone-host validation remain future
+  work; they do not require repeating the completed package-boundary extraction.
 
 ## Decision Log
 
@@ -188,11 +203,11 @@ Depends on external repos (bridge, mint) and third-party relay work.
 | D1 | Wishlist kinds win: `30879` (audience) replaces `38110`; `38133` (publication payment targets) replaces the provisional `30133`. | REFACTOR.md declares prior proposals superseded. |
 | D2 | Superseded docs are **deleted**, not kept with banners: `documentation/Subscriptions/`, `documentation/Business/Subscriptions/`, `documentation/Business/Submissions/`, `documentation/NIP/SB.md`. Design history stays in git; a new NIP doc describing the *actually implemented* gated-access protocol replaces NIP-SB along the way (Phase 6 deliverable). | Owner decision (2026-08); dead drafts were generating confusion, and spec 06 is now the single forward-looking contract. |
 | D3 | Bridge+mint+token model replaces the SB relay-issued-grant model (`8110`/`8102`/`8112`/`8103`/`8113`, publish grants `18101`/`8101`). | Relay stays a dumb token validator; payment verification concentrates in bridge+mint, which live in separate repos anyway. |
-| D4 | AppData (owner-signed `30078`) is the authoritative publication definition; `UnfoldSite` (DB) stores the subdomain claim, owner pubkey, and *references* to signed events, plus DN-only operational fields (home relay assignment, mint/bridge endpoints). | The wishlist says the subdomain record "contains the whole definition", but a DN-local DB row can't travel to a sovereign domain — signed events can. DB = claim + cache + DN ops; events = definition. |
-| D5 | v1 home relay is fixed to `premium.decentnewsroom.com`; mint and bridge are DN-operated. | Wishlist. Single option keeps AppData `home_relay` optional in v1. |
+| D4 | Setup and settings are independent of any definition event. Local settings own local choices; referenced signed events own their contents; hosting and billing stay separate. A future custom portable event is derived after scoped access works. | Owner correction (2026-09): replaces the AppData-authoritative model. Portability must not force event publication into setup or every configuration change. |
+| D5 | v1 home relay is fixed to `premium.decentnewsroom.com`; mint and bridge are DN-operated. | Wishlist. Access-service configuration will be introduced with gating, independently of a definition event. |
 | D6 | Cap and dedupe everything derived from relays (feed size 50, etc.). | Matches Spec 03 and repo-wide guardrails. |
 | D7 | `30879` is a new kind, not NIP-99 `30402`. Digital access resources have no `location`/`g` and never reach `status: sold`; NIP-99 has live marketplace implementations (Shopstr, Plebeian Market, Amethyst) that would mis-render audience offers as listings. Reuse only the NIP-99 tag vocabulary (`title`/`summary`/`image`/`published_at`/`price` array). Verified `30879`, `38133`, `8879`, `28877`, `28878` unallocated in the upstream NIPs kind table (2026-08); register in `nostr-protocol/registry-of-kinds` when stable. | Spec 06. |
-| D8 | The publication admin has **two mounts** — `<sub>/admin` and `<base>/mag/{mag}/admin` — sharing one implementation via a `PublicationContext` resolver. A subdomain is not required to administer a publication. | Owner decision (2026-09). Magazines without a subdomain need the same administration; the coordinate is the real identity, the subdomain is presentation. Also creates the host-agnostic seam Phase 7 extraction needs anyway. |
+| D8 | The publication admin has **two mounts** — `<sub>/admin` and `<base>/mag/{mag}/admin` — sharing one implementation via a `PublicationContext` resolver. A subdomain is not required to administer a publication. | Owner decision (2026-09). Magazines without a subdomain need the same administration; the coordinate is the real identity, the subdomain is presentation. Preserves the host-agnostic package boundary already established. |
 | D9 | The coordinate mount resolves publications by `(dtag, currentUserPubkey)`, never by slug alone, and 404s instead of falling back to another pubkey's event. | `MagazineStructureService::findLatestIndexBySlug()` filters only on kind and d-tag, so slug resolution is last-writer-wins across pubkeys. Safe for public reading, disqualifying as an ownership signal. Scoping by the authenticated pubkey makes ownership structural rather than a comparison. |
 | D10 | Host-app magazine administration folds into the bundle (wizard, index editing, content assignment), scoped to the publication owner. Platform moderation and billing stay on the main domain under `ROLE_ADMIN`. | Owner decision (2026-09): one administration surface, not two. Preserves the distinction between owning a publication and operating the platform. |
 | D11 | The standalone `/article-editor/*` surface is kept; the publication admin reuses the same editor with a `PublicationContext` injected. | Owner decision (2026-09). Absorbing the editor entirely would block context-free authoring; duplicating it would fork the publish path. Coupling stays in a thin wrapper so the standalone editor keeps zero collection dependencies. |
@@ -204,7 +219,7 @@ Depends on external repos (bridge, mint) and third-party relay work.
 | D17 | `UnfoldSite` and `PublicationSubdomainSubscription` remain separate and are linked by an explicit foreign key. | Separates publication claim/configuration from platform billing while providing a reliable relationship. |
 | D18 | DN session cookies are scoped to the base domain for subdomain reader interactions. | This preserves the existing authenticated experience across publication subdomains; signer approval remains per-origin. |
 | D19 | Magazine projection identity must move from globally unique slug to publication coordinate in a separate follow-up before public publication features expand. | The current global slug uniqueness cannot represent colliding d-tags from different owners. |
-| D20 | Root publication d-tags are immutable after creation. | `/mag/{dtag}/admin` remains stable without introducing a separate coordinate URL encoding. |
+| D20 | An Unfold is permanently identified by exactly one immutable root magazine coordinate, including its owner and d-tag. | Owner confirmation (2026-09). No root reassignment or multi-root abstraction; descendant indexes remain part of that root. |
 
 ## Open Questions (blocking later phases)
 
@@ -258,8 +273,9 @@ Depends on external repos (bridge, mint) and third-party relay work.
 
 ## Test Strategy (summary — details per spec)
 
-- Unit: AppData/audience/payment-target parsers, relay-routing guard.
+- Unit: setup/settings persistence and resolution, audience/payment-target parsers,
+  relay-routing and authorization guards.
 - Functional: owner access rules, feeds/sitemap responses.
-- Gherkin (`tests/NIPs/`): AppData linkage spec (Spec 05) + gated access
-  chain spec once Q1–Q4 are settled.
+- Protocol coverage: gated access chain and leak prevention. A custom definition
+  round-trip test is deferred until the future event is designed.
 - Commands: `docker compose exec php bin/phpunit` targeted per phase.

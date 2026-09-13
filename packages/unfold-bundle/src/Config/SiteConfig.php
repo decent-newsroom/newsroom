@@ -5,7 +5,7 @@ namespace DecentNewsroom\UnfoldBundle\Config;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 
 /**
- * Site configuration derived from AppData + root magazine event (kind 30040)
+ * Runtime configuration derived from the root magazine and local settings.
  */
 readonly class SiteConfig
 {
@@ -16,7 +16,7 @@ readonly class SiteConfig
      * @param string|null $logo Logo/image URL
      * @param array<string> $categories List of category event coordinates (kind:pubkey:d-tag)
      * @param string $pubkey Owner's hex pubkey
-     * @param string $theme Theme name from AppData
+     * @param string $theme Locally selected theme
      */
     public function __construct(
         public string $naddr,
@@ -28,8 +28,13 @@ readonly class SiteConfig
         public string $theme = 'default',
     ) {}
 
+    public function withTheme(string $theme): self
+    {
+        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $theme);
+    }
+
     /**
-     * Create SiteConfig from a raw Nostr event object and AppData
+     * Create SiteConfig from a root publication event and resolved theme
      */
     public static function fromEvent(NostrEvent $event, string $naddr, string $theme = 'default'): self
     {

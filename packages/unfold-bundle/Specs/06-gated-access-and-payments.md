@@ -234,13 +234,22 @@ The bundle MUST NOT publish scoped content during this preview. Publishing an
 home-relay-only publishing chokepoint, and its test coverage. This prevents an
 unprotected event from being fanned out to ordinary Nostr relays.
 
-## AppData Linkage
+## Publication Configuration
 
-AppData (`kind:30078`, Spec 01) references the new events by coordinate:
+Local settings will select `30879` audiences and the default `38133` payment
+target by coordinate. Each signed event remains authoritative for its contents.
+Access-service configuration is separate from hosting/billing. No AppData
+publication is required when configuring or changing these relationships.
 
-```json
-["audience", "30879:<owner_pubkey>:<dtag>", "<relay_hint?>"]
-["payment_targets", "38133:<owner_pubkey>:<dtag>", "<relay_hint?>"]
-```
+A future custom portable definition will describe the relationships established
+by this working model. Its schema and event kind are deferred; it must retain
+exactly one immutable root magazine coordinate and exclude private access state.
 
-(Coordinates updated from Spec 01/02, which predate the kind renumbering.)
+## Application Read Boundary
+
+Relay authorization alone does not protect content returned from a local database,
+publication graph, or shared cache. Before enabling scoped publishing, Unfold must
+preserve scope information and apply authorization across every read path. Denial
+must not trigger an unrestricted fallback, and one authorized reader's request
+must not populate a public response cache with gated content. Feeds, sitemaps,
+HTML metadata, and quoted interactions require explicit safe-preview rules.

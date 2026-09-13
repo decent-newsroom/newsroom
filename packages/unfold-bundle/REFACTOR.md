@@ -1,41 +1,80 @@
-# Refactor wishlist
+# Unfold Refactor Intent
 
-- Each publication would produce an XML sitemap and an RSS feed at predictable urls. 
-- Each publication would have a dashboard, with a getting-started wizard, analytics and links to editorial tools. 
-- The dash would also contain a link to the live subdomain website with target _blank. 
-- A user could create a publication first or claim a subdomain first. 
-- For creators that would like to enable subscriptions and gated content, there needs to exist a way to create a payment taget event for the publication and a way to create a scope/audience definition.
-- A scope/audience definition reference is used in a tag when publishing articles, or indexes, to indicate that content is gated. In such cases, only a special relay is used and content is not spewed all over nostr inadvertently.
-- This scope/audience tag is also used by the relay to judge whether a user requesting content is allowed to see it. 
-- Having an active subdomain subscription on dn gives you access to the gated relay and the scope/audience setup.
-- A subdomain record needs to contain the whole definition of the unfold publication: 
-  - payment targets,
-  - scope/audiences,
-  - magazine indexes,
-  - home relay (for now only one option, premium.decentnewsroom.com)
-  - mint (dn operated),
-  - payment bridge (dn operated).
-- Payment bridge, mint, relay, payment targets and scope/audiences are all related. 
-  - Payment targets record where the author is receiving payments to (monero addresses, LN addresses etc).
-  - Scope/audience is at once a definition what is offered, and used as a tag on an event, a requirement to see the event. 
-  - Payment bridge shows available payment targets to the user, and has success hooks configured for payments. It issues a payment receipt/attestation on success, linking a dn user to a scope paid. Payment attestations are sent to the mint.
-  - Mint issues short-lived access tokens based on payment receipts. 
-  - Relay demands a REQ be accompanied by a mint-issued token before returning an event with a scope tag. Event scope tags and scope in the minted token must match. 
-  - Payment targets, scope, payment attestations, minted tokens are all nostr events. Relay has trusted mints npubs on record. Mint has trusted payment bridges npubs on record. 
-- A lot of this is already half-coded, except not well put together. 
-- Expected kinds:
-  - payment targets: kind:38133 - based on NIP-A3 payto: Payment Targets (RFC-8905) that uses kind:10133, except addressable
-  - 30879 — scope/audience — attempt to reuse the semantics of the existing Nostr commerce/classifieds work rather than invent a separate abstraction
-  - 8879 — access attestation (payment receipt signed by the payment bridge)
-  - 28877 — holder assertion (sent to the mint when asking for an access token)
-  - 28878 — access authorization (signed by the mint to pass to the relay as authorization)
-- Some of this clashes with the existing proposals in the NIP docs of this repo, Those are to be considered superseded. If you think if would be better, we can look them up and delete them or alternatively actively mark them as superseded.
-- The documentation of this repo has not quite kept up with the development. If in doubt, ask what's going on. 
-- Eventually, the bundle should be ready to be moved outside of the repo, and to be reusable as a part of a standalone publication with its own db and relay on any sovereign domain.
-- Reader interactions must be available on unfold subdomains: likes (kind:7 reactions) and bookmarks on articles, and readers can see existing highlights and create their own highlights (kind:9802).
-- I have a separate repo for the mint and the payment bridge. Someone else will help with the relay.
-- The end state should be a smaller, more focused project genuinely about collections, not single articles.
-  - The current magazine administration merges into unfold as its integral part, rather than living beside it.
-  - The same administration loads from the subdomain on an `/unfold/` or `/admin/` route, and also for magazines that have no subdomain, using the magazine coordinate as the pointer in the routing the way the `/mag/` routes already do.
-  - The article editor should be available in there as well.
-  - See `Specs/08-unified-publication-admin.md`.
+An Unfold is permanently identified by exactly one root magazine coordinate.
+Preserve that identity and its descendant index structure; do not add a multi-root
+abstraction or allow an existing Unfold to be retargeted to another root.
+
+## Current Refactor Slice
+
+Decouple setup and maintenance from AppData entirely:
+
+- Align these docs with event-independent setup.
+- Share setup between operator administration and subscription activation.
+- Persist local publication settings by root coordinate, initially the existing
+  theme selection. Keep subdomain mapping and subscription billing separate.
+- Preserve existing sites, routes, default settings, and the functioning content
+  rendering path. Keep legacy AppData reads only as compatibility support.
+- Do not fetch, sign, or publish `30078` to create, activate, edit, or render a site.
+
+Index events remain authoritative for publication content and navigation; local
+settings own local choices. Future referenced events will own their own contents,
+while local settings select the references. No speculative access-service fields
+are needed in the first slice.
+
+## Subsequent Publication Work
+
+- One owner administration surface contains the getting-started wizard, settings,
+  analytics, index/content management, and publication-scoped article editor.
+- The same administration mounts on the subdomain at `/admin` and on the main
+  domain at `/mag/{mag}/admin`, including publications without hosting. Access is
+  scoped to the owner in the root coordinate; see `Specs/08-unified-publication-admin.md`.
+- Both publication-first and subdomain-first onboarding remain goals. A reserved
+  subdomain is a hosting draft until attached to a root coordinate.
+- Each publication has predictable RSS and sitemap URLs (already delivered).
+  Owner footer links remain future work.
+- Owners can configure payment targets and scope/audience definitions through the
+  relevant signed events, with their selections saved locally.
+- Reader interactions include likes (`7`), bookmarks, and highlights (`9802`).
+  Quoted gated content must follow the same access rules as its source.
+
+## Scoped Access
+
+The access chain is payment targets → payment bridge → mint → gated relay:
+
+- Payment targets say where the owner receives payments.
+- Audiences describe the access offer and supply the coordinate used by content
+  scope tags.
+- The bridge processes payment and sends signed receipts directly to the mint.
+- The mint issues short-lived authorizations based on valid receipts.
+- The relay checks the authenticated subscriber and authorization scope before
+  returning gated events.
+
+Expected kinds and agreed cross-service behavior remain in
+`Specs/06-gated-access-and-payments.md`: `38133` payment targets, `30879`
+audiences, `8879` attestations, `28877` holder assertions, and `28878`
+access authorizations. Older conflicting proposals remain superseded.
+
+The bridge and mint live in separate repositories; relay implementation is
+external. DN operates the first bridge/mint and offers
+`premium.decentnewsroom.com` as the initial home relay. An active DN subdomain
+subscription enables access-service eligibility, not ordinary local setup.
+
+Before scoped publishing ships, enforce home-relay-only routing centrally and
+authorize every content read, including database/graph fallbacks and caches.
+Public metadata, discovery documents, and quoted interactions must not leak
+gated content. Missing external integrations must not prevent publication setup.
+
+## Portability And Packaging
+
+A portable definition is still wanted. Design a custom event only after scoped
+access establishes which relationships define an Unfold. Derive it from the
+relevant publication, audience, payment, and service configuration; do not freeze
+a replacement AppData schema now. Exclude credentials, receipts, tokens, and DN
+billing state. Export/import must remain independent of ordinary saves.
+
+Internal extraction into `decent-newsroom/unfold-bundle` is already done.
+Preserve its bundle contracts and host adapters. Independent distribution and a
+standalone installation with its own database and relay remain future work.
+
+`Specs/00-refactor-plan.md` sequences the work. Specifications describe intended
+behavior unless explicitly marked delivered.

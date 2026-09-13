@@ -6,6 +6,8 @@
 > subdomain or a `/mag/{mag}/admin` coordinate mount. Paths below are relative
 > to `PublicationContext.adminPathPrefix`.
 
+Status: planned owner administration, separate from the implemented operator setup.
+
 ## Goal
 
 Give each Unfold owner a publication-scoped admin area on their own subdomain. The admin should manage publication configuration, content organization, payment targets, audiences, and analytics without granting DN platform-admin access.
@@ -15,7 +17,7 @@ Give each Unfold owner a publication-scoped admin area on their own subdomain. T
 Initial pages:
 
 - `/admin`: dashboard overview.
-- `/admin/appdata`: AppData signing and publication settings.
+- `/admin/settings`: local publication settings.
 - `/admin/content`: article/category management.
 - `/admin/index`: magazine index editing.
 - `/admin/audiences`: audience tier management.
@@ -28,10 +30,11 @@ Every page must use the owner access rule from `01-appdata-and-owner-admin.md`.
 
 Show:
 
-- Publication title, subdomain, root coordinate, owner pubkey, and AppData status.
-- Latest signed AppData metadata.
+- Publication title, optional subdomain, immutable root coordinate, and owner pubkey.
+- Saved local settings and the relevant publication event metadata.
 - Quick links to RSS, sitemap, public site, and content management.
-- Setup warnings when AppData, home relay, payment targets, or audiences are missing.
+- Separate readiness states for publication configuration, hosting, and access
+  integration. Missing audiences/payment services do not block ordinary management.
 
 ## Visitor Analytics
 
@@ -72,27 +75,30 @@ Magazine index editing:
 
 - Edit publication title, summary/description, logo/image, and ordered category coordinates.
 - Publish the updated root publication index `kind:30040` through the owner signer.
-- Keep the `UnfoldSite.coordinate` stable unless the owner intentionally changes the root publication.
+- Keep the entire root coordinate immutable; editing the root index publishes a
+  new revision at the same coordinate.
 
 Payment target setup:
 
 - Edit publication-level `38133` payment target rows.
 - Publish `38133` through owner signer.
-- Update AppData `payment_targets` reference after publish.
+- Save the selected payment-target coordinate locally after publish.
 
 Audience setup:
 
 - Edit `30879` audience title, summary, prices, duration, image, and optional payment targets.
 - Publish `30879` through owner signer.
-- Update AppData repeated `audience` references after publish.
+- Save selected audience coordinates locally after publish.
 - Until the access chain is connected, display these offers as **Gated access
   coming soon** and do not show checkout, entitlement, subscriber, or revenue
   data.
 
 ## Failure States
 
-- Missing signer: show connection guidance and do not submit unsigned events.
+- Missing signer: event publishing shows connection guidance and does not submit
+  unsigned events; local settings remain editable without signing.
 - Signed event pubkey mismatch: reject server-side.
 - Publication coordinate owner mismatch: reject server-side.
 - Relay publish partial failure: persist only after local validation; show relay results and allow retry.
-- Cache stale after publish: invalidate AppData, SiteConfig, category, home posts, feed, and sitemap caches for the site.
+- Cache stale after local settings save or event publish: invalidate the affected
+  SiteConfig, category, home posts, feed, and sitemap caches for the publication.

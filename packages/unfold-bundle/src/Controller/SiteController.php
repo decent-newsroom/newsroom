@@ -57,8 +57,8 @@ class SiteController
             ]);
         }
 
-        // 3. Set theme from SiteConfig (theme comes from AppData event)
-        // $this->renderer->setTheme($siteConfig->theme);
+        // Reset on every request: the renderer is shared by long-lived workers.
+        $this->renderer->setTheme($siteConfig->theme);
 
 
         // 4. Get categories for route matching

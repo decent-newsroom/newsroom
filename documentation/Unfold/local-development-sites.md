@@ -1,7 +1,12 @@
 # Local Development Unfold Sites
 
-In the development environment, admins can create an Unfold site from **Admin > Unfold Sites > New Site** with **Create Locally**.
+Local setup is now the standard Unfold creation flow in every environment.
+Administrators use **Admin > Unfold Sites > New Site** to save the subdomain,
+immutable root magazine coordinate, and theme. The CSRF-protected form persists
+the mapping and local theme settings without a signer or relay publication.
 
-This writes the selected magazine coordinate and subdomain mapping to the local `unfold_site` table only. It does not open a signer, create a kind `30078` AppData event, or publish anything to Nostr relays.
+There is no longer a separate development-only creation mode. Existing local
+sites remain valid and use the default theme until settings are saved.
 
-The action is available only when `APP_ENV=dev`; production does not render the control and rejects direct requests to the endpoint. Local sites use the bundle's default theme because no AppData configuration is created.
+See [Unfold setup and local settings](site-creation-signing.md) for the shared
+setup service, data boundaries, migration, and planned follow-up work.

@@ -2,16 +2,17 @@
 
 Status: draft implementation specification.
 
-Supersedes the "owner admin lives on the subdomain" framing in
-`01-appdata-and-owner-admin.md` and `04-owner-dashboard-and-content-management.md`.
-Those specs remain authoritative for *what* the admin pages do; this spec is
+Complements the local setup model in `01-appdata-and-owner-admin.md` and the
+planned pages in `04-owner-dashboard-and-content-management.md`. This spec is
 authoritative for *where they mount, how the publication is identified, and who
 may access them*.
 
 ## Goal
 
 One publication administration implementation, reachable from two mounts, with
-the publication always identified internally by its coordinate.
+the publication permanently identified by exactly one immutable root magazine
+coordinate. This owner-admin consolidation remains future work; local operator
+setup and theme persistence do not imply these mounts are delivered.
 
 The subdomain becomes a presentation feature, not an administration
 prerequisite. A magazine with no subdomain gets the same admin as a hosted
@@ -25,7 +26,7 @@ makes the article editor available inside a publication context.
 
 | Mount | Publication resolved from | Subdomain required | Route condition |
 |---|---|---|---|
-| `https://<sub>.<base>/admin/…` | Host → `_unfold_site` → `UnfoldSite` | yes | `request.attributes.has('_unfold_site')` |
+| `https://<sub>.<base>/admin/…` | Host → `_unfold_site` → bundle site DTO | yes | `request.attributes.has('_unfold_site')` |
 | `https://<base>/mag/{mag}/admin/…` | Route `{mag}` + current user pubkey | no | none |
 
 Both mounts resolve to the same `PublicationContext` and dispatch to the same
@@ -41,8 +42,8 @@ PublicationContext {
     string   coordinate        // 30040:<ownerPubkey>:<dtag> — canonical key
     string   ownerPubkey       // hex
     string   dtag
-    ?UnfoldSite site           // null on the coordinate mount
-    ?string  appDataCoordinate
+    ?PublicationSite site       // optional hosting DTO, never a host Doctrine entity
+    PublicationSettings settings // resolved by the root coordinate
     Mount    mount             // SUBDOMAIN | COORDINATE
     string   adminPathPrefix   // '/admin' | '/mag/<dtag>/admin'
     ?string  publicUrl         // subdomain URL when one exists
@@ -51,12 +52,11 @@ PublicationContext {
 
 Two resolvers implement one interface:
 
-- `HostPublicationResolver` — reads `_unfold_site`, takes `coordinate` and
-  `ownerPubkey` from the row (deriving `ownerPubkey` from the coordinate while
-  the Phase 1 backfill is incomplete).
+- `HostPublicationResolver` — reads the bundle site DTO from `_unfold_site`,
+  takes the coordinate, derives its owner pubkey, and resolves local settings.
 - `CoordinatePublicationResolver` — reads `{mag}` **and the authenticated user's
-  hex pubkey**, resolves the pair to a coordinate, and attaches the `UnfoldSite`
-  row if one happens to exist for that coordinate.
+  hex pubkey**, resolves the pair to a coordinate and local settings, and attaches
+  a bundle hosting DTO when a mapping exists for that coordinate.
 
 `adminPathPrefix` exists so templates can build links without knowing the mount.
 All admin templates must route through it; hardcoded `/admin/…` paths break the
@@ -128,7 +128,8 @@ Extends `01-appdata-and-owner-admin.md`, unified across both mounts:
 The magazine wizard is currently session-backed (`SESSION_KEY = 'mag_wizard'` in
 `MagazineWizardController`). A single session-scoped draft cannot survive the
 dual mount: a draft started on the apex domain is not readable on the subdomain
-unless the session cookie is widened to `.<base-domain>` (open question Q7).
+unless the session cookie is widened to `.<base-domain>` (D18 records that
+reader-session decision; durable drafts still require their own store).
 
 Replace it with a Redis-backed draft keyed by
 `unfold:draft:<coordinate>` (or `<pubkey>:<dtag>` before first publish):
@@ -185,7 +186,7 @@ Additional to spec 04:
 
 - Coordinate mount, no `kind:30040` for `(dtag, currentUserPubkey)` → 404.
 - Coordinate mount, anonymous user → login redirect, never slug-only resolution.
-- Subdomain mount, `UnfoldSite` row present but coordinate malformed → operator
+- Subdomain mount, site mapping present but coordinate malformed → operator
   diagnostic screen, not a publication admin shell.
 - Draft coordinate no longer matches the resolved publication → discard prompt,
   never silent overwrite.

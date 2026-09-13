@@ -91,7 +91,7 @@ class HandlebarsRenderer
         }
 
         // Add asset path prefix to context for runtime use
-        $context['@assetPath'] = '/assets/themes/' . $this->currentTheme;
+        $context['@assetPath'] = '/unfold-themes/' . $this->currentTheme;
 
         // LightnCandy expects @ variables in both the context and also accessible via 'site' for compatibility
         // Ensure site data is accessible both ways
@@ -303,7 +303,7 @@ class HandlebarsRenderer
 
             // Asset URL helper - uses @assetPath from runtime context
             'asset' => function ($path, $options = null) {
-                $assetPath = $options['data']['root']['@assetPath'] ?? '/assets/themes/default';
+                $assetPath = $options['data']['root']['@assetPath'] ?? '/unfold-themes/default';
                 return $assetPath . '/' . ltrim($path ?? '', '/');
             },
 

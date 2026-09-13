@@ -24,9 +24,18 @@ Unfold is a self-contained bundle (`packages/unfold-bundle/`) that renders magaz
 
 The `UnfoldRequestListener` intercepts requests, checks if the hostname matches a configured subdomain, and routes to the Unfold controllers. The `base_domain` parameter (from `BASE_DOMAIN` env) determines what constitutes a subdomain.
 
-## App Data Schema
+## Publication Identity And Settings
 
-Magazine data is stored as a Nostr kind 30078 event (NIP-78, arbitrary app data) with a structured JSON payload containing site configuration, theme settings, and content mappings.
+An Unfold is permanently identified by one root `30040:<pubkey>:<dtag>` magazine
+coordinate. The index events supply publication content and navigation. Local
+settings, keyed by that coordinate, persist the selected theme separately from
+subdomain hosting and subscription billing. Existing sites without settings use
+the default theme.
+
+[Setup and local settings](site-creation-signing.md) work without fetching,
+signing, or publishing kind `30078`. Legacy AppData loading is compatibility-only.
+A custom portable definition event remains planned after scoped access establishes
+the relationships it must describe.
 
 ## Theming
 

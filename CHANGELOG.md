@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Feature] Decoupled Unfold setup from AppData publication with shared operator/subscription setup and persistent local theme settings keyed by one immutable root magazine coordinate.
 - [Fix] Exposed the Unfold discovery controller to Symfony so RSS, sitemap, and robots routes resolve correctly.
 - [Feature] Added publication-local Unfold RSS, category feeds, sitemap, and robots discovery documents on registered subdomains.
 - [Feature] Added a development-only local Unfold site creation path that persists the subdomain mapping without signing or publishing an AppData event to relays.

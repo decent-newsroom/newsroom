@@ -2,7 +2,7 @@
 
 > **Implementation status (2026-09):** RSS, category RSS, sitemap, robots, and
 > the `/feed.xml` redirect are delivered. The two-level footer and its
-> AppData-derived owner links remain pending.
+> locally configured owner links remain pending.
 
 ## Goal
 
@@ -24,7 +24,7 @@ These routes must run before `RouteMatcher` static-file rejection, because `.xml
 
 Publication feed content:
 
-- Channel title, description, logo, and link come from `SiteConfig`/AppData-derived context.
+- Channel title, description, logo, and link come from `SiteConfig`, resolved from the root index and local settings.
 - Items use publication-local absolute URLs like `https://<subdomain>.<base-domain>/a/<slug>`.
 - Item title, summary, image, author, published date, and GUID come from `PostData`.
 - GUID should be the article coordinate when available.
@@ -48,7 +48,7 @@ Response headers:
 The publication sitemap includes:
 
 - [x] Home page `/`.
-- [ ] About page if AppData has an `about` coordinate and the route is implemented.
+- [ ] About page if local settings have an `about` coordinate and the route is implemented.
 - [x] Category pages from the publication index.
 - [x] Article pages from all category descendants.
 - RSS/feed URLs may be listed with low priority only if useful for crawler discovery.
@@ -80,7 +80,7 @@ Publication level:
 
 - Publication title.
 - Publication navigation links.
-- About link when AppData has an `about` article.
+- About link when local settings select an `about` article.
 - RSS link.
 - Audience/subscription link when audiences exist.
 - Publication payment/tip link when payment targets exist.

@@ -5,12 +5,14 @@ namespace DecentNewsroom\UnfoldBundle\Config;
 use DecentNewsroom\UnfoldBundle\Cache\StaleWhileRevalidateCache;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
+use DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Log\LoggerInterface;
 
 /**
- * Loads SiteConfig by:
+ * Normal rendering uses loadFromCoordinate() with local publication settings.
+ * The load() AppData path is retained for legacy callers only:
  * 1. Fetching AppData event (kind 30078) via naddr
  * 2. Extracting magazineNaddr and theme from AppData
  * 3. Fetching root magazine event (kind 30040) via magazineNaddr
@@ -32,9 +34,11 @@ class SiteConfigLoader
         private readonly EventReadGatewayInterface $eventGateway,
         private readonly StaleWhileRevalidateCache $swrCache,
         private readonly LoggerInterface $logger,
+        private readonly ?PublicationSettingsStoreInterface $settingsStore = null,
     ) {}
 
     /**
+     * @deprecated Legacy compatibility only; setup uses local publication settings.
      * Load SiteConfig by AppData naddr string
      *
      * @param string $appDataNaddr naddr of the NIP-78 AppData event (kind 30078)
@@ -97,23 +101,36 @@ class SiteConfigLoader
      * This is the preferred method - simpler than naddr
      *
      * @param string $coordinate Magazine coordinate (format: 30040:pubkey:slug)
-     * @param string $theme Theme name to use (defaults to 'default')
+     * @param string|null $theme Optional explicit override; otherwise local settings or default
      * @throws \InvalidArgumentException if coordinate is invalid or not kind 30040
      */
-    public function loadFromCoordinate(string $coordinate, string $theme = 'default'): SiteConfig
+    public function loadFromCoordinate(string $coordinate, ?string $theme = null): SiteConfig
     {
+        $coordinate = $this->normalizeCoordinate($coordinate);
+        if ($theme === null) {
+            try {
+                $theme = $this->settingsStore?->find($coordinate)?->theme ?? 'default';
+            } catch (\InvalidArgumentException $e) {
+                // Existing malformed mappings retain the loader's placeholder behavior.
+                $this->logger->warning('Invalid publication settings coordinate', ['coordinate' => $coordinate]);
+                $theme = 'default';
+            }
+        }
         $cacheKey = 'site_config_coord_' . md5($coordinate);
 
         // Create a placeholder SiteConfig to use if fetch fails
         $placeholder = $this->createPlaceholderConfig($coordinate, $theme);
 
-        return $this->swrCache->get(
+        $config = $this->swrCache->get(
             $cacheKey,
-            fn() => $this->fetchSiteConfigFromCoordinate($coordinate, $theme),
+            fn() => $this->fetchSiteConfigFromCoordinate($coordinate, 'default'),
             self::FRESH_TTL,
             self::STALE_TTL,
             $placeholder // Return placeholder on failure
         );
+
+        // Apply local settings after the event cache, including warm and stale entries.
+        return $config->withTheme($theme);
     }
 
     /**
@@ -219,7 +236,7 @@ class SiteConfigLoader
      * This bypasses the AppData layer and uses a default theme
      *
      * @param string $magazineNaddr naddr of the magazine event (kind 30040)
-     * @param string $theme Theme name to use (defaults to 'default')
+     * @param string|null $theme Optional explicit override; otherwise local settings or default
      * @throws \InvalidArgumentException if naddr is invalid or not kind 30040
      */
     public function loadFromMagazine(string $magazineNaddr, string $theme = 'default'): SiteConfig
@@ -404,6 +421,7 @@ class SiteConfigLoader
      */
     public function invalidateFromCoordinate(string $coordinate): void
     {
+        $coordinate = $this->normalizeCoordinate($coordinate);
         $cacheKey = 'site_config_coord_' . md5($coordinate);
         $this->swrCache->invalidate($cacheKey);
         $this->logger->info('Invalidated SiteConfig cache (coordinate)', ['coordinate' => $coordinate]);

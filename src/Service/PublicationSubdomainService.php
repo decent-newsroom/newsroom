@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\PublicationSubdomainSubscription;
-use App\Entity\UnfoldSite;
+use App\Unfold\UnfoldSetupService;
+use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use App\Enum\PublicationSubdomainStatus;
 use App\Repository\PublicationSubdomainSubscriptionRepository;
 use App\Repository\UnfoldSiteRepository;
@@ -20,6 +21,7 @@ class PublicationSubdomainService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly LNURLResolver $lnurlResolver,
+        private readonly UnfoldSetupService $unfoldSetup,
         private readonly string $baseDomain = 'decentnewsroom.com',
         private readonly string $recipientLud16 = '',
     ) {
@@ -76,6 +78,8 @@ class PublicationSubdomainService
         string $subdomain,
         string $magazineCoordinate
     ): PublicationSubdomainSubscription {
+        $magazineCoordinate = PublicationSettings::normalizeCoordinate($magazineCoordinate);
+
         // Validate
         $error = $this->validateSubdomain($subdomain);
         if ($error !== null) {
@@ -154,16 +158,14 @@ class PublicationSubdomainService
      */
     public function activateSubscription(PublicationSubdomainSubscription $subscription): void
     {
-        $subscription->activate();
-        $this->repository->save($subscription);
-
-        // Create UnfoldSite entry
-        $unfoldSite = new UnfoldSite();
-        $unfoldSite->setSubdomain($subscription->getSubdomain());
-        $unfoldSite->setCoordinate($subscription->getMagazineCoordinate());
-
-        $this->entityManager->persist($unfoldSite);
-        $this->entityManager->flush();
+        $this->entityManager->wrapInTransaction(function () use ($subscription): void {
+            // Repeated payment notifications must not reset an active term.
+            if ($subscription->getStatus() !== PublicationSubdomainStatus::ACTIVE) {
+                $subscription->activate();
+            }
+            $this->entityManager->persist($subscription);
+            $this->unfoldSetup->create($subscription->getSubdomain(), $subscription->getMagazineCoordinate());
+        });
 
         $this->logger->info('Publication subdomain activated', [
             'subdomain' => $subscription->getSubdomain(),

@@ -1,103 +1,94 @@
-# AppData And Owner Administration
+# Local Setup And Owner Administration
 
-## Goal
+Status: local setup and persistent theme settings are the first implementation
+slice. Owner administration and the additional settings below remain planned.
+The filename is retained for existing references; AppData-first setup is superseded.
 
-Move Unfold publication management from DN-admin-only setup to owner-managed setup. The owner of the root publication index signs the AppData event, and the Unfold bundle uses that signed event as the publication configuration source.
+## Goal And Identity
 
-## AppData Event
+An Unfold is permanently identified by exactly one root magazine coordinate,
+`30040:<owner_pubkey>:<dtag>`. The full coordinate is immutable. Descendant
+indexes remain part of that root publication; there is no multi-root model.
 
-AppData remains a NIP-78 `kind:30078` event. It must be signed by the publication owner, not by a DN admin account.
+Creating, configuring, editing, activating, or rendering an Unfold must not
+require fetching, signing, or publishing a kind `30078` AppData event. Owner
+administration must not introduce that prerequisite later.
 
-Required tags:
+## Configuration Boundaries
 
-```json
-  "tags": [
-      ["d", "<site-identifier>"],
-      ["publication", "30040:<owner_pubkey>:<dtag>", "<relay_hint?>"],
-      ["alt", "Unfold App Config"]
-    ]
-```
+- Local publication settings are keyed by the root coordinate. The current
+  implementation stores the selected theme. Existing sites without settings
+  retain the default theme.
+- The root index and its descendants remain the sources for publication content,
+  title, description, and navigation. Settings do not duplicate those fields.
+- `UnfoldSite` maps a subdomain to the root coordinate. Hosting and subscription
+  billing remain separate from publication settings.
+- Bundle-owned settings objects and persistence contracts keep host storage
+  details outside the bundle. Runtime `SiteConfig` resolves the index and local
+  settings together.
+- Future audience selections, payment-target references, about links, and access
+  service configuration will be added when their actual workflows require them.
+  Referenced signed events are authoritative for their own contents; local
+  selections are authoritative for which references are selected.
 
-Optional tags:
+Refreshing an index or referenced event must not silently overwrite unrelated
+local settings. A setup or settings save does not publish an umbrella event.
 
-```json
-["about", "30023:<pubkey>:<dtag>", "<relay_hint?>"]
-["audience", "30879:<owner_pubkey>:<dtag>", "<relay_hint?>"]
-["payment_targets", "38133:<owner_pubkey>:<dtag>", "<relay_hint?>"]
-["home_relay", "wss://relay.example.com"]
-["theme", "default"]
-```
+## Current Hosted Setup
 
-`audience` is repeatable. `home_relay` is the only direct URL reference in AppData; all other linked publication resources are addressable event coordinates.
+1. An operator submits the administration form with a subdomain, root coordinate,
+   and theme using an ordinary CSRF-protected request.
+2. A shared setup service validates the input, stores coordinate-keyed settings
+   and the hosting mapping, and invalidates relevant cached site configuration.
+3. Subscription activation uses the same service, preserving existing settings
+   when the activation does not specify new values.
+4. Editing settings keeps the root coordinate fixed. Public rendering resolves
+   that coordinate and applies its stored theme.
 
-Legacy compatibility:
+No signer or relay publication is involved. Legacy AppData loading remains an
+isolated compatibility path, not a setup source of truth. Existing coordinate
+mappings and URLs remain valid.
 
-- Existing unmarked `["a", "30040:<owner_pubkey>:<dtag>"]` is accepted as a publication fallback.
-- New admin flows publish the named `publication` tag only.
-- If both are present, `publication` wins and `a` is ignored for publication resolution.
+## Planned Owner Administration
 
-## Local Site State
+Spec `08-unified-publication-admin.md` defines both mounts:
 
-`UnfoldSite` should conceptually contain:
+- On the subdomain: `/admin` and its child pages.
+- On the main domain: `/mag/{mag}/admin` and equivalent child pages.
 
-- `subdomain`: existing unique subdomain key.
-- `coordinate`: existing root publication coordinate fallback.
-- `ownerPubkey`: hex pubkey that owns the publication.
-- `appDataCoordinate`: optional `30078:<owner_pubkey>:<dtag>` coordinate for the signed Unfold AppData.
-- `PublicationSubdomainSubscription`: a separate billing entity linked by an explicit foreign key.
-- timestamps as today.
-
-The root publication d-tag is immutable once created. This keeps the
-coordinate-mount administration URL stable.
-
-Backfill rule:
-
-- If `ownerPubkey` is missing, derive it from `coordinate`.
-- If `appDataCoordinate` is missing, public rendering still works from `coordinate`.
-- Owner admin is limited until AppData has been signed by the derived owner.
-
-## Hosted Setup Flow
-
-The paid hosted setup flow continues to reserve and activate a subdomain. After activation:
-
-1. DN creates or retains the `UnfoldSite` shell for the selected publication coordinate.
-2. The owner is redirected to the Unfold subdomain admin setup screen.
-3. The browser signer builds AppData from the selected publication, theme, optional about article, audiences, payment descriptor, and home relay.
-4. The backend accepts the signed AppData only if the signed event pubkey equals the owner pubkey from the publication coordinate.
-5. The backend publishes the event to the owner's publishing relays and the configured home relay when present.
-6. The `UnfoldSite.appDataCoordinate` is stored after successful validation.
-
-DN admins may still create or repair `UnfoldSite` mappings from the main-domain admin area, but they do not sign AppData for publication owners.
-
-## Owner Admin Access
-
-> Mount and access rules are superseded by
-> `08-unified-publication-admin.md`. The admin is reachable both on the
-> subdomain and on the main domain by coordinate (`/mag/{mag}/admin`); the
-> page list below is unchanged.
-
-Owner admin routes live on the Unfold subdomain:
-
-- `/admin`
-- `/admin/appdata`
-- `/admin/audiences`
-- `/admin/payment-targets`
-- `/admin/content`
-- `/admin/analytics`
-
-Main-domain `/admin/*` remains DN platform administration.
+Planned pages include settings, audiences, payment targets, content, and
+analytics. Use `/admin/settings`, not a mandatory AppData-signing page.
 
 Access rules:
 
 - Anonymous visitors are redirected to login.
-- Logged-in users are converted from `npub` to hex and compared with `UnfoldSite.ownerPubkey`.
-- Matching owner pubkeys can access the publication admin.
-- Non-owners receive access denied.
-- DN admins retain operator access only for explicitly marked emergency/diagnostic screens and should not be treated as publication owners for signing.
+- On a subdomain, the authenticated hex pubkey must equal the owner pubkey in
+  the root coordinate. Non-owners receive access denied.
+- Coordinate-mount lookups use `(authenticated pubkey, d-tag)` exclusively.
+  Never infer ownership from a slug-only lookup.
+- Platform administrators retain separate operator repair/diagnostic screens;
+  that role does not make them owners or authorize signing as owners.
+- Signing is required for changes to Nostr events, through the owner's browser
+  signer, but not for local settings.
 
-## Implementation Notes
+Both onboarding orders remain planned: publication-first or subdomain-first.
+A subdomain-first reservation is a hosting draft, not an Unfold without an
+identity; attach one root coordinate before activation/public rendering. Do not
+introduce nullable-root public sites in this setup slice.
 
-- Use the existing NIP-07/NIP-46 signing controller pattern rather than server-side private keys.
-- AppData parser and builder should live in the Unfold bundle config layer, near `AppData` and `SiteConfigLoader`.
-- AppData loading should prefer local database events when available and fall back to relays.
-- Cache keys must include `appDataCoordinate` where AppData can change derived context.
+Readiness is capability-specific: publication configured, hosting active, and
+access integration ready are separate states. Missing audiences or payment
+services must not block ordinary publication management.
+
+## Deferred Portable Definition
+
+Portability remains a goal. After scoped publishing, authorized reads, audiences,
+and payment integration establish the real relationships, design a custom event
+that can reconstruct an Unfold on a clean host. Do not allocate a kind or freeze
+its schema in this refactor. It will describe the same single root identity.
+
+Import/export, reference resolution, revision handling, and conflict rules must
+be specified then. Exclude receipts, access tokens, credentials, and DN billing
+state. Imported service references cannot establish operator trust by themselves.
+Publishing the definition must remain independent of saving settings or running
+the site.

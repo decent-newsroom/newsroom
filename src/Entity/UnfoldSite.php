@@ -73,6 +73,9 @@ class UnfoldSite
 
     public function setCoordinate(string $coordinate): static
     {
+        if (isset($this->coordinate) && $this->coordinate !== $coordinate) {
+            throw new \InvalidArgumentException('unfold_setup.immutable_coordinate');
+        }
         $this->coordinate = $coordinate;
 
         return $this;
@@ -91,9 +94,7 @@ class UnfoldSite
      */
     public function setNaddr(string $naddr): static
     {
-        $this->coordinate = $naddr;
-
-        return $this;
+        return $this->setCoordinate($naddr);
     }
 
     public function getCreatedAt(): \DateTimeImmutable

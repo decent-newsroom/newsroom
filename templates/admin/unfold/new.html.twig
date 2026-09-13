@@ -1,172 +1,82 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}New Unfold Site - Admin{% endblock %}
+{% block title %}{{ 'unfold_setup.new_title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="container py-4">
-    <h1 class="mb-4">Create New Unfold Site</h1>
+    <h1 class="mb-4">{{ 'unfold_setup.new_heading'|trans }}</h1>
 
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Site Configuration</h5>
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success" role="alert">{{ message }}</div>
+    {% endfor %}
+
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger" role="alert">{{ message }}</div>
+    {% endfor %}
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">{{ 'unfold_setup.site_configuration'|trans }}</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ path('admin_unfold_create') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_unfold_create') }}">
+
+                <div class="mb-4">
+                    <label for="subdomain" class="form-label">{{ 'unfold_setup.subdomain'|trans }} <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <input type="text"
+                               class="form-control"
+                               id="subdomain"
+                               name="subdomain"
+                               placeholder="{{ 'unfold_setup.subdomain_placeholder'|trans }}"
+                               pattern="[a-z0-9\-]+"
+                               required>
+                        <span class="input-group-text">.{{ app.request.host }}</span>
+                    </div>
+                    <div class="form-text">{{ 'unfold_setup.subdomain_help'|trans }}</div>
                 </div>
-                <div class="card-body">
-                    {# Form to collect data for AppData event #}
-                    <form id="unfoldSiteForm" data-controller="admin--unfold-site">
-                        {% if localCreationEnabled %}
-                            <input type="hidden" name="_token" value="{{ csrf_token('admin_unfold_create_local') }}">
-                        {% endif %}
-                        {# Step 1: Subdomain #}
-                        <div class="mb-4">
-                            <label for="subdomain" class="form-label">Subdomain <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="text"
-                                       class="form-control"
-                                       id="subdomain"
-                                       name="subdomain"
-                                       placeholder="mymagazine"
-                                       pattern="[a-z0-9\-]+"
-                                       data-admin--unfold-site-target="subdomainInput"
-                                       data-action="input->admin--unfold-site#updatePreview"
-                                       required>
-                                <span class="input-group-text">.{{ app.request.host }}</span>
-                            </div>
-                            <div class="form-text">Only lowercase letters, numbers, and hyphens allowed. This will also be used as the event identifier (d-tag).</div>
-                        </div>
 
-                        {# Step 2: Magazine Selection #}
-                        <div class="mb-4">
-                            <label for="magazine_select" class="form-label">Select Magazine <span class="text-danger">*</span></label>
-                            {% if magazines is not empty %}
-                            <select class="form-select" id="magazine_select" name="magazine_select" required
-                                    data-admin--unfold-site-target="magazineSelect"
-                                    data-action="change->admin--unfold-site#updatePreview">
-                                <option value="">-- Choose a magazine --</option>
-                                {% for mag in magazines %}
-                                <option value="{{ mag.coordinate }}"
-                                        data-title="{{ mag.title }}"
-                                        data-slug="{{ mag.slug }}">
-                                    {{ mag.title }} ({{ mag.slug }})
-                                </option>
-                                {% endfor %}
-                            </select>
-
-                            {# Show selected coordinate as feedback #}
-                            <div id="selected_coordinate_display" class="mt-2 small text-muted" style="display: none;"
-                                 data-admin--unfold-site-target="coordinateDisplay">
-                                <strong>Coordinate:</strong> <code id="selected_coordinate_text" data-admin--unfold-site-target="coordinateText"></code>
-                            </div>
-                            {% else %}
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle"></i>
-                                No magazines found. Please create and publish a magazine first.
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        {# Step 3: Theme Selection #}
-                        <div class="mb-4">
-                            <label for="theme" class="form-label">Theme</label>
-                            <select class="form-select" id="theme" name="theme"
-                                    data-admin--unfold-site-target="themeSelect"
-                                    data-action="change->admin--unfold-site#updatePreview">
-                                {% for t in themes %}
-                                <option value="{{ t }}" {{ t == 'casper' ? 'selected' : '' }}>{{ t|capitalize }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text">Select the theme for rendering your magazine.</div>
-                        </div>
-
-                        <hr class="my-4">
-
-                        {# Event Preview #}
-                        <div class="mb-4">
-                            <label class="form-label">AppData Event Preview</label>
-                            <pre id="eventPreview" class="bg-light p-3 rounded small" style="max-height: 200px; overflow-y: auto;"
-                                 data-admin--unfold-site-target="preview"></pre>
-                        </div>
-
-                        {# Sign and Publish using existing Stimulus controller #}
-                        <div {{ stimulus_controller('nostr--nostr-single-sign', {
-                            'event': '{}',
-                            'publishUrl': path('admin_unfold_publish'),
-                            'redirectUrl': path('admin_unfold_index')
-                        }) }} id="signerContainer" data-admin--unfold-site-target="signer">
-
-                            <div data-nostr--nostr-single-sign-target="status"></div>
-
-                            <div class="actions">
-                                <button type="button"
-                                        class="btn btn-primary"
-                                        data-nostr--nostr-single-sign-target="publishButton"
-                                        data-admin--unfold-site-target="publishButton"
-                                        data-action="click->admin--unfold-site#signAndPublish"
-                                        id="publishButton">
-                                    <i class="bi bi-pen"></i> Sign &amp; Publish
-                                </button>
-                                {% if localCreationEnabled %}
-                                    <button type="submit"
-                                            class="btn btn-outline-secondary"
-                                            formaction="{{ path('admin_unfold_create_local') }}"
-                                            formmethod="post">
-                                        Create Locally
-                                    </button>
-                                {% endif %}
-                                <a href="{{ path('admin_unfold_index') }}" class="btn btn-outline-secondary">Cancel</a>
-                            </div>
-                        </div>
-                    </form>
-                    {% if localCreationEnabled %}
-                        <p class="form-text mt-3 mb-0">Creates a mapping only in this development database. No event is signed or sent to a relay.</p>
+                <div class="mb-4">
+                    <label for="coordinate" class="form-label">{{ 'unfold_setup.coordinate'|trans }} <span class="text-danger">*</span></label>
+                    {% if magazines is not empty %}
+                        <select class="form-select" id="coordinate" name="coordinate" required>
+                            <option value="">{{ 'unfold_setup.choose_magazine'|trans }}</option>
+                            {% for magazine in magazines %}
+                                <option value="{{ magazine.coordinate }}">{{ magazine.title }} ({{ magazine.slug }})</option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <div class="alert alert-warning" role="alert">{{ 'unfold_setup.no_magazines'|trans }}</div>
                     {% endif %}
                 </div>
-            </div>
-        </div>
 
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Help</h6>
+                <div class="mb-4">
+                    <label for="theme" class="form-label">{{ 'unfold_setup.theme'|trans }}</label>
+                    <select class="form-select" id="theme" name="theme">
+                        {% for theme in themes %}
+                            <option value="{{ theme }}">{{ theme|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">{{ 'unfold_setup.theme_help'|trans }}</div>
                 </div>
-                <div class="card-body small">
-                    <h6>What is an AppData event?</h6>
-                    <p>AppData (kind 30078) is a NIP-78 event that stores application-specific data on Nostr.
-                       Unfold uses it to link a magazine to a theme configuration.</p>
 
-                    <h6>Event Structure</h6>
-                    <pre class="bg-light p-2 small"><code>{
-  "kind": 30078,
-  "content": "Unfold App Config...",
-  "tags": [
-    ["d", "subdomain"],
-    ["a", "30040:&lt;pubkey&gt;:&lt;slug&gt;"],
-    ["theme", "casper"],
-    ["alt", "Unfold App Config"]
-  ]
-}</code></pre>
-                    <p class="small text-muted">The "a" tag contains a coordinate (kind:pubkey:identifier), not an naddr.</p>
-
-                    <h6>Requirements</h6>
-                    <ul class="mb-0">
-                        <li>A Nostr signer (browser extension like nos2x or Alby)</li>
-                        <li>An existing magazine (kind 30040 event)</li>
-                        <li>A unique subdomain name</li>
-                    </ul>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">{{ 'unfold_setup.create'|trans }}</button>
+                    <a href="{{ path('admin_unfold_index') }}" class="btn btn-outline-secondary">{{ 'unfold_setup.cancel'|trans }}</a>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block aside %}
-<nav aria-label="breadcrumb">
+<nav aria-label="{{ 'unfold_setup.breadcrumb_label'|trans }}">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ path('admin_unfold_index') }}">Unfold Sites</a></li>
-        <li class="breadcrumb-item active">New Site</li>
+        <li class="breadcrumb-item"><a href="{{ path('admin_unfold_index') }}">{{ 'unfold_setup.sites'|trans }}</a></li>
+        <li class="breadcrumb-item active">{{ 'unfold_setup.new_breadcrumb'|trans }}</li>
     </ol>
 </nav>
 {% endblock %}
+

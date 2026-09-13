@@ -102,7 +102,7 @@ Package-owned docs live with their Composer packages instead of this host docume
 
 ### Hosted Magazines
 - [Unfold](Unfold/unfold.md) — Subdomain rendering, theming, caching
-- [Unfold Site Creation Signing](Unfold/site-creation-signing.md) — Turbo-safe AppData signing and scoped site publication
+- [Unfold Setup And Local Settings](Unfold/site-creation-signing.md) — Shared local setup and persistent theme settings by immutable root coordinate
 
 ### i18n
 - [Translations](Newsroom/translations.md) — Locale switching and YAML translation files

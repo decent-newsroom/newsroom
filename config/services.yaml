@@ -328,6 +328,9 @@ services:
         factory: ['@App\Service\Search\UserSearchFactory', 'create']
 
     # Unfold package host adapters
+    DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface:
+        alias: App\Unfold\PublicationSettingsStore
+
     DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface:
         alias: App\Unfold\SiteRegistryAdapter
 
