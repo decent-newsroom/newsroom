@@ -1,3 +1,12 @@
+/* Newsreader variable font: optical size and weight axes. */
+@font-face {
+    font-display: swap;
+    font-family: 'Newsreader';
+    font-style: normal;
+    font-weight: 200 800;
+    src: url('../../fonts/newsreader/newsreader-variable.ttf') format('truetype');
+}
+
 /* eb-garamond-regular - latin_latin-ext */
 @font-face {
     font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */

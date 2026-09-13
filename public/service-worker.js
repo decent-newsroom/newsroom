@@ -1,8 +1,8 @@
 // Define cache names and versions
-const CACHE_NAME = 'newsroom-v1';
-const STATIC_CACHE = 'newsroom-static-v1';
-const ASSETS_CACHE = 'newsroom-assets-v1';
-const RUNTIME_CACHE = 'newsroom-runtime-v1';
+const CACHE_NAME = 'newsroom-v2';
+const STATIC_CACHE = 'newsroom-static-v2';
+const ASSETS_CACHE = 'newsroom-assets-v2';
+const RUNTIME_CACHE = 'newsroom-runtime-v2';
 
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [

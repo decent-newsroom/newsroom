@@ -62,8 +62,12 @@ h6 {
 
 .brand {
     font-family: var(--brand-font);
-    font-weight: 600;
-    letter-spacing: -0.03em;
+    font-weight: 500;
+    font-optical-sizing: auto;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
 }
 
 h1.brand {

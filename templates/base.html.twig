@@ -20,7 +20,8 @@
     </script>
     <title>{% block title %}Decent Newsroom{% endblock %}</title>
     <meta name="description" content="Decentralised Newsroom - the future of journalism">
-    <link rel="icon" type="image/png" href="{{ asset('icons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/png" href="{{ asset('icons/favicon-32x32.png') }}" sizes="32x32" />
+    <link rel="icon" type="image/png" href="{{ asset('icons/favicon-16x16.png') }}" sizes="16x16" />
     <link rel="icon" type="image/svg+xml" href="{{ asset('icons/favicon.svg') }}" />
     <link rel="shortcut icon" href="{{ asset('icons/favicon.ico') }}" />
     <link rel="apple-touch-icon" href="{{ asset('icons/apple-touch-icon.png') }}">
@@ -33,7 +34,7 @@
     {% import 'macros/jsonld.html.twig' as jsonld %}
 
     {% block ogtags %}
-        <meta property="og:image" content="{{ asset('images/dn-header.png') }}" />
+        <meta property="og:image" content="{{ absolute_url(asset('images/dn-logo.png')) }}" />
         <meta property="og:site_name" content="Decent Newsroom">
 
         {# Default JSON-LD for WebSite - can be overridden in child templates #}

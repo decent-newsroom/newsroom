@@ -9,7 +9,7 @@
 
 .site-header__inner {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(13rem, 32rem) minmax(0, 1fr);
+    grid-template-columns: auto minmax(13rem, 32rem) minmax(0, 1fr);
     width: 100%;
     min-height: var(--header-height);
     max-width: var(--page-max-width);
@@ -24,12 +24,40 @@
 }
 
 .site-header__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
     justify-self: start;
     color: var(--brand-color);
     font-size: 1.55rem;
     line-height: 1;
     text-decoration: none;
     white-space: nowrap;
+}
+
+.site-header__wordmark {
+    display: block;
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+}
+
+.site-header__wordmark--short {
+    display: none;
+}
+
+@supports not (text-box-trim: trim-both) {
+    .site-header__wordmark {
+        /* Newsreader's capitals sit 0.1em above the line-box center. */
+        transform: translateY(0.1em);
+    }
+}
+
+.site-header__logo {
+    flex: 0 0 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: currentColor;
+    mask: url('../../images/dn-logo.svg') center / contain no-repeat;
 }
 
 .site-header__brand:hover {
@@ -44,11 +72,14 @@
     align-items: center;
     justify-self: center;
     width: 100%;
+    min-width: 0;
     margin: 0;
     border-bottom: 1px solid var(--color-border-strong);
 }
 
 .site-header__search input {
+    width: 100%;
+    min-width: 0;
     min-height: 2.7rem;
     padding: 0.55rem 2.75rem 0.55rem 0;
     border: 0;
@@ -103,9 +134,29 @@
     color: var(--color-primary-link);
 }
 
+@media (max-width: 1200px) {
+    .site-header__inner {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .site-header__search {
+        max-width: 20rem;
+    }
+}
+
+@media (max-width: 960px) {
+    .site-header__wordmark--full {
+        display: none;
+    }
+
+    .site-header__wordmark--short {
+        display: block;
+    }
+}
+
 @media (max-width: 900px) {
     .site-header__inner {
-        grid-template-columns: auto auto minmax(10rem, 1fr) auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
     }
 
     .site-header__menu {

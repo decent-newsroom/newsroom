@@ -10,7 +10,7 @@
     {% if magazine.image %}
         <meta property="og:image" content="{{ magazine.image }}">
     {% else %}
-        <meta property="og:image" content="{{ asset('images/dn-header.png') }}" />
+        <meta property="og:image" content="{{ absolute_url(asset('images/dn-logo.png')) }}" />
     {% endif %}
     {% if magazine.summary %}
         <meta property="og:description" content="{{ magazine.summary|striptags|u.truncate(159,'...')|e }}">

@@ -2,6 +2,18 @@
 
 ## v0.0.53
 
+- [Fix] Shortened the header search placeholder to the translated Search label so it fits narrow fields, retaining the full articles and Nostr identifier hint as a tooltip.
+
+- [Fix] Capped header search width at 20rem on screens up to 1200px and allowed it to shrink to fit alongside the brand and header actions.
+
+- [Improvement] Shortened the header wordmark to DN on screens up to 960px while preserving the full brand name on larger screens and for assistive technology.
+
+- [Fix] Removed excess brand text spacing and aligned the Newsreader wordmark with the header logo using capital-height trimming, with an older-browser fallback.
+
+- [Improvement] Replaced the Newsroom logo, browser favicons, Apple touch and PWA icons, and default social-preview branding; added a theme-aware header mark and refreshed offline branding caches.
+
+- [Improvement] Updated the brand typography to locally hosted Newsreader at weight 500, with automatic optical sizing, uppercase lettering, and 0.045em letter spacing.
+
 - [Fix] Prevented Unfold admin login redirect loops by falling back to the same publication on the main domain when subdomain sessions are unavailable, including localhost.
 
 - [Fix] Made follow-pack profile cards tolerate cached pack records without an image property.

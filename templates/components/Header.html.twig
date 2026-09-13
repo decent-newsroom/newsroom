@@ -16,8 +16,10 @@
             {{ ux_icon('iconoir:menu', {class: 'icon'}) }}
         </button>
 
-        <a class="site-header__brand brand" href="{{ path('home') }}">
-            {{ brand_name }}
+        <a class="site-header__brand brand" href="{{ path('home') }}" aria-label="{{ brand_name }}">
+            <span class="site-header__logo" aria-hidden="true"></span>
+            <span class="site-header__wordmark site-header__wordmark--full">{{ brand_name }}</span>
+            <span class="site-header__wordmark site-header__wordmark--short" aria-hidden="true">DN</span>
         </a>
 
         <form class="site-header__search" action="{{ path('app_search_index') }}" method="get" role="search">
@@ -26,7 +28,8 @@
                 id="global-search"
                 type="search"
                 name="q"
-                placeholder="{{ 'text.search'|trans }}"
+                placeholder="{{ 'heading.search'|trans }}"
+                title="{{ 'text.search'|trans }}"
                 autocomplete="off"
             >
             <button class="icon-button" type="submit" aria-label="{{ 'heading.search'|trans }}">
