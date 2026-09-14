@@ -1,0 +1,114 @@
+.admin-dashboard {
+    padding: var(--spacing-3);
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metric-card {
+    padding: 1.5rem;
+    text-align: center;
+    border: 1px solid var(--color-border);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-accent, #0066cc);
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary, #666);
+    font-weight: 500;
+}
+
+.metric-subtitle {
+    font-size: 0.8rem;
+    color: var(--color-text-tertiary, #999);
+    margin-top: 0.25rem;
+}
+
+.metric-badge {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--color-border);
+    color: var(--color-info, #0066cc);
+    font-size: 0.75rem;
+}
+
+.metric-error {
+    border-color: var(--color-error, #dc3545);
+}
+
+.metric-error .metric-value {
+    color: var(--color-error, #dc3545);
+}
+
+.nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.nav-card {
+    display: block;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+    color: inherit;
+}
+
+.nav-card:hover {
+    border-color: var(--color-primary, #0066cc);
+}
+
+.nav-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: var(--color-text-primary, #333);
+}
+
+.nav-description {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary, #666);
+    line-height: 1.4;
+}
+
+.visit-snapshot .analytics-card {
+    overflow-x: auto;
+}
+
+.visit-snapshot .analytics-table {
+    table-layout: fixed;
+}
+
+.visit-snapshot .analytics-table td:first-child {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .metric-grid,
+    .nav-grid {
+        grid-template-columns: 1fr;
+    }
+}

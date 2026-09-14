@@ -1774,3 +1774,22 @@ unfold_admin:
     immutable: "The coordinate permanently identifies this publication and cannot be changed."
     save: "Save settings"
     saved: "Settings saved."
+
+admin_snapshot:
+    analytics_title: 'Visitor Analytics'
+    window: 'Last 24 hours'
+    sample_note: 'Showing human, non-asset, non-API metrics from up to %limit% of the most recently recorded requests in the last 24 hours (%records% sampled records).'
+    capped_note: 'The sample limit was reached; earlier traffic may be omitted.'
+    visits: 'Visits'
+    unique_sessions: 'Unique sessions'
+    referred_visits: 'Referred visits'
+    top_routes: 'Top routes'
+    route: 'Route'
+    count: 'Visits'
+    no_routes: 'No routes recorded in this sample.'
+    unavailable: 'Analytics are temporarily unavailable.'
+    more_analytics: 'More analytics'
+    detail: 'Detail analytics'
+    bots: 'Bot analytics'
+    subdomains: 'Subdomain analytics'
+    dashboard: 'Administration dashboard'

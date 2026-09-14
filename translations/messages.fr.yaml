@@ -1392,3 +1392,22 @@ unfold_admin:
     immutable: "La coordonnée identifie cette publication de manière permanente et ne peut pas être modifiée."
     save: "Enregistrer les paramètres"
     saved: "Paramètres enregistrés."
+
+admin_snapshot:
+    analytics_title: 'Analyse des visites'
+    window: 'Dernières 24 heures'
+    sample_note: 'Métriques humaines hors ressources et API sur jusqu’à %limit% des requêtes enregistrées les plus récentes des dernières 24 heures (%records% en échantillon).'
+    capped_note: 'La limite de l’échantillon est atteinte ; du trafic antérieur peut manquer.'
+    visits: 'Visites'
+    unique_sessions: 'Sessions uniques'
+    referred_visits: 'Visites référencées'
+    top_routes: 'Routes principales'
+    route: 'Route'
+    count: 'Visites'
+    no_routes: 'Aucune route enregistrée dans cet échantillon.'
+    unavailable: 'Les analyses sont temporairement indisponibles.'
+    more_analytics: 'Plus d’analyses'
+    detail: 'Analyse détaillée'
+    bots: 'Analyse des robots'
+    subdomains: 'Analyse des sous-domaines'
+    dashboard: 'Tableau de bord administratif'

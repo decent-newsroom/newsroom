@@ -1403,3 +1403,22 @@ unfold_admin:
     immutable: "Die Koordinate identifiziert diese Publikation dauerhaft und kann nicht geändert werden."
     save: "Einstellungen speichern"
     saved: "Einstellungen gespeichert."
+
+admin_snapshot:
+    analytics_title: 'Besucheranalysen'
+    window: 'Letzte 24 Stunden'
+    sample_note: 'Menschliche Anfragen ohne Assets und API aus bis zu %limit% der zuletzt aufgezeichneten Anfragen der letzten 24 Stunden (%records% Stichproben) werden angezeigt.'
+    capped_note: 'Das Stichprobenlimit wurde erreicht; frühere Zugriffe fehlen möglicherweise.'
+    visits: 'Besuche'
+    unique_sessions: 'Eindeutige Sitzungen'
+    referred_visits: 'Besuche mit Referrer'
+    top_routes: 'Häufigste Routen'
+    route: 'Route'
+    count: 'Besuche'
+    no_routes: 'In dieser Stichprobe wurden keine Routen aufgezeichnet.'
+    unavailable: 'Analysen sind vorübergehend nicht verfügbar.'
+    more_analytics: 'Weitere Analysen'
+    detail: 'Detailanalysen'
+    bots: 'Bot-Analysen'
+    subdomains: 'Subdomain-Analysen'
+    dashboard: 'Administrations-Dashboard'

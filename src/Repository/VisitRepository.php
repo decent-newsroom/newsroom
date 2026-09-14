@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Visit;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -13,6 +14,8 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class VisitRepository extends ServiceEntityRepository
 {
+    public const ADMIN_SNAPSHOT_LIMIT = 10000;
+
     private const TRACKED_VISIT_API_ROOT = '/api';
     private const TRACKED_VISIT_API_PREFIX = '/api/%';
 
@@ -58,6 +61,92 @@ class VisitRepository extends ServiceEntityRepository
         }
     }
 
+    /**
+     * Return bounded, 24-hour visitor analytics for the admin overview.
+     *
+     * The newest rows are sampled by primary key before the time and tracking
+     * filters or any aggregation are applied. This keeps the query bounded
+     * even when visited_at is not indexed or contains delayed events.
+     */
+    public function getAdminSnapshot(): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+        $since = new \DateTimeImmutable('-24 hours');
+        $params = [
+            'sampleLimit' => self::ADMIN_SNAPSHOT_LIMIT,
+            'since' => $since->format('Y-m-d H:i:s'),
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        $types = [
+            'sampleLimit' => ParameterType::INTEGER,
+        ];
+
+        $assetClauses = '';
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'adminSnapshotAsset' . $i;
+            $assetClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $partialClauses = '';
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'adminSnapshotPartial' . $i;
+            $partialClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $sql = "WITH sample AS MATERIALIZED (
+                    SELECT visited_at, route, session_id, referer, is_bot
+                    FROM visit
+                    ORDER BY id DESC
+                    LIMIT :sampleLimit
+                ), recent AS MATERIALIZED (
+                    SELECT *
+                    FROM sample
+                    WHERE visited_at >= :since
+                ), tracked AS MATERIALIZED (
+                    SELECT *
+                    FROM recent
+                    WHERE is_bot = false
+                    AND route <> :apiRoot
+                    AND route NOT LIKE :apiPrefix
+                    {$assetClauses}
+                    {$partialClauses}
+                )
+                SELECT
+                    (SELECT COUNT(*) FROM tracked) AS visits,
+                    (SELECT COUNT(DISTINCT session_id) FROM tracked WHERE session_id IS NOT NULL) AS unique_sessions,
+                    (SELECT COUNT(*) FROM tracked WHERE referer IS NOT NULL AND referer <> '') AS referred_visits,
+                    (SELECT COUNT(*) FROM recent) AS sampled_records,
+                    (SELECT COUNT(*) FROM sample) AS source_records,
+                    COALESCE(
+                        (SELECT json_agg(json_build_object('route', route, 'count', visit_count)
+                                         ORDER BY visit_count DESC, route ASC)
+                         FROM (
+                             SELECT route, COUNT(*) AS visit_count
+                             FROM tracked
+                             GROUP BY route
+                             ORDER BY visit_count DESC, route ASC
+                             LIMIT 5
+                         ) top_routes),
+                        '[]'::json
+                    ) AS top_routes";
+
+        $row = $conn->executeQuery($sql, $params, $types)->fetchAssociative();
+        $topRoutes = json_decode((string) ($row['top_routes'] ?? '[]'), true);
+
+        return [
+            'visits' => (int) ($row['visits'] ?? 0),
+            'unique_sessions' => (int) ($row['unique_sessions'] ?? 0),
+            'referred_visits' => (int) ($row['referred_visits'] ?? 0),
+            'sampled_records' => (int) ($row['sampled_records'] ?? 0),
+            'top_routes' => is_array($topRoutes) ? $topRoutes : [],
+            'sample_limit' => self::ADMIN_SNAPSHOT_LIMIT,
+            'window_hours' => 24,
+            'capped' => (int) ($row['source_records'] ?? 0) >= self::ADMIN_SNAPSHOT_LIMIT,
+        ];
+    }
     public function getVisitCountByRoute(?\DateTimeImmutable $since = null): array
     {
         $qb = $this->createQueryBuilder('v')

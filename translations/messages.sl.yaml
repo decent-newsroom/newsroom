@@ -1392,3 +1392,22 @@ unfold_admin:
     immutable: "Koordinata trajno določa to publikacijo in je ni mogoče spremeniti."
     save: "Shrani nastavitve"
     saved: "Nastavitve shranjene."
+
+admin_snapshot:
+    analytics_title: 'Analitika obiskov'
+    window: 'Zadnjih 24 ur'
+    sample_note: 'Prikazane so metrike človeških zahtevkov brez sredstev in API-ja iz največ %limit% nazadnje zabeleženih zahtevkov v zadnjih 24 urah (%records% vzorčenih zapisov).'
+    capped_note: 'Omejitev vzorca je dosežena; starejši promet morda ni vključen.'
+    visits: 'Obiski'
+    unique_sessions: 'Edinstvene seje'
+    referred_visits: 'Obiski s sklicem'
+    top_routes: 'Najpogostejše poti'
+    route: 'Pot'
+    count: 'Obiski'
+    no_routes: 'V tem vzorcu ni zabeleženih poti.'
+    unavailable: 'Analitika trenutno ni na voljo.'
+    more_analytics: 'Več analitike'
+    detail: 'Podrobna analitika'
+    bots: 'Analitika botov'
+    subdomains: 'Analitika poddomen'
+    dashboard: 'Skrbniška nadzorna plošča'

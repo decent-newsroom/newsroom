@@ -4,7 +4,13 @@
 
 The visitor analytics page at `/admin/analytics` tracks page-level visit activity for admins.
 
-This update expands the analytics to make use of the stored HTTP referer data and tightens the definition of a visit so that utility endpoints are not counted as page traffic in the generic visitor metrics.
+Both `/admin` and `/admin/analytics` show the same lightweight snapshot, cached for 60 seconds. The query first selects at most the latest 10,000 recorded requests using the visit primary-key index, then keeps those from the last 24 hours and applies the page-traffic filters. Limiting the source rows before filtering and aggregation bounds the work even when traffic is mostly bots or API calls, and needs no new database index or migration.
+
+The snapshot shows page views, distinct non-null visitor/session IDs, visits with a referer, and the five most visited routes. Counts describe only this sample; they are not extrapolated totals. A notice appears when the 10,000-record cap is reached. The same route path on different subdomains is combined, as in the existing generic analytics. Empty data is shown as zero, while a failed query or cache read shows an unavailable message.
+
+The dashboard no longer performs corpus-wide article deduplication, database/user totals, all-time bounce-rate queries, or live relay diagnostics. Admin tool links remain available. The analytics overview no longer runs long-range charts, referrer rankings, publish/zap totals, or bot summaries. Existing detail, bot, and subdomain reports are still separate opt-in pages and can still be expensive on a large database.
+
+The dashboard Refresh action invalidates the shared snapshot for both pages.
 
 ## What is tracked
 
@@ -22,15 +28,7 @@ For each tracked main request, the application stores:
 
 ### Referrer analytics
 
-The admin analytics page now includes:
-
-- visit counts with a non-empty referer header for the last 24 hours
-- visit counts with a non-empty referer header for the last 7 days
-- all-time count of visits that arrived with a referer
-- a top-referrers table for the last 30 days
-- referer values in the recent visits table
-
-Referrers are grouped by the stored referer string exactly as received from the request header.
+The overview counts page visits with a non-null, non-empty referer in the bounded sample. Full referer ranking methods remain available in `VisitRepository`, but are not called by the overview.
 
 ### API utility analytics
 
@@ -42,7 +40,7 @@ That allows endpoint-specific analytics, such as article publish activity from `
 
 When a visit lands on an Unfold subdomain (e.g. `support.decentnewsroom.com`), the `VisitTrackingListener` reads the `_unfold_subdomain` request attribute — already set by `UnfoldRequestListener` (priority 32, runs before the visit listener at priority 0) — and stores the subdomain name on the `Visit` entity.
 
-The admin analytics page includes a dedicated **Subdomain Analytics** section with:
+The separate `/admin/analytics/subdomains` page includes:
 
 - total subdomain visit counts (24h / 7d / all time)
 - unique subdomain visitors (last 7 days)
@@ -95,6 +93,6 @@ Editor preview routes serve HTML fragments (partials), not full pages. They are 
 
 ## Notes
 
-- Existing utility metrics that rely on the `visit` table, including article publish activity and zap invoice generation tracking, continue to work.
+- API utility requests continue to be stored, and the repository retains publish/zap query methods. The lightweight overview does not execute those methods.
 - Because `/api/*` rows are excluded from generic visitor analytics queries, API traffic is not included in visit totals, route tables, recent visits, or unique-visitor calculations.
 

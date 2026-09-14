@@ -4,334 +4,46 @@ declare(strict_types=1);
 
 namespace App\Service\Admin;
 
-use App\Enum\RolesEnum;
-use App\Repository\EventRepository;
-use App\Repository\HighlightRepository;
-use App\Repository\MagazineRepository;
-use App\Repository\UnfoldSiteRepository;
-use App\Repository\UserEntityRepository;
 use App\Repository\VisitRepository;
-use App\Service\Graph\GraphMagazineListService;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 class AdminDashboardService
 {
+    private const SNAPSHOT_CACHE_KEY = 'admin_visit_snapshot_v1';
+
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly UserEntityRepository $userRepository,
-        /** @deprecated Use GraphMagazineListService instead */
-        private readonly MagazineRepository $magazineRepository,
         private readonly VisitRepository $visitRepository,
-        private readonly EventRepository $eventRepository,
-        private readonly HighlightRepository $highlightRepository,
-        private readonly UnfoldSiteRepository $unfoldSiteRepository,
-        private readonly RelayAdminService $relayAdminService,
         private readonly CacheInterface $cache,
         private readonly LoggerInterface $logger,
-        private readonly ?GraphMagazineListService $graphMagazineList = null,
     ) {
     }
 
-    /**
-     * Get all dashboard metrics
-     */
     public function getDashboardMetrics(): array
     {
-        return [
-            'content' => $this->getContentStats(),
-            'users' => $this->getUserStats(),
-            'visits' => $this->getVisitStats(),
-            'relay' => $this->getRelayStats(),
-            'database' => $this->getDatabaseStats(),
-        ];
+        // Keep the landing page independent of full-table counts and relay probes.
+        return ['visits' => $this->getVisitStats()];
     }
 
-    /**
-     * Get content statistics
-     */
-    public function getContentStats(): array
-    {
-        try {
-            return $this->cache->get('admin_dashboard_content_stats', function (ItemInterface $item) {
-                $item->expiresAfter(300); // 5 minutes
-
-                $conn = $this->em->getConnection();
-
-                // Total unique articles, deduplicated by NIP-01 coordinate
-                // (pubkey, kind, slug). The previous COUNT(DISTINCT slug)
-                // collapsed every cross-author slug collision (e.g. 200
-                // authors all with a "hello-world" or "about" article) into
-                // a single count, dramatically under-reporting the real
-                // article corpus. Two different authors with the same slug
-                // are two different parameterized-replaceable events, not a
-                // duplicate, so the correct dedup key is the full coordinate.
-                // Drafts (kind 30024) are excluded — they are private working
-                // copies and the public-facing dashboard should not surface
-                // them. Slugs containing '/' are excluded to match the
-                // existing ES-indexable filter.
-                $totalArticlesQuery = "
-                    SELECT COUNT(*) FROM (
-                        SELECT 1
-                        FROM article
-                        WHERE slug IS NOT NULL
-                          AND slug NOT LIKE '%/%'
-                          AND kind = 30023
-                          AND pubkey IS NOT NULL
-                        GROUP BY pubkey, kind, slug
-                    ) t";
-                $totalArticles = (int) $conn->executeQuery($totalArticlesQuery)->fetchOne();
-
-                // Raw row count — surfaces revision overflow at a glance.
-                // In a clean DB this equals total_articles. The gap is the
-                // number of redundant revisions waiting for a purge run.
-                $totalRowsQuery = "
-                    SELECT COUNT(*) FROM article
-                    WHERE slug IS NOT NULL
-                      AND slug NOT LIKE '%/%'
-                      AND kind = 30023";
-                $totalRows = (int) $conn->executeQuery($totalRowsQuery)->fetchOne();
-                $redundantRevisions = max(0, $totalRows - $totalArticles);
-
-                // Recent articles — same coordinate-aware dedup.
-                $last24hQuery = "
-                    SELECT COUNT(*) FROM (
-                        SELECT 1 FROM article
-                        WHERE created_at >= NOW() - INTERVAL '24 hours'
-                          AND slug IS NOT NULL AND slug NOT LIKE '%/%'
-                          AND kind = 30023 AND pubkey IS NOT NULL
-                        GROUP BY pubkey, kind, slug
-                    ) t";
-                $last7dQuery = "
-                    SELECT COUNT(*) FROM (
-                        SELECT 1 FROM article
-                        WHERE created_at >= NOW() - INTERVAL '7 days'
-                          AND slug IS NOT NULL AND slug NOT LIKE '%/%'
-                          AND kind = 30023 AND pubkey IS NOT NULL
-                        GROUP BY pubkey, kind, slug
-                    ) t";
-                $last30dQuery = "
-                    SELECT COUNT(*) FROM (
-                        SELECT 1 FROM article
-                        WHERE created_at >= NOW() - INTERVAL '30 days'
-                          AND slug IS NOT NULL AND slug NOT LIKE '%/%'
-                          AND kind = 30023 AND pubkey IS NOT NULL
-                        GROUP BY pubkey, kind, slug
-                    ) t";
-
-                $articlesLast24h = (int) $conn->executeQuery($last24hQuery)->fetchOne();
-                $articlesLast7d = (int) $conn->executeQuery($last7dQuery)->fetchOne();
-                $articlesLast30d = (int) $conn->executeQuery($last30dQuery)->fetchOne();
-
-                // Magazine stats — prefer graph layer, fall back to Magazine entity
-                $totalMagazines = $this->graphMagazineList?->countMagazines() ?? $this->magazineRepository->count([]);
-                $publishedMagazines = $totalMagazines; // graph layer doesn't track published_at
-
-                return [
-                    'total_articles' => $totalArticles,
-                    'total_article_rows' => $totalRows,
-                    'redundant_revisions' => $redundantRevisions,
-                    'articles_last_24h' => $articlesLast24h,
-                    'articles_last_7d' => $articlesLast7d,
-                    'articles_last_30d' => $articlesLast30d,
-                    'total_magazines' => $totalMagazines,
-                    'published_magazines' => $publishedMagazines,
-                ];
-            });
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get content stats', ['error' => $e->getMessage()]);
-            return [
-                'total_articles' => 0,
-                'total_article_rows' => 0,
-                'redundant_revisions' => 0,
-                'articles_last_24h' => 0,
-                'articles_last_7d' => 0,
-                'articles_last_30d' => 0,
-                'total_magazines' => 0,
-                'published_magazines' => 0,
-                'error' => true,
-            ];
-        }
-    }
-
-    /**
-     * Get user statistics
-     */
-    public function getUserStats(): array
-    {
-        try {
-            return $this->cache->get('admin_dashboard_user_stats', function (ItemInterface $item) {
-                $item->expiresAfter(300); // 5 minutes
-
-                $totalUsers = $this->userRepository->count([]);
-
-                $conn = $this->em->getConnection();
-
-                // Count users by role
-                $adminQuery = "SELECT COUNT(*) FROM app_user WHERE roles::text LIKE '%ROLE_ADMIN%'";
-                $adminCount = (int) $conn->executeQuery($adminQuery)->fetchOne();
-
-                $featuredQuery = "SELECT COUNT(*) FROM app_user WHERE roles::text LIKE '%" . RolesEnum::FEATURED_WRITER->value . "%'";
-                $featuredCount = (int) $conn->executeQuery($featuredQuery)->fetchOne();
-
-                $mutedQuery = "SELECT COUNT(*) FROM app_user WHERE roles::text LIKE '%" . RolesEnum::MUTED->value . "%'";
-                $mutedCount = (int) $conn->executeQuery($mutedQuery)->fetchOne();
-
-                return [
-                    'total_users' => $totalUsers,
-                    'admin_users' => $adminCount,
-                    'featured_writers' => $featuredCount,
-                    'muted_users' => $mutedCount,
-                ];
-            });
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get user stats', ['error' => $e->getMessage()]);
-            return [
-                'total_users' => 0,
-                'admin_users' => 0,
-                'featured_writers' => 0,
-                'muted_users' => 0,
-                'error' => true,
-            ];
-        }
-    }
-
-    /**
-     * Get visit statistics summary
-     */
     public function getVisitStats(): array
     {
         try {
-            $visitsLast24h = $this->visitRepository->countVisitsSince(new \DateTimeImmutable('-24 hours'));
-            $visitsLast7d = $this->visitRepository->countVisitsSince(new \DateTimeImmutable('-7 days'));
-            $totalVisits = $this->visitRepository->getTotalVisits();
+            return $this->cache->get(self::SNAPSHOT_CACHE_KEY, function (ItemInterface $item): array {
+                $item->expiresAfter(60);
 
-            $uniqueVisitorsLast24h = $this->visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-24 hours'));
-            $uniqueVisitorsLast7d = $this->visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-7 days'));
-
-            $bounceRate = $this->visitRepository->getBounceRate();
-
-            // Top articles in last 24h
-            $topArticles = $this->visitRepository->getMostVisitedArticlesSince(new \DateTimeImmutable('-24 hours'), 5);
-
-            return [
-                'visits_last_24h' => $visitsLast24h,
-                'visits_last_7d' => $visitsLast7d,
-                'total_visits' => $totalVisits,
-                'unique_visitors_last_24h' => $uniqueVisitorsLast24h,
-                'unique_visitors_last_7d' => $uniqueVisitorsLast7d,
-                'bounce_rate' => $bounceRate,
-                'top_articles_24h' => $topArticles,
-            ];
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get visit stats', ['error' => $e->getMessage()]);
-            return [
-                'visits_last_24h' => 0,
-                'visits_last_7d' => 0,
-                'total_visits' => 0,
-                'unique_visitors_last_24h' => 0,
-                'unique_visitors_last_7d' => 0,
-                'bounce_rate' => 0,
-                'top_articles_24h' => [],
-                'error' => true,
-            ];
-        }
-    }
-
-    /**
-     * Get relay statistics summary
-     */
-    public function getRelayStats(): array
-    {
-        try {
-            $stats = $this->relayAdminService->getStats();
-            $connectivity = $this->relayAdminService->testConnectivity();
-            $containerStatus = $this->relayAdminService->getContainerStatus();
-
-            return [
-                'accessible' => $stats['relay_accessible'] ?? false,
-                'total_events' => $stats['total_events'] ?? 0,
-                'connectivity' => $connectivity,
-                'container_status' => $containerStatus,
-                'error' => isset($stats['error']),
-            ];
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get relay stats', ['error' => $e->getMessage()]);
-            return [
-                'accessible' => false,
-                'total_events' => 0,
-                'connectivity' => [],
-                'container_status' => [],
-                'error' => true,
-            ];
-        }
-    }
-
-    /**
-     * Get database statistics
-     */
-    public function getDatabaseStats(): array
-    {
-        try {
-            return $this->cache->get('admin_dashboard_db_stats', function (ItemInterface $item) {
-                $item->expiresAfter(300); // 5 minutes
-
-                $conn = $this->em->getConnection();
-
-                // Count all article rows (including duplicates/versions)
-                $totalArticlesQuery = "SELECT COUNT(*) FROM article";
-                $totalArticles = (int) $conn->executeQuery($totalArticlesQuery)->fetchOne();
-
-                $totalEvents = $this->eventRepository->count([]);
-                $totalHighlights = $this->highlightRepository->count([]);
-                $totalUnfoldSites = $this->unfoldSiteRepository->count([]);
-
-                // Count media items from events with kind 20
-                $mediaCountQuery = "SELECT COUNT(*) FROM event WHERE kind = 20";
-                $totalMedia = (int) $conn->executeQuery($mediaCountQuery)->fetchOne();
-
-                // Count comments (kind 1111) and zaps (kind 9735)
-                $commentsCountQuery = "SELECT COUNT(*) FROM event WHERE kind = 1111";
-                $totalComments = (int) $conn->executeQuery($commentsCountQuery)->fetchOne();
-
-                $zapsCountQuery = "SELECT COUNT(*) FROM event WHERE kind = 9735";
-                $totalZaps = (int) $conn->executeQuery($zapsCountQuery)->fetchOne();
-
-                return [
-                    'total_articles' => $totalArticles,
-                    'total_events' => $totalEvents,
-                    'total_media' => $totalMedia,
-                    'total_comments' => $totalComments,
-                    'total_zaps' => $totalZaps,
-                    'total_highlights' => $totalHighlights,
-                    'total_unfold_sites' => $totalUnfoldSites,
-                ];
+                return $this->visitRepository->getAdminSnapshot();
             });
         } catch (\Exception $e) {
-            $this->logger->error('Failed to get database stats', ['error' => $e->getMessage()]);
-            return [
-                'total_articles' => 0,
-                'total_events' => 0,
-                'total_media' => 0,
-                'total_comments' => 0,
-                'total_zaps' => 0,
-                'total_highlights' => 0,
-                'total_unfold_sites' => 0,
-                'error' => true,
-            ];
+            $this->logger->error('Failed to get admin visit snapshot', ['exception' => $e]);
+
+            // An unavailable snapshot must not be presented as zero traffic.
+            return ['error' => true];
         }
     }
 
-    /**
-     * Clear all dashboard caches
-     */
     public function clearCache(): void
     {
-        $this->cache->delete('admin_dashboard_content_stats');
-        $this->cache->delete('admin_dashboard_user_stats');
-        $this->cache->delete('admin_dashboard_transaction_stats');
-        $this->cache->delete('admin_dashboard_db_stats');
+        $this->cache->delete(self::SNAPSHOT_CACHE_KEY);
     }
 }

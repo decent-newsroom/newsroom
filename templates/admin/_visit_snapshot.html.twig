@@ -1,0 +1,56 @@
+<section class="metric-section visit-snapshot">
+    <h2>{{ 'admin_snapshot.window'|trans }}</h2>
+
+    {% if snapshot.error|default(false) %}
+        <div class="notice error">{{ 'admin_snapshot.unavailable'|trans }}</div>
+    {% else %}
+        <p class="analytics-note">
+            {{ 'admin_snapshot.sample_note'|trans({
+                '%limit%': snapshot.sample_limit|number_format,
+                '%records%': snapshot.sampled_records|number_format
+            }) }}
+            {% if snapshot.capped|default(false) %}
+                {{ 'admin_snapshot.capped_note'|trans }}
+            {% endif %}
+        </p>
+
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">{{ snapshot.visits|number_format }}</div>
+                <div class="metric-label">{{ 'admin_snapshot.visits'|trans }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ snapshot.unique_sessions|number_format }}</div>
+                <div class="metric-label">{{ 'admin_snapshot.unique_sessions'|trans }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ snapshot.referred_visits|number_format }}</div>
+                <div class="metric-label">{{ 'admin_snapshot.referred_visits'|trans }}</div>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <h3>{{ 'admin_snapshot.top_routes'|trans }}</h3>
+            {% if snapshot.top_routes|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                    <tr>
+                        <th>{{ 'admin_snapshot.route'|trans }}</th>
+                        <th class="text-right">{{ 'admin_snapshot.count'|trans }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for route in snapshot.top_routes|slice(0, 5) %}
+                        <tr>
+                            <td>{{ route.route }}</td>
+                            <td class="text-right">{{ route.count|number_format }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>{{ 'admin_snapshot.no_routes'|trans }}</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>

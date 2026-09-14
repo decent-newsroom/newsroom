@@ -1,256 +1,28 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Visitor Analytics{% endblock %}
+{% block title %}{{ 'admin_snapshot.analytics_title'|trans }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('styles/04-pages/admin-dashboard.css') }}">
+{% endblock %}
 
 {% block body %}
     <div class="analytics-container">
-        <h1>Visitor Analytics</h1>
+        <h1>{{ 'admin_snapshot.analytics_title'|trans }}</h1>
+
+        {% include 'admin/_visit_snapshot.html.twig' with {snapshot: snapshot} %}
 
         <div class="analytics-summary-row">
             <div class="analytics-card">
-                <h2>Article Publish Activity</h2>
+                <h2>{{ 'admin_snapshot.more_analytics'|trans }}</h2>
                 <ul class="analytics-stats">
-                    <li><strong>Last hour:</strong> {{ articlePublishStats.last_hour|number_format }}</li>
-                    <li><strong>Last 24 hours:</strong> {{ articlePublishStats.last_24_hours|number_format }}</li>
-                    <li><strong>Last 7 days:</strong> {{ articlePublishStats.last_7_days|number_format }}</li>
-                    <li><strong>Last 30 days:</strong> {{ articlePublishStats.last_30_days|number_format }}</li>
-                    <li><strong>All time:</strong> {{ articlePublishStats.all_time|number_format }}</li>
-                </ul>
-                <p class="analytics-note">Tracked from recorded <code>/api/article/publish</code> requests. These API utility calls are excluded from the generic visit totals below.</p>
-            </div>
-
-            <div class="analytics-card">
-                <h2>Referrer Traffic</h2>
-                <ul class="analytics-stats">
-                    <li><strong>Last 24 hours:</strong> {{ referredVisitsLast24Hours|number_format }}</li>
-                    <li><strong>Last 7 days:</strong> {{ referredVisitsLast7Days|number_format }}</li>
-                </ul>
-                <p class="analytics-note">Tracked visits with a non-empty HTTP referer header. Generic visitor metrics exclude <code>/api/*</code> utility traffic.</p>
-            </div>
-
-            <div class="analytics-card">
-                <h2>Zap Invoices Generated</h2>
-                <ul class="analytics-stats">
-                    <li><strong>Last hour:</strong> {{ zapInvoiceStats.last_hour|number_format }}</li>
-                    <li><strong>Last 24 hours:</strong> {{ zapInvoiceStats.last_24_hours|number_format }}</li>
-                    <li><strong>Last 7 days:</strong> {{ zapInvoiceStats.last_7_days|number_format }}</li>
-                    <li><strong>Last 30 days:</strong> {{ zapInvoiceStats.last_30_days|number_format }}</li>
-                    <li><strong>All time:</strong> {{ zapInvoiceStats.all_time|number_format }}</li>
-                </ul>
-                <p class="analytics-note">Number of times zap button invoices were created</p>
-            </div>
-        </div>
-
-        <div class="analytics-summary-row">
-            <div class="analytics-card">
-                <h2>Page Views</h2>
-                <ul class="analytics-stats">
-                    <li><strong>Last 24 hours:</strong> {{ visitsLast24Hours }}</li>
-                    <li><strong>Last 7 days:</strong> {{ visitsLast7Days }}</li>
-                </ul>
-                <p class="analytics-note">Each tracked page load (bots, assets, and API utility traffic excluded).</p>
-            </div>
-
-            <div class="analytics-card">
-                <h2>Unique Sessions / Users</h2>
-                <ul class="analytics-stats">
-                    <li><strong>Last 24 hours:</strong> {{ uniqueVisitorsLast24Hours }}</li>
-                    <li><strong>Last 7 days:</strong> {{ uniqueVisitorsLast7Days }}</li>
-                </ul>
-                <p class="analytics-note">Distinct visitor IDs: session-based for logged-in users, cookie-based (<code>_nv</code>) for anonymous visitors.</p>
-            </div>
-
-            <div class="analytics-card">
-                <h2>Unique Visitors Per Day (Last 7 Days)</h2>
-                <canvas id="uniqueVisitorsPerDayChart"
-                        data-controller="unique-visitors-per-day-chart"
-                        data-unique-visitors-per-day-chart-labels-value='{{ dailyUniqueVisitorCountsLast7Days|map(stat => stat.day)|json_encode()|e('html_attr') }}'
-                        data-unique-visitors-per-day-chart-counts-value='{{ dailyUniqueVisitorCountsLast7Days|map(stat => stat.count)|json_encode()|e('html_attr') }}'
-                        height="80"></canvas>
-                <noscript>
-                    <p><em>Enable JavaScript to see the unique visitors per day chart.</em></p>
-                </noscript>
-                <div style="margin-top:1em"></div>
-                <table class="analytics-table">
-                    <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th class="text-right">Unique Visitors</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for stat in dailyUniqueVisitorCountsLast7Days %}
-                        <tr>
-                            <td>{{ stat.day }}</td>
-                            <td class="text-right">{{ stat.count }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        {# ── Bot traffic summary ────────────────────────────────────────── #}
-        <div class="analytics-summary-row">
-            {% for period, stats in botVsHumanStats %}
-                {% set label = period == 'last_24_hours' ? 'Last 24 Hours' : (period == 'last_7_days' ? 'Last 7 Days' : 'Last 30 Days') %}
-                <div class="analytics-card">
-                    <h2>Bot vs Human — {{ label }}</h2>
-                    <ul class="analytics-stats">
-                        <li><strong>Human visits:</strong> {{ stats.human|number_format }}</li>
-                        <li><strong>Bot visits:</strong> {{ stats.bot|number_format }}</li>
-                        <li><strong>Total:</strong> {{ stats.total|number_format }}</li>
-                        <li><strong>Bot share:</strong>
-                            <span class="{{ stats.bot_pct > 50 ? 'analytics-alert' : '' }}">{{ stats.bot_pct }}%</span>
-                        </li>
-                    </ul>
-                </div>
-            {% endfor %}
-            <div class="analytics-card">
-                <p><a href="{{ path('admin_analytics_bot') }}">View detailed bot analytics →</a></p>
-            </div>
-        </div>
-
-        <div class="analytics-card">
-            <h2>Top 5 Visited Articles (Last 24 Hours)</h2>
-            {% if topArticlesLast24Hours|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                    <tr>
-                        <th>Article Path</th>
-                        <th class="text-right">Visits</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for stat in topArticlesLast24Hours %}
-                        <tr>
-                            <td><a href="{{ stat.route }}" target="_blank">{{ stat.route }}</a></td>
-                            <td class="text-right">{{ stat.count }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No article visits recorded in the last 24 hours.</p>
-            {% endif %}
-        </div>
-
-        <div class="analytics-card">
-            <h2>Top Referrers (Last 30 Days)</h2>
-            {% if topReferersLast30Days|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                    <tr>
-                        <th>Referrer</th>
-                        <th class="text-right">Visits</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for stat in topReferersLast30Days %}
-                        {% set isHttpReferer = stat.referer starts with 'http://' or stat.referer starts with 'https://' %}
-                        <tr>
-                            <td>
-                                {% if isHttpReferer %}
-                                    <a href="{{ stat.referer }}" target="_blank" rel="noopener noreferrer" title="{{ stat.referer }}">
-                                        {{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}
-                                    </a>
-                                {% else %}
-                                    <span title="{{ stat.referer }}">{{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-right">{{ stat.count }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No referrer visits recorded in the last 30 days.</p>
-            {% endif %}
-        </div>
-
-        <div class="analytics-card">
-            <h2>External Referrers (Last 30 Days)</h2>
-            {% if topExternalReferersLast30Days|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                    <tr>
-                        <th>Referrer</th>
-                        <th class="text-right">Visits</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for stat in topExternalReferersLast30Days %}
-                        {% set isHttpReferer = stat.referer starts with 'http://' or stat.referer starts with 'https://' %}
-                        <tr>
-                            <td>
-                                {% if isHttpReferer %}
-                                    <a href="{{ stat.referer }}" target="_blank" rel="noopener noreferrer" title="{{ stat.referer }}">
-                                        {{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}
-                                    </a>
-                                {% else %}
-                                    <span title="{{ stat.referer }}">{{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-right">{{ stat.count }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No external referrer visits recorded in the last 30 days.</p>
-            {% endif %}
-        </div>
-
-        <div class="analytics-card">
-            <h2>Visits Per Day (Last 30 Days)</h2>
-            {% if dailyVisitCountsLast30Days|length > 0 %}
-                <canvas id="visitsPerDayChart"
-                    data-controller="analytics--visits-per-day-chart"
-                    data-analytics--visits-per-day-chart-labels-value='{{ dailyVisitCountsLast30Days|map(stat => stat.day|date('Y-m-d'))|json_encode()|e('html_attr') }}'
-                    data-analytics--visits-per-day-chart-counts-value='{{ dailyVisitCountsLast30Days|map(stat => stat.count)|json_encode()|e('html_attr') }}'
-                    height="80"></canvas>
-                <noscript>
-                    <p><em>Enable JavaScript to see the visits per day chart.</em></p>
-                </noscript>
-                <div style="margin-top:1em"></div>
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th class="text-right">Visits</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stat in dailyVisitCountsLast30Days %}
-                            <tr>
-                                <td>{{ stat.day|date('Y-m-d') }}</td>
-                                <td class="text-right">{{ stat.count }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No visit data for the last 30 days.</p>
-            {% endif %}
-        </div>
-
-        {# ── Secondary pages ───────────────────────────────────────────── #}
-        <div class="analytics-summary-row">
-            <div class="analytics-card">
-                <h2>More Analytics</h2>
-                <ul class="analytics-stats">
-                    <li><a href="{{ path('admin_analytics_detail') }}">Detail view</a> — all-time totals, bounce rate, sessions, route breakdown, recent visits</li>
-                    <li><a href="{{ path('admin_analytics_bot') }}">Bot analytics</a> — bot traffic trends and top user-agents</li>
-                    <li><a href="{{ path('admin_analytics_subdomains') }}">Subdomain analytics</a> — Unfold site visit breakdowns</li>
+                    <li><a href="{{ path('admin_analytics_detail') }}">{{ 'admin_snapshot.detail'|trans }}</a></li>
+                    <li><a href="{{ path('admin_analytics_bot') }}">{{ 'admin_snapshot.bots'|trans }}</a></li>
+                    <li><a href="{{ path('admin_analytics_subdomains') }}">{{ 'admin_snapshot.subdomains'|trans }}</a></li>
+                    <li><a href="{{ path('admin_dashboard') }}">{{ 'admin_snapshot.dashboard'|trans }}</a></li>
                 </ul>
             </div>
-        </div>
-
-
-        <div class="analytics-info">
-            <p>
-                <strong>Page views</strong> count each tracked page load. <strong>Sessions/Users</strong> count distinct visitor IDs (session cookie for logged-in users; <code>_nv</code> cookie for anonymous visitors). API requests, asset requests, and preview partials are excluded from both metrics. Bot traffic is detected by user-agent and counted separately.
-            </p>
         </div>
     </div>
 {% endblock %}

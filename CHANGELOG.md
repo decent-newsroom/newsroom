@@ -2,6 +2,8 @@
 
 ## v0.0.53
 
+- [Fix] Reduced `/admin` and `/admin/analytics` to a shared 60-second cached snapshot of at most 10,000 recent requests, with clearly labeled sample counts, removing expensive full-table analytics and live relay probes from the landing pages.
+
 - [Fix] Shortened the header search placeholder to the translated Search label so it fits narrow fields, retaining the full articles and Nostr identifier hint as a tooltip.
 
 - [Fix] Capped header search width at 20rem on screens up to 1200px and allowed it to shrink to fit alongside the brand and header actions.

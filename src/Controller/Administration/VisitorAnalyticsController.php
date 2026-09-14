@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Repository\VisitRepository;
+use App\Service\Admin\AdminDashboardService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -12,55 +13,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class VisitorAnalyticsController extends AbstractController
 {
-    public function __construct(
-        private readonly string $baseDomain,
-    ) {}
-
     #[Route('/admin/analytics', name: 'admin_analytics')]
     #[IsGranted('ROLE_ADMIN')]
-    public function index(VisitRepository $visitRepository): Response
+    public function index(AdminDashboardService $dashboardService): Response
     {
-        // Time-bounded counters — all fast, indexed on visited_at
-        $visitsLast24Hours = $visitRepository->countVisitsSince(new \DateTimeImmutable('-24 hours'));
-        $visitsLast7Days = $visitRepository->countVisitsSince(new \DateTimeImmutable('-7 days'));
-        $uniqueVisitorsLast24Hours = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-24 hours'));
-        $uniqueVisitorsLast7Days = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-7 days'));
-
-        // Referrers (time-bounded only — no all-time scan)
-        $referredVisitsLast24Hours = $visitRepository->countVisitsWithReferer(new \DateTimeImmutable('-24 hours'));
-        $referredVisitsLast7Days = $visitRepository->countVisitsWithReferer(new \DateTimeImmutable('-7 days'));
-        $topReferersLast30Days = $visitRepository->getTopReferers(15, new \DateTimeImmutable('-30 days'));
-        $topExternalReferersLast30Days = $visitRepository->getTopExternalReferers($this->baseDomain, 15, new \DateTimeImmutable('-30 days'));
-
-        // Most read articles in the last 24 hrs
-        $topArticlesLast24Hours = $visitRepository->getMostVisitedArticlesSince(new \DateTimeImmutable('-24 hours'), 5);
-
-        // Time series — single native SQL query each
-        $dailyVisitCountsLast30Days = $visitRepository->getVisitsPerDay(30);
-        $dailyUniqueVisitorCountsLast7Days = $visitRepository->getDailyUniqueVisitors(7);
-
-        // Article publish and zap stats (specific route filter — fast)
-        $articlePublishStats = $visitRepository->getArticlePublishStats();
-        $zapInvoiceStats = $visitRepository->getZapInvoiceStats();
-
-        // Bot traffic summary (3 time-windowed counts)
-        $botVsHumanStats = $visitRepository->getBotVsHumanStats();
-
         return $this->render('admin/analytics.html.twig', [
-            'visitsLast24Hours' => $visitsLast24Hours,
-            'visitsLast7Days' => $visitsLast7Days,
-            'uniqueVisitorsLast24Hours' => $uniqueVisitorsLast24Hours,
-            'uniqueVisitorsLast7Days' => $uniqueVisitorsLast7Days,
-            'referredVisitsLast24Hours' => $referredVisitsLast24Hours,
-            'referredVisitsLast7Days' => $referredVisitsLast7Days,
-            'topReferersLast30Days' => $topReferersLast30Days,
-            'topExternalReferersLast30Days' => $topExternalReferersLast30Days,
-            'topArticlesLast24Hours' => $topArticlesLast24Hours,
-            'dailyVisitCountsLast30Days' => $dailyVisitCountsLast30Days,
-            'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
-            'articlePublishStats' => $articlePublishStats,
-            'zapInvoiceStats' => $zapInvoiceStats,
-            'botVsHumanStats' => $botVsHumanStats,
+            'snapshot' => $dashboardService->getVisitStats(),
         ]);
     }
 

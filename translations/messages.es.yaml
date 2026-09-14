@@ -1393,3 +1393,22 @@ unfold_admin:
     immutable: "La coordenada identifica permanentemente esta publicación y no se puede cambiar."
     save: "Guardar configuración"
     saved: "Configuración guardada."
+
+admin_snapshot:
+    analytics_title: 'Analítica de visitas'
+    window: 'Últimas 24 horas'
+    sample_note: 'Se muestran métricas humanas sin recursos ni API de hasta %limit% de las solicitudes registradas más recientemente en las últimas 24 horas (%records% registros muestreados).'
+    capped_note: 'Se alcanzó el límite de la muestra; es posible que falte tráfico anterior.'
+    visits: 'Visitas'
+    unique_sessions: 'Sesiones únicas'
+    referred_visits: 'Visitas con referencia'
+    top_routes: 'Rutas principales'
+    route: 'Ruta'
+    count: 'Visitas'
+    no_routes: 'No se registraron rutas en esta muestra.'
+    unavailable: 'La analítica no está disponible temporalmente.'
+    more_analytics: 'Más analítica'
+    detail: 'Analítica detallada'
+    bots: 'Analítica de bots'
+    subdomains: 'Analítica de subdominios'
+    dashboard: 'Panel de administración'
