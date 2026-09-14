@@ -32,30 +32,18 @@ class VisitorAnalyticsController extends AbstractController
         // All counts capped to last 30 days — no full-table scans
         $totalVisitsLast30 = $visitRepository->countVisitsSince($since30);
         $totalUniqueVisitorsLast30 = $visitRepository->countUniqueSessionsSince($since30);
-        $totalReferredVisitsLast30 = $visitRepository->countVisitsWithReferer($since30);
         $bounceRate = $visitRepository->getBounceRateSince($since30);
         $averageVisitsPerSession = $visitRepository->getAverageVisitsPerSessionSince($since30);
-
-        // Route breakdown (30d) and session detail (7d)
-        $topRoutesLast30Days = $visitRepository->getMostPopularRoutesSince($since30, 10);
-        $routeVisitCountsLast7Days = $visitRepository->getVisitCountByRoute($since7);
 
         // Session detail (7d)
         $visitsBySessionLast7Days = $visitRepository->getVisitsBySession($since7);
 
-        // Recent raw visit records
-        $recentVisitRecords = $visitRepository->getRecentVisits(10);
-
         return $this->render('admin/analytics_detail.html.twig', [
             'totalVisitsLast30' => $totalVisitsLast30,
             'totalUniqueVisitorsLast30' => $totalUniqueVisitorsLast30,
-            'totalReferredVisitsLast30' => $totalReferredVisitsLast30,
             'averageVisitsPerSession' => $averageVisitsPerSession,
             'bounceRate' => $bounceRate,
-            'topRoutesLast30Days' => $topRoutesLast30Days,
-            'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
             'visitsBySessionLast7Days' => $visitsBySessionLast7Days,
-            'recentVisitRecords' => $recentVisitRecords,
         ]);
     }
 
