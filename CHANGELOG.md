@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Included the internal Unfold bundle manifest in the production Docker Composer layer so path dependency installation succeeds.
 - [Improvement] Simplified the site header to two columns, grouping search beside the create-article action.
 - [Fix] Restored a legible Unfold publication admin using the Reading Nook app shell, shared menu builder, themed forms, and responsive publication details on both admin mounts.
 - [Fix] Reduced `/admin` and `/admin/analytics` to a shared 60-second cached snapshot of at most 10,000 recent requests, with clearly labeled sample counts, removing expensive full-table analytics and live relay probes from the landing pages.

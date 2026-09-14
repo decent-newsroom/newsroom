@@ -104,6 +104,7 @@ RUN set -eux; \
 
 # prevent the reinstallation of vendors at every changes in the source code
 COPY --link composer.* symfony.* ./
+COPY --link packages/unfold-bundle/composer.json packages/unfold-bundle/composer.json
 
 RUN --mount=type=cache,target=/tmp/composer-cache \
 	set -eux; \
