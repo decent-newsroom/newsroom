@@ -1,0 +1,33 @@
+{% extends '@Unfold/admin/base.html.twig' %}
+
+{% block publication_content %}
+    <header class="unfold-admin-header">
+        <p class="eyebrow">{{ 'unfold_admin.title'|trans }}</p>
+        <h1>{{ title }}</h1>
+    </header>
+
+    {% if not metadataAvailable %}
+        <p class="unfold-admin-message" role="status">{{ 'unfold_admin.metadata_unavailable'|trans }}</p>
+    {% endif %}
+
+    <dl class="unfold-admin-meta">
+        <dt>{{ 'unfold_admin.coordinate'|trans }}</dt>
+        <dd><code>{{ publication.coordinate }}</code></dd>
+
+        <dt>{{ 'unfold_admin.owner'|trans }}</dt>
+        <dd><code>{{ publication.ownerPubkey }}</code></dd>
+
+        <dt>{{ 'unfold_admin.theme'|trans }}</dt>
+        <dd>{{ publication.settings.theme }}</dd>
+
+        <dt>{{ 'unfold_admin.hosting'|trans }}</dt>
+        <dd>{{ publication.site ? publication.site.subdomain : 'unfold_admin.not_hosted'|trans }}</dd>
+    </dl>
+
+    {% if publication.publicUrl %}
+        <nav class="unfold-admin-links" aria-label="{{ 'unfold_admin.discovery'|trans }}">
+            <a class="btn btn--secondary" href="{{ publication.publicUrl }}/rss.xml">{{ 'unfold_admin.rss'|trans }}</a>
+            <a class="btn btn--secondary" href="{{ publication.publicUrl }}/sitemap.xml">{{ 'unfold_admin.sitemap'|trans }}</a>
+        </nav>
+    {% endif %}
+{% endblock %}

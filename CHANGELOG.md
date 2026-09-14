@@ -2,22 +2,15 @@
 
 ## v0.0.53
 
+- [Fix] Restored a legible Unfold publication admin using the Reading Nook app shell, shared menu builder, themed forms, and responsive publication details on both admin mounts.
 - [Fix] Reduced `/admin` and `/admin/analytics` to a shared 60-second cached snapshot of at most 10,000 recent requests, with clearly labeled sample counts, removing expensive full-table analytics and live relay probes from the landing pages.
-
 - [Fix] Shortened the header search placeholder to the translated Search label so it fits narrow fields, retaining the full articles and Nostr identifier hint as a tooltip.
-
 - [Fix] Capped header search width at 20rem on screens up to 1200px and allowed it to shrink to fit alongside the brand and header actions.
-
 - [Improvement] Shortened the header wordmark to DN on screens up to 960px while preserving the full brand name on larger screens and for assistive technology.
-
 - [Fix] Removed excess brand text spacing and aligned the Newsreader wordmark with the header logo using capital-height trimming, with an older-browser fallback.
-
 - [Improvement] Replaced the Newsroom logo, browser favicons, Apple touch and PWA icons, and default social-preview branding; added a theme-aware header mark and refreshed offline branding caches.
-
 - [Improvement] Updated the brand typography to locally hosted Newsreader at weight 500, with automatic optical sizing, uppercase lettering, and 0.045em letter spacing.
-
 - [Fix] Prevented Unfold admin login redirect loops by falling back to the same publication on the main domain when subdomain sessions are unavailable, including localhost.
-
 - [Fix] Made follow-pack profile cards tolerate cached pack records without an image property.
 - [Feature] Added owner-scoped Unfold publication overview and theme settings at subdomain /admin and main-domain /mag/{mag}/admin, with shared local settings and validated login continuation.
 - [Feature] Decoupled Unfold setup from AppData publication with shared operator/subscription setup and persistent local theme settings keyed by one immutable root magazine coordinate.

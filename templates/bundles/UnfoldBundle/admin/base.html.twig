@@ -1,0 +1,33 @@
+{% extends 'app-shell.html.twig' %}
+
+{% block title %}{{ 'unfold_admin.title'|trans }}{% endblock %}
+
+{% block ogtags %}
+    {{ parent() }}
+    <meta name="robots" content="noindex, nofollow">
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('styles/04-pages/unfold-admin.css') }}">
+{% endblock %}
+
+{% block sidebar %}
+    <twig:SidebarNav
+        id="leftNav"
+        :sections="unfold_admin_nav(publication)"
+        :footerComponent="'components/UserMenu.html.twig'"
+    />
+{% endblock %}
+
+{% block aside %}{% endblock %}
+
+{% block body %}
+    <section class="reading-nook-page unfold-admin-page">
+        {% for message in app.flashes('unfold_success') %}
+            <p class="unfold-admin-flash" role="status">{{ message|trans }}</p>
+        {% endfor %}
+
+        {% block publication_content %}{% endblock %}
+    </section>
+{% endblock %}

@@ -16,7 +16,7 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 class SidebarNav
 {
     /**
-     * @var array<int, array{label: string, items: array<int, array{label: string, route: string, icon?: string}>}>
+     * @var array<int, array{label: string, items: array<int, array{label: string, route?: string, params?: array, href?: string, active?: bool, icon?: string}>}>
      */
     public array $sections = [];
 

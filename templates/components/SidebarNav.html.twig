@@ -12,7 +12,7 @@
 
     {% if backLink %}
         <div class="sidebar-nav__back">
-            <a href="{{ path(backLink.route) }}">
+            <a href="{{ backLink.href ?? path(backLink.route, backLink.params|default({})) }}">
                 {% if backLink.icon|default(null) %}
                     {{ ux_icon(backLink.icon, {class: 'icon'}) }}
                 {% endif %}
@@ -30,8 +30,8 @@
                 {% for item in section.items %}
                     <li>
                         <a
-                            href="{{ path(item.route) }}"
-                            {% if app.current_route == item.route %}aria-current="page"{% endif %}
+                            href="{{ item.href ?? path(item.route, item.params|default({})) }}"
+                            {% if item.active is defined ? item.active : (app.current_route == item.route|default(null)) %}aria-current="page"{% endif %}
                         >
                             {% if item.icon|default(null) %}
                                 {{ ux_icon(item.icon, {class: 'icon'}) }}

@@ -1,0 +1,131 @@
+.unfold-admin-page {
+    width: min(1120px, 100%);
+    margin: 0 auto var(--spacing-6);
+    gap: var(--spacing-5);
+}
+
+.unfold-admin-header {
+    display: grid;
+    gap: var(--spacing-2);
+    padding-bottom: var(--spacing-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.unfold-admin-header .eyebrow {
+    margin: 0;
+}
+
+.unfold-admin-header h1 {
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-family: var(--heading-font);
+    font-size: clamp(var(--font-size-2xl), 5vw, var(--font-size-3xl));
+    line-height: 1.08;
+}
+
+.unfold-admin-coordinate {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    overflow-wrap: anywhere;
+}
+
+.unfold-admin-coordinate code,
+.unfold-admin-meta code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.unfold-admin-flash,
+.unfold-admin-message {
+    margin: 0;
+    padding: var(--spacing-3) 0 var(--spacing-3) var(--spacing-3);
+    border-left: 2px solid var(--color-success);
+    color: var(--color-text-mid);
+}
+
+.unfold-admin-message--error {
+    border-left-color: var(--color-error);
+    color: var(--color-error);
+}
+
+.unfold-admin-intro {
+    max-width: 48rem;
+    margin: 0;
+    color: var(--color-text-mid);
+}
+
+.unfold-admin-meta {
+    display: grid;
+    grid-template-columns: minmax(8rem, 0.35fr) minmax(0, 1fr);
+    margin: 0;
+    border-top: 1px solid var(--color-border-strong);
+}
+
+.unfold-admin-meta dt,
+.unfold-admin-meta dd {
+    min-width: 0;
+    margin: 0;
+    padding: var(--spacing-3);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.unfold-admin-meta dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+.unfold-admin-meta dd {
+    color: var(--color-text);
+}
+
+.unfold-admin-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+}
+
+.unfold-admin-form {
+    display: grid;
+    gap: var(--spacing-2);
+    max-width: 38rem;
+    margin: 0;
+}
+
+.unfold-admin-form label {
+    color: var(--color-text-mid);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+.unfold-admin-form select {
+    max-width: 24rem;
+}
+
+.unfold-admin-form button {
+    justify-self: start;
+    margin-top: var(--spacing-2);
+}
+
+@media (max-width: 640px) {
+    .unfold-admin-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .unfold-admin-meta dt {
+        padding-bottom: var(--spacing-1);
+        border-bottom: 0;
+    }
+
+    .unfold-admin-meta dd {
+        padding-top: 0;
+    }
+
+    .unfold-admin-links,
+    .unfold-admin-links .btn {
+        width: 100%;
+    }
+}

@@ -18,6 +18,27 @@ setup. Saving a theme does not require event signing or relay publication.
 
 ## Architecture
 
+### Newsroom layout and navigation
+
+Newsroom overrides the bundle administration templates in
+`templates/bundles/UnfoldBundle/admin/`. The override uses the same
+`app-shell.html.twig`, sidebar component, typography, theme tokens, and Reading
+Nook page/context styles as the reader workspace. Publication-specific spacing,
+details, and form rules live in `assets/styles/04-pages/unfold-admin.css`.
+The standalone bundle retains its minimal fallback layout and stylesheet.
+
+`UnfoldAdminExtension` exposes publication navigation built by
+`NavigationBuilderTrait`. Overview and Settings use the resolved publication's
+admin prefix, preserving both subdomain and coordinate mounts. `SidebarNav`
+accepts explicit links and active states as well as existing named routes and
+optional route parameters. No publication context is stored between requests.
+
+Twig uses Symfony's automatic bundle namespace and host override discovery. An
+explicit `twig.paths` entry pointing `Unfold` directly at the vendor views would
+take precedence over these overrides and restore the sparse fallback layout.
+Compile the AssetMapper assets after style changes with
+`docker compose exec php bin/console asset-map:compile`.
+
 ### Identity and storage
 
 The identity is `30040:<owner-hex-pubkey>:<dtag>`. The complete coordinate is
@@ -72,7 +93,10 @@ routes retain their protections.
 | `packages/unfold-bundle/src/Contract/PublicationAdminIdentityInterface.php` | Host identity and login integration boundary |
 | `packages/unfold-bundle/src/Config/PublicationSettingsManager.php` | Shared local theme validation, persistence, and cache invalidation |
 | `packages/unfold-bundle/Resources/` | Bundle route collections and templates |
-| `packages/unfold-bundle/assets/admin.css` | AssetMapper administration styles |
+| `packages/unfold-bundle/assets/admin.css` | Standalone bundle fallback styles |
+| `templates/bundles/UnfoldBundle/admin/` | Newsroom Reading Nook shell and publication page overrides |
+| `assets/styles/04-pages/unfold-admin.css` | Scoped publication detail and form styles |
+| `src/Twig/UnfoldAdminExtension.php` | Publication context bridge to the shared menu builder |
 
 ## Configuration
 

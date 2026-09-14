@@ -12,6 +12,35 @@ namespace App\Helper;
 trait NavigationBuilderTrait
 {
     /**
+     * Publication-local links work on both the host and coordinate admin mounts.
+     *
+     * @return array<int, array{label: string, items: array<int, array{label: string, href: string, active: bool, icon: string}>}>
+     */
+    protected function buildUnfoldAdminNav(string $adminPathPrefix, string $currentPath): array
+    {
+        $prefix = rtrim($adminPathPrefix, '/');
+        $currentPath = rtrim($currentPath, '/');
+
+        return [[
+            'label' => 'unfold_admin.title',
+            'items' => [
+                [
+                    'label' => 'unfold_admin.overview',
+                    'href' => $prefix,
+                    'active' => $currentPath === $prefix,
+                    'icon' => 'iconoir:home',
+                ],
+                [
+                    'label' => 'unfold_admin.settings',
+                    'href' => $prefix . '/settings',
+                    'active' => $currentPath === $prefix . '/settings',
+                    'icon' => 'iconoir:settings',
+                ],
+            ],
+        ]];
+    }
+
+    /**
      * Build the Reading Nook local navigation structure.
      *
      * @return array<int, array{label: string, items: array<int, array{label: string, route: string}>}>
