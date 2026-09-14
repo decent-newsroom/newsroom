@@ -17,7 +17,7 @@ class AdminVisitSnapshotTemplateTest extends TestCase
             'visits' => 123,
             'unique_sessions' => 45,
             'referred_visits' => 6,
-            'sample_limit' => 100000,
+            'sample_limit' => 1000000,
             'sampled_records' => 123,
         ]);
 

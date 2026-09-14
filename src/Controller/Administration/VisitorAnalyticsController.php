@@ -54,12 +54,12 @@ class VisitorAnalyticsController extends AbstractController
         // Bot traffic statistics
         $botVsHumanStats = $visitRepository->getBotVsHumanStats();
         $topBotUserAgents = $visitRepository->getTopBotUserAgents(20, new \DateTimeImmutable('-7 days'));
-        $botVisitsPerDayLast30Days = $visitRepository->getBotVisitsPerDay(30);
+        $botVisitsPerDayLast14Days = $visitRepository->getBotVisitsPerDay(14);
 
         return $this->render('admin/analytics_bot.html.twig', [
             'botVsHumanStats' => $botVsHumanStats,
             'topBotUserAgents' => $topBotUserAgents,
-            'botVisitsPerDayLast30Days' => $botVisitsPerDayLast30Days,
+            'botVisitsPerDayLast14Days' => $botVisitsPerDayLast14Days,
         ]);
     }
 

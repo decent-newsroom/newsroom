@@ -46,24 +46,24 @@ final class AdminVisitSnapshotTest extends KernelTestCase
             INSERT INTO visit (visited_at, route, session_id, referer, is_bot)
             SELECT CURRENT_TIMESTAMP,
                    CASE
-                       WHEN i <= 70000 THEN '/top-a'
-                       WHEN i <= 85000 THEN '/top-b'
-                       WHEN i <= 92000 THEN '/top-c'
-                       WHEN i <= 97000 THEN '/top-d'
-                       WHEN i <= 99990 THEN '/top-e'
+                       WHEN i <= 700000 THEN '/top-a'
+                       WHEN i <= 850000 THEN '/top-b'
+                       WHEN i <= 920000 THEN '/top-c'
+                       WHEN i <= 970000 THEN '/top-d'
+                       WHEN i <= 999990 THEN '/top-e'
                        ELSE '/minor'
                    END,
                    CASE
-                       WHEN i <= 70000 THEN 'duplicate-session'
-                       WHEN i <= 85000 THEN 'b-' || i
-                       WHEN i <= 92000 THEN 'c-' || i
-                       WHEN i <= 97000 THEN 'd-' || i
-                       WHEN i <= 99990 THEN 'e-' || i
+                       WHEN i <= 700000 THEN 'duplicate-session'
+                       WHEN i <= 850000 THEN 'b-' || i
+                       WHEN i <= 920000 THEN 'c-' || i
+                       WHEN i <= 970000 THEN 'd-' || i
+                       WHEN i <= 999990 THEN 'e-' || i
                        ELSE NULL
                    END,
-                   CASE WHEN i BETWEEN 99986 AND 99990 THEN 'https://source.example/' || i ELSE NULL END,
+                   CASE WHEN i BETWEEN 999986 AND 999990 THEN 'https://source.example/' || i ELSE NULL END,
                    FALSE
-            FROM generate_series(1, 99995) AS series(i)
+            FROM generate_series(1, 999995) AS series(i)
             SQL);
 
         $this->connection->executeStatement(<<<'SQL'
@@ -81,19 +81,19 @@ final class AdminVisitSnapshotTest extends KernelTestCase
         $repository = self::getContainer()->get(VisitRepository::class);
         $snapshot = $repository->getAdminSnapshot();
 
-        self::assertSame(99995, $snapshot['visits']);
-        self::assertSame(29991, $snapshot['unique_sessions']);
+        self::assertSame(999995, $snapshot['visits']);
+        self::assertSame(299991, $snapshot['unique_sessions']);
         self::assertSame(5, $snapshot['referred_visits']);
-        self::assertSame(99999, $snapshot['sampled_records']);
-        self::assertSame(100000, $snapshot['sample_limit']);
+        self::assertSame(999999, $snapshot['sampled_records']);
+        self::assertSame(1000000, $snapshot['sample_limit']);
         self::assertSame(24, $snapshot['window_hours']);
         self::assertTrue($snapshot['capped']);
         self::assertSame([
-            ['route' => '/top-a', 'count' => 70000],
-            ['route' => '/top-b', 'count' => 15000],
-            ['route' => '/top-c', 'count' => 7000],
-            ['route' => '/top-d', 'count' => 5000],
-            ['route' => '/top-e', 'count' => 2990],
+            ['route' => '/top-a', 'count' => 700000],
+            ['route' => '/top-b', 'count' => 150000],
+            ['route' => '/top-c', 'count' => 70000],
+            ['route' => '/top-d', 'count' => 50000],
+            ['route' => '/top-e', 'count' => 29990],
         ], $snapshot['top_routes']);
     }
 

@@ -14,7 +14,7 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class VisitRepository extends ServiceEntityRepository
 {
-    public const ADMIN_SNAPSHOT_LIMIT = 100000;
+    public const ADMIN_SNAPSHOT_LIMIT = 1000000;
 
     private const TRACKED_VISIT_API_ROOT = '/api';
     private const TRACKED_VISIT_API_PREFIX = '/api/%';
@@ -1053,43 +1053,35 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns bot-vs-human visit counts for the last 24 h, 7 d and 30 d using a single SQL query.
+     * Returns bot-vs-human visit counts for the last 24 h, 7 d and 14 d using a single SQL query.
      */
     public function getBotVsHumanStats(): array
     {
         $conn = $this->getEntityManager()->getConnection();
 
         $sql = "SELECT
-                    'last_24_hours' AS period,
-                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last24Hours)  AS bot,
-                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last24Hours) AS human
+                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last24Hours) AS bot_last_24_hours,
+                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last24Hours) AS human_last_24_hours,
+                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last7Days) AS bot_last_7_days,
+                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last7Days) AS human_last_7_days,
+                    COUNT(*) FILTER (WHERE is_bot = true) AS bot_last_14_days,
+                    COUNT(*) FILTER (WHERE is_bot = false) AS human_last_14_days
                 FROM visit
-                UNION ALL
-                SELECT
-                    'last_7_days' AS period,
-                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last7Days)  AS bot,
-                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last7Days) AS human
-                FROM visit
-                UNION ALL
-                SELECT
-                    'last_30_days' AS period,
-                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last30Days)  AS bot,
-                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last30Days) AS human
-                FROM visit";
+                WHERE visited_at >= :last14Days";
 
-        $rows = $conn->executeQuery($sql, [
+        $row = $conn->executeQuery($sql, [
             'last24Hours' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s'),
             'last7Days' => (new \DateTimeImmutable('-7 days'))->format('Y-m-d H:i:s'),
-            'last30Days' => (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s'),
-        ])->fetchAllAssociative();
+            'last14Days' => (new \DateTimeImmutable('-14 days'))->format('Y-m-d H:i:s'),
+        ])->fetchAssociative() ?: [];
 
         $result = [];
-        foreach ($rows as $row) {
-            $bot   = (int) ($row['bot']   ?? 0);
-            $human = (int) ($row['human'] ?? 0);
+        foreach (['last_24_hours', 'last_7_days', 'last_14_days'] as $period) {
+            $bot = (int) ($row['bot_' . $period] ?? 0);
+            $human = (int) ($row['human_' . $period] ?? 0);
             $total = $bot + $human;
 
-            $result[$row['period']] = [
+            $result[$period] = [
                 'bot'        => $bot,
                 'human'      => $human,
                 'total'      => $total,

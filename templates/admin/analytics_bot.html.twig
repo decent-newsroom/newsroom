@@ -9,7 +9,7 @@
 
         <div class="analytics-summary-row">
             {% for period, stats in botVsHumanStats %}
-                {% set label = period == 'last_24_hours' ? 'Last 24 Hours' : (period == 'last_7_days' ? 'Last 7 Days' : 'Last 30 Days') %}
+                {% set label = period == 'last_24_hours' ? 'Last 24 Hours' : (period == 'last_7_days' ? 'Last 7 Days' : 'Last 14 Days') %}
                 <div class="analytics-card">
                     <h2>Bot vs Human — {{ label }}</h2>
                     <ul class="analytics-stats">
@@ -26,16 +26,16 @@
 
         <div class="analytics-summary-row">
             <div class="analytics-card">
-                <h2>Bot Traffic Per Day (Last 30 Days)</h2>
-                {% if botVisitsPerDayLast30Days|length > 0 %}
+                <h2>Bot Traffic Per Day (Last 14 Days)</h2>
+                {% if botVisitsPerDayLast14Days|length > 0 %}
                     <canvas id="botVisitsPerDayChart"
                             data-controller="analytics--visits-per-day-chart"
-                            data-analytics--visits-per-day-chart-labels-value='{{ botVisitsPerDayLast30Days|map(s => s.day)|json_encode()|e('html_attr') }}'
-                            data-analytics--visits-per-day-chart-counts-value='{{ botVisitsPerDayLast30Days|map(s => s.count)|json_encode()|e('html_attr') }}'
+                            data-analytics--visits-per-day-chart-labels-value='{{ botVisitsPerDayLast14Days|map(s => s.day)|json_encode()|e('html_attr') }}'
+                            data-analytics--visits-per-day-chart-counts-value='{{ botVisitsPerDayLast14Days|map(s => s.count)|json_encode()|e('html_attr') }}'
                             height="60"></canvas>
                     <noscript><p><em>Enable JavaScript to see the chart.</em></p></noscript>
                 {% else %}
-                    <p>No bot traffic recorded in the last 30 days.</p>
+                    <p>No bot traffic recorded in the last 14 days.</p>
                 {% endif %}
             </div>
         </div>
