@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Increased the cached admin analytics snapshot from 10,000 to 100,000 recent requests to retain more traffic before sampling.
 - [Fix] Temporarily removed referrer, route, and recent-visit queries from `/admin/analytics/detail` to prevent request timeouts.
 - [Fix] Included the internal Unfold bundle manifest in the production Docker Composer layer so path dependency installation succeeds.
 - [Improvement] Simplified the site header to two columns, grouping search beside the create-article action.

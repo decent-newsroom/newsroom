@@ -14,7 +14,7 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class VisitRepository extends ServiceEntityRepository
 {
-    public const ADMIN_SNAPSHOT_LIMIT = 10000;
+    public const ADMIN_SNAPSHOT_LIMIT = 100000;
 
     private const TRACKED_VISIT_API_ROOT = '/api';
     private const TRACKED_VISIT_API_PREFIX = '/api/%';
