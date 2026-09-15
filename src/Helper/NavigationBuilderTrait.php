@@ -80,7 +80,7 @@ trait NavigationBuilderTrait
     /**
      * Build the Newsroom local navigation structure.
      *
-     * @return array<int, array{label: string, items: array<int, array{label: string, route: string}>}>
+     * @return array<int, array{label: string, items: array<int, array{label: string, route: string, icon: string}>}>
      */
     protected function buildNewsroomNav(): array
     {
@@ -157,22 +157,22 @@ trait NavigationBuilderTrait
             [
                 'label' => '',
                 'items' => [
-                    ['label' => 'nav.discover', 'route' => 'discover'],
+                    ['label' => 'nav.discover', 'route' => 'discover', 'icon' => 'iconoir:compass'],
                 ],
             ],
             [
                 'label' => 'nav.publications',
                 'items' => [
-                    ['label' => 'nav.newsstand', 'route' => 'newsstand'],
-                    ['label' => 'nav.bookshelf', 'route' => 'bookshelf'],
+                    ['label' => 'nav.newsstand', 'route' => 'newsstand', 'icon' => 'iconoir:book-stack'],
+                    ['label' => 'nav.bookshelf', 'route' => 'bookshelf', 'icon' => 'iconoir:bookmark-book'],
                 ],
             ],
             [
                 'label' => 'nav.create',
                 'items' => [
-                    ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new'],
-                    ['label' => 'nav.newReadingList', 'route' => 'reading_list_index'],
-                    ['label' => 'nav.newArticle', 'route' => 'editor-create'],
+                    ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new', 'icon' => 'iconoir:plus'],
+                    ['label' => 'nav.newReadingList', 'route' => 'reading_list_index', 'icon' => 'iconoir:journal-page'],
+                    ['label' => 'nav.newArticle', 'route' => 'editor-create', 'icon' => 'iconoir:edit-pencil'],
                 ],
             ],
         ];
@@ -181,9 +181,9 @@ trait NavigationBuilderTrait
             $sections[] = [
                 'label' => 'nav.personal',
                 'items' => [
-                    ['label' => 'nav.readingNook', 'route' => 'reading_nook'],
-                    ['label' => 'nav.newsroom', 'route' => 'my_content'],
-                    ['label' => 'nav.expressions', 'route' => 'expressions_workspace'],
+                    ['label' => 'nav.readingNook', 'route' => 'reading_nook', 'icon' => 'iconoir:bookmark'],
+                    ['label' => 'nav.newsroom', 'route' => 'my_content', 'icon' => 'iconoir:home'],
+                    ['label' => 'nav.expressions', 'route' => 'expressions_workspace', 'icon' => 'iconoir:flask'],
                 ],
             ];
         }
