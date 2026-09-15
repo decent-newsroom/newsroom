@@ -861,7 +861,7 @@ pricing:
         cta: 'Commencer'
     vanity:
         name: 'Nom personnalisé'
-        period: 'par trimestre · ou 100 000 sats à vie'
+        period: 'à vie'
         feature1: 'Identité vérifiée NIP-05'
         feature2: 'URL de profil personnalisée'
         feature3: 'Badge de vérification dans les clients Nostr'

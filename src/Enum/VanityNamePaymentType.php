@@ -27,8 +27,7 @@ enum VanityNamePaymentType: string
     public function getPriceInSats(): int
     {
         return match ($this) {
-            self::SUBSCRIPTION => 5000,    // 5,000 sats per quarter
-            self::ONE_TIME => 100000,      // 100,000 sats lifetime
+            self::ONE_TIME => 1000,      // 1000 sats lifetime
             self::ADMIN_GRANTED => 0,
             self::FREE => 0,
         };

@@ -861,7 +861,7 @@ pricing:
         cta: 'Začni'
     vanity:
         name: 'Osebno ime'
-        period: 'na četrtletje · ali 100.000 satov doživljenjsko'
+        period: 'doživljenjsko'
         feature1: 'NIP-05 preverjena identiteta'
         feature2: 'URL profila po meri'
         feature3: 'Značka preverjanja v Nostr odjemalcih'

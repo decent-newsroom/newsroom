@@ -1092,7 +1092,7 @@ pricing:
         cta: 'Get Started'
     vanity:
         name: 'Vanity Name'
-        period: 'per quarter · or 100,000 sats lifetime'
+        period: 'lifetime'
         feature1: 'NIP-05 verified identity'
         feature2: 'Custom profile URL'
         feature3: 'Verified badge in Nostr clients'

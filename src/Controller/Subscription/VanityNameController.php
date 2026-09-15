@@ -53,7 +53,6 @@ class VanityNameController extends AbstractController
         return $this->render('subscription/vanity/index.html.twig', [
             'serverDomain' => $this->vanityNameService->getServerDomain(),
             'paymentTypes' => [
-                VanityNamePaymentType::SUBSCRIPTION,
                 VanityNamePaymentType::ONE_TIME,
             ],
         ]);

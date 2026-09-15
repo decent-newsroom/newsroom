@@ -983,7 +983,7 @@ pricing:
         cta: 'Inizia'
     vanity:
         name: 'Nome personalizzato'
-        period: 'per trimestre · o 100.000 sat a vita'
+        period: 'a vita'
         feature1: 'Identità verificata NIP-05'
         feature2: 'URL profilo personalizzato'
         feature3: 'Badge verificato nei client Nostr'

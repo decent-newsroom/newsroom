@@ -872,7 +872,7 @@ pricing:
         cta: 'Loslegen'
     vanity:
         name: 'Vanity-Name'
-        period: 'pro Quartal · oder 100.000 Sats einmalig'
+        period: 'einmalig'
         feature1: 'NIP-05 verifizierte Identität'
         feature2: 'Benutzerdefinierte Profil-URL'
         feature3: 'Verifizierungsabzeichen in Nostr-Clients'
