@@ -402,9 +402,7 @@ This ensures compatibility with:
 
 ## Related Documentation
 
-- [JSON-LD Implementation](./json-ld-structured-data.md)
-- [JSON-LD Testing Guide](./json-ld-testing-guide.md)
-- [API Reference](../docs/api-reference.md) (if exists)
+- [JSON-LD structured data](../Reader/json-ld-structured-data.md)
 
 ---
 

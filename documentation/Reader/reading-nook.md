@@ -78,4 +78,4 @@ No new environment variables or Symfony parameters are required.
 
 ## Related NIPs / NKBIPs
 
-- [NIP-51](../NIP/NIP-51.md) — list-based user collections (bookmarks, interests, follow packs)
+- [NIP-51](../NIP/51.md) — list-based user collections (bookmarks, interests, follow packs)

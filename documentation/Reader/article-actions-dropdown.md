@@ -1,115 +1,50 @@
 # Article Actions Dropdown
 
-## Overview
+The article social strip places secondary Nostr actions in an overflow menu.
+The current menu offers:
 
-The article actions dropdown consolidates secondary article actions (share, bookmark, broadcast, highlights) into a single kebab menu (⋮) button, keeping the article action bar clean and scalable for future actions.
+- Copy the article's naddr.
+- Copy its `kind:pubkey:slug` coordinate.
+- Broadcast the existing signed article event to relays for signed-in readers.
+- Broadcast to the configured Essayist relay for eligible members or admins.
 
-**Prominent standalone buttons** (kept separate):
-- **Zap** — Lightning payment, high-visibility action
-- **Reading List** — Content curation, frequently used
+Protected events expose broadcast actions only to their author. The backend
+also enforces publishing permissions; hiding a button is not the authorization
+boundary.
 
-**Consolidated into dropdown:**
-- **Copy Link** — copies the canonical newsroom URL
-- **Copy Nostr Address** — copies the naddr-encoded identifier
-- **Bookmark** — adds/removes the article from kind 10003 bookmarks
-- **Broadcast to Relays** — re-publishes the article event to the user's relays
-- **Highlights** — toggles the highlights sidebar (if highlights exist)
+Comments, likes, bookmarks, sharing, and tipping belong to the surrounding
+`ArticleSocialActions` component. Its bookmark button uses `ui--card-bookmark`,
+the same controller as article cards; see [bookmarks](bookmarks.md).
 
-## Architecture
+## Component
 
-### Twig Component
-
-**PHP:** `src/Twig/Components/Molecules/ArticleActionsDropdown.php`
-**Template:** `templates/components/Molecules/ArticleActionsDropdown.html.twig`
-
-Props:
-| Prop | Type | Description |
-|------|------|-------------|
-| `article` | `Article` | The article entity |
-| `coordinate` | `string` | Nostr coordinate (`30023:<pubkey>:<slug>`) |
-| `canonicalUrl` | `string` | Canonical URL for copy-link |
-| `naddrEncoded` | `string` | naddr-encoded identifier |
-| `isProtected` | `bool` | Whether article has `-` (protected) tag |
-| `highlightCount` | `int` | Number of highlights |
-| `relays` | `?array` | User's write relays (null if anon) |
-
-Usage:
-```twig
-<twig:Molecules:ArticleActionsDropdown
-    :article="article"
-    coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
-    canonicalUrl="{{ canonical }}"
-    naddrEncoded="{{ article|naddrEncode }}"
-    :isProtected="isProtected"
-    :highlightCount="highlights is defined ? highlights|length : 0"
-    :relays="userRelays" />
-```
-
-### Stimulus Controller
-
-**File:** `assets/controllers/ui/article_actions_dropdown_controller.js`
-**Identifier:** `ui--article-actions-dropdown`
-
-Values:
-| Value | Type | Description |
-|-------|------|-------------|
-| `coordinate` | String | Article coordinate for bookmarking |
-| `bookmarkFetchUrl` | String | `GET /api/bookmarks/current` |
-| `bookmarkPublishUrl` | String | `POST /api/bookmarks/publish` |
-
-Targets:
-| Target | Purpose |
-|--------|---------|
-| `trigger` | Kebab menu button |
-| `menu` | Dropdown menu container |
-| `bookmarkItem` | Bookmark dropdown item (for active styling) |
-| `bookmarkIcon` | Bookmark SVG icon (fill toggled) |
-| `bookmarkLabel` | Bookmark text label |
-| `broadcastItem` | Broadcast dropdown item |
-
-Actions:
-| Action | Description |
-|--------|-------------|
-| `toggle` | Open/close dropdown |
-| `copy` | Copy text to clipboard (reads `data-copy` attribute) |
-| `toggleBookmark` | Sign and publish kind 10003 event |
-| `broadcast` | POST to `/api/broadcast-article` |
-| `toggleHighlights` | Delegates to the existing `ui--highlights-toggle` controller |
-
-### Styles
-
-**File:** `assets/styles/03-components/article-actions-dropdown.css`
-
-Key classes:
-- `.article-actions-dropdown` — wrapper with inline-flex layout
-- `.article-actions-trigger` — square kebab button, no caret
-- `.dropdown-item--active` — accent color for bookmarked state
-
-All user feedback (copy, bookmark, broadcast) is routed through the global `window.showToast()` notification system instead of inline status elements.
-
-## Removed Components
-
-The following components were deleted as they are fully superseded by this dropdown:
-
-- `src/Twig/Components/Molecules/BookmarkButton.php` + `templates/components/Molecules/BookmarkButton.html.twig`
-- `assets/controllers/nostr/nostr_bookmark_controller.js`
-- `assets/styles/03-components/bookmark-button.css`
-- `src/Twig/Components/Molecules/BroadcastButton.php` + `templates/components/Molecules/BroadcastButton.html.twig`
-- `assets/controllers/ui/article_broadcast_controller.js`
-
-**Kept** (still used by `MagazineHero`):
-- `assets/controllers/utility/share_dropdown_controller.js`
-
-## Files
-
-### New
 - `src/Twig/Components/Molecules/ArticleActionsDropdown.php`
 - `templates/components/Molecules/ArticleActionsDropdown.html.twig`
-- `assets/controllers/ui/article_actions_dropdown_controller.js`
-- `assets/styles/03-components/article-actions-dropdown.css`
 
-### Modified
-- `templates/pages/article.html.twig` — replaced individual actions with dropdown
-- `assets/app.js` — added CSS import
-- `translations/messages.{en,de,es,fr,it,sl}.yaml` — added `articleActions.*` keys
-- `CHANGELOG.md` — feature entry
+| Prop | Type | Purpose |
+|---|---|---|
+| `article` | `Article` | Article entity and event identifiers |
+| `coordinate` | `string` | Nostr coordinate |
+| `canonicalUrl` | `string` | URL passed by the surrounding social component |
+| `naddrEncoded` | `string` | Encoded Nostr address to copy |
+| `isProtected` | `bool` | NIP-70 protected-event flag |
+| `relays` | `?array` | User's write relays |
+
+The normal integration is inside
+`templates/components/Molecules/ArticleSocialActions.html.twig`, which passes
+these values to the dropdown.
+
+## Browser behavior
+
+`assets/controllers/ui/article_actions_dropdown_controller.js`
+(`ui--article-actions-dropdown`) uses `trigger` and `menu` targets. It toggles
+the menu and its `aria-expanded` state, closes on outside clicks, copies
+`data-copy` values through the Clipboard API, and posts broadcasts to
+`/api/broadcast-article`. The Essayist action supplies the configured relay
+explicitly. Status messages use `window.showToast()`.
+
+Styles live in `assets/styles/03-components/article-actions-dropdown.css`;
+the social strip has separate `article-social-actions.css` styling.
+
+See [article broadcasting](../Newsroom/article-broadcast-feature.md) and
+[protected articles](../Newsroom/nip70-protected-articles.md) for backend behavior.

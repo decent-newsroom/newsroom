@@ -39,7 +39,7 @@ Use this when honoring author-signed delete events. It preserves the NIP-09 sema
 
 ## Relay-Side Cleanup
 
-PostgreSQL deletion does not shrink the local strfry database. For relay disk cleanup, remove events from strfry and compact its storage separately during maintenance.
+PostgreSQL deletion does not shrink the local strfry database. See [Strfry Storage Maintenance](../Strfry/storage-maintenance.md) for native tooling, backups, and cleanup boundaries.
 
 ## Safety Checklist
 

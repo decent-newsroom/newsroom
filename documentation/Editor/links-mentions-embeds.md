@@ -83,7 +83,7 @@ No changes needed for rendering. The existing `Converter::processNostrLinks()` a
 
 ## References
 
-- [NIP-19](../documentation/NIP/19.md) — bech32-encoded entities (npub, note, nprofile, nevent, naddr)
-- [NIP-21](../documentation/NIP/21.md) — `nostr:` URI scheme
-- [NIP-27](../documentation/NIP/27.md) — Text note references (mentions in content)
+- [NIP-19](../NIP/19.md) — bech32-encoded entities (npub, note, nprofile, nevent, naddr)
+- [NIP-21](../NIP/21.md) — `nostr:` URI scheme
+- [NIP-27](../NIP/27.md) — Text note references (mentions in content)
 

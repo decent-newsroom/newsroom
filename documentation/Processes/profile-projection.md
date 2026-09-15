@@ -12,7 +12,7 @@ Async profile aggregation for Nostr users: **local relay ingestion → raw event
 | Profile projection | `src/Entity/User.php` | Materialized view of user profile |
 | Async handler | `src/MessageHandler/UpdateProfileProjectionHandler.php` | Processes projection updates |
 | Batch handler | `src/MessageHandler/BatchUpdateProfileProjectionHandler.php` | Batch profile updates |
-| Refresh worker | `src/Command/ProfileRefreshWorkerCommand.php` | Periodic refresh for all users |
+| Refresh worker | `src/Command/ProfileRefreshWorkerCommand.php` | Periodic refresh for stale profiles |
 | Ingestion service | `src/Service/ProfileEventIngestionService.php` | Parses kind 0 events into User entities |
 
 ## Profile Facets
@@ -26,7 +26,7 @@ Async profile aggregation for Nostr users: **local relay ingestion → raw event
 
 **Login**: User authenticates → `UpdateProfileProjectionMessage` dispatched async → profile populated from Redis cache/DB/network. User sees the app immediately; profile fills in asynchronously.
 
-**Background refresh**: `ProfileRefreshWorkerCommand` runs in the consolidated worker, batching profile updates to avoid relay overload. Coalesces updates during ingestion bursts.
+**Background refresh**: `ProfileRefreshWorkerCommand` runs in the dedicated worker-profiles service, batching profile updates to avoid relay overload. Coalesces updates during ingestion bursts.
 
 **Metadata sync**: `UserMetadataSyncListener` triggers on profile changes, ensuring the User entity stays current with the latest kind 0 event.
 

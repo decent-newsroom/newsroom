@@ -1,70 +1,54 @@
 # Relay Pool Management
 
-## Overview
+Relay selection is host-owned: the configured registry supplies purpose-based defaults, while user relay lists and followed authors' relays augment user-scoped reads. The transport layer uses the extracted Nostr client and optional relay gateway packages.
 
-The relay pool is a two-tier, health-aware, user-context-aware relay infrastructure.
+## Registry and URL handling
 
-**Tier 1 (Base):** Local strfry relay serves all anonymous/read-only traffic. Subscription workers operate here.
+`src/Service/Nostr/RelayRegistry.php` is the source of configured relay URLs. Parameters in `config/services.yaml` distinguish local, project, profile, content, signer, and chat purposes. `RelayUrlNormalizer` centralizes URL normalization.
 
-**Tier 2 (User):** When a user logs in, the pool activates their NIP-65 relay list (kind 10002) for personalized reading and publishing.
+LOCAL and PROJECT identify the same default relay through different network paths. LOCAL is the internal Docker URL (`NOSTR_DEFAULT_RELAY`, normally `ws://strfry:7777`); PROJECT is the public browser-facing URL. Server requests avoid querying both aliases. Display APIs preserve public URLs so internal hostnames do not leak into editor/settings data.
 
-## Components
+## User relay-list resolution
 
-### RelayRegistry (`src/Service/Nostr/RelayRegistry.php`)
+`src/Service/Nostr/UserRelayListService.php` resolves NIP-65 lists in this order:
 
-Single source of truth for all relay URLs. Replaces four previously scattered hardcoded constants. Configured via `services.yaml` parameters:
+1. Hot PSR-6/Redis cache, with a one-hour TTL.
+2. Durable `UserRelayList` projection in PostgreSQL.
+3. Blocking network fetch from profile relays when both stores miss.
+4. Registry fallback relays.
 
-| Purpose | Example Relays |
-|---------|---------------|
-| `LOCAL` | `ws://strfry:7777` (from `NOSTR_DEFAULT_RELAY` env) |
-| `PROFILE` | `wss://purplepag.es`, `wss://relay.primal.net`, `wss://relay.damus.io` |
-| `CONTENT` | `wss://theforest.nostr1.com`, `wss://relay.damus.io`, `wss://nos.lol` |
-| `PROJECT` | `wss://relay.decentnewsroom.com` |
-| `SIGNER` | `wss://relay.nsec.app`, `wss://relay.decentnewsroom.com` |
-| `USER` | Dynamic per-user (NIP-65 relay lists) |
+The durable projection stores pubkey, read/write relay arrays, the source event timestamp, and the update time. It is a dedicated entity, not a synthetic unsigned row in the raw `event` table. Real kind 10002 events can still be persisted separately by event ingestion. Network refresh upserts the projection; publishing a relay list can seed cache and DB through `seedFromPublishedRelayListEvent()`. Login warming uses `UpdateRelayListMessage`.
 
-LOCAL and PROJECT are the same physical relay accessed via different network paths: LOCAL is the internal Docker URL for server code, PROJECT is the public `wss://` URL for users.
+`NostrClient::getNpubRelays()` delegates to `UserProfileService::getRelays()`, which calls `UserRelayListService::getRelays()`. Use the latter service's purpose-specific APIs when choosing read/publish targets:
 
-### RelayHealthStore (`src/Service/Nostr/RelayHealthStore.php`)
+| API | Use |
+|---|---|
+| `getRelayList()` | Structured server-side list with local/project remapping |
+| `getRelayListForDisplay()` | Structured list with public URLs |
+| `getRelaysForUser()` / `getRelaysForFetching()` | User-scoped fetch selection |
+| `getRelaysForPublishing()` | Publish targets |
+| `getRelaysForEventLookupCacheOrDb()` | Interactive lookup without a blocking relay-list fetch; capped at eight by default |
 
-Redis-backed per-relay health tracking: success/failure counts, latency, AUTH status. Shared across PHP workers. Powers health-based relay ranking and the admin dashboard.
+Content selection orders local relay, the user's own relays, the follows relay pool, and registry defaults, deduplicating across layers. The follows pool contains followed authors' write relays, is keyed to the current kind 3 event, and is cached for 30 days. It augments CONTENT selection only and never mutates global registry defaults. The general user relay selection API does not truncate the user's relay list.
 
-### UserRelayListService (`src/Service/Nostr/UserRelayListService.php`)
+## Transport and health
 
-Stale-while-revalidate resolution for user relay lists:
-1. Redis cache (fastest)
-2. Database (durable stale copy)
-3. Network fetch from known relays
-4. Fallback to content relays
+`NostrRelayPool` executes host relay/query contracts using the client factory from `nostr-client-bundle`. URL selection belongs to `RelayRegistry` and `RelaySetFactory`; callers should not recover the registry or health store through transport internals.
 
-On successful network fetch, persists the kind 10002 event to the database for durability. Relay list warming is triggered async on login via `UpdateRelayListMessage`.
+`RelayHealthStore` shares failure counts, success timestamps, latency and AUTH status through Redis. Ranking considers failures, recent success, and latency. Configured relays retain health data for seven days; ad hoc relays for one day. Key discovery uses SCAN. Muted relays score zero; repeated failures can auto-mute a relay.
 
-### Relay Gateway (`packages/relay-gateway-bundle/src/Command/RelayGatewayCommand.php`)
+`RelaySetFactory` combines configured and user relays and applies operation-specific health-aware selection. See [Relay Discovery](../Nostr/relay-discovery.md) for NIP-11 metadata and trusted NIP-66 observations.
 
-Optional persistent WebSocket connection pool. Feature-flagged via `RELAY_GATEWAY_ENABLED` and backed by `nostr-client-bundle`.
+## Gateway and direct requests
 
-- Shared anonymous connections: opened on demand, idle-pruned quickly, and only prewarmed when `--prewarm-shared-relays` is explicitly set
-- User-keyed connections: warmed and closed via Redis Stream control messages
-- Query execution: multi-filter and multi-kind reads are decomposed into sequential single-filter subscriptions over the same relay connection, then deduplicated for the caller
-- NIP-42 AUTH: user-keyed sockets sign through IdentityBundle NIP-46 first, then the existing browser Mercure SSE roundtrip; anonymous shared sockets decline AUTH challenges
-- Communication: FrankenPHP workers <-> gateway via Redis Streams
-- `NostrRelayPool` routes external reads through the gateway when enabled; its generic publish path still uses direct connections
+The optional gateway command is supplied by the Composer package `decent-newsroom/relay-gateway-bundle`. With the gateway enabled, the pool routes external reads through Redis stream requests to persistent connections; generic publishing still uses direct connections.
 
-### RelaySetFactory (`src/Service/Nostr/RelaySetFactory.php`)
+Gateway connections are opened on demand. Shared anonymous connections decline AUTH; user-keyed connections can sign through the signing integration or browser Mercure roundtrip. Queries decompose multi-filter/multi-kind requests into sequential subscriptions and deduplicate returned events. AUTH challenges belong to the individual connection and cannot be cached for another socket.
 
-Builds relay sets for specific operations, combining registry relays with user relays, ranked by health score.
+See [Relay Gateway Service](../Nostr/relay-gateway-service.md), [Direct Relay AUTH](../Nostr/user-scoped-direct-relay-auth.md), [Filter Statistics](../Nostr/relay-filter-stats.md), and [User Activity Log](../Nostr/user-relay-activity-log.md).
 
-## Admin Dashboard
+## Operations and future work
 
-Route: `/admin/relay`
+The admin relay dashboard at `/admin/relay` exposes relay health, worker heartbeats and gateway status. Admin reads use the pool's typed request API.
 
-Shows pool status, per-relay health scores, AUTH status, latency, last success/failure times, subscription worker heartbeats, and gateway status.
-
-## Lessons Learned
-
-- **AUTH is per-connection**: NIP-42 AUTH challenges cannot be cached/replayed. The gateway authenticates user-keyed connections once and holds them open; anonymous shared connections now decline AUTH rather than spending throwaway identities.
-- **Publishing direct, reading via gateway**: Gateway timeouts were too problematic for publishes (TLS+AUTH could exceed execution limits). Publishes go direct to each relay independently.
-- **Sequential REQs beat multifilter REQs**: many relays struggle with complex multi-filter requests, so the gateway sends one decomposed filter/kind at a time on an already-open relay connection.
-- **Tag filter passthrough**: `#e`, `#p`, `#t`, `#d`, `#a` tag filters were previously silently dropped in gateway routing, causing unfiltered results. Fixed in the gateway command and `NostrRequestExecutor::buildFilterFromArray`.
-- **URL normalization**: Trailing slash differences between config and user relay lists caused shared connection lookup misses; relay URL normalization now happens at the registry/adapter boundary.
-- **Stream initialization**: `xRead('$')` on Redis streams caused the gateway to never consume messages. Fixed via `xRevRange` for robust initialization.
+Further design ideas are retained in [Relay Infrastructure Proposals](../Nostr/relay-improvements.md). Historical review checklists, obsolete helper methods and unmeasured before/after latency tables have been replaced by this current reference.

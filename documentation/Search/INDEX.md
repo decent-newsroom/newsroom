@@ -7,7 +7,6 @@ Current search code should use `ContentSearchService` as the application-facing 
 | Document | Purpose |
 |---|---|
 | [Content Search API](content-search-api.md) | Living reference for `ContentSearchService`. |
-| [Quick Reference](QUICK_REFERENCE.md) | Short usage snippets. |
 | [Advanced Search](../Reader/advanced-search.md) | Filter object and advanced article search notes. |
 | [Elasticsearch](../Elasticsearch/elasticsearch.md) | Optional Elasticsearch backend setup. |
 

@@ -15,9 +15,8 @@ Let's bring back high-value professional journalism and collaborative publishing
 
 ## Documentation
 
-- **[Public Docs Index](docs-public/INDEX.md)** - Reader/writer-facing guides and architecture overviews
+- **[Documentation Index](documentation/INDEX.md)** - Reader/writer guides, architecture, and feature documentation
 - **[Setup and Ops Docs Index](docs/INDEX.md)** - Dockerized setup, deployment, and troubleshooting
-- **[Project / Feature Docs Index](documentation/INDEX.md)** - Internal feature and implementation docs
 
 
 ## Constituent parts
@@ -139,4 +138,4 @@ The project includes a private read-only Nostr relay (powered by strfry) that ac
 
 ## Documentation Notes
 
-Use `docs-public/` for public guides, `docs/` for setup and operations, and `documentation/` for project/feature implementation docs.
+Use `documentation/` for guides and feature documentation, and `docs/` for setup and operations. Start with [the documentation index](documentation/INDEX.md) and keep one canonical page per feature.

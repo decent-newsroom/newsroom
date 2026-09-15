@@ -1,118 +1,50 @@
 # Home Feed for Logged-In Users
 
-## Overview
+Signed-in users see a personalized feed at `/`; anonymous users see the public
+landing page.
 
-When a user is logged in, the homepage (`/`) shows a tabbed article feed instead of the static landing page. Anonymous users still see the landing page as before.
+| Tab | Source |
+|---|---|
+| Articles (default) | Discussed articles, followed authors, and interest topics merged by coordinate |
+| Follow Pack | The user's featured kind `39089` follow pack |
+| Activity | Highlights (kind `9802`) and long-form comments (kind `1111`) from followed users |
+| Updates | The user's `UpdateSubscription` sources, without marking updates read |
 
-## Tabs
+The Articles feed preserves source labels and comment counts, sorts newest-first,
+and limits the merged result to 60. It applies configured exclusions and the
+user's mute list. Follow lists are read from the latest local kind `3` event,
+with `UserProfileService::getFollows()` backfill when absent. Interest articles
+use the selected search implementation.
 
-| Tab | Source | Description |
-|-----|--------|-------------|
-| **For you** | Discussed + Follows + Interests (merged) | Combined, deduplicated feed from articles with comments, followed authors, and interest topics. Each item is tagged with its source(s). Default tab for logged-in users. |
-| **Follow Pack** | User's featured follow pack (kind 39089, `User::followPackCoordinate`) | Articles from the pubkeys in the user's own featured follow pack. If no follow pack is configured, a notice is shown at the top with a link to the follow pack setup page. |
-| **Activity** | Follows (kind 9802 highlights + kind 1111 comments) | Highlights and long-form article comments produced by the pubkeys the user follows, merged and sorted newest first. If the user has no follows, an empty-state message is shown. |
-| **Updates** | `update` table (user's `UpdateSubscription` records) | New articles and publications from the sources the user has subscribed to — same data as `/updates`, without marking items as read. If the user has no subscriptions, a notice links to the subscriptions management page and explains the Subscribe button on profile pages. |
-| **Media** | Follows + Interests media events (kinds 20, 21, 22) | Non-NSFW media from followed authors and interest hashtags, merged and deduplicated, displayed in a masonry grid. |
-| **Podcasts** | Follow pack (kind 39089) | Articles from npubs in the admin-configured podcast follow pack. |
-| **News Bots** | Follow pack (kind 39089) | Articles from npubs in the admin-configured news bot follow pack. |
+A missing featured pack shows a setup notice. Activity has an empty state for
+readers without follows; Updates links to subscription management when there are
+no subscribed sources.
 
-### Articles Feed Details
+## Routes and rendering
 
-The "For you" tab merges three article sources into one deduplicated, time-sorted list:
+- `DefaultController::index()` selects `home_authenticated.html.twig`.
+- `HomeFeedController::tab()` returns Turbo Frame content for `articles`,
+  `foryou` (the same Articles feed), `featuredpack`, `activityfeed`, and
+  `updatesfeed` at `/home/tab/{tab}`.
+- `content--home-tabs` switches tabs and updates `home-tab-content`.
+- The initial Articles frame loads lazily and uses the
+  [browser article-list cache](pwa-article-list-caching.md).
 
-1. **Discussed** — articles that have comments (kind 1111), fetched via `findArticlesWithComments()`. Comment counts are preserved and displayed on cards.
-2. **Follows** — articles from pubkeys the user follows (kind 3 follow list), fetched via `findLatestByPubkeys()`.
-3. **Interests** — articles matching the user's interest tags (kind 10015), fetched via `findByTopics()`.
+The former Latest, Follows, Interests, Discussed, and Media tab names still
+appear in the route requirement, but their dispatch branches are commented out.
+They are not working compatibility endpoints and must not be linked or
+prefetched. Podcasts and News Bots are not current home tabs.
 
-Articles are deduplicated by coordinate (`pubkey:slug`). If an article appears in multiple sources, it receives multiple source badges. The merged list is sorted by `createdAt` descending and limited to 60 items.
+## Related features and files
 
-Source badges are displayed between the cover image and the title as uppercase labels: **Discussed**, **Follows**, **Interests**.
+Follow-pack source administration is documented in
+[follow pack setup](../Newsroom/follow-pack-setup.md); its platform source
+assignments are separate from the user's featured pack. The standalone
+[Following page](follows-feature-implementation.md) remains available.
 
-### Media Feed Details
-
-The "Media" tab merges media events from two personalized sources:
-
-1. **Follows** — media events from pubkeys the user follows (kind 3 follow list), fetched via `findNonNSFWMediaEventsByPubkeys()`.
-2. **Interests** — media events matching the user's interest hashtags (kind 10015), fetched via `findMediaEventsByHashtags()` with NSFW filtering.
-
-Supported media kinds:
-- **NIP-68** picture events (kind 20)
-- **NIP-71** video events (kinds 21, 22, 34235, 34236)
-
-Events are deduplicated by event ID, sorted by `created_at` descending, and limited to 42 items. Both admin-muted and user-muted pubkeys are excluded. Rendered using the shared `partial/_masonry.html.twig` template.
-
-### Previous Tabs (archived)
-
-The following tabs were previously shown individually but are now combined into "Articles":
-- **Latest** — removed from the logged-in home page
-- **Discussed** — merged into Articles
-- **Follows** — merged into Articles
-- **Interests** — merged into Articles
-
-The individual tab routes (`/home/tab/latest`, `/home/tab/discussed`, `/home/tab/follows`, `/home/tab/interests`) still work for backward compatibility.
-
-## Architecture
-
-### Routing
-
-- `GET /` — renders `home.html.twig` (anonymous) or `home_authenticated.html.twig` (logged in)
-- `GET /home/tab/{tab}` — returns a `<turbo-frame>` partial for the given tab (`articles`, `featuredpack`, `activityfeed`, `updatesfeed`, `media`, `podcasts`, `newsbots`, plus legacy: `latest`, `follows`, `interests`, `discussed`, `foryou`)
-
-### Controllers
-
-- **`DefaultController::index()`** — detects login state and renders the appropriate template.
-- **`HomeFeedController::tab()`** — dispatches to per-tab methods and returns Turbo Frame partials.
-
-### Follow Pack System
-
-Follow packs are Nostr events of kind **39089**. Each event has `p` tags listing member npubs and a `d` tag for identification.
-
-The **`FollowPackSource`** entity maps a purpose (`podcasts` or `news_bots`) to a specific follow pack event coordinate (format: `kind:pubkey:d-tag`).
-
-The **`FollowPackService`** resolves the coordinate to an `Event` entity in the database, extracts the `p` tags, and fetches articles from those pubkeys.
-
-### Admin Interface
-
-Route: `/admin/follow-packs`
-
-The admin interface allows:
-1. Viewing all kind 39089 events in the database
-2. Assigning a follow pack coordinate to the Podcasts or News Bots purpose
-3. Removing a source assignment
-
-### Frontend
-
-The tabbed interface uses a **Stimulus controller** (`content--home-tabs`) that:
-1. Intercepts tab link clicks
-2. Updates the active tab visual state immediately
-3. Fetches the tab content via `fetch()` with Turbo Frame headers
-4. Injects the response HTML into the `<turbo-frame id="home-tab-content">` element
-
-The initial tab (Articles) is loaded via Turbo Frame's `lazy` loading attribute.
-
-### CSS
-
-Styles are in `assets/styles/04-pages/home-feed.css`. The tabs reuse the existing `.profile-tabs` and `.tab-link` CSS classes from the author profile. Source badges are styled in `assets/styles/03-components/source-badge.css`.
-
-## Database
-
-### New table: `follow_pack_source`
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | SERIAL | Primary key |
-| `purpose` | VARCHAR(50) | Unique. Enum value: `podcasts` or `news_bots` |
-| `coordinate` | VARCHAR(500) | Nostr event coordinate: `kind:pubkey:d-tag` |
-| `created_at` | TIMESTAMP | Creation timestamp |
-| `updated_at` | TIMESTAMP | Last update timestamp |
-
-Migration: `Version20260314120000`
-
-### New enum in KindsEnum
-
-`FOLLOW_PACK = 39089` — follow pack event kind.
-
-## Translation Keys
-
-All user-facing strings are under the `home_feed.*` namespace in `translations/messages.en.yaml`.
-
+- `templates/home_authenticated.html.twig` - tab shell
+- `templates/home/tabs/` - frame partials
+- `assets/controllers/content/home_tabs_controller.js` - navigation
+- `assets/styles/04-pages/home-feed.css` - feed layout
+- `assets/styles/03-components/source-badge.css` - article source labels
+- `translations/messages.*.yaml` - `home_feed.*` copy

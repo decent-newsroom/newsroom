@@ -33,7 +33,7 @@ Published articles with an event ID expose a delete action. The action opens an 
 
 1. Builds a kind `5` event with `e` and `a` tags.
 2. Requests a signature from the configured signer.
-3. Publishes the event through the user-context publish endpoint.
+3. Publishes the event through `POST /api/settings/event/publish`.
 4. Reports progress and failure through translated toast messages.
 
 The dialog explicitly notes that relays may retain copies.

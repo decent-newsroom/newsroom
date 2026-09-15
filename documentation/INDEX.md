@@ -1,126 +1,236 @@
-# Project Documentation Index
+# Documentation
 
-This folder contains **project / product / feature documentation**.
+Start here for reader, writer, and developer guides. Detailed feature documentation lives in the subject folders below.
 
+## Start here
 
-## Related Indexes
+- [Getting started](Guides/getting-started.md) — reading, signing in, writing, publishing, and common questions.
+- [Nostr publishing](Guides/nostr-cms.md) — identities, event kinds, revisions, relay publication, and deletion.
+- [Architecture](Guides/architecture.md) — application services, Composer packages, data flow, and workers.
+- [Development guide](Guides/development.md) — code layout, working conventions, and validation.
+- [Setup and operations](../docs/INDEX.md) — environment setup, deployment, and troubleshooting.
+- [Implementation task guides](../skills/README.md) — repeatable development workflows.
 
-- [Public Guides](../docs-public/INDEX.md) - Reader/writer/publisher-facing documentation
-- [Setup and Ops Docs](../docs/INDEX.md) - Environment setup, deployment, and troubleshooting
+## Package documentation
 
-For public-facing onboarding content, use `docs-public/`. For environment setup and operations, use `docs/`.
+Unfold is maintained locally in [packages/unfold-bundle](../packages/unfold-bundle/). Other reusable bundles are installed through Composer; their documentation lives with their source repositories, not in nonexistent host package directories. Versions and repository sources are recorded in [composer.lock](../composer.lock).
 
-## Package Documentation
+- [decent-newsroom/bookshelf-bundle](https://github.com/decent-newsroom/bookshelf-bundle)
+- [decent-newsroom/expression-bundle](https://github.com/decent-newsroom/expressions-bundle)
+- [decent-newsroom/identity-bundle](https://github.com/decent-newsroom/identity-bundle)
+- [decent-newsroom/nostr-client-bundle](https://github.com/decent-newsroom/nostr-client-bundle)
+- [decent-newsroom/nostr-kernel-bundle](https://github.com/decent-newsroom/nostr-kernel-bundle)
+- [decent-newsroom/relay-gateway-bundle](https://github.com/decent-newsroom/relay-gateway-bundle)
+- [decent-newsroom/signing-bundle](https://github.com/decent-newsroom/signing-bundle)
 
-Package-owned docs live with their Composer packages instead of this host documentation tree.
+## Feature reference
 
-- [BookshelfBundle](../packages/bookshelf-bundle/README.md) - reusable Mercury bookshelf and My Books directory bundle
-- [ExpressionBundle](../packages/expression-bundle/README.md) - NIP-EX/NIP-FX expression runner, spells, OpenAPI contract, and custom NIP drafts
-- [NostrClientBundle](../packages/nostr-client-bundle/README.md) - `innis/nostr-client` Symfony integration
-- [RelayGatewayBundle](../packages/relay-gateway-bundle/README.md) - Redis Stream relay gateway and pooled relay connections
-- [SigningBundle](../packages/signing-bundle/README.md) - NIP-46/NIP-42 signing orchestration and extraction notes
+Each page owns one feature or operational topic. Pages explicitly labeled as proposals describe future work; they are not deployment instructions.
 
-## Areas
+### Reading and discovery
 
-### Core Features
-- [Article Editor](Editor/editor.md) — IDE-style editor with Quill, advanced metadata, Nostr publishing
-- [Links, Mentions & Embeds](Editor/links-mentions-embeds.md) — NIP-19/NIP-27 references in articles
-- [Search](Newsroom/search.md) — Dual Elasticsearch/Database search with anonymous support
-- [Comments](Newsroom/comments.md) — Kind 1111 comment system with async relay fetch
-- [Highlights](Reader/highlights.md) — Kind 9802 highlight display and caching
-- [Reading Lists](Newsroom/reading-lists.md) — Curated article lists with workflow state machine
-- [Mercury Bookshelf](../packages/bookshelf-bundle/docs/mercury-bookshelf.md) — Remote NKBIP-01 book search and continuous chapter reader
-- [Bookshelf Local Relay and API Fallback](Reader/bookshelf-local-fallback.md) — refresh My Books from the local relay and retry book loading through /books/api
-- [Bookshelf Android App Links](Reader/bookshelf-android-app.md) — Zapstore/GitHub download section appended to the Bookshelf page
-- [Home Feed](Reader/home-feed-logged-in.md) — Tabbed feed for logged-in users (Latest, Follows, Interests, Podcasts, News Bots)
-- [Notifications Center](Notifications/notifications-center.md) — Design/schema note for per-user subscriptions and Mercure toasts
+- [Advanced Search](Reader/advanced-search.md)
+- [Article Actions Dropdown](Reader/article-actions-dropdown.md)
+- [Article engagement turbo frames](Reader/article-engagement-turbo-frames.md)
+- [ArticleFromCoordinate Component](Reader/article-from-coordinate.md)
+- [Article Not Found Search Integration](Reader/article-not-found-search-integration.md)
+- [Article Placeholder Implementation](Reader/article-placeholder.md)
+- [Article Preview Cards](Reader/article-preview-cards.md)
+- [Article revision hardening (v0.0.38)](Reader/article-revision-hardening.md)
+- [Async Event Fetching](Reader/async-event-fetch.md)
+- [Bookmarks Feature](Reader/bookmarks.md)
+- [Bookshelf Android App Links](Reader/bookshelf-android-app.md)
+- [Bookshelf Local Relay and API Fallback](Reader/bookshelf-local-fallback.md)
+- [Bot Traffic Detection & Analytics Differentiation](Reader/bot-detection.md)
+- [Chapter previews (kind 30041)](Reader/chapter-previews.md)
+- [Web Preview for NIP-22 Comment External References](Reader/comment-web-preview.md)
+- [Deferred Nostr Embeds](Reader/deferred-nostr-embeds.md)
+- [Discover Page](Reader/discover-page.md)
+- [Featured Unfold Sites](Reader/featured-unfold-sites.md)
+- [Follow Packs Page](Reader/follow-packs-page.md)
+- [Following Feed](Reader/follows-feature-implementation.md)
+- [Highlights](Reader/highlights.md)
+- [Home Feed for Logged-In Users](Reader/home-feed-logged-in.md)
+- [JSON-LD Structured Data Implementation](Reader/json-ld-structured-data.md)
+- [Magazine Wizard: Attach Existing Lists Feature](Reader/magazine-existing-list-attachment.md)
+- [Math / LaTeX Rendering](Reader/math-rendering.md)
+- [Nostr Address (naddr) Search Recognition](Reader/naddr-search.md)
+- [Profile Editorial Tab: Featured Collections](Reader/profile-editorial-featured-content.md)
+- [Publication Index Routing and Reading List Kinds](Reader/publication-index-routing-and-reading-list-kinds.md)
+- [Article List Browser Cache](Reader/pwa-article-list-caching.md)
+- [Quality of Life Improvements: Prev/Next Navigation & Back to Top](Reader/qol-prev-next-back-to-top.md)
+- [Reading Nook](Reader/reading-nook.md)
+- [Related Articles Suggestions](Reader/related-articles.md)
+- [Relay Feed](Reader/relay-feed.md)
+- [Single Event Page Details](Reader/single-event-page.md)
+- [Sitemap](Reader/sitemap.md)
+- [User Mute List Filtering (NIP-51 kind 10000)](Reader/user-mute-list-filtering.md)
 
-### Content & Publishing
-- [Discover Page](Reader/discover-page.md) — Latest articles with bot filtering
-- [Follows Feed](Reader/follows-feature-implementation.md) — Articles from followed npubs
-- [Magazine Wizard](Newsroom/magazine-wizard.md) — 4-step magazine creation flow
-- [Magazine Index Deletion](Admin/magazine-index-deletion.md) — Coordinate-scoped recursive removal of stale magazine indexes
-- [Magazine Manifest](Newsroom/magazine-manifest.md) — Machine-readable JSON API for magazines
-- [Magazine Existing Lists](Reader/magazine-existing-list-attachment.md) — Attach existing reading lists to magazines
-- [Kind 30040 Ingestion](Newsroom/kind-30040-ingestion.md) — Publication index event processing
-- [AsciiDoc Support](Editor/asciidoc-support.md) — AsciiDoc format for articles and kind 30041 chapters
-- [Article Broadcast](Newsroom/article-broadcast-feature.md) — Broadcast articles to additional relays
-- [Article Placeholder](Reader/article-placeholder.md) — Placeholder cards for unfetched articles
-- [Article Preview Cards](Reader/article-preview-cards.md) — Preview card rendering
-- [Article From Coordinate](Reader/article-from-coordinate.md) — Resolve articles by Nostr coordinate
-- [Article Not Found Search](Reader/article-not-found-search-integration.md) — Search integration for missing articles
-- [Slug Preservation](Editor/slug-preservation-on-publish.md) — Preserve article slugs on republish
-- [Extra Metadata (imeta)](Editor/extra-metadata-sources-imeta.md) — Source references and media attachment tags
+### Writing and editing
 
-### Profiles & Identity
-- [Author Profiles](Newsroom/author-profile.md) — Profile display, metadata sync, user persistence
-- [Profile Projection](Processes/profile-projection.md) — Async profile aggregation system
-- [NIP-05 Badge](Nostr/nip05-badge-component.md) — NIP-05 verification badge component
-- [Vanity Names](Business/vanity-names.md) — Custom NIP-05 names on the project domain
-- [Interests Editor](Newsroom/interests-editor.md) — Kind 10015 interests list editing
+- [AsciiDoc Support](Editor/asciidoc-support.md)
+- [Article Editor](Editor/editor.md)
+- [Extra Metadata for Articles: Sources and Media Attachments](Editor/extra-metadata-sources-imeta.md)
+- [Links, Mentions and Embeds in Articles](Editor/links-mentions-embeds.md)
+- [Math in the Quill Editor: Implementation Plan](Editor/math-editor-plan.md)
+- [Quill view font picker](Editor/quill-view-font-picker.md)
+- [Slug Preservation on Publish Feature](Editor/slug-preservation-on-publish.md)
+- [Post-Publish Note Suggestion](Editor/suggest-note-after-publish.md)
+- [Translation Helper](Editor/translation-helper.md)
+- [Writing Articles with Math](Editor/writing-math.md)
+
+### Publishing and profiles
+
+- [Active Indexing Service](Newsroom/active-indexing-service.md)
+- [Article Broadcast Feature](Newsroom/article-broadcast-feature.md)
+- [Author Profiles & User Metadata](Newsroom/author-profile.md)
+- [Automatic Role Promotion](Newsroom/automatic-role-promotion.md)
+- [Blog Journey — Creator Onboarding Wizard](Newsroom/blog-journey.md)
+- [Comments](Newsroom/comments.md)
+- [Contribution Widget](Newsroom/contribution-widget.md)
+- [Custom homepage](Newsroom/custom-homepage.md)
+- [Editorial Design System](Newsroom/editorial-design-system.md)
+- [Essayist Landing Page](Newsroom/essayist-landing-page.md)
+- [Featured Reading Lists in the Author Overview](Newsroom/featured-reading-lists-overview.md)
+- [User Roles: Featured Writers & Muted Users](Newsroom/featured-writers.md)
+- [Follow Pack Setup](Newsroom/follow-pack-setup.md)
+- [Hidden Magazines (Admin)](Newsroom/hidden-magazines.md)
+- [Interests Editor Feature](Newsroom/interests-editor.md)
+- [Kind 30040 Event Ingestion Setup](Newsroom/kind-30040-ingestion.md)
+- [Magazine front page loading behavior](Newsroom/magazine-front-page-loading.md)
+- [Magazine Manifest API](Newsroom/magazine-manifest.md)
+- [Magazine Wizard Upgrade](Newsroom/magazine-wizard.md)
+- [My Content Publishing Inventory](Newsroom/my-content-page.md)
+- [Navigation Layouts](Newsroom/navigation-layouts-implementation.md)
+- [NIP-70 Protected Articles](Newsroom/nip70-protected-articles.md)
+- [Publication chapter loading](Newsroom/publication-chapter-loading.md)
+- [Reading Lists](Newsroom/reading-lists.md)
+- [Search](Newsroom/search.md)
+- [User Settings Page](Newsroom/settings-page.md)
+- [Translations (i18n)](Newsroom/translations.md)
 
 ### Media
-- [Media Discovery](Media/media-discovery.md) — NIP-68/NIP-71 media events, media manager
 
-### Relay & Infrastructure
-- [Relay Setup](Strfry/relay-setup.md) — strfry configuration, Docker services, Makefile targets
-- [Relay Pool](Strfry/relay-pool.md) — Two-tier relay pool, health tracking, gateway
-- [Relay Admin](Strfry/relay-admin.md) — Admin dashboard for relay monitoring
-- [Redis Views](Redis/redis-views.md) — Redis view store pattern for fast page rendering
-- [Session Expiry Fallback](Redis/session-expiry-fallback.md) — Resilient Redis session handling
-- [Cron Processing](Cron/cron-processing.md) — Background job schedule and configuration
-- [Workers](Processes/workers.md) — Consolidated worker, event-driven processing
-- [Elasticsearch](Elasticsearch/elasticsearch.md) — Optional search backend (feature-flagged)
-- [Priority Queue](Processes/priority-queue-setup.md) — Messenger queue priority configuration
-
-### Subscriptions & Payments
-- [Publication Subdomains](Business/publication-subdomain.md) — Hosted magazine subdomains via Lightning payment
-- [Active Indexing](Newsroom/active-indexing-service.md) — On-demand indexing subscription
-- [Zaps](LN/zaps.md) — Lightning payments, zap splits
-- [Contribution Widget](Newsroom/contribution-widget.md) — Donation/support widget
+- [Media Discovery](Media/media-discovery.md)
 
 ### Essayist
-- [Essayist Zap Claims](Essayist/essayist-zap-claims.md) — Manual zap verification for private payments
-- [Essayist Setup Guide](Essayist/SETUP-ZAP-CLAIMS.md) — Deployment and usage guide for zap claims
 
-### Nostr Protocol
-- [NIP-46 Remote Signing](Nostr/nip46-remote-signing.md) — Bunker session persistence and relay configuration
-- [Signing Bundle Extraction](../packages/signing-bundle/docs/signing-bundle-extraction.md) — Recommendation for isolating signing from identity and relay gateway responsibilities
-- [Tabular Data (NIP-XX)](Nostr/NIP-tabular.md) — Kind 1450 CSV events
-- [getNpubRelays Optimization](Nostr/get-npub-relays-optimization.md) — Relay list resolution performance
-- [Expression Runner OpenAPI Spec](../packages/expression-bundle/docs/expression-runner-openapi.md) — OpenAPI contract for NIP-EX/NIP-FX/NIP-GX expression validation and evaluation
+- [Essayist zap claims](Essayist/essayist-zap-claims.md)
+- [Essayist](Essayist/essayist.md)
+- [Essayist-exclusive articles](Essayist/exclusive-articles.md)
+- [Essayist Membership Gateway](Essayist/gateway.md)
+- [Essayist home](Essayist/home.md)
+- [Essayist Member Relay Pool](Essayist/member-relay-pool.md)
 
-### UI & Navigation
-- [Editorial Design System](Newsroom/editorial-design-system.md) — Flat visual system, shared shell, navigation, and story-feed patterns
-- [My Content Page](Newsroom/my-content-page.md) — Unified content management view
-- [Navigation Layouts](Newsroom/navigation-layouts-implementation.md) — Current global, Reading Nook, and Newsroom sidebar architecture
-- [Reading Nook](Reader/reading-nook.md) — Unified personal reading workspace across owned collections
-- [QoL: Prev/Next & Back to Top](Reader/qol-prev-next-back-to-top.md) — Navigation improvements
-- [Custom Homepage](Newsroom/custom-homepage.md) — Homepage configuration
-- [Featured Writers](Newsroom/featured-writers.md) — Featured writers component
-- [JSON-LD Structured Data](Reader/json-ld-structured-data.md) — SEO metadata for articles and magazines
+### Subscriptions, payments, and analytics
 
-### Hosted Magazines
-- [Unfold](Unfold/unfold.md) — Subdomain rendering, theming, caching
-- [Unfold Setup And Local Settings](Unfold/site-creation-signing.md) — Shared local setup and persistent theme settings by immutable root coordinate
-- [Unfold Publication Administration](Unfold/publication-admin.md) — Owner overview and theme settings on subdomain and main-domain mounts
-
-### i18n
-- [Translations](Newsroom/translations.md) — Locale switching and YAML translation files
-
-### RSS
-- [RSS Feeds](RSS/rss-feeds.md) — RSS generation and RSS-to-Nostr import
-
-### Business
-- [Architecture Overview](Business/architecture-overview.md)
+- [Publishing services and access models](Business/architecture-overview.md)
+- [Footer and pricing](Business/footer-and-pricing.md)
+- [Payment Targets (NIP-A3 — kind 10133, `payto:` Tips)](Business/payment-targets.md)
+- [Publication Subdomain Subscriptions](Business/publication-subdomain.md)
+- [Vanity links (NIP-05)](Business/vanity-names.md)
 - [Visitor Analytics](Business/visitor-analytics.md)
 
-### Audience
-- [Audience](Audience/audience.md)
+### Lightning
 
-### Deployment
-- [Strfry Separation](Deployment/strfry-separation.md) — Running relay independently
+- [Zaps (Lightning Payments)](LN/zaps.md)
 
-### Reference (specs — do not modify)
-- `NIP/` — Nostr Implementation Possibilities (spec mirror)
-- `NKBIP/` — Nostr Key Binding Implementation Possibilities
+### Hosted publications
+
+- [Comments in UnfoldBundle](Unfold/comments.md)
+- [Unfold discovery documents](Unfold/discovery-documents.md)
+- [Local Development Unfold Sites](Unfold/local-development-sites.md)
+- [Unfold Publication Administration](Unfold/publication-admin.md)
+- [Unfold Setup And Local Settings](Unfold/site-creation-signing.md)
+- [Unfold (Hosted Magazines)](Unfold/unfold.md)
+
+### APIs
+
+- [Books API](API/books-api.md)
+
+### MCP
+
+- [MCP server (articles and books)](MCP/mcp-server.md)
+
+### Search
+
+- [Search Documentation](Search/INDEX.md)
+- [Content Search API](Search/content-search-api.md)
+
+### Elasticsearch
+
+- [Elasticsearch](Elasticsearch/elasticsearch.md)
+
+### Nostr integration
+
+- [NIP-XX — Tabular Data (CSV)](Nostr/NIP-tabular.md)
+- [Fetch Optimization](Nostr/fetch-optimization-implementation.md)
+- [Candidate Nostr Event Kinds](Nostr/missing-kinds-review.md)
+- [NIP-09: Event Deletion Requests](Nostr/nip-09-deletion.md)
+- [NIP-05 Badge Component](Nostr/nip05-badge-component.md)
+- [NIP-46 Remote Signing](Nostr/nip46-remote-signing.md)
+- [NIP-11 & NIP-66 Relay Discovery](Nostr/relay-discovery.md)
+- [Relay filter stats](Nostr/relay-filter-stats.md)
+- [Relay Gateway Service](Nostr/relay-gateway-service.md)
+- [Relay Infrastructure Proposals](Nostr/relay-improvements.md)
+- [Relay Pool Lazy Loading](Nostr/relay-pool-lazy-loading.md)
+- [Replaceable Event Cleanup](Nostr/replaceable-event-cleanup.md)
+- [User-Visible Relay Activity Log](Nostr/user-relay-activity-log.md)
+- [User-Scoped Direct Relay AUTH](Nostr/user-scoped-direct-relay-auth.md)
+
+### Publication graph
+
+- [Graph Layer](Graph/graph-layer.md)
+
+### Workers and background processing
+
+- [Profile Projection System](Processes/profile-projection.md)
+- [Workers and Messenger Queues](Processes/workers.md)
+
+### Scheduled jobs
+
+- [Cron Processing](Cron/cron-processing.md)
+
+### Redis
+
+- [Redis View Store](Redis/redis-views.md)
+- [Relay Selection When a Session Expires](Redis/session-expiry-fallback.md)
+
+### Relay operations
+
+- [Backfilling articles from the local relay](Strfry/article-backfill.md)
+- [Relay Administration](Strfry/relay-admin.md)
+- [Relay Pool Management](Strfry/relay-pool.md)
+- [Strfry Relay Setup](Strfry/relay-setup.md)
+- [Strfry Storage Maintenance](Strfry/storage-maintenance.md)
+
+### Administration
+
+- [Bulk Event Deletion](Admin/deletion-optimization.md)
+- [Production Deployment Validation](Admin/deployment-validation.md)
+- [Docker Development Reference](Admin/docker-quick-reference.md)
+- [Magazine Index Deletion](Admin/magazine-index-deletion.md)
+- [Mercure Administration](Admin/mercure-admin.md)
+
+### Runtime and deployment
+
+- [Runtime Resource Configuration](Deployment/runtime-tuning.md)
+
+### Notification proposal
+
+- [Notification subscriptions: retained schema and proposal](Notifications/notifications-center.md)
+
+### RSS
+
+- [RSS Feeds](RSS/rss-feeds.md)
+
+## Protocol references
+
+- [Nostr Implementation Possibilities](NIP/README.md) — local protocol mirror.
+- [Nostr Key Binding Implementation Possibilities](NKBIP/) — Markdown and AsciiDoc reference sources.
+
+Protocol mirrors are separate from application feature documentation; a protocol reference does not imply that every feature is implemented.
+
+## Maintaining these docs
+
+Keep guides and feature docs in this tree, with one canonical page per feature. Update existing pages when behavior changes and merge useful details before removing superseded plans or completion reports. Keep independent future proposals clearly labeled. Update this index and incoming links when moving a page; Git history retains removed material. Setup documentation remains in `docs/` and package-owned documentation stays with its package.

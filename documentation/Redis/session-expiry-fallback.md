@@ -1,124 +1,21 @@
-# Session Expiry Fallback Implementation
+# Relay Selection When a Session Expires
 
-## Overview
-Added fallback mechanisms to handle cases where a user's session expires while editing or broadcasting an article. When the session expires, the system now extracts the user's public key from the event or article data and retrieves relays accordingly.
+The editor can recover publish relay targets from the signed event's author when the Symfony session is absent. This is relay selection fallback; it does not renew the session or remove signing and event-validation requirements.
 
-## Problem
-When a user's session expires during article editing, the `getUser()` method returns `null`, which previously caused the system to fail when trying to retrieve the user's relays for publishing articles to Nostr relays.
+## Editor publishing
 
-## Solution
+`src/Controller/Editor/EditorController.php` first uses the logged-in user's stored relays when available. Without a session, it reads the signed event's hex pubkey, looks up the User by npub, and tries the stored relay list. It can fall back to `UserRelayListService::getRelaysForPublishing()` and configured fallback relays.
 
-### 1. EditorController - Article Publishing Fallback
+## Article broadcasting
 
-**Location:** `src/Controller/Editor/EditorController.php` (lines ~342-395)
+`src/Controller/Api/ArticleBroadcastController.php` behaves differently. If a broadcast request omits relay targets, the controller requires a logged-in user and returns 401 when no user exists. It does not automatically select the article author's relays after session expiry. Requests with explicit relay targets follow the broadcast endpoint's validation and routing rules.
 
-**Changes:**
-- Added fallback logic to extract pubkey from the signed event when `getUser()` returns null
-- When session expires:
-  1. Extract `pubkey` from the signed event
-  2. Convert hex pubkey to npub format
-  3. Look up the User entity in the database by npub
-  4. Retrieve stored relays from User entity if available
-  5. Fall back to `UserRelayListService::getRelaysForPublishing()` if no stored relays
-  6. Use fallback relays as last resort
+Both paths use [Relay Pool Management](../Strfry/relay-pool.md) for relay resolution. Public project URLs are remapped/deduplicated for server-side requests; internal relay URLs must not be displayed to browsers.
 
-**Benefits:**
-- Users can continue publishing articles even if their session expires
-- No data loss during long editing sessions
-- Seamless publishing experience without forcing re-login
+## Verification
 
-**Code Flow:**
-```php
-if ($user) {
-    // Normal flow - use logged-in user's relays
-} elseif ($eventPubkeyHex) {
-    // Session expired - get relays from event's pubkey
-    // 1. Convert pubkey to npub
-    // 2. Find User entity in database
-    // 3. Get relays from User entity or UserRelayListService
-} else {
-    // Last resort - use fallback relays
-}
-```
+For editor changes, exercise publishing with and without a session, with missing stored relays, and with relay lookup failures. For broadcast changes, check that an empty relay list without a session returns the authentication error and that explicit targets receive the expected validation.
 
-### 2. ArticleBroadcastController - Broadcast Fallback
+## Future ideas
 
-**Location:** `src/Controller/Api/ArticleBroadcastController.php` (lines ~44-92)
-
-**Changes:**
-- Reorganized code to fetch article first (before checking user session)
-- Added fallback to use article author's relays when session expires
-- Removed the hard authentication requirement (401 error) when user is not logged in
-
-**Benefits:**
-- Article broadcasts can continue even after session expiry
-- Uses the article author's relays (the most relevant relays for the content)
-- More resilient broadcasting system
-
-**Code Flow:**
-```php
-if (empty($relays)) {
-    if ($user) {
-        // Use logged-in user's relays
-    } else {
-        // Session expired - use article author's relays
-        relays = getRelaysForPublishing($article->getPubkey())
-    }
-}
-```
-
-## Technical Details
-
-### Dependencies
-- `NostrKeyService` - For pubkey conversion (hex to bech32) via Innis core/nostriphant
-- `UserEntityRepository` - For looking up User entities by npub
-- `UserRelayListService` - For stale-while-revalidate relay resolution from cache, DB, network, and fallback relays
-
-### Error Handling
-- All relay fetching operations are wrapped in try-catch blocks
-- Errors are logged with appropriate context
-- Falls back to default relays if any error occurs
-- No user-facing errors when fallbacks succeed
-
-### Logging
-Added detailed logging to track fallback behavior:
-- When session expires and fallback is used
-- When relays are retrieved from event pubkey
-- When fallback relays are used as last resort
-
-## Testing Considerations
-
-### Manual Testing
-1. **Session Expiry During Editing:**
-   - Open article editor
-   - Edit article for extended period (let session expire)
-   - Attempt to publish
-   - Verify successful publication with appropriate relays
-
-2. **Session Expiry During Broadcast:**
-   - Load article broadcast interface
-   - Let session expire
-   - Attempt to broadcast article
-   - Verify broadcast succeeds using article author's relays
-
-### Edge Cases Handled
-- Session expires mid-edit
-- No stored relays in User entity
-- Event missing pubkey field
-- Article author has no relays configured
-- Network errors during relay fetching
-
-## Related Files
-- `src/Controller/Editor/EditorController.php`
-- `src/Controller/Api/ArticleBroadcastController.php`
-- `src/Service/Nostr/UserRelayListService.php`
-- `src/Repository/UserEntityRepository.php`
-
-## Future Improvements
-- Consider implementing token refresh to maintain longer sessions
-- Add frontend notification when session is about to expire
-- Cache relay data in browser localStorage as additional fallback
-- Implement automatic session renewal during active editing
-
-## Date
-February 11, 2026
+Session-expiry warnings, renewal during active editing, and browser-side relay caching remain potential improvements. They require a separate design and should not be described as existing behavior.

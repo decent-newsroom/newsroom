@@ -59,3 +59,27 @@ The graph layer reduces reliance on relay round-trips for magazine and publicati
 - It does not index every possible Nostr tag relationship.
 - It does not remove the need for relay sync.
 - It does not currently require Apache AGE.
+
+## Coordinate and version rules
+
+`RecordIdentityService` derives `kind:pubkey:d_tag` coordinates and `coord:<coordinate>` record identifiers. Addressable events with a missing or empty `d` tag use an empty string; non-addressable events keep a null `d_tag`.
+
+`ReferenceParserService` classifies structural `a` references for publication and curation indexes. `CurrentVersionResolver` atomically selects the newer event; equal timestamps use the lexicographically lower event ID.
+
+`GraphLookupService::resolveChildren()` can repair missing current records from the article table when structural references exist but the main join finds no children. `fetchEventRows()` also falls back to article raw-event data. Backfilling current records covers both event and article tables.
+
+## Repair and audit
+
+The schema originated in migrations `Version20260315140000` and `Version20260315140001`. Use normal Doctrine migrations, then backfill references and current records for existing data.
+
+~~~bash
+docker compose exec php bin/console dn:graph:audit
+docker compose exec php bin/console dn:graph:audit --limit=100
+docker compose exec php bin/console dn:graph:rebuild-record "30040:<pubkey>:<slug>" --dry-run
+~~~
+
+The audit checks current versions, reference completeness, and orphan records. `--fix-versions`, `--fix-references`, or `--fix` enable repairs. The scheduled audit runs daily at 03:00 with `--fix` in [the crontab](../../docker/cron/crontab).
+
+A record rebuild accepts `--cascade` to include structural children. The two backfill commands accept `--truncate` to clear and rebuild their derived tables; use this deliberately rather than as routine startup work.
+
+Unfold accesses host graph data through its publication-tree adapter contracts. See [Unfold](../Unfold/unfold.md) for the package boundary. Older phase notes and the proposed Apache AGE rollout are superseded by this relational implementation.

@@ -28,7 +28,7 @@ The Nostr Connect URI requests `sign_event:27235`, `sign_event:22242`, and `get_
 | Amber connect | `assets/controllers/nostr/amber_connect_controller.js` |
 | Login controller | `assets/controllers/utility/login_controller.js` |
 | Authenticator | `src/Security/NostrAuthenticator.php` |
-| Signing bundle | `packages/signing-bundle/` |
+| Signing bundle | Composer package `decent-newsroom/signing-bundle` |
 
 ## Relay Configuration
 

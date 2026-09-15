@@ -38,9 +38,9 @@ RedisBaseObject
 
 | Key | Contents | TTL |
 |-----|----------|-----|
-| `view:articles:latest` | Array of article base objects | 1 hour |
-| `view:highlights:latest` | Array of highlight base objects | 1 hour |
-| `view:user:articles:<pubkey>` | Array of user's article base objects | 1 hour |
+| `view:articles:latest` | Array of article base objects | 20 minutes |
+| `view:highlights:latest` | Array of highlight base objects | 40 minutes |
+| `view:user:articles:<pubkey>` | Array of user's article base objects | 20 minutes |
 
 ### Storage & Retrieval
 
@@ -57,5 +57,5 @@ DTOs were redesigned so property names match exactly what Twig templates expect 
 
 - **`stdClass` from Redis**: `RedisCacheService::getMetadata()` returns `stdClass`, not arrays. `RedisViewFactory::profileToView()` accepts `array|\stdClass|null` and converts internally.
 - **Array fields**: `nip05` and `lud16` are stored as arrays in `RedisCacheService` (to handle multiple values from tags). The factory extracts the first element: `is_array($value) ? ($value[0] ?? null) : $value`.
-- **Profile cache invalidation**: Views have a TTL-based expiry rather than event-driven invalidation, since profiles change infrequently.
+- **Profile tabs**: Stale after 10 minutes, hard expiry after one day; empty results expire after two minutes. Publishing invalidates user article and profile-tab caches and dispatches revalidation. See RedisViewStore for explicit invalidation APIs.
 

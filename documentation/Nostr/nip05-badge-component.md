@@ -193,5 +193,5 @@ Check application logs for specific error messages:
 ## Related Documentation
 
 - [NIP-05 Specification](https://github.com/nostr-protocol/nips/blob/master/05.md)
-- [Test Definitions](../../../tests/NIPs/NIP-05.feature)
+- [Test Definitions](../../tests/NIPs/NIP-05.feature)
 

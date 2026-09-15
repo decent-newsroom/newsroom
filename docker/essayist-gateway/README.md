@@ -1,7 +1,7 @@
 # essayist-gateway
 
 NIP-42 AUTH-enforcing WebSocket proxy in front of the members-only
-`strfry-essayist` relay. See [`documentation/essayist-gateway.md`](../../documentation/essayist-gateway.md)
+`strfry-essayist` relay. See [`documentation/Essayist/gateway.md`](../../documentation/Essayist/gateway.md)
 for the full design.
 
 ## Layout

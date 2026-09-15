@@ -60,12 +60,11 @@ Kind 10003 events were not being deduplicated in the bookmarks display. If a use
 
 #### Frontend
 
-Bookmark toggling is handled by the consolidated `ArticleActionsDropdown` component.
-See [article-actions-dropdown.md](article-actions-dropdown.md) for full frontend details.
-
-The `ui--article-actions-dropdown` Stimulus controller (`assets/controllers/ui/article_actions_dropdown_controller.js`)
-fetches the user's current bookmarks on connect, renders a filled/unfilled bookmark icon in the dropdown,
-and on toggle builds a new kind 10003 event with the article's `a` tag added/removed, signs, and publishes.
+Bookmark toggling is handled by `ui--card-bookmark` on article cards and in
+the `ArticleSocialActions` component. Both use the shared IndexedDB snapshot
+and signed publish flow described below. The secondary
+[article actions dropdown](article-actions-dropdown.md) handles Nostr identifiers
+and broadcasting.
 
 The bookmarks page uses `ui--bookmark-list` for removal. It preserves the
 current list's non-target tags and content, removes the selected `e`, `a`, `p`,
@@ -83,7 +82,55 @@ sign on the user's behalf.
 
 - `src/Controller/Reader/BookmarksController.php` — dedup logic + API endpoints
 - `assets/controllers/ui/bookmark_list_controller.js` — signed removal from the bookmarks page
-- `assets/controllers/ui/article_actions_dropdown_controller.js` — bookmark toggle (inside consolidated dropdown)
-- `templates/components/Molecules/ArticleActionsDropdown.html.twig` — dropdown template with bookmark item
+- `assets/controllers/ui/card_bookmark_controller.js` — bookmark toggles on cards and article pages
+- `templates/components/Molecules/ArticleSocialActions.html.twig` — article-page bookmark button
 - `templates/pages/article.html.twig` — bookmark button placement
 - `translations/messages.{en,de,es,fr,it,sl}.yaml` — bookmark translations
+
+## Card shortcuts and pending publication
+
+### Overview
+
+Article cards now include a dedicated bookmark shortcut button.
+
+The shortcut publishes kind `10003` bookmark updates without requiring a page reload between actions.
+
+The article social strip uses the same IndexedDB-backed publish flow.
+
+### Frontend flow
+
+- Template: `templates/components/Molecules/Card.html.twig`
+- Stimulus controller: `assets/controllers/ui/card_bookmark_controller.js`
+- Article-page template: `templates/components/Molecules/ArticleSocialActions.html.twig`
+- Bookmark button is rendered for logged-in users only.
+- Coordinate format used for bookmarks: `kind:pubkey:slug`
+
+### Reliability strategy
+
+The Stimulus controller keeps the latest bookmark state in IndexedDB:
+
+- IndexedDB database: `newsroom-bookmarks`
+- Store: `bookmark-events` (keyed by signer pubkey)
+- Saved state includes tags, last signed event, publish status, retry counters, and last success timestamp.
+
+When a user toggles a bookmark:
+
+1. The controller starts from the last known bookmark snapshot in IndexedDB.
+2. It adds/removes the target `a` tag coordinate locally.
+3. It signs a fresh kind `10003` event.
+4. It persists the signed event as `pending` in IndexedDB.
+5. It publishes to `POST /api/bookmarks/publish`.
+
+If publish fails, the signed event remains in IndexedDB and is retried with exponential backoff (capped), so retries remain idempotent and resume from the same stored signed payload.
+
+### APIs used
+
+- `GET /api/bookmarks/current` (`api_bookmarks_current`)
+- `POST /api/bookmarks/publish` (`api_bookmarks_publish`)
+
+### Styling
+
+Card bookmark button styling lives in:
+
+- `assets/styles/03-components/card.css`
+

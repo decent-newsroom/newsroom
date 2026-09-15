@@ -46,6 +46,14 @@ final class TopicController
 }
 ```
 
+Additional caller examples:
+
+```php
+$related = $search->findRelatedArticles($article, limit: 6);
+$latest = $search->getLatest(limit: 50, excludedPubkeys: $mutedPubkeys);
+$results = $search->search('lightning network', limit: 12);
+```
+
 ## Backend Selection
 
 `ArticleSearchFactory` chooses the backend from `ELASTICSEARCH_ENABLED`:

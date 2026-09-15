@@ -1,9 +1,5 @@
 # NIP-11 & NIP-66 Relay Discovery
 
-> Written May 2026 — covers the relay intelligence stack added to Decent Newsroom.
-
----
-
 ## Overview
 
 Two complementary relay meta-protocols have been implemented to improve relay selection, gateway preflight accuracy, and to seed the beginnings of a dynamic relay directory:
@@ -135,7 +131,6 @@ Composite ranking: 50% health score + 30% median RTT + 20% monitor consensus cou
 - `src/Service/Nostr/RelayInformationFetcher.php`
 - `src/Message/FetchRelayInformationMessage.php`
 - `src/MessageHandler/FetchRelayInformationHandler.php`
-- `src/Exception/Nostr/AuthRequiredSkippedException.php`
 - `src/Command/Relay/RefreshRelayInformationCommand.php`
 - `src/Entity/RelayMonitor.php`
 - `src/Entity/MonitoredRelay.php`
@@ -153,7 +148,7 @@ Composite ranking: 50% health score + 30% median RTT + 20% monitor consensus cou
 
 ### Modified
 - `src/Service/Nostr/RelayHealthStore.php` — `setSupportedNips()`, `getSupportedNips()`, `recordMonitorObservation()`
-- `src/Service/Nostr/RelayGatewayCommand.php` — NIP-11 preflight in `openConnection()`
+- `decent-newsroom/relay-gateway-bundle` (Composer dependency) — NIP-11 preflight in `openConnection()`
 - `src/Service/Admin/RelayAdminService.php` — `getRelayInformationOverview()`, `getRelayDirectory()`, `getMonitors()`, monitor trust/untrust
 - `src/Controller/Administration/RelayAdminController.php` — NIP-11, directory, monitors routes
 - `src/Service/GenericEventProjector.php` — call `RelayDiscoveryEventProjector::onProjected()`

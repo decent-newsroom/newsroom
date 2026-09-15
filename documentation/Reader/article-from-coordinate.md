@@ -11,13 +11,13 @@ A Twig component that fetches and displays an article by its coordinate.
 {# With optional author metadata #}
 <twig:Organisms:ArticleFromCoordinate 
     coordinate="30023:pubkey123:article-slug"
-    :authors_metadata="authorsMetadata"
+    :authorsMetadata="authorsMetadata"
 />
 
 {# With magazine and category context #}
 <twig:Organisms:ArticleFromCoordinate 
     coordinate="30023:pubkey123:article-slug"
-    :authors_metadata="authorsMetadata"
+    :authorsMetadata="authorsMetadata"
     mag="magazine-slug"
     cat="category-slug"
 />
@@ -29,11 +29,12 @@ A Twig component that fetches and displays an article by its coordinate.
 - `authorsMetadata` (array, optional): Array of author metadata indexed by pubkey
 - `mag` (string, optional): Magazine slug for generating proper links
 - `cat` (string, optional): Category slug for generating proper links
+- `autoFetch` (bool, default false): Best-effort synchronous relay fetch for missing long-form coordinates; use only on views with a handful of references
 
 ## Behavior
 
 - If the coordinate is valid and the article is found in the database, it renders the article card
-- If the coordinate is invalid or the article is not found, it displays an info bubble with an error message
+- Missing articles with parsed identifiers render `CardPlaceholder` with a fetch action; malformed coordinates without usable identifiers show an error message
 - Automatically fetches the most recent version of the article if multiple versions exist
 
 ## Coordinate Format

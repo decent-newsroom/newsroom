@@ -4,9 +4,9 @@
 
 The visitor analytics page at `/admin/analytics` tracks page-level visit activity for admins.
 
-Both `/admin` and `/admin/analytics` show the same lightweight snapshot, cached for 60 seconds. The query first selects at most the latest 100,000 recorded requests using the visit primary-key index, then keeps those from the last 24 hours and applies the page-traffic filters. Limiting the source rows before filtering and aggregation bounds the work even when traffic is mostly bots or API calls, and needs no new database index or migration.
+Both `/admin` and `/admin/analytics` show the same lightweight snapshot, cached for 60 seconds. The query first selects at most the latest 1,000,000 recorded requests using the visit primary-key index, then keeps those from the last 24 hours and applies the page-traffic filters. Limiting the source rows before filtering and aggregation bounds the work even when traffic is mostly bots or API calls, and needs no new database index or migration.
 
-The snapshot shows page views, distinct non-null visitor/session IDs, visits with a referer, and the five most visited routes. Counts describe only this sample; they are not extrapolated totals. A notice appears when the 100,000-record cap is reached. The same route path on different subdomains is combined, as in the existing generic analytics. Empty data is shown as zero, while a failed query or cache read shows an unavailable message.
+The snapshot shows page views, distinct non-null visitor/session IDs, visits with a referer, and the five most visited routes. Counts describe only this sample; they are not extrapolated totals. A notice appears when the 1,000,000-record cap is reached. The same route path on different subdomains is combined, as in the existing generic analytics. Empty data is shown as zero, while a failed query or cache read shows an unavailable message.
 
 The dashboard no longer performs corpus-wide article deduplication, database/user totals, all-time bounce-rate queries, or live relay diagnostics. Admin tool links remain available. The analytics overview no longer runs long-range charts, referrer rankings, publish/zap totals, or bot summaries. Existing detail, bot, and subdomain reports are still separate opt-in pages and can still be expensive on a large database.
 

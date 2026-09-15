@@ -1,6 +1,6 @@
 # Relay Gateway Service
 
-The Relay Gateway (`relay-gateway`) is a dedicated Docker service that maintains on-demand WebSocket connections to external Nostr relays. It serves as the single point of relay communication for FrankenPHP request workers, decomposes relay-hostile multi-filter reads into sequential single-filter subscriptions, and handles NIP-42 AUTH only for user-keyed connections.
+The Relay Gateway (`relay-gateway`) is a dedicated Docker service that maintains on-demand WebSocket connections to external Nostr relays. It handles gateway-routed external reads from FrankenPHP request workers, decomposes relay-hostile multi-filter reads into sequential single-filter subscriptions, and handles NIP-42 AUTH only for user-keyed connections.
 
 ## Architecture
 
@@ -43,7 +43,7 @@ User-keyed sockets can authenticate:
 
 1. Relay sends `AUTH` challenge to the gateway over WebSocket.
 2. Gateway asks the host `AuthChallengeSignerInterface` to sign for that pubkey.
-3. The host tries IdentityBundle's NIP-46 remote-signer session first.
+3. The host adapter delegates first to SigningBundle's RelayAuthSignerInterface using the stored NIP-46 remote-signer session.
 4. If that cannot sign, the host publishes the challenge to the user's `relay-auth/{pubkey}` Mercure topic.
 5. Browser `relay_auth_controller.js` signs kind-22242 via NIP-07 and writes the signed event to Redis.
 6. Gateway sends the signed AUTH event to the relay and keeps the authenticated socket open until idle timeout/restart.
@@ -159,12 +159,6 @@ Health data is available via the admin relay dashboard.
 | `NostrRelayPool` | Routes queries through `RelayGatewayClient` when `RELAY_GATEWAY_ENABLED=true` |
 | Mercure (`php` service) | Gateway publishes fallback user-keyed AUTH challenges for browser signing |
 
-## Migration from Worker Subprocess
+## Package boundary
 
-Previously, the relay gateway ran as a subprocess of `app:run-workers` (the `worker` Docker service), gated by the `--without-gateway` flag and `RELAY_GATEWAY_ENABLED` env var. It has been extracted into its own service for:
-
-- **Independent scaling** — gateway resource usage is decoupled from Messenger consumers and hydration workers
-- **Independent restarts** — gateway restarts (e.g., after `--time-limit`) don't disrupt article/media hydration
-- **Better resource isolation** — memory and CPU limits can be tuned independently
-- **Cleaner logs** — gateway logs are isolated in their own container
-
+The command is supplied by the Composer package `decent-newsroom/relay-gateway-bundle`. Newsroom integrates through the adapters in `src/RelayGateway/` and service aliases in `config/services.yaml`. Authentication delegates to SigningBundle before the browser fallback. The gateway runs independently of the [Messenger and subscription workers](../Processes/workers.md).

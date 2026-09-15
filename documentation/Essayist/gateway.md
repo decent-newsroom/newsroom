@@ -407,21 +407,21 @@ All Essayist-specific knobs are now config — there is no hardcoded URL shape. 
 
 ## Troubleshooting
 
-For 404 errors, service health issues, or configuration problems, see **[`documentation/Essayist/troubleshooting.md`](../Essayist/troubleshooting.md)**.
+For a 404, check the configured public domain, DNS/reverse-proxy routing, and whether the Essayist services are running. Development uses the `essayist` profile; `compose.prod.yaml` activates the services without requiring that profile.
 
-If `strfry-essayist` logs `Protected event and no serviceUrl configured`, the relay started without a canonical public URL. Ensure `ESSAYIST_RELAY_PUBLIC_URL` is set and that the compose startup renders `serviceUrl` into the strfry config before launching the relay process.
+~~~bash
+docker compose ps -a
+docker compose logs --tail=100 essayist-gateway strfry-essayist
+docker compose exec essayist-gateway wget -qO- http://localhost:7781/health
+docker compose exec essayist-gateway wget -qO- http://localhost:7782/metrics
+~~~
 
----
+The health response distinguishes upstream relay and Redis connectivity failures. Check `strfry-essayist:7779` reachability for upstream errors. Production uses the shared Redis host/port/password settings from Compose, rather than a separate gateway Redis URL.
 
-## Open Items
+`ESSAYIST_RELAY_PUBLIC_URL` must contain the canonical public WebSocket URL and `ESSAYIST_RELAY_DOMAIN` its hostname. Reverse proxies must preserve the intended host routing. `ESSAYIST_POLICY_TOKEN` must agree between the application and gateway.
 
-- [x] Remove `ports: 7779:7779` from `strfry-essayist` in production compose
-- [x] PHP-side Redis pre-warming on role grant/revoke (write key + `PUBLISH essayist_member_revoked`)
-- [x] Fix production compose to auto-enable essayist profile (`profiles: !reset []`)
-- [ ] Integration test: connect without AUTH → expect `CLOSED auth-required:` / `OK … false auth-required:` reject
-- [ ] Integration test: AUTH with invalid sig → expect `CLOSED restricted:` + `NOTICE` + close
-- [ ] Integration test: AUTH with non-member pubkey → expect `CLOSED restricted:` + `NOTICE` + close
-- [ ] Integration test: AUTH with valid member → expect proxied REQ/EVENT
-- [ ] Integration test: revocation via Redis pub/sub closes live authenticated connection
-- [ ] `ROLE_ESSAYIST_MEMBER` expiry cron → Redis invalidation (cron command)
+If strfry logs `Protected event and no serviceUrl configured`, check that the public URL is set and rendered into its configuration at startup.
 
+Unauthenticated HTTP GET requests are proxied to strfry, including NIP-11 metadata requests and ordinary browser requests. That HTTP behavior does not bypass WebSocket membership authentication.
+
+Membership grants and revocations update the Redis cache. The `essayist:expire-memberships` cron calls `expireLapsed()`, which revokes cached membership; this is implemented, not an outstanding gateway task.

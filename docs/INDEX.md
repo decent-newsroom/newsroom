@@ -4,8 +4,7 @@ This directory contains environment setup, deployment, and troubleshooting docum
 
 ## Related Indexes
 
-- [Public Guides](../docs-public/INDEX.md) - Reader, writer, and publisher-facing documentation
-- [Project / Feature Docs](../documentation/INDEX.md) - Internal feature and implementation documentation
+- [Documentation](../documentation/INDEX.md) - Reader/writer guides, architecture, and feature documentation
 
 ## Setup and Deployment
 

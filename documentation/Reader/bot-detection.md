@@ -50,14 +50,14 @@ New bot-specific methods added:
 | `countBotVisitsSince(?since)` | Total bot hits in a time window |
 | `getTopBotUserAgents($limit, ?since)` | Most frequent bot UA strings |
 | `getBotVisitsPerDay($days)` | Bot traffic time series |
-| `getBotVsHumanStats()` | Bot vs human counts + % for 24 h / 7 d / 30 d |
+| `getBotVsHumanStats()` | Bot vs human counts + % for 24 h / 7 d / 14 d |
 
 ## Admin Dashboard
 
 The `/admin/analytics` page gained a **Bot Traffic** section showing:
 
-- **Bot vs Human** comparison cards for last 24 h, 7 d and 30 d with a bot-share percentage that turns red when bots exceed 50 %.
-- **Bot Traffic Per Day** chart (last 30 days) — reuses the existing `analytics--visits-per-day-chart` Stimulus controller.
+- **Bot vs Human** comparison cards for last 24 h, 7 d and 14 d with a bot-share percentage that turns red when bots exceed 50 %.
+- **Bot Traffic Per Day** chart (last 14 days) — reuses the existing `analytics--visits-per-day-chart` Stimulus controller.
 - **Top Bot User-Agents** table (last 7 days) — shows which crawlers are hitting the site most.
 - The **Recent Visits** table now includes a truncated `User-Agent` column for spot-checking.
 
@@ -90,4 +90,3 @@ Covered patterns (see `@blockProbes` in the Caddyfile for the exact regex):
 | Spring actuator | `/actuator/*` |
 
 To add more paths, extend the regex in the `@blockProbes path_regexp` line in `frankenphp/Caddyfile`.
-

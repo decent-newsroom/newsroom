@@ -39,4 +39,4 @@ When a reader opens a Nostr-native book, its kind `30040` index is used to colle
 
 ## Related NIPs / NKBIPs
 
-- [NKBIP-04](../NKBIP/NKBIP-04.md) — kind `30045` filesystem directory event used for My Books.
+- [NKBIP-04](../NKBIP/04.md) — kind `30045` filesystem directory event used for My Books.

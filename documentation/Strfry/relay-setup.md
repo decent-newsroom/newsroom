@@ -1,80 +1,41 @@
-# Strfry Relay Setup & Configuration
+# Strfry Relay Setup
 
-## Overview
+The local strfry relay caches Nostr events and accepts client writes subject to its write policy and event limits. A router pulls configured upstream feeds; application subscription workers project relay events into PostgreSQL.
 
-The project includes a private read-only strfry Nostr relay that acts as a local cache for long-form articles and related events. This improves performance and reduces dependency on public relays.
+## Deployment
 
-### Architecture
+The relay is a service in `compose.yaml`, alongside the application. There is no separate `compose.strfry.yaml` deployment. The service uses `dockurr/strfry:latest`, starts both the relay and router, and stores LMDB data in the `strfry_data` volume mounted at `/var/lib/strfry`.
 
-```
-┌──────────┐     wss://relay.domain
-│  Client  │────────────────────┐
-└──────────┘                    │
-                                ▼
-┌──────────┐              ┌──────────┐
-│  Caddy   │◄─────────────│  strfry  │ (read-only cache)
-│  (proxy) │              │  relay   │
-└──────────┘              └────┬─────┘
-                               │  + router
-                               ▼
-                           LMDB volume
-```
+| File | Purpose |
+|---|---|
+| `docker/strfry/strfry.conf` | Relay limits, LMDB configuration, listener and write-policy integration |
+| `docker/strfry/router.conf` | Upstream subscriptions and event-kind filters |
+| `docker/strfry/write-policy.sh` | Accept incoming events except blocked pubkeys |
+| `docker/strfry/blocked-pubkeys.txt` | Operator-maintained pubkey blocklist |
+| `compose.yaml` | Service, image, mounts and relay/router startup |
+| `frankenphp/Caddyfile` | Public proxy configuration |
 
-### Docker Services
+`NOSTR_DEFAULT_RELAY` defaults to `ws://strfry:7777` for server-side access. `RELAY_DOMAIN` configures the public hostname. Internal Docker URLs must not be shown as browser relay addresses; [Relay Pool Management](relay-pool.md) explains LOCAL/PROJECT URL handling.
 
-- **strfry**: Runs both `strfry relay` and `strfry router` in the same container
-- Configuration: `docker/strfry/strfry.conf`, `docker/strfry/router.conf`
-- Write policy: `docker/strfry/write-policy.sh` (controls which events are accepted)
-- Data stored in `strfry_data` Docker volume
-
-### Environment Variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `RELAY_DOMAIN` | `relay.localhost` | Public WebSocket domain |
-| `NOSTR_DEFAULT_RELAY` | `ws://strfry:7777` | Internal relay URL used by Symfony |
-
-### Event Kinds Ingested
-
-| Kind | Description |
-|------|-------------|
-| 30023 | Long-form articles (NIP-23) |
-| 30024 | Drafts (NIP-23) |
-| 30040, 30041 | Publications (NKBIP-01) |
-| 20, 21, 22 | Media events (NIP-68/71) |
-| 0 | Profiles |
-| 7 | Reactions |
-| 9735 | Zap receipts |
-| 9802 | Highlights |
-| 1111 | Comments |
-| 10002 | Relay lists |
-| 39089 | Follow packs |
-
-### Makefile Targets
+## Operation
 
 ```bash
-make relay-build     # Build relay containers (~10 min first time)
-make relay-up        # Start strfry + ingest services
-make relay-down      # Stop relay services
-make relay-shell     # Shell into strfry container
-make relay-test      # Run PHP smoke test
-make relay-stats     # Show relay statistics
-make relay-export    # Export relay database to JSONL
-make relay-import FILE=backup.jsonl  # Import events from file
+docker compose up -d strfry worker-relay
+docker compose logs --tail=100 strfry worker-relay
+docker compose exec strfry strfry db-stats
+docker compose stop worker-relay strfry
 ```
 
-### Local Development
+Equivalent Makefile targets are `relay-up`, `relay-down`, `relay-shell`, `relay-logs`, `relay-stats`, `relay-export`, and `relay-import FILE=backup.jsonl`. The gateway has separate `relay-gateway-up` and `relay-gateway-down` targets.
 
-No DNS needed locally — relay works out-of-the-box:
-- From inside Docker: `ws://strfry:7777` (used by Symfony)
-- From host machine: `ws://localhost:7777` (for testing)
+To redeploy application services without recreating the relay, explicitly name the application services in the Compose operation. See [Production Deployment Validation](../Admin/deployment-validation.md). Do not tear down volumes as part of an application-only redeploy.
 
-### DNS for Production
+## Ingestion and write policy
 
-Add an A/AAAA record for `relay.yourdomain.com` pointing to the same server as the main app. Caddy handles TLS automatically.
+Router filters and application subscription kinds are separate controls. The former determine what upstream data enters the local relay; the latter determine what the host projects. Check `router.conf`, `RunRelayWorkersCommand`, and the individual subscription commands when adding a kind. See [Workers](../Processes/workers.md).
 
-## Lessons Learned
+The default write policy accepts events unless the author's hex pubkey is in the mounted blocklist. Relay limits still apply. Updating the blocklist prevents future admission; it does not remove already-stored relay events or PostgreSQL projections.
 
-- **Registry access**: Images are built locally from Dockerfiles rather than pulled from registries (avoids `ghcr.io` access issues).
-- **Write policy**: The relay denies all direct client writes — events are only ingested via the router/sync process.
+The optional Essayist relay has its own service, policy, gateway, and volume. It must not be treated as the default relay.
 
+See [Storage Maintenance](storage-maintenance.md) for backups and cleanup boundaries, and [Article Backfill](article-backfill.md) for importing missing local-relay articles into application projections.
