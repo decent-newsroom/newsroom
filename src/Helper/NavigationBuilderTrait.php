@@ -167,6 +167,14 @@ trait NavigationBuilderTrait
                     ['label' => 'nav.bookshelf', 'route' => 'bookshelf'],
                 ],
             ],
+            [
+                'label' => 'nav.create',
+                'items' => [
+                    ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new'],
+                    ['label' => 'nav.newReadingList', 'route' => 'reading_list_index'],
+                    ['label' => 'nav.newArticle', 'route' => 'editor-create'],
+                ],
+            ],
         ];
 
         if ($isAuthenticated) {
@@ -176,14 +184,6 @@ trait NavigationBuilderTrait
                     ['label' => 'nav.readingNook', 'route' => 'reading_nook'],
                     ['label' => 'nav.newsroom', 'route' => 'my_content'],
                     ['label' => 'nav.expressions', 'route' => 'expressions_workspace'],
-                ],
-            ];
-            $sections[] = [
-                'label' => 'nav.create',
-                'items' => [
-                    ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new'],
-                    ['label' => 'nav.newReadingList', 'route' => 'reading_list_index'],
-                    ['label' => 'nav.newArticle', 'route' => 'editor-create'],
                 ],
             ];
         }
