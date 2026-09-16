@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DecentNewsroom\Mcp\Client;
 
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -16,11 +18,15 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class NewsroomApiClient
 {
+    private readonly LoggerInterface $logger;
+
     public function __construct(
         private readonly HttpClientInterface $http,
         private readonly string $baseUrl,
         private readonly string $internalToken,
+        ?LoggerInterface $logger = null,
     ) {
+        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -114,26 +120,62 @@ class NewsroomApiClient
      */
     private function request(string $method, string $path, array $query = []): array
     {
-        $response = $this->http->request($method, rtrim($this->baseUrl, '/') . $path, [
+        $startedAt = microtime(true);
+        $context = [
+            'service' => 'newsroom',
+            'method' => $method,
+            'path' => $path,
             'query' => $query,
-            'headers' => [
-                'X-Internal-Token' => $this->internalToken,
-                'Accept' => 'application/json',
-            ],
-        ]);
+        ];
+        $this->logger->info('MCP upstream request started', $context);
 
-        $status = $response->getStatusCode();
-        if ($status === 404) {
-            return [];
+        $status = null;
+
+        try {
+            $response = $this->http->request($method, rtrim($this->baseUrl, '/') . $path, [
+                'query' => $query,
+                'headers' => [
+                    'X-Internal-Token' => $this->internalToken,
+                    'Accept' => 'application/json',
+                ],
+            ]);
+
+            $status = $response->getStatusCode();
+            if ($status === 404) {
+                $this->logger->info('MCP upstream request completed', $context + [
+                    'status' => $status,
+                    'result' => 'not_found',
+                    'duration_ms' => $this->durationMs($startedAt),
+                ]);
+
+                return [];
+            }
+
+            if ($status >= 400) {
+                throw new \RuntimeException(sprintf('Newsroom internal API returned HTTP %d for %s', $status, $path));
+            }
+
+            /** @var array<string, mixed> $decoded */
+            $decoded = $response->toArray(false);
+            $this->logger->info('MCP upstream request completed', $context + [
+                'status' => $status,
+                'duration_ms' => $this->durationMs($startedAt),
+            ]);
+
+            return $decoded;
+        } catch (\Throwable $e) {
+            $this->logger->error('MCP upstream request failed', $context + [
+                'status' => $status,
+                'duration_ms' => $this->durationMs($startedAt),
+                'exception' => $e,
+            ]);
+
+            throw $e;
         }
+    }
 
-        if ($status >= 400) {
-            throw new \RuntimeException(sprintf('Newsroom internal API returned HTTP %d for %s', $status, $path));
-        }
-
-        /** @var array<string, mixed> $decoded */
-        $decoded = $response->toArray(false);
-
-        return $decoded;
+    private function durationMs(float $startedAt): float
+    {
+        return round((microtime(true) - $startedAt) * 1000, 1);
     }
 }

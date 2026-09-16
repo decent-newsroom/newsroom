@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DecentNewsroom\Mcp\Client;
 
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -11,10 +13,14 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class BooksApiClient
 {
+    private readonly LoggerInterface $logger;
+
     public function __construct(
         private readonly HttpClientInterface $http,
         private readonly string $baseUrl,
+        ?LoggerInterface $logger = null,
     ) {
+        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -42,24 +48,7 @@ class BooksApiClient
      */
     public function getBook(string $eventId): ?array
     {
-        $response = $this->http->request(
-            'GET',
-            rtrim($this->baseUrl, '/') . '/books/api/events/' . rawurlencode($eventId),
-            ['headers' => ['Accept' => 'application/json']],
-        );
-
-        $status = $response->getStatusCode();
-        if ($status === 404) {
-            return null;
-        }
-        if ($status >= 400) {
-            throw new \RuntimeException(sprintf('Books API returned HTTP %d for event lookup', $status));
-        }
-
-        /** @var array<string, mixed> $event */
-        $event = $response->toArray(false);
-
-        return $event;
+        return $this->request('GET', '/books/api/events/' . rawurlencode($eventId), null);
     }
 
     /**
@@ -68,19 +57,75 @@ class BooksApiClient
      */
     private function postList(string $path, array $payload): array
     {
-        $response = $this->http->request('POST', rtrim($this->baseUrl, '/') . $path, [
-            'json' => $payload,
-            'headers' => ['Accept' => 'application/json'],
-        ]);
+        $result = $this->request('POST', $path, $payload);
 
-        $status = $response->getStatusCode();
-        if ($status >= 400) {
-            throw new \RuntimeException(sprintf('Books API returned HTTP %d for %s', $status, $path));
+        return is_array($result) ? $result : [];
+    }
+
+    /**
+     * @param array<string, scalar>|null $payload
+     * @return array<string, mixed>|null
+     */
+    private function request(string $method, string $path, ?array $payload): ?array
+    {
+        $startedAt = microtime(true);
+        $context = [
+            'service' => 'books',
+            'method' => $method,
+            'path' => $path,
+        ];
+        if ($payload !== null) {
+            $context['payload'] = $payload;
         }
+        $this->logger->info('MCP upstream request started', $context);
 
-        /** @var mixed $decoded */
-        $decoded = $response->toArray(false);
+        $status = null;
 
-        return is_array($decoded) ? $decoded : [];
+        try {
+            $options = [
+                'headers' => ['Accept' => 'application/json'],
+            ];
+            if ($payload !== null) {
+                $options['json'] = $payload;
+            }
+
+            $response = $this->http->request($method, rtrim($this->baseUrl, '/') . $path, $options);
+            $status = $response->getStatusCode();
+            if ($status === 404) {
+                $this->logger->info('MCP upstream request completed', $context + [
+                    'status' => $status,
+                    'result' => 'not_found',
+                    'duration_ms' => $this->durationMs($startedAt),
+                ]);
+
+                return null;
+            }
+
+            if ($status >= 400) {
+                throw new \RuntimeException(sprintf('Books API returned HTTP %d for %s', $status, $path));
+            }
+
+            /** @var mixed $decoded */
+            $decoded = $response->toArray(false);
+            $this->logger->info('MCP upstream request completed', $context + [
+                'status' => $status,
+                'duration_ms' => $this->durationMs($startedAt),
+            ]);
+
+            return is_array($decoded) ? $decoded : [];
+        } catch (\Throwable $e) {
+            $this->logger->error('MCP upstream request failed', $context + [
+                'status' => $status,
+                'duration_ms' => $this->durationMs($startedAt),
+                'exception' => $e,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    private function durationMs(float $startedAt): float
+    {
+        return round((microtime(true) - $startedAt) * 1000, 1);
     }
 }

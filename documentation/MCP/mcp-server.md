@@ -109,6 +109,11 @@ endpoint and a client configuration example.
 | `INTERNAL_API_TOKEN` | Shared secret; must match the newsroom app. |
 | `MCP_HTTP_HOST` / `MCP_HTTP_PORT` | HTTP transport bind address/port. |
 
+The MCP service writes stderr log entries when an upstream request starts and
+when it completes, including the service, method, path, HTTP status, and duration.
+Failures include the exception details. The internal token and response bodies are
+never logged, so inspect the service with `docker compose logs -f mcp`.
+
 See `docker/mcp/.env.example`. On the newsroom side, set the matching `INTERNAL_API_TOKEN`
 (already wired into `config/services.yaml` as `internal_api.token`).
 

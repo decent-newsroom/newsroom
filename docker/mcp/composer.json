@@ -9,6 +9,7 @@
         "ext-json": "*",
         "ext-mbstring": "*",
         "php-mcp/server": "^3.1",
+        "psr/log": "^3.0",
         "symfony/http-client": "^7.1"
     },
     "require-dev": {

@@ -6,6 +6,7 @@ namespace DecentNewsroom\Mcp;
 
 use DecentNewsroom\Mcp\Client\BooksApiClient;
 use DecentNewsroom\Mcp\Client\NewsroomApiClient;
+use DecentNewsroom\Mcp\Logging\StderrLogger;
 use DecentNewsroom\Mcp\Resource\ArticleResources;
 use DecentNewsroom\Mcp\Resource\BookResources;
 use DecentNewsroom\Mcp\Tool\ArticleTools;
@@ -30,14 +31,17 @@ final class ServerFactory
             fwrite(STDERR, "[WARN] INTERNAL_API_TOKEN is empty; newsroom internal API will reject requests.\n");
         }
 
+        $logger = new StderrLogger();
         $client = new NewsroomApiClient(
             HttpClient::create(['timeout' => 15]),
             $baseUrl,
             $internalToken,
+            $logger,
         );
         $booksClient = new BooksApiClient(
             HttpClient::create(['timeout' => 15]),
             $baseUrl,
+            $logger,
         );
 
         $container = new ArrayContainer([
@@ -51,6 +55,7 @@ final class ServerFactory
 
         $server = Server::make()
             ->withServerInfo('Decent Newsroom Articles and Books', '1.1.0')
+            ->withLogger($logger)
             ->withContainer($container)
             ->build();
 

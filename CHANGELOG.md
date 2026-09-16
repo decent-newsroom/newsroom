@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Improvement] Added stderr request, response, duration, and failure logging to the standalone MCP server's upstream API clients.
 - [Fix] Removed deprecated Twig regex escapes from generic event media URL matching.
 - [Fix] Normalized Nostr value objects before persisting newly published magazine index events, preventing reading-list creation failures.
 - [Improvement] Main sidebar now renders its sections from `NavigationBuilderTrait::buildMainNav()` instead of maintaining a separate hardcoded Twig navigation.
