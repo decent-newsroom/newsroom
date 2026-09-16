@@ -37,7 +37,7 @@ class IndexArticlesCommand extends Command
                 ->andWhere('a.id > :lastId')
                 ->setParameter('status', IndexStatusEnum::TO_BE_INDEXED)
                 ->setParameter('lastId', $lastId)
-                ->orderBy('a.id', 'ASC')
+                ->orderBy('a.id', \SortDirection::Ascending)
                 ->setMaxResults(self::BATCH_SIZE)
                 ->getQuery()
                 ->getResult();

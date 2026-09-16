@@ -117,7 +117,7 @@ class FollowPackService
         $qb = $articleRepo->createQueryBuilder('a');
         $qb->where($qb->expr()->in('a.pubkey', ':pubkeys'))
             ->setParameter('pubkeys', $pubkeys)
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy('a.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         $articles = $qb->getQuery()->getResult();

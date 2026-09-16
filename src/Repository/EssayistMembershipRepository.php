@@ -29,7 +29,7 @@ class EssayistMembershipRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('m')
             ->andWhere('m.user = :user')
             ->setParameter('user', $user)
-            ->orderBy('m.expiresAt', 'DESC')
+            ->orderBy('m.expiresAt', \SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -62,7 +62,7 @@ class EssayistMembershipRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('m')
             ->andWhere('m.user IN (:ids)')
             ->setParameter('ids', $expiredUserIds)
-            ->orderBy('m.expiresAt', 'DESC')
+            ->orderBy('m.expiresAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

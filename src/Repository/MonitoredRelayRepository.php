@@ -123,8 +123,8 @@ class MonitoredRelayRepository extends ServiceEntityRepository
                 'AVG(m.rttOpenMs) as avg_rtt_open_ms',
             )
             ->groupBy('m.relayUrl')
-            ->orderBy('monitor_count', 'DESC')
-            ->addOrderBy('avg_rtt_open_ms', 'ASC')
+            ->orderBy('monitor_count', \SortDirection::Descending)
+            ->addOrderBy('avg_rtt_open_ms', \SortDirection::Ascending)
             ->setMaxResults($limit);
 
         if (isset($filters['kind'])) {

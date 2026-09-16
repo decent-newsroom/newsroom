@@ -37,7 +37,7 @@ class UserEntityRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('u')
             ->where('u.id IN (:ids)')
             ->setParameter('ids', $ids)
-            ->orderBy('u.npub', 'ASC')
+            ->orderBy('u.npub', \SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }
@@ -95,7 +95,7 @@ class UserEntityRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('u')
             ->where('u.lastMetadataRefresh IS NULL OR u.lastMetadataRefresh < :threshold')
             ->setParameter('threshold', $staleThreshold)
-            ->orderBy('u.lastMetadataRefresh', 'ASC')  // NULL (never refreshed) sorts first
+            ->orderBy('u.lastMetadataRefresh', \SortDirection::Ascending)  // NULL (never refreshed) sorts first
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
@@ -239,7 +239,7 @@ class UserEntityRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('u')
             ->where('u.id IN (:ids)')
             ->setParameter('ids', $ids)
-            ->orderBy('u.npub', 'ASC')
+            ->orderBy('u.npub', \SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }

@@ -32,7 +32,7 @@ final class ReadingListList
                 // KindsEnum::CURATION_VIDEOS->value,    // 30005
                 KindsEnum::CURATION_PICTURES->value   // 30006
             ])
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(200)
             ->getQuery()
             ->getResult();

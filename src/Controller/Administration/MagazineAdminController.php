@@ -132,7 +132,7 @@ class MagazineAdminController extends AbstractController
            ->from(Event::class, 'e')
            ->where('e.kind = :magazineKind')
            ->setParameter('magazineKind', KindsEnum::PUBLICATION_INDEX->value)
-           ->orderBy('e.created_at', 'DESC');
+           ->orderBy('e.created_at', \SortDirection::Descending);
 
         $allMagazineEvents = $qb->getQuery()->getResult();
 

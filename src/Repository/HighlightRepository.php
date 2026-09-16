@@ -37,7 +37,7 @@ class HighlightRepository extends ServiceEntityRepository
         $suffix = $this->extractCoordinateSuffix($articleCoordinate);
 
         $qb = $this->createQueryBuilder('h')
-            ->orderBy('h.createdAt', 'DESC');
+            ->orderBy('h.createdAt', \SortDirection::Descending);
 
         if ($suffix) {
             $qb->where('h.articleCoordinate LIKE :suffix')
@@ -90,7 +90,7 @@ class HighlightRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('h')
             ->where('h.id IN (:ids)')
             ->setParameter('ids', $ids)
-            ->orderBy('h.createdAt', 'DESC')
+            ->orderBy('h.createdAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -190,7 +190,7 @@ class HighlightRepository extends ServiceEntityRepository
 
         $qb = $this->createQueryBuilder('h')
             ->select('h.cachedAt')
-            ->orderBy('h.cachedAt', 'DESC')
+            ->orderBy('h.cachedAt', \SortDirection::Descending)
             ->setMaxResults(1);
 
         if ($suffix) {
@@ -238,7 +238,7 @@ class HighlightRepository extends ServiceEntityRepository
     public function findLatest(int $limit = 200): array
     {
         return $this->createQueryBuilder('h')
-            ->orderBy('h.createdAt', 'DESC')
+            ->orderBy('h.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

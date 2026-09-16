@@ -63,7 +63,7 @@ class EssayistZapClaimRepository extends ServiceEntityRepository
             ->andWhere('c.status = :status')
             ->setParameter('user', $user)
             ->setParameter('status', 'pending')
-            ->orderBy('c.createdAt', 'DESC')
+            ->orderBy('c.createdAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -78,7 +78,7 @@ class EssayistZapClaimRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('c')
             ->andWhere('c.status = :status')
             ->setParameter('status', 'pending')
-            ->orderBy('c.createdAt', 'DESC')
+            ->orderBy('c.createdAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -93,7 +93,7 @@ class EssayistZapClaimRepository extends ServiceEntityRepository
             ->andWhere('c.status = :status')
             ->setParameter('sponsor', $sponsorPubkeyHex)
             ->setParameter('status', 'pending')
-            ->orderBy('c.createdAt', 'DESC')
+            ->orderBy('c.createdAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -111,7 +111,7 @@ class EssayistZapClaimRepository extends ServiceEntityRepository
             ->andWhere('c.verifiedAt >= :since')
             ->setParameter('status', 'verified')
             ->setParameter('since', $since)
-            ->orderBy('c.verifiedAt', 'DESC')
+            ->orderBy('c.verifiedAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

@@ -31,7 +31,7 @@ class ActiveIndexingSubscriptionRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->where('s.npub LIKE :query')
             ->setParameter('query', '%' . $query . '%')
-            ->orderBy('s.createdAt', 'DESC')
+            ->orderBy('s.createdAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -45,7 +45,7 @@ class ActiveIndexingSubscriptionRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->where('s.status IN (:statuses)')
             ->setParameter('statuses', [ActiveIndexingStatus::ACTIVE, ActiveIndexingStatus::GRACE])
-            ->orderBy('s.lastFetchedAt', 'ASC') // Prioritize those not fetched recently
+            ->orderBy('s.lastFetchedAt', \SortDirection::Ascending) // Prioritize those not fetched recently
             ->getQuery()
             ->getResult();
     }
@@ -111,7 +111,7 @@ class ActiveIndexingSubscriptionRepository extends ServiceEntityRepository
             ->andWhere('s.lastFetchedAt IS NULL OR s.lastFetchedAt < :threshold')
             ->setParameter('statuses', [ActiveIndexingStatus::ACTIVE, ActiveIndexingStatus::GRACE])
             ->setParameter('threshold', $threshold)
-            ->orderBy('s.lastFetchedAt', 'ASC')
+            ->orderBy('s.lastFetchedAt', \SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }

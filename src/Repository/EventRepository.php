@@ -147,7 +147,7 @@ class EventRepository extends ServiceEntityRepository
 
         $qb->where($qb->expr()->in('e.kind', ':kinds'))
             ->setParameter('kinds', $kinds)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         if (!empty($excludedPubkeys)) {
@@ -174,7 +174,7 @@ class EventRepository extends ServiceEntityRepository
             ->andWhere('e.pubkey = :pubkey')
             ->setParameter('kinds', $kinds)
             ->setParameter('pubkey', $pubkey)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         return $qb->getQuery()->getResult();
@@ -200,7 +200,7 @@ class EventRepository extends ServiceEntityRepository
             ->andWhere($qb->expr()->in('e.pubkey', ':pubkeys'))
             ->setParameter('kinds', $kinds)
             ->setParameter('pubkeys', $pubkeys)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         return $qb->getQuery()->getResult();
@@ -317,7 +317,7 @@ class EventRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('e')
             ->where('e.kind IN (:kinds)')
             ->setParameter('kinds', $kinds)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults($fetchLimit);
 
         if (!empty($excludedPubkeys)) {
@@ -543,7 +543,7 @@ class EventRepository extends ServiceEntityRepository
 
         $qb->where('e.kind = :kind')
             ->setParameter('kind', 9802)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         return $qb->getQuery()->getResult();
@@ -590,7 +590,7 @@ class EventRepository extends ServiceEntityRepository
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', 0)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -614,7 +614,7 @@ class EventRepository extends ServiceEntityRepository
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', $kind)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -638,7 +638,7 @@ class EventRepository extends ServiceEntityRepository
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', $kind)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
@@ -676,8 +676,8 @@ class EventRepository extends ServiceEntityRepository
             ->andWhere($this->createQueryBuilder('e')->expr()->in('e.kind', ':kinds'))
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kinds', [0, 10002])
-            ->orderBy('e.kind', 'ASC')
-            ->addOrderBy('e.created_at', 'DESC')
+            ->orderBy('e.kind', \SortDirection::Ascending)
+            ->addOrderBy('e.created_at', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

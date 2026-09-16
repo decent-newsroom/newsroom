@@ -122,7 +122,7 @@ final class ReadingNookController extends AbstractController
             ->andWhere('e.kind IN (:kinds)')
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kinds', self::OWNED_LIST_KINDS)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(400)
             ->getQuery()
             ->getResult();

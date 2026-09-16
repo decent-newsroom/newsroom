@@ -121,7 +121,7 @@ class BackfillCommentsCommand extends Command
             ->andWhere('a.publishedAt IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
             ->setParameter('since', $since)
-            ->orderBy('a.publishedAt', 'DESC');
+            ->orderBy('a.publishedAt', \SortDirection::Descending);
 
         $articles = $qb->getQuery()->getResult();
 

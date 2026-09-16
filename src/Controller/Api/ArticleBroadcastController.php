@@ -194,7 +194,7 @@ class ArticleBroadcastController extends AbstractController
                         ->andWhere('a.slug = :slug')
                         ->setParameter('pubkey', $pubkey)
                         ->setParameter('slug', $slug)
-                        ->orderBy('a.createdAt', 'DESC')
+                        ->orderBy('a.createdAt', \SortDirection::Descending)
                         ->setMaxResults(1)
                         ->getQuery()
                         ->getOneOrNullResult();

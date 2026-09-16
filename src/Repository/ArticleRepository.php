@@ -9,6 +9,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
+use Elastica\Processor\Sort;
 
 class ArticleRepository extends ServiceEntityRepository
 {
@@ -58,7 +59,7 @@ class ArticleRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('a')
             ->where('a.id IN (:ids)')
             ->setParameter('ids', $ids)
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy('a.createdAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -85,7 +86,7 @@ class ArticleRepository extends ServiceEntityRepository
             ->setParameter('slugPattern', '%/%')
             // Only fresh releases: filter out revisions where published_at differs from created_at
             ->andWhere('a.publishedAt = a.createdAt')
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy('a.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit * 2); // Get more initially, will dedupe by slug
 
         if (!$includeEssayistExclusive) {
@@ -143,7 +144,7 @@ class ArticleRepository extends ServiceEntityRepository
         ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
         ->setParameter('search', $searchTerm)
         ->setParameter('slugPattern', '%/%')
-        ->orderBy('a.createdAt', 'DESC')
+        ->orderBy('a.createdAt', \SortDirection::Descending)
         ->setFirstResult($offset)
         ->setMaxResults($limit);
 
@@ -179,7 +180,7 @@ class ArticleRepository extends ServiceEntityRepository
             $qb->setParameter('p' . $i, $c['pubkey']);
             $qb->setParameter('s' . $i, $c['slug']);
         }
-        $qb->where($orX)->orderBy('a.createdAt', 'DESC');
+        $qb->where($orX)->orderBy('a.createdAt', \SortDirection::Descending);
 
         /** @var Article[] $results */
         $results = $qb->getQuery()->getResult();
@@ -213,7 +214,7 @@ class ArticleRepository extends ServiceEntityRepository
 
         $qb->where($qb->expr()->in('a.slug', ':slugs'))
             ->setParameter('slugs', $slugs)
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy('a.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         $results = $qb->getQuery()->getResult();
@@ -282,7 +283,7 @@ class ArticleRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('a');
         $qb->where($qb->expr()->in('a.id', ':ids'))
             ->setParameter('ids', $ids)
-            ->orderBy('a.createdAt', 'DESC');
+            ->orderBy('a.createdAt', \SortDirection::Descending);
 
         return $qb->getQuery()->getResult();
     }
@@ -312,7 +313,7 @@ class ArticleRepository extends ServiceEntityRepository
             ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
             // Only fresh releases: skip revisions where published_at differs from created_at
             ->andWhere('a.publishedAt IS NULL OR a.publishedAt = a.createdAt')
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy('a.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit * 2); // overfetch for deduplication
 
         if (!$includeEssayistExclusive) {
@@ -477,7 +478,7 @@ class ArticleRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('a');
         $qb->where($qb->expr()->in('a.id', ':ids'))
             ->setParameter('ids', $ids)
-            ->orderBy('a.createdAt', 'DESC');
+            ->orderBy('a.createdAt', \SortDirection::Descending);
 
         return $qb->getQuery()->getResult();
     }
@@ -498,7 +499,7 @@ class ArticleRepository extends ServiceEntityRepository
             // ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
             ->setParameter('pubkey', $pubkey)
             // ->setParameter('slugPattern', '%/%')
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy('a.createdAt', \SortDirection::Descending)
             ->setFirstResult($offset)
             ->setMaxResults($limit);
 
@@ -532,8 +533,8 @@ class ArticleRepository extends ServiceEntityRepository
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', $kind)
             ->setParameter('slug', $slug)
-            ->orderBy('a.createdAt', 'DESC')
-            ->addOrderBy('a.eventId', 'ASC')
+            ->orderBy('a.createdAt', \SortDirection::Descending)
+            ->addOrderBy('a.eventId', \SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }
@@ -638,9 +639,8 @@ class ArticleRepository extends ServiceEntityRepository
 
         // Sort
         $sort = match ($filters->sortBy) {
-            'oldest' => ['a.createdAt', 'ASC'],
-            'newest' => ['a.createdAt', 'DESC'],
-            default  => ['a.createdAt', 'DESC'],
+            'oldest' => ['a.createdAt', \SortDirection::Ascending],
+            default  => ['a.createdAt', \SortDirection::Descending],
         };
         $qb->orderBy($sort[0], $sort[1]);
 
@@ -729,7 +729,7 @@ class ArticleRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('a');
         $qb->where($qb->expr()->in('a.id', ':ids'))
             ->setParameter('ids', $ids)
-            ->orderBy('a.createdAt', $filters->sortBy === 'oldest' ? 'ASC' : 'DESC');
+            ->orderBy('a.createdAt', $filters->sortBy === 'oldest' ? \SortDirection::Ascending : \SortDirection::Descending);
 
         return $qb->getQuery()->getResult();
     }

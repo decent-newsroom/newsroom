@@ -27,8 +27,8 @@ class UpdateRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('n')
             ->andWhere('n.user = :user')
             ->setParameter('user', $user)
-            ->orderBy('n.createdAt', 'DESC')
-            ->addOrderBy('n.id', 'DESC')
+            ->orderBy('n.createdAt', \SortDirection::Descending)
+            ->addOrderBy('n.id', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         if ($beforeId !== null) {

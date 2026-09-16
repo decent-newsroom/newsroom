@@ -62,7 +62,7 @@ class PublicationSubdomainSubscriptionRepository extends ServiceEntityRepository
             ->where('s.npub LIKE :query')
             ->orWhere('s.subdomain LIKE :query')
             ->setParameter('query', '%' . $query . '%')
-            ->orderBy('s.createdAt', 'DESC');
+            ->orderBy('s.createdAt', \SortDirection::Descending);
         return $qb->getQuery()->getResult();
     }
 }

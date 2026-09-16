@@ -33,7 +33,7 @@ class MagazineRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('m')
             ->where('m.publishedAt IS NOT NULL')
-            ->orderBy('m.publishedAt', 'DESC')
+            ->orderBy('m.publishedAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -63,7 +63,7 @@ class MagazineRepository extends ServiceEntityRepository
             return $this->createQueryBuilder('m')
                 ->where('m.id IN (:ids)')
                 ->setParameter('ids', array_map('intval', $ids))
-                ->orderBy('m.updatedAt', 'DESC')
+                ->orderBy('m.updatedAt', \SortDirection::Descending)
                 ->getQuery()
                 ->getResult();
         }
@@ -74,7 +74,7 @@ class MagazineRepository extends ServiceEntityRepository
         return $qb
             ->where($qb->expr()->like('m.contributors', ':pubkey'))
             ->setParameter('pubkey', '%"' . $pubkey . '"%')
-            ->orderBy('m.updatedAt', 'DESC')
+            ->orderBy('m.updatedAt', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -88,7 +88,7 @@ class MagazineRepository extends ServiceEntityRepository
     public function findRecentlyUpdated(int $limit = 20): array
     {
         return $this->createQueryBuilder('m')
-            ->orderBy('m.updatedAt', 'DESC')
+            ->orderBy('m.updatedAt', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

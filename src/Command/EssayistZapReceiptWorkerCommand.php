@@ -84,7 +84,7 @@ final class EssayistZapReceiptWorkerCommand extends Command
             ->andWhere('e.created_at >= :since')
             ->setParameter('kind', KindsEnum::ZAP_RECEIPT->value)
             ->setParameter('since', $since)
-            ->orderBy('e.created_at', 'ASC')
+            ->orderBy('e.created_at', \SortDirection::Ascending)
             ->setMaxResults(1000)
             ->getQuery()
             ->getResult();

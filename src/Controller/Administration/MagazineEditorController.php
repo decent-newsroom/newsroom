@@ -160,7 +160,7 @@ class MagazineEditorController extends AbstractController
             ->andWhere('e.dTag = :slug')
             ->setParameter('kind', KindsEnum::PUBLICATION_INDEX->value)
             ->setParameter('slug', $slug)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

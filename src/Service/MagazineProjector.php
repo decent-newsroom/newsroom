@@ -218,7 +218,7 @@ class MagazineProjector
         $qb = $repo->createQueryBuilder('e');
         $qb->where('e.kind = :kind')
             ->setParameter('kind', 30040)
-            ->orderBy('e.created_at', 'DESC');
+            ->orderBy('e.created_at', \SortDirection::Descending);
 
         $events = $qb->getQuery()->getResult();
 
@@ -247,7 +247,7 @@ class MagazineProjector
             ->andWhere('e.pubkey = :pubkey')
             ->setParameter('kind', 30040)
             ->setParameter('pubkey', $pubkey)
-            ->orderBy('e.created_at', 'DESC');
+            ->orderBy('e.created_at', \SortDirection::Descending);
 
         $events = $qb->getQuery()->getResult();
 

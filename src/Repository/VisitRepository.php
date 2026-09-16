@@ -152,7 +152,7 @@ class VisitRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('v')
             ->select('v.route, COUNT(v.id) as count')
             ->groupBy('v.route')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults(100);
 
         if ($since) {
@@ -205,7 +205,7 @@ class VisitRepository extends ServiceEntityRepository
             ->select('v.sessionId, COUNT(v.id) as visitCount, MIN(v.visitedAt) as firstVisit, MAX(v.visitedAt) as lastVisit')
             ->where('v.sessionId IS NOT NULL')
             ->groupBy('v.sessionId')
-            ->orderBy('visitCount', 'DESC')
+            ->orderBy('visitCount', \SortDirection::Descending)
             ->setMaxResults(50);
 
         if ($since) {
@@ -308,7 +308,7 @@ class VisitRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('v')
             ->select('v.route, COUNT(v.id) as count')
             ->groupBy('v.route')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         $this->applyTrackedVisitFilters($qb);
@@ -326,7 +326,7 @@ class VisitRepository extends ServiceEntityRepository
             ->where('v.visitedAt >= :since')
             ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
             ->groupBy('v.route')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         $this->applyTrackedVisitFilters($qb);
@@ -341,7 +341,7 @@ class VisitRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('v')
             ->select('v.route, v.sessionId, v.referer, v.userAgent, v.visitedAt')
-            ->orderBy('v.visitedAt', 'DESC')
+            ->orderBy('v.visitedAt', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         $this->applyTrackedVisitFilters($qb);
@@ -376,7 +376,7 @@ class VisitRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('v')
             ->select('v.referer, COUNT(v.id) as count')
             ->groupBy('v.referer')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         if ($since) {
@@ -398,7 +398,7 @@ class VisitRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('v')
             ->select('v.referer, COUNT(v.id) as count')
             ->groupBy('v.referer')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         if ($since) {
@@ -593,7 +593,7 @@ class VisitRepository extends ServiceEntityRepository
             ->setParameter('articlePath', '/p/%/d/%')
             ->setParameter('draftPath', '%/draft')
             ->groupBy('v.route')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults($limit);
         return $qb->getQuery()->getResult();
     }
@@ -693,7 +693,7 @@ class VisitRepository extends ServiceEntityRepository
             ->setParameter('articlePattern', '/p/' . $npub . '/d/%')
             ->setParameter('draftPath', '%/draft')
             ->groupBy('v.route')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         return $qb->getQuery()->getResult();
@@ -843,7 +843,7 @@ class VisitRepository extends ServiceEntityRepository
             ->select('v.subdomain, COUNT(v.id) as count')
             ->andWhere('v.subdomain IS NOT NULL')
             ->groupBy('v.subdomain')
-            ->orderBy('count', 'DESC');
+            ->orderBy('count', \SortDirection::Descending);
 
         if ($since) {
             $qb->andWhere('v.visitedAt >= :since')
@@ -953,7 +953,7 @@ class VisitRepository extends ServiceEntityRepository
             ->select('v.subdomain, v.route, COUNT(v.id) as count')
             ->andWhere('v.subdomain IS NOT NULL')
             ->groupBy('v.subdomain, v.route')
-            ->orderBy('count', 'DESC')
+            ->orderBy('count', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         if ($since) {

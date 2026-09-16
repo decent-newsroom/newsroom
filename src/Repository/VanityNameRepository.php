@@ -138,7 +138,7 @@ class VanityNameRepository extends ServiceEntityRepository
     public function findAllWithStatus(?VanityNameStatus $status = null): array
     {
         $qb = $this->createQueryBuilder('v')
-            ->orderBy('v.createdAt', 'DESC');
+            ->orderBy('v.createdAt', \SortDirection::Descending);
 
         if ($status !== null) {
             $qb->where('v.status = :status')
@@ -200,7 +200,7 @@ class VanityNameRepository extends ServiceEntityRepository
             ->where('LOWER(v.vanityName) LIKE LOWER(:query)')
             ->orWhere('v.npub LIKE :query')
             ->setParameter('query', '%' . $query . '%')
-            ->orderBy('v.createdAt', 'DESC')
+            ->orderBy('v.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

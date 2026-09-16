@@ -28,7 +28,7 @@ class FeedbackAdminController extends AbstractController
         $feedbackEvents = $eventRepository->createQueryBuilder('e')
             ->where('e.kind = :kind')
             ->setParameter('kind', self::KIND_FEEDBACK)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
 

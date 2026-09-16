@@ -242,7 +242,7 @@ class AuthorController extends AbstractController
                     ->andWhere('a.slug IN (:slugs)')
                     ->setParameter('pubkeys', $pubkeys)
                     ->setParameter('slugs', $slugs)
-                    ->orderBy('a.createdAt', 'DESC')
+                    ->orderBy('a.createdAt', \SortDirection::Descending)
                     ->getQuery()
                     ->getResult();
 
@@ -389,7 +389,7 @@ class AuthorController extends AbstractController
             ->andWhere('e.pubkey = :pubkey')
             ->setParameter('kind', $kind)
             ->setParameter('pubkey', $pubkeyHex)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
 
@@ -1111,7 +1111,7 @@ class AuthorController extends AbstractController
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(200)
             ->getQuery()
             ->getResult();
@@ -1433,7 +1433,7 @@ class AuthorController extends AbstractController
             ->andWhere('e.pubkey != :pubkey')
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
             ->setParameter('pubkey', $pubkey)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(200)
             ->getQuery()
             ->getResult();
@@ -1626,7 +1626,7 @@ class AuthorController extends AbstractController
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(200)
             ->getQuery()
             ->getResult();

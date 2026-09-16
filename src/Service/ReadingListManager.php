@@ -52,7 +52,7 @@ class ReadingListManager
             ->andWhere('e.pubkey = :pubkey')
             ->setParameter('kinds', [30040, 30004, 30006])
             ->setParameter('pubkey', $pubkeyHex)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
 

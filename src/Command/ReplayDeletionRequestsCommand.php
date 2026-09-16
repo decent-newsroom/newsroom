@@ -181,7 +181,7 @@ class ReplayDeletionRequestsCommand extends Command
         $qb = $this->eventRepository()->createQueryBuilder('e')
             ->where('e.kind = :kind')
             ->setParameter('kind', KindsEnum::DELETION_REQUEST->value)
-            ->orderBy('e.created_at', 'ASC');
+            ->orderBy('e.created_at', \SortDirection::Ascending);
 
         if ($pubkey !== null) {
             $qb->andWhere('e.pubkey = :pubkey')->setParameter('pubkey', $pubkey);

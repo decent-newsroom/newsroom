@@ -146,7 +146,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
             ->andWhere('e.created_at >= :since')
             ->setParameter('kind', KindsEnum::ZAP_RECEIPT->value)
             ->setParameter('since', $since)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(500)
             ->getQuery()
             ->getResult();

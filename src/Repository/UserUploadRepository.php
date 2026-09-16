@@ -28,7 +28,7 @@ class UserUploadRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('u')
             ->andWhere('u.npub = :npub')
             ->setParameter('npub', $npub)
-            ->orderBy('u.createdAt', 'DESC')
+            ->orderBy('u.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->setFirstResult($offset);
 

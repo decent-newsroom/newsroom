@@ -437,7 +437,7 @@ class SettingsController extends AbstractController
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(50)
             ->getQuery()
             ->getResult();
@@ -954,7 +954,7 @@ class SettingsController extends AbstractController
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(10)
             ->getQuery()
             ->getResult();
@@ -1009,7 +1009,7 @@ class SettingsController extends AbstractController
                 ->setParameter('pubkey', $pubkey)
                 ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
                 ->setParameter('slug', $dTag)
-                ->orderBy('e.created_at', 'DESC')
+                ->orderBy('e.created_at', \SortDirection::Descending)
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
@@ -1059,7 +1059,7 @@ class SettingsController extends AbstractController
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(10)
             ->getQuery()
             ->getResult();

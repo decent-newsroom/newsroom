@@ -141,7 +141,7 @@ class ReadingListController extends AbstractController
                 KindsEnum::CURATION_PICTURES->value,
             ])
             ->setParameter('pubkey', $pubkeyHex)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->getQuery()
             ->getResult();
 

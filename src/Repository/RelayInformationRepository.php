@@ -78,7 +78,7 @@ class RelayInformationRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('r')
             ->where('r.fetchedAt IS NULL OR r.fetchedAt < :t')
             ->setParameter('t', $threshold)
-            ->orderBy('r.fetchedAt', 'ASC')
+            ->orderBy('r.fetchedAt', \SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }

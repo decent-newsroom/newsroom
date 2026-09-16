@@ -59,7 +59,7 @@ class UserMediaController extends AbstractController
             ->andWhere('p.kind IN (:kinds)')
             ->setParameter('pubkey', $hexPubkey)
             ->setParameter('kinds', [20, 21, 22, 34235, 34236])
-            ->orderBy('p.createdAt', 'DESC')
+            ->orderBy('p.createdAt', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->setFirstResult($offset)
             ->getQuery()

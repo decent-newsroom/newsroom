@@ -69,7 +69,7 @@ final class BackfillNostrIdentityLinksCommand extends Command
                 ->andWhere('u.id > :lastId')
                 ->andWhere('u.npub IS NOT NULL')
                 ->setParameter('lastId', $lastId)
-                ->orderBy('u.id', 'ASC')
+                ->orderBy('u.id', \SortDirection::Ascending)
                 ->setMaxResults($pageSize)
                 ->getQuery()
                 ->getResult();

@@ -354,7 +354,7 @@ class GenericEventProjector
         $qb->select('e.kind', 'COUNT(e.id) as count')
             ->from(Event::class, 'e')
             ->groupBy('e.kind')
-            ->orderBy('e.kind', 'ASC');
+            ->orderBy('e.kind', \SortDirection::Ascending);
 
         if (!empty($kinds)) {
             $qb->where($qb->expr()->in('e.kind', ':kinds'))

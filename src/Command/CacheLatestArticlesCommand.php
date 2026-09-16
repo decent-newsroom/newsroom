@@ -81,7 +81,7 @@ class CacheLatestArticlesCommand extends Command
                 ->setParameter('excludedPubkeys', $excludedPubkeys);
         }
 
-        $qb->orderBy('a.createdAt', 'DESC')
+        $qb->orderBy('a.createdAt', \SortDirection::Descending)
             ->setMaxResults($fetchLimit);
 
         /** @var Article[] $allArticles */

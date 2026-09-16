@@ -76,7 +76,7 @@ class CreateUsersFromProfilesCommand extends Command
         $qb->select('e.pubkey, MAX(e.created_at) as max_created')
             ->where('e.kind = 0')
             ->groupBy('e.pubkey')
-            ->orderBy('max_created', 'DESC');
+            ->orderBy('max_created', \SortDirection::Descending);
 
         if ($limit) {
             $qb->setMaxResults($limit);

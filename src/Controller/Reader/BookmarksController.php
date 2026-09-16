@@ -101,7 +101,7 @@ class BookmarksController extends AbstractController
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', KindsEnum::BOOKMARKS->value)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -259,7 +259,7 @@ class BookmarksController extends AbstractController
             ->andWhere('e.kind IN (:kinds)')
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kinds', $kindValues)
-            ->orderBy('e.created_at', 'DESC')
+            ->orderBy('e.created_at', \SortDirection::Descending)
             ->setMaxResults(50)
             ->getQuery()
             ->getResult();
