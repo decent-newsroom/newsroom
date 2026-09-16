@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Normalized Nostr value objects before persisting newly published magazine index events, preventing reading-list creation failures.
 - [Improvement] Main sidebar now renders its sections from `NavigationBuilderTrait::buildMainNav()` instead of maintaining a separate hardcoded Twig navigation.
 - [Docs] Consolidated public guides into `documentation/`, removed superseded implementation notes, refreshed current architecture and operations guidance, and repaired documentation navigation.
 - [Fix] Limited bot analytics to the last 14 days and replaced its repeated full-table scans with one bounded aggregation.

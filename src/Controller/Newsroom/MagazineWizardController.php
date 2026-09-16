@@ -385,6 +385,11 @@ class MagazineWizardController extends AbstractController
             return new JsonResponse(['error' => 'Verification failed'], 400);
         }
 
+        $signature = $eventObj->getSignature();
+        if ($signature === null) {
+            return new JsonResponse(['error' => 'Missing event signature'], 400);
+        }
+
         // Extract slug from 'd' tag
         $slug = null;
         foreach ($signedEvent['tags'] as $tag) {
@@ -401,13 +406,13 @@ class MagazineWizardController extends AbstractController
         $skipLocalPostPersist = false;
         try {
             $event = new \App\Entity\Event();
-            $event->setId($eventObj->getId());
-            $event->setPubkey($eventObj->getPublicKey());
-            $event->setCreatedAt($eventObj->getCreatedAt());
-            $event->setKind($eventObj->getKind());
-            $event->setTags($eventObj->getTags());
-            $event->setContent($eventObj->getContent());
-            $event->setSig($eventObj->getSignature());
+            $event->setId($eventObj->getId()->toHex());
+            $event->setPubkey($eventObj->getPubkey()->toHex());
+            $event->setCreatedAt($eventObj->getCreatedAt()->toInt());
+            $event->setKind($eventObj->getKind()->toInt());
+            $event->setTags($eventObj->getTags()->toArray());
+            $event->setContent((string) $eventObj->getContent());
+            $event->setSig($signature->toHex());
             $event->extractAndSetDTag();
             $entityManager->persist($event);
             $entityManager->flush();
@@ -415,7 +420,7 @@ class MagazineWizardController extends AbstractController
             // Idempotent publish: if it already exists locally, still continue and republish.
             $skipLocalPostPersist = true;
             $logger->info('Index event already exists locally, continuing with relay republish', [
-                'event_id' => $eventObj->getId(),
+                'event_id' => $eventObj->getId()->toHex(),
                 'slug' => $slug,
             ]);
         } catch (\Throwable $e) {
@@ -423,12 +428,12 @@ class MagazineWizardController extends AbstractController
                 // Some DB drivers wrap duplicates in generic exceptions.
                 $skipLocalPostPersist = true;
                 $logger->info('Index event already exists locally, continuing with relay republish', [
-                    'event_id' => $eventObj->getId(),
+                    'event_id' => $eventObj->getId()->toHex(),
                     'slug' => $slug,
                 ]);
             } else {
                 $logger->error('Failed to persist index event to database', [
-                    'event_id' => $eventObj->getId(),
+                    'event_id' => $eventObj->getId()->toHex(),
                     'slug' => $slug,
                     'error' => $e->getMessage(),
                 ]);
@@ -443,7 +448,7 @@ class MagazineWizardController extends AbstractController
                 $eventIngestionListener->processEvent($event);
             } catch (\Throwable $e) {
                 $logger->warning('Failed to update graph tables for magazine event', [
-                    'event_id' => $eventObj->getId(),
+                    'event_id' => $eventObj->getId()->toHex(),
                     'slug' => $slug,
                     'error' => $e->getMessage(),
                 ]);
@@ -465,7 +470,7 @@ class MagazineWizardController extends AbstractController
         $relayResults = [];
         try {
             $logger->info('Publishing magazine event to relays', [
-                'event_id' => $eventObj->getId(),
+                'event_id' => $eventObj->getId()->toHex(),
                 'slug' => $slug,
             ]);
 
@@ -473,12 +478,12 @@ class MagazineWizardController extends AbstractController
             $relayResults = $nostrClient->publishEvent($eventObj, []);
 
             $logger->info('Magazine event published to relays', [
-                'event_id' => $eventObj->getId(),
+                'event_id' => $eventObj->getId()->toHex(),
                 'results' => $relayResults,
             ]);
         } catch (\Throwable $e) {
             $logger->warning('Failed to publish magazine event to relays', [
-                'event_id' => $eventObj->getId(),
+                'event_id' => $eventObj->getId()->toHex(),
                 'error' => $e->getMessage(),
             ]);
             // Non-fatal: event is saved locally, relay publishing is best-effort
