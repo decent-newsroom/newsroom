@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Represents a subscription for a publication subdomain (e.g., magazine.decentnewsroom.com)
- * Allows users to host their magazine on a subdomain for 20,000 sats/year
+ * Allows users to host their magazine on a subdomain for 5,000 sats/year
  */
 #[ORM\Entity(repositoryClass: PublicationSubdomainSubscriptionRepository::class)]
 #[ORM\Table(name: 'publication_subdomain_subscription')]
@@ -21,7 +21,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(columns: ['expires_at'], name: 'idx_pub_subdomain_expires')]
 class PublicationSubdomainSubscription
 {
-    public const PRICE_SATS = 120000; // 120,000 sats per year
+    public const PRICE_SATS = 5000; // 5000 sats per year
     public const DURATION_DAYS = 365; // 1 year
 
     #[ORM\Id]
