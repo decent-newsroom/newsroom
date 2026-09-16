@@ -8,6 +8,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\EventDeletionService;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -217,7 +218,7 @@ class ReplayDeletionRequestsCommand extends Command
 
     private function loadDeletionRequest(string $eventId): ?Event
     {
-        $event = $this->loadEntityManager()->find(Event::class, $eventId);
+        $event = $this->loadEntityManager()->find(Event::class, $eventId, LockMode::NONE);
 
         return $event instanceof Event ? $event : null;
     }
