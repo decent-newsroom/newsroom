@@ -40,9 +40,9 @@
                 {% set lowerUrl = mediaUrl|lower %}
                 {% set lowerMime = mediaMime|default('')|lower %}
                 {% set mediaType = 'link' %}
-                {% if lowerMime starts with 'image/' or lowerUrl matches '/\.(avif|gif|jpe?g|png|svg|webp)(\?|#|$)/' %}
+                {% if lowerMime starts with 'image/' or lowerUrl matches '/\\.(avif|gif|jpe?g|png|svg|webp)([?]|#|$)/' %}
                     {% set mediaType = 'image' %}
-                {% elseif lowerMime starts with 'video/' or lowerUrl matches '/\.(mp4|mov|ogg|webm)(\?|#|$)/' %}
+                {% elseif lowerMime starts with 'video/' or lowerUrl matches '/\\.(mp4|mov|ogg|webm)([?]|#|$)/' %}
                     {% set mediaType = 'video' %}
                 {% endif %}
 
@@ -61,9 +61,9 @@
             {% if mediaUrl matches '#^https?://#i' and mediaUrl not in seenMediaUrls %}
                 {% set lowerUrl = mediaUrl|lower %}
                 {% set mediaType = 'link' %}
-                {% if tagName in ['image', 'thumb'] or lowerUrl matches '/\.(avif|gif|jpe?g|png|svg|webp)(\?|#|$)/' %}
+                {% if tagName in ['image', 'thumb'] or lowerUrl matches '/\\.(avif|gif|jpe?g|png|svg|webp)([?]|#|$)/' %}
                     {% set mediaType = 'image' %}
-                {% elseif lowerUrl matches '/\.(mp4|mov|ogg|webm)(\?|#|$)/' %}
+                {% elseif lowerUrl matches '/\\.(mp4|mov|ogg|webm)([?]|#|$)/' %}
                     {% set mediaType = 'video' %}
                 {% endif %}
 
