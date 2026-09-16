@@ -365,13 +365,18 @@ class ReadingListController extends AbstractController
 
             // Transform any naddr values to coordinates in the articles array
             if (!empty($draft->articles)) {
-                $draft->articles = array_map(function($article) {
+                $draft->articles = array_values(array_filter(array_map(function ($article): ?string {
+                    if (!is_string($article) || $article === '') {
+                        return null;
+                    }
+
                     if (str_starts_with($article, 'naddr1')) {
                         $coordinate = $this->parseNaddr($article);
                         return $coordinate ?? $article;
                     }
+
                     return $article;
-                }, $draft->articles);
+                }, $draft->articles), static fn (?string $article): bool => $article !== null));
             }
 
             // ensure slug exists
@@ -660,13 +665,18 @@ class ReadingListController extends AbstractController
 
         if (!empty($data->articles)) {
             $originalArticles = $data->articles;
-            $data->articles = array_map(function($article) {
+            $data->articles = array_values(array_filter(array_map(function ($article): ?string {
+                if (!is_string($article) || $article === '') {
+                    return null;
+                }
+
                 if (str_starts_with($article, 'naddr1')) {
                     $coordinate = $this->parseNaddr($article);
                     return $coordinate ?? $article;
                 }
+
                 return $article;
-            }, $data->articles);
+            }, $data->articles), static fn (?string $article): bool => $article !== null));
 
             if ($originalArticles !== $data->articles) {
                 $needsSave = true;

@@ -188,11 +188,13 @@ class MagazineWizardController extends AbstractController
                 if ($cat instanceof CategoryDraft && is_array($cat->articles)) {
                     $normalizedArticles = [];
                     foreach ($cat->articles as $article) {
-                        if (is_string($article) && $article !== '') {
-                            $normalized = $this->parseNaddr($article);
-                            if ($normalized !== null) {
-                                $normalizedArticles[] = $normalized;
-                            }
+                        if (!is_string($article) || $article === '') {
+                            continue;
+                        }
+
+                        $normalized = $this->parseNaddr($article);
+                        if ($normalized !== null && $normalized !== '') {
+                            $normalizedArticles[] = $normalized;
                         }
                     }
                     $cat->articles = $normalizedArticles;
