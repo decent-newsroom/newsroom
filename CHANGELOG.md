@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Improvement] Made the topics picker collapsible so selected-topic results stay visible near the top of the page.
 - [Improvement] Added stderr request, response, duration, and failure logging to the standalone MCP server's upstream API clients.
 - [Fix] Removed deprecated Twig regex escapes from generic event media URL matching.
 - [Fix] Normalized Nostr value objects before persisting newly published magazine index events, preventing reading-list creation failures.

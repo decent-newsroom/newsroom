@@ -452,7 +452,7 @@ latest:
 # ── Topics / Forum ────────────────────────────────────────────────
 topics:
     heading: 'Explore Topics'
-    selectTopic: 'Select a topic to view the 10 most recent articles related to it.'
+    selectTopic: 'Select a topic to view the 20 most recent articles related to it.'
     recentIn: 'Recent Articles in %topic%'
     noArticles: 'No articles found for this topic.'
 

@@ -52,18 +52,20 @@
 
 {% block body %}
 <h1>{{ 'topics.heading'|trans }}</h1>
-<p>{{ 'topics.selectTopic'|trans }}</p>
 
-<div class="topics-list">
-    {% for key, topic in topics %}
-        <a href="{{ path('topics', {'topic': key}) }}" class="btn btn-secodary topic-button {{ selectedTopic == key ? 'active' : '' }}">
-            {{ topic.name }}
-        </a>
-    {% endfor %}
-</div>
+<details class="topics-disclosure" {% if not selectedLabel %}open{% endif %}>
+    <summary class="topics-disclosure__summary">{{ 'topics.selectTopic'|trans }}</summary>
+    <div class="topics-list">
+        {% for key, topic in topics %}
+            <a href="{{ path('topics', {'topic': key}) }}" class="btn btn-secodary topic-button {{ selectedTopic == key ? 'active' : '' }}">
+                {{ topic.name }}
+            </a>
+        {% endfor %}
+    </div>
+</details>
 
 {% if selectedLabel and articles %}
-    <h2>{{ 'topics.recentIn'|trans({'%topic%': selectedLabel}) }}</h2>
+    <h2 class="my-4">{{ 'topics.recentIn'|trans({'%topic%': selectedLabel}) }}</h2>
     <twig:Organisms:CardList :list="articles" class="article-list" />
 {% elseif selectedLabel %}
     <p>{{ 'topics.noArticles'|trans }}</p>
