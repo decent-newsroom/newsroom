@@ -344,6 +344,7 @@ bookshelf:
         eyebrow: 'Depuis cette rédaction'
         heading: 'Livres et fiches de bibliothèque'
         description: 'Livres et fiches de bibliothèque mis en cache par cette rédaction.'
+        open: 'Voir la publication'
     app:
         eyebrow: 'Lire hors ligne'
         title: 'Bookshelf pour Android'

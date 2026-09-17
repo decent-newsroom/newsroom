@@ -344,6 +344,7 @@ bookshelf:
         eyebrow: 'Iz te redakcije'
         heading: 'Knjige in knjižnične kartice'
         description: 'Knjige in knjižnične kartice, shranjene v tej redakciji.'
+        open: 'Ogled publikacije'
     app:
         eyebrow: 'Beri brez povezave'
         title: 'Bookshelf za Android'

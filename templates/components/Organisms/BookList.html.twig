@@ -1,31 +1,44 @@
-<div {{ attributes }}>
+<div {{ attributes.defaults({class: 'bookshelf-inventory'}) }}>
     {% if books is not empty %}
     {% for item in books %}
-        <div class="card p-3 ln-section--reader">
-            <div class="card-body text-center">
-                <h2 class="card-title">
-                    <a href="{{ path('bookshelf_book', {book: item.slug}) }}">
-                    {% if item and item.title %}
-                        {{ item.title }}
-                    {% elseif item.slug %}
-                        {{ item.slug }}
-                    {% else %}
-                        Untitled Book
-                    {% endif %}
-                    </a>
+        {% set title = item.title|default(item.slug|default('Untitled Book')) %}
+        <article class="bookshelf-book">
+            {% if item.image %}
+                <a class="bookshelf-book__cover" href="{{ path('bookshelf_book', {book: item.slug}) }}" tabindex="-1" aria-hidden="true">
+                    <img src="{{ item.image }}" alt="" loading="lazy">
+                </a>
+            {% else %}
+                <div class="bookshelf-book__monogram" aria-hidden="true">
+                    {{ title|first|upper }}
+                </div>
+            {% endif %}
+
+            <div class="bookshelf-book__body">
+                <p class="bookshelf-book__format">{{ 'bookshelf.publication.eyebrow'|trans }}</p>
+                <h2>
+                    <a href="{{ path('bookshelf_book', {book: item.slug}) }}">{{ title }}</a>
                 </h2>
-                {% if item and item.summary %}
-                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ item.summary }}</p>
-                {% endif %}
-                {% if pubkey and currentUserPubkey and item.pubkey == currentUserPubkey %}
-                    <div class="mt-3">
-                        <a href="{{ path('mag_wizard_edit', {slug: item.slug}) }}" class="btn btn-sm btn-secondary">Edit</a>
-                    </div>
+
+                {% if item.summary %}
+                    <p>{{ item.summary }}</p>
                 {% endif %}
             </div>
-        </div>
+
+            <div class="bookshelf-book__actions">
+                <a class="bookshelf-book__open btn btn-secondary btn-sm" href="{{ path('bookshelf_book', {book: item.slug}) }}">
+                    {{ 'bookshelf.stash.open'|trans }}
+                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                </a>
+                {% if pubkey and currentUserPubkey and item.pubkey == currentUserPubkey %}
+                    <a href="{{ path('mag_wizard_edit', {slug: item.slug}) }}" class="btn btn-secondary btn-sm">Edit</a>
+                {% endif %}
+            </div>
+        </article>
     {% endfor %}
     {% else %}
-    <p><small>{{ 'bookshelf.noBooks'|trans }}</small></p>
+        <div class="bookshelf-empty">
+            {{ ux_icon('iconoir:bookmark-book', {class: 'icon'}) }}
+            <p>{{ 'bookshelf.noBooks'|trans }}</p>
+        </div>
     {% endif %}
 </div>

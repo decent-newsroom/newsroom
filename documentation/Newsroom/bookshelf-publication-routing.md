@@ -16,4 +16,5 @@ metadata tags, and chapter references while omitting structural relationship
 tags from the metadata list. Newsstand, magazine administration, and the global
 magazine manifest list only section-based magazines. Existing magazine routes
 remain unchanged. The `/bookshelf` landing page also lists the locally cached
-bookshelf publications, including relationship-free library cards.
+bookshelf publications, including relationship-free library cards. Entries are
+deduplicated by `kind:npub:slug`, with the newest version retained.

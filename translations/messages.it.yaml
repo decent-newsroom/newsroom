@@ -345,6 +345,7 @@ bookshelf:
         eyebrow: 'Da questa redazione'
         heading: 'Libri e schede bibliografiche'
         description: 'Libri e schede bibliografiche memorizzati da questa redazione.'
+        open: 'Visualizza pubblicazione'
     app:
         eyebrow: 'Leggi offline'
         title: 'Bookshelf per Android'

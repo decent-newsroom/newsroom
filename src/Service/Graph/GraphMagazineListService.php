@@ -147,15 +147,26 @@ class GraphMagazineListService
     private function queryBooks(?string $pubkey): array
     {
         try {
-            $sql = 'SELECT coord, current_event_id, pubkey, d_tag FROM current_record WHERE kind = 30040';
+            $sql = <<<'SQL'
+                SELECT coord, current_event_id, pubkey, d_tag, current_created_at
+                FROM (
+                    SELECT DISTINCT ON (kind, LOWER(pubkey), d_tag)
+                        coord, current_event_id, pubkey, d_tag, current_created_at, kind
+                    FROM current_record
+                    WHERE kind = 30040
+            SQL;
             $params = [];
 
             if ($pubkey !== null) {
-                $sql .= ' AND pubkey = :pubkey';
+                $sql .= ' AND LOWER(pubkey) = LOWER(:pubkey)';
                 $params['pubkey'] = $pubkey;
             }
 
-            $sql .= ' ORDER BY current_created_at DESC';
+            $sql .= <<<'SQL'
+                    ORDER BY kind, LOWER(pubkey), d_tag, current_created_at DESC, current_event_id DESC
+                ) latest_publications
+                ORDER BY current_created_at DESC, current_event_id DESC
+            SQL;
 
             $records = $this->connection->fetchAllAssociative($sql, $params);
             if (empty($records)) {

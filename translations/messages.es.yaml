@@ -344,6 +344,7 @@ bookshelf:
         eyebrow: 'De esta redacción'
         heading: 'Libros y fichas bibliográficas'
         description: 'Libros y fichas bibliográficas almacenados por esta redacción.'
+        open: 'Ver publicación'
     app:
         eyebrow: 'Leer sin conexión'
         title: 'Bookshelf para Android'

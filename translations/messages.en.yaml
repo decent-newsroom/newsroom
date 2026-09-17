@@ -359,6 +359,7 @@ bookshelf:
         eyebrow: 'From this newsroom'
         heading: 'Books and library cards'
         description: 'Books and library cards cached by this newsroom.'
+        open: 'View publication'
     app:
         eyebrow: 'Read offline'
         title: 'Bookshelf for Android'
