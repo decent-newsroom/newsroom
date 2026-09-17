@@ -37,13 +37,11 @@
     </a>
 
     <header class="bookshelf-publication__header">
+        {% if publication.image %}
         <div class="bookshelf-publication__cover">
-            {% if publication.image %}
-                <img src="{{ publication.image }}" alt="{{ publication.title|default(book) }}">
-            {% else %}
-                <span aria-hidden="true">{{ publication.title|default(book)|first|upper }}</span>
-            {% endif %}
+            <img src="{{ publication.image }}" alt="{{ publication.title|default(book) }}">
         </div>
+        {% endif %}
 
         <div>
             <p class="eyebrow">{{ publicationType|upper }}</p>
@@ -59,7 +57,7 @@
             {% if app.user %}
                 <button
                     type="button"
-                    class="bookshelf-directory-action btn btn-secondary btn-sm"
+                    class="bookshelf-directory-action btn btn-secondary btn-sm mt-3"
                     data-ui--bookshelf-directory-target="toggle"
                     data-action="click->ui--bookshelf-directory#toggle"
                     data-ui--bookshelf-directory-coordinate-param="30040:{{ publication.pubkey }}:{{ book }}"
