@@ -355,6 +355,7 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    published_by: 'Published by'
     stash:
         eyebrow: 'From this newsroom'
         heading: 'Books and library cards'

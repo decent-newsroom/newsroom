@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Improvement] Added linked publisher profiles and an admin-only raw Nostr event preview to Bookshelf publications.
 - [Fix] Deduplicated Bookshelf stash entries by `kind:npub:slug`, retaining only the newest publication version.
 - [Improvement] Reused the Bookshelf inventory layout for cached books and library cards instead of centered title cards.
 - [Improvement] Routed library-card and chapter-based kind 30040 publications from `/mag/{mag}` into a dedicated Bookshelf view that displays their metadata tags and chapter references.

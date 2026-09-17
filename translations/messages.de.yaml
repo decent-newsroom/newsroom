@@ -340,6 +340,7 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    published_by: 'Veröffentlicht von'
     stash:
         eyebrow: 'Aus diesem Newsroom'
         heading: 'Bücher und Bibliothekskarten'

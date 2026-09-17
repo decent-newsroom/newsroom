@@ -322,6 +322,11 @@
     font-style: italic;
 }
 
+.bookshelf-publication__publisher {
+    margin: var(--spacing-2) 0 0;
+    color: var(--color-text-mid);
+}
+
 .bookshelf-publication__summary {
     max-width: 65ch;
     margin: var(--spacing-4) 0 0;

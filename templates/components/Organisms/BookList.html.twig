@@ -19,6 +19,11 @@
                     <a href="{{ path('bookshelf_book', {book: item.slug}) }}">{{ title }}</a>
                 </h2>
 
+                <p class="bookshelf-book__authors">
+                    {{ 'bookshelf.published_by'|trans }}
+                    <twig:Molecules:UserFromNpub ident="{{ item.pubkey }}" />
+                </p>
+
                 {% if item.summary %}
                     <p>{{ item.summary }}</p>
                 {% endif %}

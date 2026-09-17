@@ -341,6 +341,7 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    published_by: 'Pubblicato da'
     stash:
         eyebrow: 'Da questa redazione'
         heading: 'Libri e schede bibliografiche'

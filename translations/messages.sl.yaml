@@ -340,6 +340,7 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    published_by: 'Objavil'
     stash:
         eyebrow: 'Iz te redakcije'
         heading: 'Knjige in knjižnične kartice'

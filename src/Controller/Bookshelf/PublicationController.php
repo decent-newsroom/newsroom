@@ -47,6 +47,15 @@ final class PublicationController extends AbstractController
             'publicationType' => $this->firstTagValue($publication->getTags(), 'type') ?? 'book',
             'metadata' => $this->metadataTags($publication->getTags()),
             'chapters' => $chapters,
+            'rawEvent' => [
+                'id' => $publication->getId(),
+                'pubkey' => $publication->getPubkey(),
+                'created_at' => $publication->getCreatedAt(),
+                'kind' => $publication->getKind(),
+                'tags' => $publication->getTags(),
+                'content' => $publication->getContent(),
+                'sig' => $publication->getSig(),
+            ],
         ]);
     }
 
