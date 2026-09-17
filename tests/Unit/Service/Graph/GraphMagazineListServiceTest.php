@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Graph;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Graph\GraphLookupService;
 use App\Service\Graph\GraphMagazineListService;
+use App\Service\MutedPubkeysService;
 use App\Service\Magazine\PublicationIndexClassifier;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
@@ -21,10 +22,12 @@ class GraphMagazineListServiceTest extends TestCase
         $connection = $this->createMock(Connection::class);
         $graphLookup = $this->createMock(GraphLookupService::class);
         $hiddenCoordinateRepository = $this->createMock(HiddenCoordinateRepository::class);
+        $mutedPubkeysService = $this->createMock(MutedPubkeysService::class);
         $this->service = new GraphMagazineListService(
             $connection,
             $graphLookup,
             $hiddenCoordinateRepository,
+            $mutedPubkeysService,
             new PublicationIndexClassifier(),
             new NullLogger(),
         );
@@ -114,5 +117,69 @@ class GraphMagazineListServiceTest extends TestCase
             ['tags' => json_encode([['a', '30040:' . str_repeat('ab', 32) . ':section-1']])],
             false,
         ];
+    }
+
+    public function testAllBooksExcludeMutedPublishersBeforeEventHydration(): void
+    {
+        $mutedPubkey = str_repeat('a', 64);
+        $visiblePubkey = str_repeat('b', 64);
+        $connection = $this->createMock(Connection::class);
+        $connection
+            ->expects($this->once())
+            ->method('fetchAllAssociative')
+            ->willReturn([
+                [
+                    'coord' => '30040:' . $mutedPubkey . ':muted-book',
+                    'current_event_id' => 'muted-event',
+                    'pubkey' => $mutedPubkey,
+                    'd_tag' => 'muted-book',
+                    'current_created_at' => 2,
+                ],
+                [
+                    'coord' => '30040:' . $visiblePubkey . ':visible-book',
+                    'current_event_id' => 'visible-event',
+                    'pubkey' => $visiblePubkey,
+                    'd_tag' => 'visible-book',
+                    'current_created_at' => 1,
+                ],
+            ]);
+
+        $graphLookup = $this->createMock(GraphLookupService::class);
+        $graphLookup
+            ->expects($this->once())
+            ->method('fetchEventRows')
+            ->with(['visible-event'])
+            ->willReturn([
+                'visible-event' => [
+                    'tags' => json_encode([
+                        ['d', 'visible-book'],
+                        ['title', 'Visible Book'],
+                    ]),
+                ],
+            ]);
+
+        $hiddenCoordinateRepository = $this->createMock(HiddenCoordinateRepository::class);
+        $hiddenCoordinateRepository
+            ->method('findAllCoordinates')
+            ->willReturn([]);
+        $mutedPubkeysService = $this->createMock(MutedPubkeysService::class);
+        $mutedPubkeysService
+            ->expects($this->once())
+            ->method('getMutedPubkeys')
+            ->willReturn([$mutedPubkey]);
+
+        $service = new GraphMagazineListService(
+            $connection,
+            $graphLookup,
+            $hiddenCoordinateRepository,
+            $mutedPubkeysService,
+            new PublicationIndexClassifier(),
+            new NullLogger(),
+        );
+
+        $books = $service->listAllBooks();
+
+        $this->assertCount(1, $books);
+        $this->assertSame('visible-book', $books[0]['slug']);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Graph;
 
 use App\Repository\HiddenCoordinateRepository;
+use App\Service\MutedPubkeysService;
 use App\Service\Magazine\PublicationIndexClassifier;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
@@ -21,6 +22,7 @@ class GraphMagazineListService
         private readonly Connection $connection,
         private readonly GraphLookupService $graphLookup,
         private readonly HiddenCoordinateRepository $hiddenCoordinateRepository,
+        private readonly MutedPubkeysService $mutedPubkeysService,
         private readonly PublicationIndexClassifier $publicationIndexClassifier,
         private readonly LoggerInterface $logger,
     ) {}
@@ -175,6 +177,17 @@ class GraphMagazineListService
 
             // Load hidden coordinates (graceful: if table missing, skip filtering)
             $hiddenCoordinates = $this->loadHiddenCoordinates();
+
+            $mutedPubkeys = $pubkey === null
+                ? array_fill_keys(array_map('strtolower', $this->mutedPubkeysService->getMutedPubkeys()), true)
+                : [];
+            $records = array_values(array_filter(
+                $records,
+                static fn (array $record): bool => !isset($mutedPubkeys[strtolower((string) $record['pubkey'])]),
+            ));
+            if (empty($records)) {
+                return [];
+            }
 
             $eventIds = array_column($records, 'current_event_id');
             $eventRows = $this->graphLookup->fetchEventRows($eventIds);

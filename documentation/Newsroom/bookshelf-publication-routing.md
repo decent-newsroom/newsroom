@@ -18,3 +18,5 @@ magazine manifest list only section-based magazines. Existing magazine routes
 remain unchanged. The `/bookshelf` landing page also lists the locally cached
 bookshelf publications, including relationship-free library cards. Entries are
 deduplicated by `kind:npub:slug`, with the newest version retained.
+Publications authored by users with `ROLE_MUTED` are excluded from this
+all-publications list.

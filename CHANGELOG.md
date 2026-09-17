@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Removed publications authored by users with `ROLE_MUTED` from the all-publications Bookshelf list.
 - [Improvement] Added linked publisher profiles and an admin-only raw Nostr event preview to Bookshelf publications.
 - [Fix] Deduplicated Bookshelf stash entries by `kind:npub:slug`, retaining only the newest publication version.
 - [Improvement] Reused the Bookshelf inventory layout for cached books and library cards instead of centered title cards.
