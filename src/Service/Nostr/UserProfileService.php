@@ -104,7 +104,7 @@ class UserProfileService
         $this->logger->debug('Getting metadata for pubkey', ['pubkey' => $pubkey]);
 
         $events = $this->executor->fetch(
-            kinds: [KindsEnum::METADATA],
+            kinds: [KindsEnum::METADATA->value],
             filters: ['authors' => [$pubkey]],
             relaySet: $relaySet,
             handler: function ($received) {

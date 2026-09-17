@@ -226,7 +226,7 @@ class ArticleFetchService
         }
 
         $events = $this->executor->fetch(
-            kinds: [KindsEnum::LONGFORM],
+            kinds: [KindsEnum::LONGFORM->value],
             filters: ['tag' => ['#d', $slugs]],
             relaySet: $this->relaySetFactory->getDefault(),
         );
@@ -319,7 +319,7 @@ class ArticleFetchService
         }
 
         $events = $this->executor->fetch(
-            kinds: [KindsEnum::LONGFORM],
+            kinds: [KindsEnum::LONGFORM->value],
             filters: $filters,
             relaySet: $relaySet,
         );
