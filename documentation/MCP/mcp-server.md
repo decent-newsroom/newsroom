@@ -227,7 +227,8 @@ setting the secrets in step 1.
 The Caddy route is **already applied** in `frankenphp/Caddyfile` (the
 `@mcpHost` / `@mcpHostForwarded` handlers): requests to the `chat.` host are
 intercepted before the catch-all and proxied to `mcp:9000` without client
-authentication.
+authentication. The shared `@blockProbes` handler runs before these dedicated
+host routes, so common scanner paths return `404` without reaching MCP.
 
 We reuse the **existing, idle `chat.` subdomain** instead of standing up a new
 `mcp.` one — its DNS record and TLS cert are already in place, so there is

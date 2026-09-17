@@ -49,6 +49,27 @@
 		}
 	}
 
+	# ── Block scanner / attacker probe paths ─────────────────────────────────────
+	# Caddy responds immediately with 404; PHP is never invoked, no Symfony routing,
+	# no DB write, and no visit-tracking overhead.
+	#
+	# Covers:
+	#   - Environment / secrets files  (.env, .env.local, .env.production, …)
+	#   - VCS metadata dirs            (.git/*, .svn/*, .hg/*)
+	#   - Apache / server config files (.htaccess, .htpasswd, web.config)
+	#   - PHP info / install scripts   (phpinfo.php, info.php, install.php, setup.php, …)
+	#   - Composer manifests           (composer.json, composer.lock)
+	#   - WordPress probes             (wp-login.php, xmlrpc.php, wp-admin/*, …)
+	#   - Common admin tools           (adminer.php, phpmyadmin/*)
+	#   - Spring Boot actuator         (/actuator/*)
+	#
+	# Keep this before all dedicated host handlers so probe requests cannot reach
+	# the relay, MCP, or application upstreams.
+	@blockProbes path_regexp blockProbes ^/(\.env.*|\.git(/.*)?|\.svn(/.*)?|\.hg(/.*)?|\.htaccess|\.htpasswd|web\.config|phpinfo\.php|info\.php|install\.php|setup\.php|config\.php|admin\.php|admin/_profiler(/.*)?|composer\.(json|lock)|wp-login\.php|xmlrpc\.php|wp-admin(/.*)?|wp-content(/.*)?|wp-includes(/.*)?|wlwmanifest\.xml|adminer\.php|phpmyadmin(/.*)?|actuator(/.*)?)(\/.*)?$
+	handle @blockProbes {
+		respond 404
+	}
+
 
         # Nostr relay WebSocket proxy
         # When behind a reverse proxy that might rewrite Host headers, also match X-Forwarded-Host
@@ -108,27 +129,6 @@
         handle @mcpHostForwarded {
             reverse_proxy mcp:9000
         }
-
-	# ── Block scanner / attacker probe paths ─────────────────────────────────────
-	# Caddy responds immediately with 404; PHP is never invoked, no Symfony routing,
-	# no DB write, and no visit-tracking overhead.
-	#
-	# Covers:
-	#   - Environment / secrets files  (.env, .env.local, .env.production, …)
-	#   - VCS metadata dirs            (.git/*, .svn/*, .hg/*)
-	#   - Apache / server config files (.htaccess, .htpasswd, web.config)
-	#   - PHP info / install scripts   (phpinfo.php, info.php, install.php, setup.php, …)
-	#   - Composer manifests           (composer.json, composer.lock)
-	#   - WordPress probes             (wp-login.php, xmlrpc.php, wp-admin/*, …)
-	#   - Common admin tools           (adminer.php, phpmyadmin/*)
-	#   - Spring Boot actuator         (/actuator/*)
-	#
-	# Uses `handle @blockProbes` so Caddy's subroute ordering guarantees this
-	# fires BEFORE the catch-all `handle {}` block below.
-	@blockProbes path_regexp blockProbes ^/(\.env.*|\.git(/.*)?|\.svn(/.*)?|\.hg(/.*)?|\.htaccess|\.htpasswd|web\.config|phpinfo\.php|info\.php|install\.php|setup\.php|config\.php|admin\.php|admin/_profiler(/.*)?|composer\.(json|lock)|wp-login\.php|xmlrpc\.php|wp-admin(/.*)?|wp-content(/.*)?|wp-includes(/.*)?|wlwmanifest\.xml|adminer\.php|phpmyadmin(/.*)?|actuator(/.*)?)(\/.*)?$
-	handle @blockProbes {
-		respond 404
-	}
 
 	# Main application (handles both main site and Unfold subdomains via Symfony routing)
 	handle {
