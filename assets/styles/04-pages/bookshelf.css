@@ -284,16 +284,15 @@
 
 .bookshelf-publication__header {
     display: grid;
-    grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr);
     gap: var(--spacing-5);
     padding-bottom: var(--spacing-5);
-    border-bottom: 1px solid var(--color-border-strong);
 }
 
 .bookshelf-publication__cover {
     display: grid;
     place-items: center;
     min-height: 12rem;
+    max-height: 85vh;
     border: 1px solid var(--color-border-strong);
     color: var(--color-primary-link);
     font-family: var(--font-family), serif;
@@ -311,7 +310,6 @@
 .bookshelf-publication__header h1 {
     max-width: 18ch;
     margin: var(--spacing-2) 0;
-    font-size: clamp(2.25rem, 6vw, 4.75rem);
     line-height: 1;
 }
 

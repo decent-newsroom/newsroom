@@ -48,16 +48,13 @@
         <div>
             <p class="eyebrow">{{ publicationType|upper }}</p>
             <h1>{{ publication.title|default(book) }}</h1>
+            {% if publication.getAuthor() %}
+                <p class="bookshelf-publication__authors">{{ publication.getAuthor() }}</p>
+            {% endif %}
             <p class="bookshelf-publication__publisher">
                 {{ 'bookshelf.published_by'|trans }}
                 <twig:Molecules:UserFromNpub ident="{{ publication.pubkey }}" />
             </p>
-            {% if publication.getAuthor() %}
-                <p class="bookshelf-publication__authors">{{ publication.getAuthor() }}</p>
-            {% endif %}
-            {% if publication.summary %}
-                <p class="bookshelf-publication__summary">{{ publication.summary }}</p>
-            {% endif %}
 
             {% if app.user %}
                 <button
@@ -73,6 +70,11 @@
                 >
                     {{ ('30040:' ~ publication.pubkey ~ ':' ~ book) in directoryCoordinates ? 'bookshelf.remove_from_my_books'|trans : 'bookshelf.add_to_my_books'|trans }}
                 </button>
+            {% endif %}
+
+
+            {% if publication.summary %}
+                <p class="bookshelf-publication__summary">{{ publication.summary }}</p>
             {% endif %}
         </div>
     </header>
