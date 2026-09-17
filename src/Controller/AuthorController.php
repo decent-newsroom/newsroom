@@ -1089,11 +1089,6 @@ class AuthorController extends AbstractController
      */
     private function getOverviewTabData(
         string $pubkey,
-        bool $isOwner,
-        RedisCacheService $redisCacheService,
-        RedisViewStore $viewStore,
-        RedisViewFactory $viewFactory,
-        MessageBusInterface $messageBus,
         EntityManagerInterface $em
     ): array {
         // Get author's magazines
