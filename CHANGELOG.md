@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Labeled author publication indexes from their referenced event kinds instead of hardcoding every overview card as a magazine.
 - [Security] Applied the Caddy scanner-probe block before dedicated host routes so MCP, relay, and application upstreams reject common secret and admin-path probes with `404`.
 - [Improvement] Made the topics picker collapsible so selected-topic results stay visible near the top of the page.
 - [Improvement] Added stderr request, response, duration, and failure logging to the standalone MCP server's upstream API clients.

@@ -957,7 +957,7 @@ class AuthorController extends AbstractController
 
                     if ($cachedIsEmpty) {
                         $templateData = match($tab) {
-                            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
+                            'overview' => $this->getOverviewTabData($pubkey, $em),
                             'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                             'highlights' => $this->getHighlightsTabData($pubkey, $em),
                             'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
@@ -991,7 +991,7 @@ class AuthorController extends AbstractController
                 } else {
                     // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
                     $templateData = match($tab) {
-                        'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
+                        'overview' => $this->getOverviewTabData($pubkey, $em),
                         'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                         'highlights' => $this->getHighlightsTabData($pubkey, $em),
                         'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
@@ -1738,7 +1738,11 @@ class AuthorController extends AbstractController
                 }
             }
 
-            return array_values($bySlug);
+            return array_values(array_map(static function (Magazine $magazine): array {
+                return array_merge($magazine->jsonSerialize(), [
+                    'label' => 'Magazine',
+                ]);
+            }, $bySlug));
         }
 
         // Fallback: query Event table (same logic as ZineList used to use)
@@ -1793,8 +1797,32 @@ class AuthorController extends AbstractController
                 'summary' => $summary,
                 'image' => $image,
                 'pubkey' => $event->getPubkey(),
+                'label' => $this->getPublicationIndexLabel($event->getTags()),
             ];
         }, $bySlug));
+    }
+
+    /**
+     * Determine the kind of publication represented by a kind-30040 index.
+     */
+    private function getPublicationIndexLabel(array $tags): string
+    {
+        $referencedKinds = [];
+
+        foreach ($tags as $tag) {
+            if (($tag[0] ?? '') !== 'a' || !isset($tag[1])) {
+                continue;
+            }
+
+            $referencedKinds[] = explode(':', (string) $tag[1], 2)[0];
+        }
+
+        return match (true) {
+            in_array('30040', $referencedKinds, true) => 'Magazine',
+            in_array('30023', $referencedKinds, true) => 'Reading list',
+            in_array('30041', $referencedKinds, true) => 'Book',
+            default => 'Library card',
+        };
     }
 
     /**

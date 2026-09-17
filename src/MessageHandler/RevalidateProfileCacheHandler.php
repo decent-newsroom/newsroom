@@ -313,7 +313,11 @@ class RevalidateProfileCacheHandler
         // Prefer projected Magazine entities (already JsonSerializable)
         $magazines = $this->em->getRepository(Magazine::class)->findBy(['pubkey' => $pubkey], ['updatedAt' => 'DESC']);
         if (!empty($magazines)) {
-            return $magazines;
+            return array_map(static function (Magazine $magazine): array {
+                return array_merge($magazine->jsonSerialize(), [
+                    'label' => 'Magazine',
+                ]);
+            }, $magazines);
         }
 
         // Fallback: query Event table
@@ -374,6 +378,7 @@ class RevalidateProfileCacheHandler
                 'summary' => $summary,
                 'image' => $image,
                 'pubkey' => $event->getPubkey(),
+                'label' => 'Magazine',
             ];
         }, $bySlug));
     }
