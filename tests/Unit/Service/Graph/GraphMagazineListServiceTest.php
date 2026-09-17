@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Graph;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Graph\GraphLookupService;
 use App\Service\Graph\GraphMagazineListService;
+use App\Service\Magazine\PublicationIndexClassifier;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -20,7 +21,13 @@ class GraphMagazineListServiceTest extends TestCase
         $connection = $this->createMock(Connection::class);
         $graphLookup = $this->createMock(GraphLookupService::class);
         $hiddenCoordinateRepository = $this->createMock(HiddenCoordinateRepository::class);
-        $this->service = new GraphMagazineListService($connection, $graphLookup, $hiddenCoordinateRepository, new NullLogger());
+        $this->service = new GraphMagazineListService(
+            $connection,
+            $graphLookup,
+            $hiddenCoordinateRepository,
+            new PublicationIndexClassifier(),
+            new NullLogger(),
+        );
     }
 
     /**
@@ -67,10 +74,45 @@ class GraphMagazineListServiceTest extends TestCase
             'Magazine with categories should be a magazine',
         ];
 
+        yield 'event with child 30040 and 30041 refs' => [
+            ['tags' => json_encode([
+                ['a', '30040:' . str_repeat('ab', 32) . ':section-1'],
+                ['a', '30041:' . str_repeat('cd', 32) . ':chapter-1'],
+            ])],
+            false,
+            'An index containing chapter refs is a book, even when it also has 30040 refs',
+        ];
+
         yield 'event with empty tags' => [
             ['tags' => '[]'],
             false,
             'Event with empty tags should not be a magazine',
+        ];
+    }
+
+    /**
+     * @dataProvider bookProvider
+     */
+    public function testIsBook(?array $eventRow, bool $expected): void
+    {
+        $method = new \ReflectionMethod($this->service, 'isBook');
+
+        $this->assertSame($expected, $method->invoke($this->service, $eventRow));
+    }
+
+    public function bookProvider(): iterable
+    {
+        yield 'library card' => [
+            ['tags' => json_encode([['d', 'book'], ['title', 'Book'], ['i', 'doi:10.1234/example']])],
+            true,
+        ];
+        yield 'chapter index' => [
+            ['tags' => json_encode([['a', '30041:' . str_repeat('ab', 32) . ':chapter-1']])],
+            true,
+        ];
+        yield 'magazine section index' => [
+            ['tags' => json_encode([['a', '30040:' . str_repeat('ab', 32) . ':section-1']])],
+            false,
         ];
     }
 }

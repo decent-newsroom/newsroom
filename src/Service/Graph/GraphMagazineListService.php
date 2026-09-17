@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Graph;
 
 use App\Repository\HiddenCoordinateRepository;
+use App\Service\Magazine\PublicationIndexClassifier;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 
@@ -20,6 +21,7 @@ class GraphMagazineListService
         private readonly Connection $connection,
         private readonly GraphLookupService $graphLookup,
         private readonly HiddenCoordinateRepository $hiddenCoordinateRepository,
+        private readonly PublicationIndexClassifier $publicationIndexClassifier,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -44,7 +46,7 @@ class GraphMagazineListService
     }
 
     /**
-     * List all books (kind 30040 events referencing 30041 content sections).
+     * List all bookshelf publications (chapter indexes and relationship-free library cards).
      *
      * @return array<int, array{coord: string, event_id: string, pubkey: string, d_tag: string, title: ?string, summary: ?string, image: ?string}>
      */
@@ -209,6 +211,10 @@ class GraphMagazineListService
         }
         $tags = $this->parseTags($eventRow);
 
+        if ($this->publicationIndexClassifier->isBook($tags)) {
+            return false;
+        }
+
         foreach ($tags as $tag) {
             if (($tag[0] ?? '') === 'a' && isset($tag[1]) && str_starts_with($tag[1], '30040:')) {
                 return true;
@@ -226,14 +232,8 @@ class GraphMagazineListService
         if ($eventRow === null) {
             return false;
         }
-        $tags = $this->parseTags($eventRow);
 
-        foreach ($tags as $tag) {
-            if (($tag[0] ?? '') === 'a' && isset($tag[1]) && str_starts_with($tag[1], '30041:')) {
-                return true;
-            }
-        }
-        return false;
+        return $this->publicationIndexClassifier->isBook($this->parseTags($eventRow));
     }
 
     private function extractMetadata(?array $eventRow): array
@@ -285,4 +285,3 @@ class GraphMagazineListService
         }
     }
 }
-

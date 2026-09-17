@@ -18,6 +18,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\GraphMagazineListService;
 use App\Service\Magazine\MagazineStructureService;
+use App\Service\Magazine\PublicationIndexClassifier;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\Search\ArticleSearchFactory;
@@ -106,10 +107,11 @@ class DefaultController extends AbstractController
         HiddenCoordinateRepository $hiddenCoordinateRepo,
         LoggerInterface $logger,
         CacheItemPoolInterface $cache,
+        PublicationIndexClassifier $publicationIndexClassifier,
     ): JsonResponse
     {
         try {
-            $cacheItem = $cache->getItem('magazines_manifest_v1');
+            $cacheItem = $cache->getItem('magazines_manifest_v2');
             $cachedManifest = $cacheItem->get();
             if ($cacheItem->isHit() && is_array($cachedManifest)) {
                 return new JsonResponse($cachedManifest, 200, [
@@ -134,6 +136,10 @@ class DefaultController extends AbstractController
             // Group by slug and keep only the latest version of each
             $magazinesBySlug = [];
             foreach ($nzines as $magazine) {
+                if ($publicationIndexClassifier->isBook($magazine->getTags())) {
+                    continue;
+                }
+
                 $slug = $magazine->getSlug();
 
                 // Skip hidden coordinates
@@ -718,11 +724,19 @@ class DefaultController extends AbstractController
      * @throws InvalidArgumentException|\Doctrine\DBAL\Exception
      */
     #[Route('/mag/{mag}', name: 'magazine-index')]
-    public function magIndex(string $mag, MagazineStructureService $magazineStructure): Response
+    public function magIndex(
+        string $mag,
+        MagazineStructureService $magazineStructure,
+        PublicationIndexClassifier $publicationIndexClassifier,
+    ): Response
     {
         $magazine = $magazineStructure->findLatestIndexBySlug($mag);
         if ($magazine === null) {
             throw $this->createNotFoundException('Magazine not found');
+        }
+
+        if ($publicationIndexClassifier->isBook($magazine->getTags())) {
+            return $this->redirectToRoute('bookshelf_book', ['book' => $mag]);
         }
 
         $structure = $magazineStructure->parseStructure($magazine);

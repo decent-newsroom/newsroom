@@ -341,6 +341,10 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    stash:
+        eyebrow: 'Da questa redazione'
+        heading: 'Libri e schede bibliografiche'
+        description: 'Libri e schede bibliografiche memorizzati da questa redazione.'
     app:
         eyebrow: 'Leggi offline'
         title: 'Bookshelf per Android'

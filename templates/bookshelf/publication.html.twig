@@ -1,0 +1,131 @@
+{% extends '@Bookshelf/bookshelf-layout.html.twig' %}
+
+{% block title %}{{ publication.title|default(book) }} | {{ 'bookshelf.heading'|trans }}{% endblock %}
+
+{% block ogtags %}
+    {{ parent() }}
+    <meta property="og:title" content="{{ publication.title|default(book) }}">
+    <meta property="og:type" content="book">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if publication.image %}
+        <meta property="og:image" content="{{ publication.image }}">
+    {% endif %}
+    {% if publication.summary %}
+        <meta property="og:description" content="{{ publication.summary }}">
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+<section
+    class="bookshelf-publication"
+    {% if app.user %}
+        data-controller="ui--bookshelf-directory"
+        data-ui--bookshelf-directory-publish-url-value="{{ path('bookshelf_directory_publish') }}"
+        data-ui--bookshelf-directory-csrf-token-value="{{ csrf_token('bookshelf_directory') }}"
+        data-ui--bookshelf-directory-directory-identifier-value="{{ directoryIdentifier }}"
+        data-ui--bookshelf-directory-initial-tags-value="{{ directoryTags|json_encode|e('html_attr') }}"
+        data-ui--bookshelf-directory-added-message-value="{{ 'bookshelf.saved_to_my_books'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-removed-message-value="{{ 'bookshelf.removed_from_my_books'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-publish-failed-message-value="{{ 'bookshelf.directory_publish_failed'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-signer-unavailable-message-value="{{ 'bookshelf.directory_signer_unavailable'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-limit-reached-message-value="{{ 'bookshelf.directory_limit_reached'|trans({'%limit%': 500})|e('html_attr') }}"
+    {% endif %}
+>
+    <a class="bookshelf-publication__back" href="{{ path('bookshelf') }}">
+        {{ ux_icon('iconoir:arrow-left', {class: 'icon'}) }}
+        {{ 'bookshelf.back'|trans }}
+    </a>
+
+    <header class="bookshelf-publication__header">
+        <div class="bookshelf-publication__cover">
+            {% if publication.image %}
+                <img src="{{ publication.image }}" alt="{{ publication.title|default(book) }}">
+            {% else %}
+                <span aria-hidden="true">{{ publication.title|default(book)|first|upper }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <p class="eyebrow">{{ publicationType|upper }}</p>
+            <h1>{{ publication.title|default(book) }}</h1>
+            {% if publication.getAuthor() %}
+                <p class="bookshelf-publication__authors">{{ publication.getAuthor() }}</p>
+            {% endif %}
+            {% if publication.summary %}
+                <p class="bookshelf-publication__summary">{{ publication.summary }}</p>
+            {% endif %}
+
+            {% if app.user %}
+                <button
+                    type="button"
+                    class="bookshelf-directory-action btn btn-secondary btn-sm"
+                    data-ui--bookshelf-directory-target="toggle"
+                    data-action="click->ui--bookshelf-directory#toggle"
+                    data-ui--bookshelf-directory-coordinate-param="30040:{{ publication.pubkey }}:{{ book }}"
+                    data-ui--bookshelf-directory-event-id-param="{{ publication.id }}"
+                    data-label-add="{{ 'bookshelf.add_to_my_books'|trans|e('html_attr') }}"
+                    data-label-remove="{{ 'bookshelf.remove_from_my_books'|trans|e('html_attr') }}"
+                    aria-pressed="{{ ('30040:' ~ publication.pubkey ~ ':' ~ book) in directoryCoordinates ? 'true' : 'false' }}"
+                >
+                    {{ ('30040:' ~ publication.pubkey ~ ':' ~ book) in directoryCoordinates ? 'bookshelf.remove_from_my_books'|trans : 'bookshelf.add_to_my_books'|trans }}
+                </button>
+            {% endif %}
+        </div>
+    </header>
+
+    {% if metadata is not empty %}
+        <section class="bookshelf-publication__details" aria-labelledby="publication-details">
+            <h2 id="publication-details">{{ 'bookshelf.publication.details'|trans }}</h2>
+            <dl>
+                {% for item in metadata %}
+                    <div>
+                        <dt>{{ item.label }}</dt>
+                        <dd>
+                            {% if item.url %}
+                                <a href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.value }}</a>
+                            {% else %}
+                                {{ item.value }}
+                            {% endif %}
+                        </dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        </section>
+    {% endif %}
+
+    {% if chapters is not empty %}
+        <section class="bookshelf-publication__chapters" aria-labelledby="publication-chapters">
+            <h2 id="publication-chapters">{{ 'bookshelf.publication.chapters'|trans }}</h2>
+            <ol>
+                {% for chapter in chapters %}
+                    <li>
+                        {% if chapter.event %}
+                            <a href="{{ path('magazine-chapter', {mag: book, slug: chapter.event.slug|default(chapter.coordinate|split(':')|last)}) }}">
+                                {{ chapter.event.title|default(chapter.coordinate|split(':')|last) }}
+                            </a>
+                        {% else %}
+                            <span>{{ chapter.slug|default(chapter.coordinate|split(':')|last) }}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+        </section>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block aside %}
+    <section class="bookshelf-aside">
+        <p class="eyebrow">{{ 'bookshelf.publication.eyebrow'|trans }}</p>
+        <h2>{{ 'bookshelf.publication.index'|trans }}</h2>
+        <p>{{ 'bookshelf.publication.index_description'|trans }}</p>
+        {% if chapters is not empty %}
+            <dl>
+                <div>
+                    <dt>{{ 'bookshelf.chapters'|trans }}</dt>
+                    <dd>{{ chapters|length }}</dd>
+                </div>
+            </dl>
+        {% endif %}
+    </section>
+{% endblock %}

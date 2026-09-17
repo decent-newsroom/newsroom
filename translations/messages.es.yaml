@@ -340,12 +340,22 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    stash:
+        eyebrow: 'De esta redacción'
+        heading: 'Libros y fichas bibliográficas'
+        description: 'Libros y fichas bibliográficas almacenados por esta redacción.'
     app:
         eyebrow: 'Leer sin conexión'
         title: 'Bookshelf para Android'
         description: 'Lleva el catálogo contigo. La aplicación de Android lee las mismas publicaciones de Nostr en tu teléfono.'
         zapstore: 'Consíguelo en Zapstore'
         releases: 'Descargar desde las versiones de GitHub'
+    publication:
+        details: 'Detalles de la publicación'
+        chapters: 'Capítulos'
+        eyebrow: 'Publicación de Nostr'
+        index: 'Índice de la publicación'
+        index_description: 'Metadatos y referencias de capítulos de este libro.'
 
 # ── Descubrir / Buscar ─────────────────────────────────────────────
 discover:

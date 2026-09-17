@@ -340,12 +340,22 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    stash:
+        eyebrow: 'Iz te redakcije'
+        heading: 'Knjige in knjižnične kartice'
+        description: 'Knjige in knjižnične kartice, shranjene v tej redakciji.'
     app:
         eyebrow: 'Beri brez povezave'
         title: 'Bookshelf za Android'
         description: 'Vzemite katalog s seboj. Aplikacija za Android bere iste objave Nostr na vašem telefonu.'
         zapstore: 'Prenesite v Zapstore'
         releases: 'Prenesi z izdaj na GitHubu'
+    publication:
+        details: 'Podrobnosti publikacije'
+        chapters: 'Poglavja'
+        eyebrow: 'Publikacija Nostr'
+        index: 'Kazalo publikacije'
+        index_description: 'Metapodatki in sklici na poglavja te knjige.'
 
 # ── Odkrivanje / Iskanje ──────────────────────────────────────────
 discover:

@@ -4,7 +4,7 @@
         <div class="card p-3 ln-section--reader">
             <div class="card-body text-center">
                 <h2 class="card-title">
-                    <a href="{{ path('magazine-index', {mag: item.slug}) }}">
+                    <a href="{{ path('bookshelf_book', {book: item.slug}) }}">
                     {% if item and item.title %}
                         {{ item.title }}
                     {% elseif item.slug %}
@@ -29,4 +29,3 @@
     <p><small>{{ 'bookshelf.noBooks'|trans }}</small></p>
     {% endif %}
 </div>
-

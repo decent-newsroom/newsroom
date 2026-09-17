@@ -2,6 +2,9 @@
 
 ## v0.0.53
 
+- [Improvement] Routed library-card and chapter-based kind 30040 publications from `/mag/{mag}` into a dedicated Bookshelf view that displays their metadata tags and chapter references.
+- [Fix] Excluded library cards and chapter-based kind 30040 books from Newsstand, magazine administration, and the global magazine manifest.
+- [Improvement] Added a stash-backed Bookshelf section for locally cached books and library cards.
 - [Fix] Labeled author publication indexes from their referenced event kinds instead of hardcoding every overview card as a magazine.
 - [Security] Applied the Caddy scanner-probe block before dedicated host routes so MCP, relay, and application upstreams reject common secret and admin-path probes with `404`.
 - [Improvement] Made the topics picker collapsible so selected-topic results stay visible near the top of the page.

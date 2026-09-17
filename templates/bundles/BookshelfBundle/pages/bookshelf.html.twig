@@ -5,5 +5,15 @@
 {% block body %}
     {{ parent() }}
 
+    <section class="bookshelf-stash" aria-labelledby="bookshelf-stash-heading">
+        <twig:Atoms:PageHeading
+            id="bookshelf-stash-heading"
+            :heading="'bookshelf.stash.heading'|trans"
+            :tagline="'bookshelf.stash.eyebrow'|trans"
+        />
+        <p class="bookshelf-stash__description">{{ 'bookshelf.stash.description'|trans }}</p>
+        <twig:Organisms:BookList />
+    </section>
+
     {{ include('partial/_bookshelf_app.html.twig') }}
 {% endblock %}

@@ -355,12 +355,22 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    stash:
+        eyebrow: 'From this newsroom'
+        heading: 'Books and library cards'
+        description: 'Books and library cards cached by this newsroom.'
     app:
         eyebrow: 'Read offline'
         title: 'Bookshelf for Android'
         description: 'Take the catalogue with you. The Android app reads the same Nostr publications on your phone.'
         zapstore: 'Get it on Zapstore'
         releases: 'Download from GitHub releases'
+    publication:
+        details: 'Publication details'
+        chapters: 'Chapters'
+        eyebrow: 'Nostr publication'
+        index: 'Publication index'
+        index_description: 'Metadata and chapter references published with this book.'
 
 # ── Discover / Search page ────────────────────────────────────────
 discover:

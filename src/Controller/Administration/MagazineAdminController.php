@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Magazine\MagazineIndexDeletionService;
+use App\Service\Magazine\PublicationIndexClassifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Redis as RedisClient;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,10 +23,16 @@ class MagazineAdminController extends AbstractController
 {
     #[Route('/admin/magazines', name: 'admin_magazines')]
     #[IsGranted('ROLE_ADMIN')]
-    public function index(RedisClient $redis, CacheInterface $appCache, EntityManagerInterface $em, HiddenCoordinateRepository $hiddenCoordinateRepo): Response
+    public function index(
+        RedisClient $redis,
+        CacheInterface $appCache,
+        EntityManagerInterface $em,
+        HiddenCoordinateRepository $hiddenCoordinateRepo,
+        PublicationIndexClassifier $publicationIndexClassifier,
+    ): Response
     {
         // Optimized database-first approach
-        $magazines = $this->getMagazinesFromDatabase($em, $redis, $appCache);
+        $magazines = $this->getMagazinesFromDatabase($em, $redis, $appCache, $publicationIndexClassifier);
 
         // Load hidden coordinates so the template can show status
         try {
@@ -107,10 +114,15 @@ class MagazineAdminController extends AbstractController
         return $this->redirectToRoute('admin_magazines');
     }
 
-    private function getMagazinesFromDatabase(EntityManagerInterface $em, RedisClient $redis, CacheInterface $redisCache): array
+    private function getMagazinesFromDatabase(
+        EntityManagerInterface $em,
+        RedisClient $redis,
+        CacheInterface $redisCache,
+        PublicationIndexClassifier $publicationIndexClassifier,
+    ): array
     {
         // 1) Get magazine events directly from database using indexed queries
-        $magazineEvents = $this->getMagazineEvents($em);
+        $magazineEvents = $this->getMagazineEvents($em, $publicationIndexClassifier);
 
         // 2) Get all category events in one query
         $categoryCoordinates = $this->extractCategoryCoordinates($magazineEvents);
@@ -124,7 +136,7 @@ class MagazineAdminController extends AbstractController
         return $this->buildMagazineStructure($magazineEvents, $categoryEvents, $articles);
     }
 
-    private function getMagazineEvents(EntityManagerInterface $em): array
+    private function getMagazineEvents(EntityManagerInterface $em, PublicationIndexClassifier $publicationIndexClassifier): array
     {
         // Query magazines using database index on kind
         $qb = $em->createQueryBuilder();
@@ -137,10 +149,10 @@ class MagazineAdminController extends AbstractController
         $allMagazineEvents = $qb->getQuery()->getResult();
 
         // Filter to only show top-level magazines (those that contain other indexes, not direct articles)
-        return $this->filterTopLevelMagazines($allMagazineEvents);
+        return $this->filterTopLevelMagazines($allMagazineEvents, $publicationIndexClassifier);
     }
 
-    private function filterTopLevelMagazines(array $magazineEvents): array
+    private function filterTopLevelMagazines(array $magazineEvents, PublicationIndexClassifier $publicationIndexClassifier): array
     {
         $topLevelMagazines = [];
         // Sort by createdAt descending to keep latest in case of duplicates
@@ -151,6 +163,10 @@ class MagazineAdminController extends AbstractController
             $hasSubIndexes = false;
             $hasDirectArticles = false;
             $isOldDuplicate = false;
+            if ($publicationIndexClassifier->isBook($event->getTags())) {
+                continue;
+            }
+
             foreach ($event->getTags() as $tag) {
                 // Keep a list of slugs, so you can skip if already there
                 if ($tag[0] === 'd' && isset($tag[1])) {
@@ -391,7 +407,12 @@ class MagazineAdminController extends AbstractController
         ];
     }
 
-    private function getFallbackMagazinesFromRedis(RedisClient $redis, CacheInterface $redisCache, EntityManagerInterface $em): array
+    private function getFallbackMagazinesFromRedis(
+        RedisClient $redis,
+        CacheInterface $redisCache,
+        EntityManagerInterface $em,
+        PublicationIndexClassifier $publicationIndexClassifier,
+    ): array
     {
         // Fallback to original Redis implementation for backward compatibility
         $slugs = [];
@@ -459,6 +480,9 @@ class MagazineAdminController extends AbstractController
             }
 
             $data = $parse($tags);
+            if ($publicationIndexClassifier->isBook($tags)) {
+                continue;
+            }
             $categories = [];
 
             foreach ($data['a'] as $coord) {
