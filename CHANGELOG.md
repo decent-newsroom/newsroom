@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Truncated untrusted visit-tracking values to their database column limits, preventing oversized request paths, cookies, headers, and subdomains from failing analytics inserts.
 - [Security] Added explicit Caddy scanner-probe blocks for `/php-info.php` and `/php.php`.
 - [Fix] Removed publications authored by users with `ROLE_MUTED` from the all-publications Bookshelf list.
 - [Improvement] Added linked publisher profiles and an admin-only raw Nostr event preview to Bookshelf publications.
