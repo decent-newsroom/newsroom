@@ -28,9 +28,10 @@
             {% set metaClient = tagValue %}
         {% elseif tagName == 't' and tagValue and tagValue not in metaTopics %}
             {% set metaTopics = metaTopics|merge([tagValue]) %}
-        {% elseif tagName == 'p' and tagValue and tagValue|length == 64 and tagValue not in metaMentionPubkeys %}
+        {% elseif tagName == 'p' and tagValue matches '/^[0-9a-f]{64}$/i' and tagValue not in metaMentionPubkeys %}
             {% set metaMentions = metaMentions|merge([{
                 pubkey: tagValue,
+                npub: tagValue|toNpub,
                 relay: tag[2] ?? null
             }]) %}
             {% set metaMentionPubkeys = metaMentionPubkeys|merge([tagValue]) %}
@@ -92,7 +93,7 @@
         <div class="event-meta-mentions">
             <small class="event-meta-label">{{ 'event.mentions'|trans }}:</small>
             {% for mention in metaMentions|slice(0, 10) %}
-                <twig:Molecules:UserFromNpub :ident="mention.pubkey" :relayHint="mention.relay" />{% if not loop.last %}, {% endif %}
+                <twig:Molecules:UserFromNpub :ident="mention.npub" :relayHint="mention.relay" />{% if not loop.last %}, {% endif %}
             {% endfor %}
         </div>
     {% endif %}
