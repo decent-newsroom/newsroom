@@ -12,7 +12,6 @@ use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use nostriphant\NIP19\Data\NEvent;
 use nostriphant\NIP19\Data\Note;
-use nostriphant\NIP19\Data\NProfile;
 use nostriphant\NIP19\Data\NPub;
 
 
@@ -67,9 +66,7 @@ class NostrSchemeParser implements InlineParserInterface
                     }
                     break;
                 case 'nprofile':
-                    /** @var NProfile $decodedProfile */
-                    $decodedProfile = $decoded->data;
-                    $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $decodedProfile->pubkey));
+                    $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $bechEncoded));
                     break;
                 case 'note':
                     // Fall through to NostrSchemeData — processNostrLinks() will

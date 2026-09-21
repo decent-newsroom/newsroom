@@ -42,7 +42,10 @@ class ProfileUpdateDispatcher
      *
      * Returns true if the message was dispatched, false if throttled.
      */
-    public function dispatch(string $pubkeyHex): bool
+    /**
+     * @param string[] $relayHints
+     */
+    public function dispatch(string $pubkeyHex, array $relayHints = []): bool
     {
         if (!$this->acquireSlot($pubkeyHex)) {
             $this->logger->debug('Profile dispatch throttled', [
@@ -52,7 +55,7 @@ class ProfileUpdateDispatcher
         }
 
         try {
-            $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkeyHex));
+            $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkeyHex, $relayHints));
             return true;
         } catch (\Throwable $e) {
             // Release the slot so a retry can proceed
@@ -134,4 +137,3 @@ class ProfileUpdateDispatcher
         }
     }
 }
-

@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Rendered generic-event `p` tags as canonical npub profile links and used their relay hints for throttled background metadata hydration.
 - [Fix] Made naddr lookups query only their embedded relay hints before trying unvisited fallback relays, preventing duplicate requests and avoidable Messenger delay.
 - [Fix] Moved cold profile editorial loads out of the request path and indexed featured reading-list lookups, preventing profile Turbo Frames from timing out on publication-tag scans.
 - [Fix] Truncated untrusted visit-tracking values to their database column limits, preventing oversized request paths, cookies, headers, and subdomains from failing analytics inserts.

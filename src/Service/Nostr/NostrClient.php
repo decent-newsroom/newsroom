@@ -811,9 +811,12 @@ class NostrClient
     }
 
     /** @see UserProfileService::getMetadata() */
-    public function getPubkeyMetadata(string $pubkey): \stdClass
+    /**
+     * @param string[] $relayHints
+     */
+    public function getPubkeyMetadata(string $pubkey, array $relayHints = []): \stdClass
     {
-        return $this->userProfileService->getMetadata($pubkey);
+        return $this->userProfileService->getMetadata($pubkey, $relayHints);
     }
 
     /** @see UserProfileService::getBatchMetadata() */

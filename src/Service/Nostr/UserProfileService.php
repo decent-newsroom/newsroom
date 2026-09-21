@@ -97,9 +97,14 @@ class UserProfileService
      *
      * @throws \Exception when no metadata is found
      */
-    public function getMetadata(string $pubkey): \stdClass
+    /**
+     * @param string[] $relayHints
+     */
+    public function getMetadata(string $pubkey, array $relayHints = []): \stdClass
     {
-        $relaySet = $this->relaySetFactory->forPurpose(RelayPurpose::PROFILE);
+        $relaySet = $relayHints === []
+            ? $this->relaySetFactory->forPurpose(RelayPurpose::PROFILE)
+            : $this->relaySetFactory->fromUrls($relayHints);
 
         $this->logger->debug('Getting metadata for pubkey', ['pubkey' => $pubkey]);
 
@@ -644,5 +649,4 @@ class UserProfileService
         );
     }
 }
-
 

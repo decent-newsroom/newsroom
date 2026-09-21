@@ -60,9 +60,11 @@ skip it). It surfaces:
   shown as a small "Description:" row in the extras list.
 - `t` hashtags — linked to the canonical `topics` tag view so readers can jump to the
   corresponding topic page.
-- `p` mentions — rendered through `<twig:Molecules:UserFromNpub>` with a
-  link to the author profile; filtered to only include valid 64-hex
-  pubkeys.
+- `p` mentions — rendered through `<twig:Molecules:UserFromNpub>` as
+  canonical `npub` profile links; filtered to only include valid 64-hex
+  pubkeys. A valid `ws://` or `wss://` relay hint in the tag is passed to
+  the throttled background profile refresh, so uncached names can be loaded
+  from the publisher's hinted relay without delaying the event page.
 - `published_at` — formatted against the current locale.
 - `client` — the client string as published.
 
@@ -132,4 +134,3 @@ On the single event page (`/e/{nevent}`), kind:1 notes now show the thread root 
 - Only kind:1 events use this OP block.
 - If the root id matches the current event id, the OP block is not shown.
 - If the root event cannot be resolved, the page renders normally without the OP section.
-

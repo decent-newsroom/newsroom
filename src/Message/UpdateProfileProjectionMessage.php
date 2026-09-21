@@ -12,13 +12,25 @@ namespace App\Message;
  */
 class UpdateProfileProjectionMessage
 {
+    /**
+     * @param string[] $relayHints
+     */
     public function __construct(
-        private readonly string $pubkeyHex
+        private readonly string $pubkeyHex,
+        private readonly array $relayHints = [],
     ) {
     }
 
     public function getPubkeyHex(): string
     {
         return $this->pubkeyHex;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getRelayHints(): array
+    {
+        return $this->relayHints;
     }
 }

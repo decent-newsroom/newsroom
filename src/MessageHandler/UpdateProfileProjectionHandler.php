@@ -169,7 +169,7 @@ class UpdateProfileProjectionHandler
 
             try {
                 set_time_limit($timeoutSeconds + 5);
-                $rawEvent = $this->nostrClient->getPubkeyMetadata($pubkeyHex);
+                $rawEvent = $this->nostrClient->getPubkeyMetadata($pubkeyHex, $message->getRelayHints());
             } catch (\Exception $relayException) {
                 $this->logger->debug('Relay fetch failed for metadata', [
                     'pubkey' => substr($pubkeyHex, 0, 8) . '...',

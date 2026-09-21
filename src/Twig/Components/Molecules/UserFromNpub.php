@@ -3,6 +3,7 @@
 namespace App\Twig\Components\Molecules;
 
 use App\Service\Cache\RedisCacheService;
+use App\Service\ProfileUpdateDispatcher;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
@@ -14,14 +15,17 @@ final class UserFromNpub
     public string $npub;
     public $user = null;
 
-    public function __construct(private readonly RedisCacheService $redisCacheService)
+    public function __construct(
+        private readonly RedisCacheService $redisCacheService,
+        private readonly ProfileUpdateDispatcher $profileUpdateDispatcher,
+    )
     {
     }
 
     /**
      * Accepts either npub or pubkey as ident. Always converts to pubkey for lookups.
      */
-    public function mount(string $ident, $user = null): void
+    public function mount(string $ident, $user = null, ?string $relayHint = null): void
     {
         $this->user = $user;
         if (PublicKey::fromHex(strtolower(trim((string) ($ident)))) !== null) {
@@ -33,9 +37,25 @@ final class UserFromNpub
         } else {
             throw new \InvalidArgumentException('UserFromNpub expects npub or hex pubkey');
         }
+
+        if ($relayHint !== null && $this->isRelayUrl($relayHint)) {
+            $this->profileUpdateDispatcher->dispatch($this->pubkey, [$relayHint]);
+        }
+
         if ($this->user === null) {
             $userMetadata = $this->redisCacheService->getMetadata($this->pubkey);
             $this->user = $userMetadata->toStdClass(); // Convert to stdClass for template
         }
+    }
+
+    private function isRelayUrl(string $relayHint): bool
+    {
+        $parts = parse_url($relayHint);
+        if (!is_array($parts)) {
+            return false;
+        }
+
+        return in_array(strtolower((string) ($parts['scheme'] ?? '')), ['ws', 'wss'], true)
+            && isset($parts['host']);
     }
 }

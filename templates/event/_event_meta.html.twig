@@ -7,6 +7,7 @@
 {% set metaClient = null %}
 {% set metaTopics = [] %}
 {% set metaMentions = [] %}
+{% set metaMentionPubkeys = [] %}
 {% set metaReferences = [] %}
 {% set metaSources = [] %}
 {% set seenReferences = [] %}
@@ -27,8 +28,12 @@
             {% set metaClient = tagValue %}
         {% elseif tagName == 't' and tagValue and tagValue not in metaTopics %}
             {% set metaTopics = metaTopics|merge([tagValue]) %}
-        {% elseif tagName == 'p' and tagValue and tagValue|length == 64 and tagValue not in metaMentions %}
-            {% set metaMentions = metaMentions|merge([tagValue]) %}
+        {% elseif tagName == 'p' and tagValue and tagValue|length == 64 and tagValue not in metaMentionPubkeys %}
+            {% set metaMentions = metaMentions|merge([{
+                pubkey: tagValue,
+                relay: tag[2] ?? null
+            }]) %}
+            {% set metaMentionPubkeys = metaMentionPubkeys|merge([tagValue]) %}
         {% elseif tagName in ['a', 'A', 'e', 'E', 'q'] and tagValue %}
             {% set refKey = tagName ~ ':' ~ tagValue %}
             {% if refKey not in seenReferences %}
@@ -86,10 +91,8 @@
     {% if metaMentions|length > 0 %}
         <div class="event-meta-mentions">
             <small class="event-meta-label">{{ 'event.mentions'|trans }}:</small>
-            {% for pk in metaMentions|slice(0, 10) %}
-                <a href="{{ path('author-redirect', {'pubkey': pk}) }}">
-                    <twig:Molecules:UserFromNpub :ident="pk" />
-                </a>{% if not loop.last %}, {% endif %}
+            {% for mention in metaMentions|slice(0, 10) %}
+                <twig:Molecules:UserFromNpub :ident="mention.pubkey" :relayHint="mention.relay" />{% if not loop.last %}, {% endif %}
             {% endfor %}
         </div>
     {% endif %}
