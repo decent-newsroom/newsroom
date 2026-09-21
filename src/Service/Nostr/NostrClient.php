@@ -268,10 +268,13 @@ class NostrClient
         $filters = ['authors' => [$pubkey], 'tag' => ['#d', [$identifier]]];
         $directTimeout ??= $this->eventLookupDirectTimeout;
 
-        // Targeted mode: only query the hint relays (+ local) with a generous
-        // timeout so the relay has time to EOSE.  No fallback to default relays.
+        // Targeted mode: query only the naddr hint relays with a generous
+        // timeout so the relay has time to EOSE. No default-relay fallback.
         if ($hintOnly && !empty($relays)) {
-            $hintUrls = $this->relayRegistry->ensureLocalRelayInList($relays);
+            $hintUrls = array_values(array_filter(
+                $relays,
+                static fn(mixed $relay): bool => is_string($relay) && trim($relay) !== '',
+            ));
             $primary  = $this->relaySetFactory->fromUrls($hintUrls);
             $effectiveGatewayTimeout = $gatewayTimeout ?? 15;
 
@@ -319,9 +322,14 @@ class NostrClient
             $primaryRelays = $this->buildBoundedEventLookupRelays($relays, [], $cachedAuthorRelays);
             $primary = $this->relaySetFactory->fromUrls($primaryRelays ?: $this->relayRegistry->getContentRelays());
         }
-        $fallback = $this->relaySetFactory->getDefault();
         $primaryRelays = $this->relaySetUrls($primary);
-        $fallbackRelays = $this->relaySetUrls($fallback);
+        $fallbackRelays = array_values(array_filter(
+            $this->relaySetUrls($this->relaySetFactory->getDefault()),
+            static fn(string $relay): bool => !in_array($relay, $primaryRelays, true),
+        ));
+        $fallback = $fallbackRelays === []
+            ? null
+            : $this->relaySetFactory->fromUrls($fallbackRelays);
         $effectiveGatewayTimeout = $gatewayTimeout ?? ($allowRelayListNetworkFetch ? 8 : $this->eventLookupGatewayTimeout);
 
         $this->logger->info('Resolved relay set for naddr lookup', [
@@ -344,7 +352,7 @@ class NostrClient
         );
         $fallbackOutcome = null;
 
-        if ($event === null) {
+        if ($event === null && $fallback !== null) {
             [$event, $fallbackOutcome] = $this->fetchFirstEventForLookup(
                 [$kind],
                 $filters,

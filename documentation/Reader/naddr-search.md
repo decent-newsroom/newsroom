@@ -24,7 +24,7 @@ The `EventController` (`src/Controller/EventController.php`) handles `/e/{naddr1
 3. **Synchronous relay fetch** — always attempted before falling back to async:
    - **note:** queries local + content relays synchronously via `getEventById()`.
    - **nevent:** enriches relay list with author's NIP-65 relay list (when author pubkey is available), then queries all relays synchronously.
-   - **naddr:** single sync call via `getEventByNaddr()` which prioritises hint relays, then author relays, then default relays as fallback.
+   - **naddr:** single sync call via `getEventByNaddr()` which queries only the embedded relay hints first, then uses untried default relays as fallback.
 4. If found, the event is persisted and the page renders immediately — no loading screen.
 5. **Only if all sync attempts fail:** dispatches a `FetchEventFromRelaysMessage` via Symfony Messenger for a broader async relay search, and renders the loading page.
 
@@ -45,9 +45,8 @@ The loading page (`templates/event/loading.html.twig`) is only shown when all sy
 
 The async handler (`FetchEventFromRelaysHandler`) uses `NostrClient::getEventByNaddr()` which resolves relays via `RelaySetFactory::forAuthorWithFallback()`:
 
-1. **Hint relays** — relays embedded in the naddr TLV data (highest priority).
-2. **Author's NIP-65 relay list** — the author's kind 10002 event.
-3. **Content relays** — configured relay fallbacks.
+1. **Hint relays** — relays embedded in the naddr TLV data are the complete first request set; the local relay and NIP-65 relays are not added to this request.
+2. **Untried content relays** — configured relay fallbacks that were not already in the primary lookup set. If every default relay was already tried, no duplicate fallback request is made.
 
 ## Search Forms Using This Feature
 
@@ -67,4 +66,3 @@ The async handler (`FetchEventFromRelaysHandler`) uses `NostrClient::getEventByN
 | `src/Controller/EventController.php` | Server-side naddr routing and async dispatch |
 | `src/MessageHandler/FetchEventFromRelaysHandler.php` | Async relay fetch worker |
 | `assets/styles/03-components/search.css` | Styles for inline status messages and slow notice |
-

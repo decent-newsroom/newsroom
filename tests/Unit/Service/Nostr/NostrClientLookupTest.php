@@ -73,6 +73,27 @@ final class NostrClientLookupTest extends TestCase
         ));
     }
 
+    public function testDuplicateFallbackRelaysAreNotQueriedAgain(): void
+    {
+        self::assertNull($this->client(['timeout'], sameRelaySets: true)->getEventByNaddr(
+            $this->coordinate(),
+            allowRelayListNetworkFetch: false,
+        ));
+    }
+
+    public function testHintOnlyLookupDoesNotAddTheLocalRelay(): void
+    {
+        $fromUrlsCalls = [];
+
+        self::assertNull($this->client(
+            ['empty'],
+            addLocalRelay: true,
+            fromUrlsCalls: $fromUrlsCalls,
+        )->getEventByNaddr($this->coordinate(), hintOnly: true));
+
+        self::assertSame([['wss://relay.example.test']], $fromUrlsCalls);
+    }
+
     public function testExistingCallersKeepNullOnTimeout(): void
     {
         self::assertNull($this->client(['timeout', 'timeout'])->getEventByNaddr($this->coordinate()));
@@ -109,20 +130,39 @@ final class NostrClientLookupTest extends TestCase
         return ['kind' => 30040, 'pubkey' => str_repeat('a', 64), 'identifier' => 'edition', 'relays' => ['wss://relay.example.test']];
     }
 
-    private function client(array $outcomes): NostrClient
+    private function client(
+        array $outcomes,
+        bool $sameRelaySets = false,
+        bool $addLocalRelay = false,
+        ?array &$fromUrlsCalls = null,
+    ): NostrClient
     {
-        $set = new RelaySet([new RelayEndpoint('wss://relay.example.test')]);
+        $primarySet = new RelaySet([new RelayEndpoint('wss://relay.example.test')]);
+        $fallbackSet = new RelaySet([new RelayEndpoint('wss://fallback.example.test')]);
         $registry = $this->createMock(RelayRegistry::class);
-        $registry->method('ensureLocalRelayInList')->willReturnCallback(static fn (array $urls): array => $urls);
+        $registry->method('ensureLocalRelayInList')->willReturnCallback(
+            static fn(array $urls): array => $addLocalRelay
+                ? [...$urls, 'ws://strfry:7777']
+                : $urls
+        );
         $userRelays = $this->createMock(UserRelayListService::class);
         $userRelays->method('getRelaysForEventLookupCacheOrDb')->willReturn(['wss://relay.example.test']);
         $factory = $this->createMock(RelaySetFactory::class);
-        $factory->method('fromUrls')->willReturn($set);
-        $factory->method('getDefault')->willReturn($set);
-        $factory->method('forAuthorWithFallback')->willReturn($set);
+        $factory->method('fromUrls')->willReturnCallback(
+            static function (array $urls) use ($fallbackSet, $primarySet, &$fromUrlsCalls): RelaySet {
+                if ($fromUrlsCalls !== null) {
+                    $fromUrlsCalls[] = $urls;
+                }
+
+                return in_array('wss://fallback.example.test', $urls, true)
+                    ? $fallbackSet
+                    : $primarySet;
+            }
+        );
+        $factory->method('getDefault')->willReturn($sameRelaySets ? $primarySet : $fallbackSet);
+        $factory->method('forAuthorWithFallback')->willReturn($primarySet);
         $executor = $this->createMock(NostrRequestExecutor::class);
         $executor->expects(self::exactly(count($outcomes)))->method('buildRequest')
-            ->with([30040], ['authors' => [str_repeat('a', 64)], 'tag' => ['#d', ['edition']]], $set)
             ->willReturnCallback(static fn (array $kinds, array $filters, RelaySet $relays): RelayQueryRequest => new RelayQueryRequest($relays, [$filters]));
         $executor->expects(self::exactly(count($outcomes)))->method('execute')
             ->willReturnCallback(static function (RelayQueryRequest $request) use (&$outcomes): array {
