@@ -554,32 +554,30 @@ class RevalidateProfileCacheHandler
     /**
      * Get reading lists authored by others that feature at least one article by $pubkey.
      *
-     * A jsonb containment prefilter (`tags @> [["type","reading-list"]]`, backed by
-     * idx_event_tags_gin) restricts the scan to reading-list events before the
-     * per-row coordinate check runs. Detection is coordinate-based (article 'a' tags),
-     * so it works retroactively for all existing lists without requiring a republish.
+     * The graph projection provides an indexed reverse lookup from an article
+     * coordinate to referencing publication indexes. The JSONB containment filter
+     * then limits those indexes to reading lists.
      */
     private function getFeaturedReadingLists(string $pubkey): array
     {
         $rows = $this->em->getConnection()->executeQuery(
             "SELECT e.pubkey, e.tags, e.created_at
-             FROM   event e
-             WHERE  e.kind = :kind
+             FROM   parsed_reference pr
+             INNER JOIN event e ON e.id = pr.source_event_id
+             WHERE  pr.tag_name = 'a'
+               AND  pr.target_kind IN (:articleKind, :draftKind)
+               AND  pr.target_pubkey = :pubkey
+               AND  e.kind = :kind
                AND  e.pubkey != :pubkey
                AND  e.tags @> :readingListType::jsonb
-               AND  EXISTS (
-                        SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-                        WHERE  tag->>0 = 'a'
-                          AND  (tag->>1 LIKE :coord23 OR tag->>1 LIKE :coord24)
-                    )
              ORDER BY e.created_at DESC
              LIMIT 50",
             [
                 'kind' => KindsEnum::PUBLICATION_INDEX->value,
                 'pubkey' => $pubkey,
                 'readingListType' => self::READING_LIST_TYPE_NEEDLE,
-                'coord23' => '30023:' . $pubkey . ':%',
-                'coord24' => '30024:' . $pubkey . ':%',
+                'articleKind' => KindsEnum::LONGFORM->value,
+                'draftKind' => KindsEnum::LONGFORM_DRAFT->value,
             ],
         )->fetchAllAssociative();
 

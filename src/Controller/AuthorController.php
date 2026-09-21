@@ -927,23 +927,9 @@ class AuthorController extends AbstractController
                 // All other tabs use cached-with-fallback pattern
                 $cacheResult = $viewStore->fetchProfileTabData($pubkey, $tab);
 
-                // Owners viewing their own profile always see freshly-computed data.
-                // The profile-tab cache has a 24h hard TTL and, if ever populated
-                // empty (e.g. right after signup or before the first relay-worker
-                // projection), it would otherwise mask a user's own articles for up
-                // to a day. The editor sidebar hits Postgres directly for the same
-                // reason — this keeps the two views consistent.
-                // Also bypass when the client explicitly signals a pending Mercure update.
-                //
-                // The overview tab is the exception: its synchronous builder
-                // (getOverviewTabData) is disabled and it is populated exclusively by
-                // the async_profiles worker (RevalidateProfileCacheHandler::buildOverviewData).
-                // Bypassing the cache for overview would therefore always fall through to
-                // the empty `default => []` match arm below, hiding the owner's own
-                // magazines / reading lists / follow packs. Owners must read the
-                // worker-built cache like everyone else (stale-while-revalidate still
-                // dispatches a background rebuild, and the empty-payload guard below
-                // heals a cold or poisoned cache).
+                // The overview is populated exclusively by the async_profiles worker.
+                // It must never synchronously inspect all publication events: a cold
+                // profile cache must remain a fast, empty Turbo Frame response.
                 $bypassCache = ($isOwner || $request->query->has('refresh')) && $tab !== 'overview';
 
                 if (!$bypassCache && $cacheResult['isCached'] && $cacheResult['data'] !== null) {
@@ -989,14 +975,19 @@ class AuthorController extends AbstractController
                         }
                     }
                 } else {
-                    // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
-                    $templateData = match($tab) {
-                        'overview' => $this->getOverviewTabData($pubkey, $em),
-                        'media' => $this->getMediaTabData($pubkey, $redisCacheService),
-                        'highlights' => $this->getHighlightsTabData($pubkey, $em),
-                        'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
-                        default => [],
-                    };
+                    // Cache misses normally load synchronously. The overview is the
+                    // exception: its relationship lookups run in async_profiles so a
+                    // single slow publication query cannot fail the web request.
+                    if ($tab === 'overview') {
+                        $templateData = [];
+                    } else {
+                        $templateData = match($tab) {
+                            'media' => $this->getMediaTabData($pubkey, $redisCacheService),
+                            'highlights' => $this->getHighlightsTabData($pubkey, $em),
+                            'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
+                            default => [],
+                        };
+                    }
 
                     // Cache the data for next request
                     $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
@@ -1330,10 +1321,9 @@ class AuthorController extends AbstractController
     /**
      * Get reading lists authored by others that feature at least one article by $pubkey.
      *
-     * A jsonb containment prefilter (`tags @> [["type","reading-list"]]`, backed by
-     * idx_event_tags_gin) restricts the scan to reading-list events before the
-     * per-row coordinate check runs. Detection is coordinate-based (article 'a' tags),
-     * so it works retroactively for all existing lists without requiring a republish.
+     * The graph projection provides an indexed reverse lookup from an article
+     * coordinate to referencing publication indexes. The JSONB containment filter
+     * then limits those indexes to reading lists.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -1341,23 +1331,22 @@ class AuthorController extends AbstractController
     {
         $rows = $em->getConnection()->executeQuery(
             "SELECT e.pubkey, e.tags, e.created_at
-             FROM   event e
-             WHERE  e.kind = :kind
+             FROM   parsed_reference pr
+             INNER JOIN event e ON e.id = pr.source_event_id
+             WHERE  pr.tag_name = 'a'
+               AND  pr.target_kind IN (:articleKind, :draftKind)
+               AND  pr.target_pubkey = :pubkey
+               AND  e.kind = :kind
                AND  e.pubkey != :pubkey
                AND  e.tags @> :readingListType::jsonb
-               AND  EXISTS (
-                        SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-                        WHERE  tag->>0 = 'a'
-                          AND  (tag->>1 LIKE :coord23 OR tag->>1 LIKE :coord24)
-                    )
              ORDER BY e.created_at DESC
              LIMIT 50",
             [
                 'kind' => KindsEnum::PUBLICATION_INDEX->value,
                 'pubkey' => $pubkey,
                 'readingListType' => self::READING_LIST_TYPE_NEEDLE,
-                'coord23' => '30023:' . $pubkey . ':%',
-                'coord24' => '30024:' . $pubkey . ':%',
+                'articleKind' => KindsEnum::LONGFORM->value,
+                'draftKind' => KindsEnum::LONGFORM_DRAFT->value,
             ],
         )->fetchAllAssociative();
 
@@ -2183,19 +2172,18 @@ class AuthorController extends AbstractController
      * hide articles that are visible elsewhere (Discover, direct links) for
      * up to 24 hours.
      *
-     * For the overview tab, we now treat it as empty only if both magazines
-     * and follow packs are missing, since the Editorial tab only shows these.
+     * An empty overview is a valid result, so it is always served from cache.
+     * Rebuilding it synchronously would turn an ordinary empty profile into a
+     * potentially expensive request-path query.
      */
     private function isEmptyCachedTabPayload(string $tab, array $data): bool
     {
+        if ($tab === 'overview') {
+            return false;
+        }
+
         return match ($tab) {
             'articles' => empty($data['articles']),
-            'overview' => empty($data['authorMagazines'])
-                && empty($data['existingFollowPacks'])
-                && empty($data['featuredMagazines'])
-                && empty($data['featuredInFollowPacks'])
-                && empty($data['authorReadingLists'])
-                && empty($data['featuredReadingLists']),
             'media' => empty($data['mediaEvents']),
             'highlights' => empty($data['highlights']),
             'drafts' => empty($data['drafts']),
