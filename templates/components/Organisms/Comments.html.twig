@@ -78,7 +78,9 @@
                             {% endif %}
                         </div>
                     {% endif %}
-                    <twig:Atoms:Content content="{{ item.content }}" />
+                    <div data-turbo="false">
+                        <twig:Atoms:Content content="{{ item.content }}" />
+                    </div>
                 </div>
 
                 {# Reply-to-comment form (NIP-22): keeps the original root, overrides parent to this comment #}
