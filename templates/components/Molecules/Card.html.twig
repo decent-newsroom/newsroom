@@ -3,7 +3,7 @@
     {% set articleKind = article.kind.value|default(article.kind|default(30023)) %}
     {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? articleKind ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
 
-    {% if articleKind == 30817 and cat and mag %}
+    {% if articleKind == 30818 and cat and mag %}
         {% set link = path('magazine-category-wiki', {slug: article.slug, cat: cat, mag: mag}) %}
     {% elseif itemNaddr %}
         {% set link = path('nevent', {nevent: itemNaddr}) %}

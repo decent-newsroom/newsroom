@@ -1,0 +1,14 @@
+<article class="card article-card article-card--text-only">
+    <div class="article-card__body">
+        <div class="article-card__content">
+            <h2 class="card-title line-clamp-5">
+                <a class="article-card__title-link" href="{{ link }}" data-turbo-frame="_top">{{ wiki.title ?: wiki.slug ?: 'Wiki' }}</a>
+            </h2>
+            {% if wiki.summary %}
+                <p class="lede line-clamp-5" data-controller="utility--katex" data-utility--katex-display-value="false">
+                    {{ wiki.summary }}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</article>

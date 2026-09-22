@@ -12,7 +12,6 @@ The earlier highest-priority additions are already declared: deletion requests (
 | 30000 | Personal categorized follow sets |
 | 17 | Reactions to external content such as podcast episodes |
 | 1068 / 1018 | Polls and responses |
-| 30818 | Wiki-related content; compare with existing kind 30817 support first |
 | 30311 | Live events if live streaming becomes a product feature |
 | 30315 | User status |
 | 30009 / 8 / 30008 | Badge definitions, awards, and profile badges |

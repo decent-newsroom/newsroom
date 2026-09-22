@@ -2169,6 +2169,42 @@ class DefaultController extends AbstractController
             }
         }
 
+        if ((int) $kind === KindsEnum::WIKI->value && $pubkey && $identifier) {
+            $repository = $entityManager->getRepository(Event::class);
+            $wiki = $repository instanceof EventRepository
+                ? $repository->findByNaddr(KindsEnum::WIKI->value, (string) $pubkey, (string) $identifier)
+                : null;
+
+            try {
+                $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
+                    kind: KindsEnum::WIKI->value,
+                    pubkey: (string) $pubkey,
+                    identifier: (string) $identifier,
+                    relays: is_array($decoded['relays'] ?? null) ? $decoded['relays'] : [],
+                );
+            } catch (\Throwable $e) {
+                $logger->error('Failed to generate wiki naddr for preview', ['error' => $e->getMessage()]);
+
+                return new Response('<div class="alert alert-warning">Unable to generate wiki link.</div>', 200);
+            }
+
+            if ($wiki instanceof Event) {
+                return $this->render('components/Molecules/WikiPreview.html.twig', [
+                    'wiki' => $wiki,
+                    'link' => $this->generateUrl('nevent', ['nevent' => $naddr]),
+                ]);
+            }
+
+            return new Response(
+                '<div class="alert alert-info">
+                    <strong>Wiki Preview</strong><br>
+                    This wiki article has not been fetched yet.
+                    <a href="' . $this->generateUrl('nevent', ['nevent' => $naddr]) . '" class="alert-link" data-turbo-frame="_top">Click here to view it</a>
+                </div>',
+                200
+            );
+        }
+
         return new Response('<div class="alert alert-info">Preview for kind ' . $kind . ' not yet supported.</div>', 200);
     }
 

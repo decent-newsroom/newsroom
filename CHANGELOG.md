@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Corrected NIP-54 wiki support to kind `30818` and rendered wiki naddr previews using stored wiki metadata or a canonical event link.
 - [Improvement] Loaded chapter parent-book references in a lazy Turbo frame, using local publication indexes first and the Books API as a validated fallback without delaying chapter rendering.
 - [Fix] Rendered missing kind-30041 chapter references with a chapter-specific placeholder and refreshed the active highlights tab after fetching instead of resetting the feed to For you.
 - [Fix] Rendered generic-event `p` tags as canonical npub profile links and used their relay hints for throttled background metadata hydration.

@@ -38,7 +38,7 @@ class SubscribeLocalMagazinesCommand extends Command
                 null,
                 InputOption::VALUE_OPTIONAL,
                 'Comma-separated list of event kinds to subscribe to',
-                '30040,30041'
+                '30040,30041,30818'
             )
             ->setHelp(
                 'This command subscribes to the local Nostr relay for magazine/reading list events (kinds 30040/30041) ' .
@@ -47,8 +47,8 @@ class SubscribeLocalMagazinesCommand extends Command
                 'Supported event kinds:' . "\n" .
                 '  - Kind 30040: Magazine indices / Reading lists (NIP-51)' . "\n" .
                 '  - Kind 30041: Publication content chapters (NKBIP-01)' . "\n" .
-                '  - Kind 30817: Wiki entries (NIP-54)' . "\n\n" .
-                'You can specify additional kinds using --kinds=30040,30041,30817'
+                '  - Kind 30818: Wiki entries (NIP-54)' . "\n\n" .
+                'You can specify additional kinds using --kinds=30040,30041,30818'
             );
     }
 
@@ -85,7 +85,7 @@ class SubscribeLocalMagazinesCommand extends Command
                 $kindName = match($kind) {
                     30040 => 'Magazines/Reading Lists',
                     30041 => 'Article Curation Sets',
-                    30817 => 'Wiki Entries (NIP-54)',
+                    30818 => 'Wiki Entries (NIP-54)',
                     default => "Kind $kind"
                 };
                 $io->writeln(sprintf('  - %s: <fg=cyan>%d</>', $kindName, $count));
@@ -128,7 +128,7 @@ class SubscribeLocalMagazinesCommand extends Command
                     $kindName = match($kind) {
                         30040 => 'Magazine/List',
                         30041 => 'Publication Content',
-                        30817 => 'Wiki',
+                        30818 => 'Wiki',
                         default => "Kind $kind"
                     };
 

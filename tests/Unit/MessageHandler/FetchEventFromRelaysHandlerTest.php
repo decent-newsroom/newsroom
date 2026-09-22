@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\MessageHandler;
 
 use App\Entity\Event;
+use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\MessageHandler\FetchEventFromRelaysHandler;
 use App\Repository\EventRepository;
@@ -25,14 +26,14 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
     {
         $pubkey = str_repeat('b', 64);
         $identifier = 'wiki-entry';
-        $lookupKey = EventLookupKey::forNaddr(30818, $pubkey, $identifier);
-        $rawEvent = $this->rawEvent(str_repeat('a', 64), 30818, $pubkey, $identifier);
+        $lookupKey = EventLookupKey::forNaddr(KindsEnum::WIKI->value, $pubkey, $identifier);
+        $rawEvent = $this->rawEvent(str_repeat('a', 64), KindsEnum::WIKI->value, $pubkey, $identifier);
         $persisted = $this->eventEntity($rawEvent);
 
         $eventRepository = $this->createMock(EventRepository::class);
         $eventRepository->expects(self::once())
             ->method('findByNaddr')
-            ->with(30818, $pubkey, $identifier)
+            ->with(KindsEnum::WIKI->value, $pubkey, $identifier)
             ->willReturn(null);
 
         $userRelayListService = $this->createMock(UserRelayListService::class);
@@ -77,7 +78,7 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
         )(new FetchEventFromRelaysMessage(
             lookupKey: $lookupKey,
             type: 'naddr',
-            kind: 30818,
+            kind: KindsEnum::WIKI->value,
             pubkey: $pubkey,
             identifier: $identifier,
             relays: ['wss://hint.example'],
@@ -88,7 +89,7 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
     {
         $pubkey = str_repeat('c', 64);
         $identifier = 'missing';
-        $lookupKey = EventLookupKey::forNaddr(30818, $pubkey, $identifier);
+        $lookupKey = EventLookupKey::forNaddr(KindsEnum::WIKI->value, $pubkey, $identifier);
 
         $eventRepository = $this->createMock(EventRepository::class);
         $eventRepository->expects(self::once())
@@ -118,7 +119,7 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
         )(new FetchEventFromRelaysMessage(
             lookupKey: $lookupKey,
             type: 'naddr',
-            kind: 30818,
+            kind: KindsEnum::WIKI->value,
             pubkey: $pubkey,
             identifier: $identifier,
         ));
