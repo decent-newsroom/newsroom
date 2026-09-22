@@ -515,6 +515,16 @@ class RedisCacheService
         }
     }
 
+    /** Remove a cached comments payload after a locally published event is stored. */
+    public function invalidateCommentsPayload(string $coordinate): void
+    {
+        try {
+            $this->npubCache->deleteItem($this->commentsKey($coordinate));
+        } catch (\Throwable $e) {
+            $this->logger->warning('Comments cache invalidation failed', ['e' => $e->getMessage(), 'coord' => $coordinate]);
+        }
+    }
+
     /**
      * Invalidate Redis views that contain this profile
      * Called when profile metadata (kind 0) is updated

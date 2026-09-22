@@ -5,7 +5,6 @@
       data-nostr--nostr-comment-parent="{{ parent_context|json_encode|e('html_attr') }}"
       data-action="submit->nostr--nostr-comment#publish"
       class="nip22-comment-form">
-    <div data-nostr--nostr-comment-target="status"></div>
     <div class="mb-2">
         <label for="comment_content_{{ form_id }}" class="form-label hidden">{{ 'comments.label'|trans }}</label>
         <textarea id="comment_content_{{ form_id }}" name="comment[content]" class="form-control" rows="3" required placeholder="{{ 'comments.writeComment'|trans }}"></textarea>

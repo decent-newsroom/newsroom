@@ -4,7 +4,7 @@ import { getSigner } from './signer_manager.js';
 // NIP-22 Comment Publishing Controller
 // Usage: Attach to a form with data attributes for root/parent context
 export default class extends Controller {
-    static targets = ['publishButton', 'status'];
+    static targets = ['publishButton'];
     static values = {
         publishUrl: String,
         csrfToken: String
@@ -151,24 +151,28 @@ export default class extends Controller {
         });
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
         return await response.json();
     }
 
     showStatus(message) {
-        if (this.hasStatusTarget) {
-            this.statusTarget.innerHTML = `<div class="alert alert-info">${message}</div>`;
-        }
+        this.notify(message, 'info');
     }
+
     showSuccess(message) {
-        if (this.hasStatusTarget) {
-            this.statusTarget.innerHTML = `<div class="alert alert-success">${message}</div>`;
-        }
+        this.notify(message, 'success');
     }
+
     showError(message) {
-        if (this.hasStatusTarget) {
-            this.statusTarget.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+        this.notify(message, 'danger', 6000);
+    }
+
+    notify(message, type, duration = 4000) {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type, duration);
+        } else {
+            console.warn('[nostr-comment] Global toast notifications are unavailable:', message);
         }
     }
 }

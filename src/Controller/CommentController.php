@@ -1,6 +1,8 @@
 <?php
 namespace App\Controller;
 
+use App\Service\Cache\RedisCacheService;
+use App\Service\CommentEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\RelayPublishResult;
@@ -19,6 +21,8 @@ class CommentController extends AbstractController
         private readonly NostrClient $nostrClient,
         private readonly UserRelayListService $userRelayListService,
         private readonly NostrEventVerifier $eventVerifier,
+        private readonly CommentEventProjector $commentEventProjector,
+        private readonly RedisCacheService $redisCacheService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -129,6 +133,24 @@ class CommentController extends AbstractController
                 'success_count' => $successCount,
                 'fail_count' => $failCount,
             ]);
+
+            if ($successCount === 0) {
+                return new JsonResponse([
+                    'error' => 'Comment was not accepted by any relay',
+                    'relays' => [
+                        'total' => count($relays),
+                        'success' => 0,
+                        'failed' => $failCount,
+                        'statuses' => $relayStatuses,
+                    ],
+                ], Response::HTTP_BAD_GATEWAY);
+            }
+
+            // Relay ingestion is asynchronous. Store the verified event locally so
+            // the article's database-first comments view includes it on reload.
+            $this->commentEventProjector->projectCommentFromEvent((object) $signedEvent);
+            $this->commentEventProjector->flush();
+            $this->redisCacheService->invalidateCommentsPayload($articleCoordinate ?? $rootEventId);
 
             return new JsonResponse([
                 'status' => 'ok',
