@@ -1334,6 +1334,8 @@ chapter:
         fetch: 'Obtener capítulo'
     part_of_label: 'Ruta de publicación'
     part_of: 'Parte de'
+    parent_book:
+        label: 'Parte de este libro'
     error:
         invalid_coordinate: 'Coordenada de capítulo no válida.'
         not_found: 'Capítulo no encontrado.'

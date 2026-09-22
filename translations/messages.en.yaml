@@ -1715,6 +1715,8 @@ chapter:
         fetch: 'Fetch Chapter'
     part_of_label: 'Publication breadcrumb'
     part_of: 'Part of'
+    parent_book:
+        label: 'Part of this book'
     error:
         invalid_coordinate: 'Invalid chapter coordinate.'
         not_found: 'Chapter not found.'

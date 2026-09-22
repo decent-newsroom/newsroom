@@ -17,17 +17,6 @@
     <article class="w-container">
         <div class="card">
             <div class="card-body">
-                {% if parentPublication %}
-                    <nav class="metadata mb-3" aria-label="{{ 'chapter.part_of_label'|trans }}">
-                        <span>{{ 'chapter.part_of'|trans }}</span>
-                        {% if parentPublication.slug %}
-                            <a href="{{ path('magazine-index', {mag: parentPublication.slug}) }}">{{ parentPublication.title }}</a>
-                        {% else %}
-                            <span>{{ parentPublication.title }}</span>
-                        {% endif %}
-                    </nav>
-                {% endif %}
-
                 <h1 class="card-title">{{ title }}</h1>
 
                 {% if summary %}
@@ -52,4 +41,11 @@
             </div>
         </div>
     </article>
+{% endblock %}
+
+{% block aside %}
+    <turbo-frame id="chapter-parent-publication"
+                 src="{{ path('chapter-parent-frame', {naddr: naddr}) }}"
+                 loading="lazy"
+                 target="_top"></turbo-frame>
 {% endblock %}

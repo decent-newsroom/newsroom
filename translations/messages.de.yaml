@@ -1344,6 +1344,8 @@ chapter:
         fetch: 'Kapitel abrufen'
     part_of_label: 'Publikations-Breadcrumb'
     part_of: 'Teil von'
+    parent_book:
+        label: 'Teil dieses Buches'
     error:
         invalid_coordinate: 'Ungültige Kapitelkoordinate.'
         not_found: 'Kapitel nicht gefunden.'

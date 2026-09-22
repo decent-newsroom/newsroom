@@ -1,0 +1,13 @@
+<turbo-frame id="chapter-parent-publication" target="_top">
+    {% if parentPublication %}
+        <section class="metadata mb-3" aria-label="{{ 'chapter.part_of_label'|trans }}">
+            <span class="text-muted">{{ 'chapter.parent_book.label'|trans }}</span>
+            {% if parentPublication.eventId %}
+                <a href="{{ path('bookshelf_read_native_fallback', {id: parentPublication.eventId}) }}"
+                   data-turbo-frame="_top">{{ parentPublication.title ?: 'relay_feed.untitled'|trans }}</a>
+            {% else %}
+                <span>{{ parentPublication.title ?: 'relay_feed.untitled'|trans }}</span>
+            {% endif %}
+        </section>
+    {% endif %}
+</turbo-frame>

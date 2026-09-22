@@ -21,7 +21,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class ChapterControllerTest extends TestCase
 {
-    public function testDbHitRendersStandaloneChapter(): void
+    public function testDbHitRendersStandaloneChapterWithoutParentLookup(): void
     {
         $pubkey = str_repeat('a', 64);
         $chapter = $this->makeEvent(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, 'intro', [
@@ -29,21 +29,13 @@ final class ChapterControllerTest extends TestCase
             ['title', 'Intro chapter'],
             ['summary', 'Summary'],
         ], '= Intro');
-        $parent = $this->makeEvent(KindsEnum::PUBLICATION_INDEX->value, str_repeat('b', 64), 'weekly', [
-            ['d', 'weekly'],
-            ['title', 'Weekly publication'],
-            ['a', KindsEnum::PUBLICATION_CONTENT->value . ':' . $pubkey . ':intro'],
-        ]);
 
         $repository = $this->createMock(EventRepository::class);
         $repository->expects(self::once())
             ->method('findByNaddr')
             ->with(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, 'intro')
             ->willReturn($chapter);
-        $repository->expects(self::once())
-            ->method('findReferencingEvents')
-            ->with('a', KindsEnum::PUBLICATION_CONTENT->value . ':' . $pubkey . ':intro', [KindsEnum::PUBLICATION_INDEX->value], 1)
-            ->willReturn([$parent]);
+        $repository->expects(self::never())->method('findReferencingEvents');
 
         $converter = $this->createMock(Converter::class);
         $converter->expects(self::once())
@@ -66,7 +58,7 @@ final class ChapterControllerTest extends TestCase
         self::assertSame('rendered:chapter/show.html.twig', $response->getContent());
         self::assertSame('<h1>Intro</h1>', $controller->renderedParameters['content']);
         self::assertSame('Intro chapter', $controller->renderedParameters['title']);
-        self::assertSame(['title' => 'Weekly publication', 'slug' => 'weekly'], $controller->renderedParameters['parentPublication']);
+        self::assertArrayNotHasKey('parentPublication', $controller->renderedParameters);
     }
 
     public function testDbMissDispatchesAsyncFetchAndRendersLoadingPage(): void

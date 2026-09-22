@@ -1333,6 +1333,8 @@ chapter:
         fetch: 'Pridobi poglavje'
     part_of_label: 'Drobtinice publikacije'
     part_of: 'Del publikacije'
+    parent_book:
+        label: 'Del te knjige'
     error:
         invalid_coordinate: 'Neveljavna koordinata poglavja.'
         not_found: 'Poglavja ni bilo mogoče najti.'

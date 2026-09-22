@@ -1333,6 +1333,8 @@ chapter:
         fetch: 'Récupérer le chapitre'
     part_of_label: 'Fil d’Ariane de publication'
     part_of: 'Fait partie de'
+    parent_book:
+        label: 'Fait partie de ce livre'
     error:
         invalid_coordinate: 'Coordonnée de chapitre invalide.'
         not_found: 'Chapitre introuvable.'

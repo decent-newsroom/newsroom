@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Improvement] Loaded chapter parent-book references in a lazy Turbo frame, using local publication indexes first and the Books API as a validated fallback without delaying chapter rendering.
 - [Fix] Rendered missing kind-30041 chapter references with a chapter-specific placeholder and refreshed the active highlights tab after fetching instead of resetting the feed to For you.
 - [Fix] Rendered generic-event `p` tags as canonical npub profile links and used their relay hints for throttled background metadata hydration.
 - [Fix] Made naddr lookups query only their embedded relay hints before trying unvisited fallback relays, preventing duplicate requests and avoidable Messenger delay.

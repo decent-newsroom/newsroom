@@ -8,6 +8,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
+use App\Service\ChapterParentPublicationResolver;
 use App\Service\Nostr\EventLookupKey;
 use App\Util\CommonMark\Converter;
 use nostriphant\NIP19\Bech32;
@@ -29,22 +30,15 @@ class ChapterController extends AbstractController
         Converter $converter,
         LoggerInterface $logger,
     ): Response {
-        try {
-            $decoded = new Bech32($naddr);
-        } catch (\Throwable $e) {
-            throw new NotFoundHttpException('Invalid chapter address.', $e);
-        }
-
-        if ($decoded->type !== 'naddr' || !$decoded->data instanceof NAddr) {
+        $data = $this->decodeAddress($naddr);
+        if ($data === null) {
             throw new NotFoundHttpException('Invalid chapter address.');
         }
 
-        /** @var NAddr $data */
-        $data = $decoded->data;
-        $kind = (int) $data->kind;
-        $pubkey = (string) $data->pubkey;
-        $identifier = trim((string) $data->identifier);
-        $relays = is_array($data->relays ?? null) ? $data->relays : [];
+        $kind = $data['kind'];
+        $pubkey = $data['pubkey'];
+        $identifier = $data['identifier'];
+        $relays = $data['relays'];
 
         if ($kind !== KindsEnum::PUBLICATION_CONTENT->value) {
             return $this->redirectToRoute('nevent', ['nevent' => $naddr]);
@@ -85,7 +79,6 @@ class ChapterController extends AbstractController
         }
 
         $coordinate = KindsEnum::PUBLICATION_CONTENT->value . ':' . $pubkey . ':' . $identifier;
-        $parentPublication = $this->findParentPublication($eventRepository, $coordinate);
 
         return $this->render('chapter/show.html.twig', [
             'chapter' => $chapter,
@@ -94,36 +87,52 @@ class ChapterController extends AbstractController
             'summary' => $chapter->getSummary(),
             'naddr' => $naddr,
             'coordinate' => $coordinate,
+        ]);
+    }
+
+    #[Route('/chapter/{naddr}/parent', name: 'chapter-parent-frame', requirements: ['naddr' => '^naddr1.*'], methods: ['GET'], priority: 10)]
+    public function parentFrame(string $naddr, ChapterParentPublicationResolver $parentResolver): Response
+    {
+        $data = $this->decodeAddress($naddr);
+        $parentPublication = null;
+        if (
+            $data !== null
+            && $data['kind'] === KindsEnum::PUBLICATION_CONTENT->value
+            && $data['pubkey'] !== ''
+            && $data['identifier'] !== ''
+        ) {
+            $coordinate = KindsEnum::PUBLICATION_CONTENT->value . ':' . $data['pubkey'] . ':' . $data['identifier'];
+            $parentPublication = $parentResolver->resolve($coordinate);
+        }
+
+        return $this->render('chapter/_parent_frame.html.twig', [
             'parentPublication' => $parentPublication,
         ]);
     }
 
     /**
-     * @return array{title: string, slug: ?string}|null
+     * @return array{kind: int, pubkey: string, identifier: string, relays: string[]}|null
      */
-    private function findParentPublication(EventRepository $eventRepository, string $coordinate): ?array
+    private function decodeAddress(string $naddr): ?array
     {
-        $parents = $eventRepository->findReferencingEvents(
-            'a',
-            $coordinate,
-            [KindsEnum::PUBLICATION_INDEX->value],
-            1,
-        );
-
-        $parent = $parents[0] ?? null;
-        if (!$parent instanceof Event) {
+        try {
+            $decoded = new Bech32($naddr);
+        } catch (\Throwable) {
             return null;
         }
 
-        $slug = $parent->getDTag() ?: $parent->getSlug();
-        $title = trim((string) ($parent->getTitle() ?? ''));
-        if ($title === '') {
-            $title = $slug ?: substr($parent->getId(), 0, 12);
+        if ($decoded->type !== 'naddr' || !$decoded->data instanceof NAddr) {
+            return null;
         }
 
+        /** @var NAddr $data */
+        $data = $decoded->data;
+
         return [
-            'title' => $title,
-            'slug' => $slug,
+            'kind' => (int) $data->kind,
+            'pubkey' => (string) $data->pubkey,
+            'identifier' => trim((string) $data->identifier),
+            'relays' => is_array($data->relays ?? null) ? $data->relays : [],
         ];
     }
 
