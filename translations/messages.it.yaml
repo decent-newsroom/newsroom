@@ -1317,6 +1317,10 @@ relay_feed:
 chapter:
     card:
         badge: 'Capitolo'
+    placeholder:
+        heading: 'Capitolo non ancora disponibile'
+        description: 'Questo capitolo è citato qui, ma non è ancora stato caricato.'
+        fetch: 'Recupera capitolo'
     part_of_label: 'Percorso della pubblicazione'
     part_of: 'Parte di'
     error:

@@ -5,7 +5,12 @@
             pubkey: parsedPubkey,
             slug: parsedSlug,
             coordinate: coordinate
-        }" />
+        }"
+            heading="chapter.placeholder.heading"
+            description="chapter.placeholder.description"
+            fetchLabel="chapter.placeholder.fetch"
+            variant="chapter"
+        />
     {% elseif error %}
         <div class="alert alert-info">{{ error|trans }}</div>
     {% elseif chapter %}

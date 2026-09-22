@@ -8,7 +8,10 @@
         <a class="btn btn--primary" href="{{ path('app_essayist_members') }}">{{ 'essayist.members.heading'|trans }}</a>
     </div>
     <section class="w-container">
-        <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="foryou">
+        <div class="home-feed"
+             data-controller="content--home-tabs"
+             data-content--home-tabs-active-tab-value="foryou"
+             data-action="card-placeholder:fetched->content--home-tabs#refreshActiveTab">
 
             <nav class="profile-tabs home-feed__tabs">
                 <a href="{{ path('app_essayist_home_tab', {tab: 'foryou'}) }}"
@@ -97,4 +100,3 @@
         </div>
     {% endif %}
 {% endblock %}
-

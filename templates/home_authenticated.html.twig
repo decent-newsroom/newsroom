@@ -11,7 +11,10 @@
 
         <twig:Organisms:EssayistPromo />
 
-        <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="articles">
+        <div class="home-feed"
+             data-controller="content--home-tabs"
+             data-content--home-tabs-active-tab-value="articles"
+             data-action="card-placeholder:fetched->content--home-tabs#refreshActiveTab">
 
             <nav class="profile-tabs home-feed__tabs" aria-label="{{ 'nav.articles'|trans }}">
                 <a href="{{ path('home_feed_tab', {tab: 'articles'}) }}"
@@ -64,5 +67,4 @@
 {% block aside %}
     <twig:Atoms:FeaturedWriters />
 {% endblock %}
-
 

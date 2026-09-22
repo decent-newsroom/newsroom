@@ -1709,6 +1709,10 @@ reading_list_editor:
 chapter:
     card:
         badge: 'Chapter'
+    placeholder:
+        heading: 'Chapter Not Yet Available'
+        description: 'This chapter is referenced here but has not been loaded yet.'
+        fetch: 'Fetch Chapter'
     part_of_label: 'Publication breadcrumb'
     part_of: 'Part of'
     error:

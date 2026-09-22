@@ -1327,6 +1327,10 @@ relay_feed:
 chapter:
     card:
         badge: 'Poglavje'
+    placeholder:
+        heading: 'Poglavje še ni na voljo'
+        description: 'To poglavje je tukaj navedeno, vendar še ni naloženo.'
+        fetch: 'Pridobi poglavje'
     part_of_label: 'Drobtinice publikacije'
     part_of: 'Del publikacije'
     error:

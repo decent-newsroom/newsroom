@@ -1338,6 +1338,10 @@ relay_feed:
 chapter:
     card:
         badge: 'Kapitel'
+    placeholder:
+        heading: 'Kapitel noch nicht verfügbar'
+        description: 'Auf dieses Kapitel wird hier verwiesen, es wurde aber noch nicht geladen.'
+        fetch: 'Kapitel abrufen'
     part_of_label: 'Publikations-Breadcrumb'
     part_of: 'Teil von'
     error:

@@ -1327,6 +1327,10 @@ relay_feed:
 chapter:
     card:
         badge: 'Chapitre'
+    placeholder:
+        heading: 'Chapitre pas encore disponible'
+        description: 'Ce chapitre est référencé ici, mais n’a pas encore été chargé.'
+        fetch: 'Récupérer le chapitre'
     part_of_label: 'Fil d’Ariane de publication'
     part_of: 'Fait partie de'
     error:

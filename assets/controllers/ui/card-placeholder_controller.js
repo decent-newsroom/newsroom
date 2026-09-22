@@ -72,8 +72,17 @@ export default class extends Controller {
                     Fetched!
                 `;
 
-                // Reload the page to show the fetched article
+                // Let a surrounding tab controller refresh only its active Turbo frame.
                 setTimeout(() => {
+                    const refreshEvent = new CustomEvent('card-placeholder:fetched', {
+                        bubbles: true,
+                        cancelable: true,
+                    });
+
+                    if (!this.element.dispatchEvent(refreshEvent)) {
+                        return;
+                    }
+
                     window.location.reload();
                 }, 1000);
             } else {

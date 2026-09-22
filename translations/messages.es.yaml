@@ -1328,6 +1328,10 @@ relay_feed:
 chapter:
     card:
         badge: 'Capítulo'
+    placeholder:
+        heading: 'Capítulo aún no disponible'
+        description: 'Este capítulo se menciona aquí, pero aún no se ha cargado.'
+        fetch: 'Obtener capítulo'
     part_of_label: 'Ruta de publicación'
     part_of: 'Parte de'
     error:

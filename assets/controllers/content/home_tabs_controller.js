@@ -27,12 +27,24 @@ export default class extends Controller {
      */
     async switchTab(event) {
         event.preventDefault();
-        const clickedTab = event.currentTarget;
+        this._loadTab(event.currentTarget);
+    }
+
+    refreshActiveTab(event) {
+        event.preventDefault();
+        const activeTab = this.tabTargets.find((tab) => tab.classList.contains('active'));
+
+        if (activeTab) {
+            this._loadTab(activeTab, true);
+        }
+    }
+
+    async _loadTab(clickedTab, forceRefresh = false) {
         const tabName = clickedTab.dataset.tab;
         const url = clickedTab.href;
 
         // Ignore clicks on the already-active tab
-        if (tabName === this.activeTabValue) return;
+        if (tabName === this.activeTabValue && !forceRefresh) return;
 
         // Cancel any in-flight request
         if (this.currentAbort) {
@@ -41,7 +53,7 @@ export default class extends Controller {
         }
 
         // Remember the previous tab for rollback
-        this.previousTab = this.activeTabValue;
+        this.previousTab = forceRefresh ? null : this.activeTabValue;
 
         // Update active state immediately for visual feedback
         this.tabTargets.forEach(tab => {
@@ -153,7 +165,6 @@ export default class extends Controller {
         </div>`;
     }
 }
-
 
 
 
