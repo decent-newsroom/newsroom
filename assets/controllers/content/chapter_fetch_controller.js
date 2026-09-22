@@ -122,6 +122,18 @@ export default class extends Controller {
     }
 
     _reloadTarget() {
+        // Keep the existing home-feed refresh contract used by the generic
+        // placeholder. A parent tab controller can prevent the fallback
+        // reload and refresh only its active Turbo frame.
+        const refreshEvent = new CustomEvent('card-placeholder:fetched', {
+            bubbles: true,
+            cancelable: true,
+        });
+
+        if (!this.element.dispatchEvent(refreshEvent)) {
+            return;
+        }
+
         const reloadUrl = this.hasReloadUrlValue && this.reloadUrlValue
             ? this.reloadUrlValue
             : null;
@@ -143,6 +155,8 @@ export default class extends Controller {
             window.Turbo.visit(reloadUrl, { action: 'replace' });
         } else if (reloadUrl) {
             window.location.href = reloadUrl;
+        } else {
+            window.location.reload();
         }
     }
 

@@ -727,11 +727,16 @@ class HomeFeedController extends AbstractController
                 $articleRef = null;
                 $context = null;
                 $url = null;
+                $relayHints = [];
                 foreach ($event->getTags() as $tag) {
                     if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
                         $parts = explode(':', $tag[1], 3);
                         if (count($parts) === 3 && in_array((int) $parts[0], [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value, KindsEnum::PUBLICATION_CONTENT->value], true)) {
                             $articleRef = $tag[1];
+                            $relayHints = [];
+                            if (isset($tag[2]) && is_string($tag[2]) && str_starts_with($tag[2], 'wss://')) {
+                                $relayHints[] = $tag[2];
+                            }
                         }
                     }
                     if (($tag[0] ?? '') === 'context' && isset($tag[1])) {
@@ -751,6 +756,7 @@ class HomeFeedController extends AbstractController
                     'context' => $context,
                     'article_ref' => $articleRef,
                     'article_title' => null,
+                    'relayHints' => array_values(array_unique($relayHints)),
                     'naddr' => null,
                     'preview' => null,
                     'url' => $url,
@@ -766,13 +772,17 @@ class HomeFeedController extends AbstractController
 
             foreach ($commentEvents as $event) {
                 $articleRef = null;
+                $relayHints = [];
                 foreach ($event->getTags() as $tag) {
                     if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
                         $parts = explode(':', $tag[1], 3);
                         if (count($parts) === 3) {
                             $kind = (int) $parts[0];
-                            if (in_array($kind, [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value], true)) {
+                            if (in_array($kind, [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value, KindsEnum::PUBLICATION_CONTENT->value], true)) {
                                 $articleRef = $tag[1];
+                                if (isset($tag[2]) && is_string($tag[2]) && str_starts_with($tag[2], 'wss://')) {
+                                    $relayHints[] = $tag[2];
+                                }
                                 break;
                             }
                         }
@@ -788,6 +798,7 @@ class HomeFeedController extends AbstractController
                         'pubkey' => $event->getPubkey(),
                         'article_ref' => $articleRef,
                         'article_title' => null,
+                        'relayHints' => $relayHints,
                     ];
                 }
             }

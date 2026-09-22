@@ -27,9 +27,9 @@ Render flow (see `templates/event/_kind1111_comment.html.twig`):
 
 1. Extract all of the above from `event.tags` in a single pass.
 2. Render a **"Replying to"** card (direct parent) above the comment body.
-   - `a` → `<twig:Organisms:ArticleFromCoordinate>` (resolves against the
-     article DB; falls back to a `CardPlaceholder` for non-article
-     addressable kinds, which triggers a deferred fetch).
+   - `a` → `<twig:Organisms:ArticleFromCoordinate>` (resolves long-form
+     articles from the article DB and delegates kind `30041` coordinates to
+     the chapter-aware fetch placeholder).
    - `e` → encode the hex id to `note1…` via the `nEncode` Twig filter and
      pass it to `<twig:Molecules:NostrEmbed type="note">`, which already
      handles longform, picture, and generic event cards, plus a

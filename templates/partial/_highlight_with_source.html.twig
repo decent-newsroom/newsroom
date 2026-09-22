@@ -22,7 +22,10 @@
 
     {% if highlight.article_ref|default(null) and sourceKind == '30041' %}
         <div class="article-preview">
-            <twig:Organisms:ChapterFromCoordinate :coordinate="highlight.article_ref" />
+            <twig:Organisms:ChapterFromCoordinate
+                :coordinate="highlight.article_ref"
+                :relayHints="highlight.relayHints|default([])"
+            />
         </div>
     {% elseif highlight.preview is defined and highlight.preview %}
         <div class="article-preview">

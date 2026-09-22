@@ -15,6 +15,8 @@ final class ChapterFromCoordinate
     public string $coordinate;
     public ?Event $chapter = null;
     public ?string $error = null;
+    public array $relayHints = [];
+    public ?string $mag = null;
     public ?string $parsedKind = null;
     public ?string $parsedPubkey = null;
     public ?string $parsedSlug = null;
@@ -23,9 +25,11 @@ final class ChapterFromCoordinate
         private readonly EventRepository $eventRepository,
     ) {}
 
-    public function mount(string $coordinate): void
+    public function mount(string $coordinate, array $relayHints = [], ?string $mag = null): void
     {
         $this->coordinate = $coordinate;
+        $this->relayHints = $relayHints;
+        $this->mag = $mag;
         $parts = explode(':', $coordinate, 3);
 
         if (count($parts) !== 3) {

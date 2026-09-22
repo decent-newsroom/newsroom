@@ -46,6 +46,10 @@ class HighlightFeedService
 
                 $naddr = $articleCoordinate ? $this->generateNaddr($articleCoordinate, []) : null;
                 $eventRef = $baseObject['highlight']['refs']['event_ref'] ?? null;
+                $relayHints = $baseObject['highlight']['refs']['relay_hints'] ?? [];
+                if (!is_array($relayHints)) {
+                    $relayHints = [];
+                }
 
                 $highlights[] = [
                     'id' => $baseObject['highlight']['eventId'] ?? null,
@@ -64,6 +68,7 @@ class HighlightFeedService
                     'preview' => $naddr ? $this->createPreviewData($naddr) : null,
                     'profile' => $baseObject['author'] ?? null,
                     'article_author_profile' => $baseObject['profiles'][$article['pubkey'] ?? ''] ?? null,
+                    'relayHints' => $relayHints,
                 ];
             }
 
@@ -155,6 +160,7 @@ class HighlightFeedService
                 'article_author_profile' => $articlePubkey
                     ? $this->metadataToProfile($metadataMap[$articlePubkey] ?? null)
                     : null,
+                'relayHints' => $this->extractRelayHints($highlightEntity->getRawEvent(), $articleCoordinate),
             ];
         }
 
@@ -252,5 +258,36 @@ class HighlightFeedService
         }
 
         return null;
+    }
+
+    /**
+     * Extract relay hints attached to addressable references in a highlight.
+     *
+     * @return string[]
+     */
+    private function extractRelayHints(?array $rawEvent, string $coordinate): array
+    {
+        if (!is_array($rawEvent) || !isset($rawEvent['tags']) || !is_array($rawEvent['tags'])) {
+            return [];
+        }
+
+        $relayHints = [];
+        foreach ($rawEvent['tags'] as $tag) {
+            if (!is_array($tag) || count($tag) < 3 || !in_array($tag[0] ?? null, ['a', 'A'], true) || ($tag[1] ?? null) !== $coordinate) {
+                continue;
+            }
+
+            $relay = $tag[2];
+            if (!is_string($relay) || !preg_match('#^wss?://#i', $relay)) {
+                continue;
+            }
+
+            $relay = rtrim(trim($relay), '/');
+            if ($relay !== '' && !in_array($relay, $relayHints, true)) {
+                $relayHints[] = $relay;
+            }
+        }
+
+        return $relayHints;
     }
 }

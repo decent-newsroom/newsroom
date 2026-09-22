@@ -45,7 +45,10 @@
                     {% if item.article_ref %}
                         {% set refParts = item.article_ref|split(':', 3) %}
                         {% if refParts|length == 3 and refParts[0] == '30041' %}
-                            <twig:Organisms:ChapterFromCoordinate :coordinate="item.article_ref" />
+                            <twig:Organisms:ChapterFromCoordinate
+                                :coordinate="item.article_ref"
+                                :relayHints="item.relayHints|default([])"
+                            />
                         {% else %}
                             {% set refNpub = refParts|length == 3 ? refParts[1]|hex_to_npub : '' %}
                             {% if refNpub and refParts|length == 3 %}

@@ -1,16 +1,33 @@
 <div {{ attributes.defaults({class: 'chapter-from-coordinate'}) }}>
     {% if error and parsedPubkey and parsedSlug %}
-        <twig:Molecules:CardPlaceholder :item="{
-            kind: parsedKind,
-            pubkey: parsedPubkey,
-            slug: parsedSlug,
-            coordinate: coordinate
-        }"
-            heading="chapter.placeholder.heading"
-            description="chapter.placeholder.description"
-            fetchLabel="chapter.placeholder.fetch"
-            variant="chapter"
-        />
+        <div class="card card-placeholder card-placeholder--chapter"
+             data-controller="content--chapter-fetch"
+             data-content--chapter-fetch-coordinate-value="{{ coordinate }}"
+             data-content--chapter-fetch-mag-value="{{ mag|default('') }}"
+             data-content--chapter-fetch-relay-hints-value="{{ relayHints|default([])|json_encode|e('html_attr') }}">
+            <div class="card-body placeholder-content">
+                <h3 class="placeholder-title">{{ 'chapter.placeholder.heading'|trans }}</h3>
+                <p class="placeholder-description">{{ 'chapter.placeholder.description'|trans }}</p>
+                <p class="placeholder-meta">
+                    <small>{{ coordinate }}</small>
+                </p>
+                <button class="btn btn-sm btn-outline fetch-chapter-btn"
+                        data-content--chapter-fetch-target="button"
+                        data-action="click->content--chapter-fetch#fetch">
+                    {{ 'chapter.placeholder.fetch'|trans }}
+                </button>
+                <span class="ms-2" data-content--chapter-fetch-target="spinner" hidden>
+                    {{ 'chapter.loading.heading'|trans }}
+                </span>
+                <p class="placeholder-description" data-content--chapter-fetch-target="slowNotice" hidden>
+                    {{ 'chapter.loading.slow_detail'|trans }}
+                </p>
+                <p class="placeholder-description" data-content--chapter-fetch-target="notFound" hidden>
+                    {{ 'chapter.loading.not_found_detail'|trans }}
+                </p>
+                <p class="placeholder-description" data-content--chapter-fetch-target="error" hidden></p>
+            </div>
+        </div>
     {% elseif error %}
         <div class="alert alert-info">{{ error|trans }}</div>
     {% elseif chapter %}

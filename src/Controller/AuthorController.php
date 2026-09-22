@@ -1854,10 +1854,6 @@ class AuthorController extends AbstractController
                         if (!$url) {
                             $url = $tag[1] ?? null;
                         }
-                        // Collect relay hints
-                        if (isset($tag[1]) && str_starts_with($tag[1], 'wss://')) {
-                            $relayHints[] = $tag[1];
-                        }
                         break;
                     case 'e': // Event reference
                     case 'E':
@@ -1868,6 +1864,7 @@ class AuthorController extends AbstractController
                     case 'a': // Article reference (kind:pubkey:identifier)
                     case 'A':
                         $articleRef = $tag[1] ?? null;
+                        $relayHints = [];
                         // Get relay hint if available
                         if (isset($tag[2]) && str_starts_with($tag[2], 'wss://')) {
                             $relayHints[] = $tag[2];
@@ -1894,6 +1891,7 @@ class AuthorController extends AbstractController
                 'article_ref' => $articleRef,
                 'article_title' => $articleTitle,
                 'article_author' => $articleAuthor,
+                'relayHints' => array_values(array_unique($relayHints)),
                 'url' => $url,
                 'naddr' => null,
                 'preview' => null,

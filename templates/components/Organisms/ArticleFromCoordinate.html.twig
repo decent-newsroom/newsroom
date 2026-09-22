@@ -1,5 +1,11 @@
 <div {{ attributes.defaults({class: 'article-from-coordinate'}) }}>
-    {% if error and parsedPubkey and parsedSlug %}
+    {% if parsedKind == '30041' %}
+        <twig:Organisms:ChapterFromCoordinate
+            :coordinate="coordinate"
+            :relayHints="relayHints"
+            :mag="mag"
+        />
+    {% elseif error and parsedPubkey and parsedSlug %}
         {# Article not found – show fetch placeholder #}
         <twig:Molecules:CardPlaceholder :item="{
             kind: parsedKind,

@@ -17,6 +17,7 @@
 {% set rootI = null %}
 {% set rootKind = null %}
 {% set rootAuthor = null %}
+{% set rootARelay = null %}
 
 {# ── Extract direct-parent refs ────────────────────────────────── #}
 {% set parentE = null %}
@@ -24,16 +25,23 @@
 {% set parentI = null %}
 {% set parentKind = null %}
 {% set parentAuthor = null %}
+{% set parentARelay = null %}
 
 {% for tag in event.tags %}
     {% if tag[0] == 'E' and rootE is null and tag[1] is defined %}{% set rootE = tag[1] %}{% endif %}
-    {% if tag[0] == 'A' and rootA is null and tag[1] is defined %}{% set rootA = tag[1] %}{% endif %}
+    {% if tag[0] == 'A' and rootA is null and tag[1] is defined %}
+        {% set rootA = tag[1] %}
+        {% if tag[2] is defined %}{% set rootARelay = tag[2] %}{% endif %}
+    {% endif %}
     {% if tag[0] == 'I' and rootI is null and tag[1] is defined %}{% set rootI = tag[1] %}{% endif %}
     {% if tag[0] == 'K' and rootKind is null and tag[1] is defined %}{% set rootKind = tag[1] %}{% endif %}
     {% if tag[0] == 'P' and rootAuthor is null and tag[1] is defined %}{% set rootAuthor = tag[1] %}{% endif %}
 
     {% if tag[0] == 'e' and parentE is null and tag[1] is defined %}{% set parentE = tag[1] %}{% endif %}
-    {% if tag[0] == 'a' and parentA is null and tag[1] is defined %}{% set parentA = tag[1] %}{% endif %}
+    {% if tag[0] == 'a' and parentA is null and tag[1] is defined %}
+        {% set parentA = tag[1] %}
+        {% if tag[2] is defined %}{% set parentARelay = tag[2] %}{% endif %}
+    {% endif %}
     {% if tag[0] == 'i' and parentI is null and tag[1] is defined %}{% set parentI = tag[1] %}{% endif %}
     {% if tag[0] == 'k' and parentKind is null and tag[1] is defined %}{% set parentKind = tag[1] %}{% endif %}
     {% if tag[0] == 'p' and parentAuthor is null and tag[1] is defined %}{% set parentAuthor = tag[1] %}{% endif %}
@@ -51,7 +59,11 @@
             <small>Replying to{% if parentKind %} <span class="badge bg-secondary">kind {{ parentKind }}</span>{% endif %}</small>
         </div>
         {% if parentA %}
-            <twig:Organisms:ArticleFromCoordinate :coordinate="parentA" :autoFetch="true" />
+            <twig:Organisms:ArticleFromCoordinate
+                :coordinate="parentA"
+                :autoFetch="true"
+                :relayHints="parentARelay ? [parentARelay] : []"
+            />
         {% elseif parentE %}
             <twig:Molecules:NostrEmbed :bech="parentE|nEncode" type="note" />
         {% elseif parentI %}
@@ -81,7 +93,11 @@
         {% if rootA %}
             {# Try to link to the addressable coordinate; ArticleFromCoordinate
                falls back to a CardPlaceholder for non-article addressable kinds. #}
-            <twig:Organisms:ArticleFromCoordinate :coordinate="rootA" :autoFetch="true" />
+            <twig:Organisms:ArticleFromCoordinate
+                :coordinate="rootA"
+                :autoFetch="true"
+                :relayHints="rootARelay ? [rootARelay] : []"
+            />
         {% elseif rootE %}
             <twig:Molecules:NostrEmbed :bech="rootE|nEncode" type="note" />
         {% elseif rootI %}
@@ -95,6 +111,5 @@
         {% endif %}
     </div>
 {% endif %}
-
 
 

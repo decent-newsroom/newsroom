@@ -21,6 +21,7 @@ final class ArticleFromCoordinate
     public array $authorsMetadata = [];
     public ?string $mag = null; // magazine slug (optional)
     public ?string $cat = null; // category slug (optional)
+    public array $relayHints = [];
 
     /**
      * When true, if the article isn't in the local DB and the coordinate
@@ -44,10 +45,12 @@ final class ArticleFromCoordinate
         private readonly ?LoggerInterface $logger = null,
     ) {}
 
-    public function mount($coordinate, bool $autoFetch = false): void
+    public function mount($coordinate, bool $autoFetch = false, array $relayHints = [], ?string $mag = null): void
     {
         $this->coordinate = $coordinate;
         $this->autoFetch = $autoFetch;
+        $this->relayHints = $relayHints;
+        $this->mag = $mag;
         // Parse coordinate (format: kind:pubkey:slug)
         $parts = explode(':', $this->coordinate, 3);
 
@@ -65,6 +68,14 @@ final class ArticleFromCoordinate
         // Validate kind is numeric
         if (!is_numeric($kind)) {
             $this->error = 'Invalid kind value in coordinate';
+            return;
+        }
+
+        // Publication chapters are stored as Event entities and have their
+        // own asynchronous relay-fetch flow. Do not look for them in the
+        // Article table (or accidentally match an article with the same
+        // pubkey and identifier).
+        if ((int) $kind === KindsEnum::PUBLICATION_CONTENT->value) {
             return;
         }
 

@@ -120,6 +120,10 @@ class RedisViewFactory
             refs: [
                 'article_coordinate' => $highlight->getArticleCoordinate(),
                 'event_ref' => $eventRef,
+                'relay_hints' => $this->extractHighlightRelayHints(
+                    $highlight->getRawEvent(),
+                    $highlight->getArticleCoordinate(),
+                ),
             ],
         );
     }
@@ -383,6 +387,35 @@ class RedisViewFactory
             context: $data['context'] ?? null,
             refs: $data['refs'] ?? [],
         );
+    }
+
+    /**
+     * @return string[]
+     */
+    private function extractHighlightRelayHints(?array $rawEvent, ?string $coordinate): array
+    {
+        if ($coordinate === null || !is_array($rawEvent) || !isset($rawEvent['tags']) || !is_array($rawEvent['tags'])) {
+            return [];
+        }
+
+        $relayHints = [];
+        foreach ($rawEvent['tags'] as $tag) {
+            if (!is_array($tag) || count($tag) < 3 || !in_array($tag[0] ?? null, ['a', 'A'], true) || ($tag[1] ?? null) !== $coordinate) {
+                continue;
+            }
+
+            $relay = $tag[2];
+            if (!is_string($relay) || !preg_match('#^wss?://#i', $relay)) {
+                continue;
+            }
+
+            $relay = rtrim(trim($relay), '/');
+            if ($relay !== '' && !in_array($relay, $relayHints, true)) {
+                $relayHints[] = $relay;
+            }
+        }
+
+        return $relayHints;
     }
 
     /**

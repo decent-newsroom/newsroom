@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Fix] Routed kind-30041 highlight and coordinate previews through the chapter fetch flow, preserving relay hints and refreshing chapter cards after asynchronous storage.
 - [Improvement] Moved NIP-22 comment publishing progress, success, and failure messages from inline forms to global toast notifications.
 - [Fix] Stored successfully published NIP-22 comment replies locally and invalidated their cached article payload so they remain visible after reloading.
 - [Fix] Corrected NIP-54 wiki support to kind `30818` and rendered wiki naddr previews using stored wiki metadata or a canonical event link.
