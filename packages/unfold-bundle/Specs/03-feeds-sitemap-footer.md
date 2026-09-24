@@ -1,8 +1,9 @@
 # Feeds, Sitemap, Robots, And Footer
 
 > **Implementation status (2026-09):** RSS, category RSS, sitemap, robots, and
-> the `/feed.xml` redirect are delivered. The two-level footer and its
-> locally configured owner links remain pending.
+> the `/feed.xml` redirect, two-level default footer, and locally configured
+> owner links are delivered. About, audience, and publication payment links remain
+> conditional on their later workflows.
 
 ## Goal
 

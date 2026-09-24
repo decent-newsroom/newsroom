@@ -389,6 +389,8 @@ services:
     DecentNewsroom\UnfoldBundle\Theme\ContextBuilder:
         arguments:
             $cache: '@unfold.cache'
+            $translator: '@translator'
+            $platformBaseUrl: 'https://decentnewsroom.com'
     
     DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer:
         arguments:

@@ -10,6 +10,7 @@ use DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface;
 use DecentNewsroom\UnfoldBundle\Contract\MarkdownConverterInterface;
 use DecentNewsroom\UnfoldBundle\Contract\ProfileMetadataProviderInterface;
 use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Builds Ghost-compatible context for Handlebars templates
@@ -23,6 +24,8 @@ class ContextBuilder
         private readonly CacheItemPoolInterface $cache,
         private readonly ProfileMetadataProviderInterface $profileMetadata,
         private readonly CommentProviderInterface $comments,
+        private readonly ?TranslatorInterface $translator = null,
+        private readonly string $platformBaseUrl = 'https://decentnewsroom.com',
     ) {}
 
     /**
@@ -39,6 +42,7 @@ class ContextBuilder
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'home',
+            ...$this->buildFooterContext($site, $siteContext),
             'posts' => array_map([$this, 'buildPostListItemContext'], $posts),
             'pagination' => $this->buildPaginationContext(count($posts)),
         ];
@@ -62,6 +66,7 @@ class ContextBuilder
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'tag',
+            ...$this->buildFooterContext($site, $siteContext),
             'category' => [
                 'slug' => $category->slug,
                 'title' => $category->title,
@@ -86,6 +91,7 @@ class ContextBuilder
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'post',
+            ...$this->buildFooterContext($site, $siteContext),
             'post' => $this->buildSinglePostContext($post, $primaryCategory),
         ];
     }
@@ -130,6 +136,45 @@ class ContextBuilder
             'creator_lud16' => $creatorLud16,
             'creator_lud06' => $creatorLud06,
         ];
+    }
+
+    /** Keep publication-owned links separate from the host platform's links. */
+    private function buildFooterContext(SiteConfig $site, array $siteContext): array
+    {
+        $platformBaseUrl = rtrim($this->platformBaseUrl, '/');
+
+        return [
+            'publication_footer' => [
+                'title' => $site->title,
+                'label' => $this->translate('unfold_footer.publication'),
+                'owner_links_label' => $this->translate('unfold_footer.owner_links'),
+                'support_label' => $this->translate('unfold_footer.support'),
+                'navigation' => [
+                    ['label' => $this->translate('unfold_footer.home'), 'url' => '/'],
+                    ...array_map(
+                        static fn (array $item): array => ['label' => $item['label'], 'url' => $item['url']],
+                        $siteContext['navigation'],
+                    ),
+                    ['label' => $this->translate('unfold_footer.rss'), 'url' => '/rss.xml'],
+                ],
+                'owner_links' => $site->footerLinks,
+            ],
+            'dn_footer' => [
+                'label' => $this->translate('unfold_footer.platform'),
+                'powered_by' => $this->translate('unfold_footer.powered_by'),
+                'brand_url' => $platformBaseUrl . '/unfold',
+                'links' => [
+                    ['label' => $this->translate('footer.about'), 'url' => $platformBaseUrl . '/about'],
+                    ['label' => $this->translate('footer.termsOfService'), 'url' => $platformBaseUrl . '/tos'],
+                    ['label' => $this->translate('footer.sitemap'), 'url' => $platformBaseUrl . '/sitemap.xml'],
+                ],
+            ],
+        ];
+    }
+
+    private function translate(string $key): string
+    {
+        return $this->translator?->trans($key) ?? $key;
     }
 
     /**

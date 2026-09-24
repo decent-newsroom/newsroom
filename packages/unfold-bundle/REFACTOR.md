@@ -30,7 +30,7 @@ are needed in the delivered setup and owner-settings slices.
 - Both publication-first and subdomain-first onboarding remain goals. A reserved
   subdomain is a hosting draft until attached to a root coordinate.
 - Each publication has predictable RSS and sitemap URLs (already delivered).
-  Owner footer links remain future work.
+  The two-level default footer and locally configured owner links are delivered.
 - Owners can configure payment targets and scope/audience definitions through the
   relevant signed events, with their selections saved locally.
 - Reader interactions include likes (`7`), bookmarks, and highlights (`9802`).

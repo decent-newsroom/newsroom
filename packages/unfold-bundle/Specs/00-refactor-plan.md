@@ -3,7 +3,7 @@
 Status: staged refactor. Internal Composer extraction, discovery routes, shared
 local setup, and persistent theme settings are delivered. Owner administration
 now provides overview/settings on both mounts. Wizard migration, analytics,
-content/footer configuration, and gated access remain planned.
+content configuration, and gated access remain planned.
 
 This document sequences the Unfold refactor into shippable phases, records the
 decisions already made, and lists the open questions that block later phases.
@@ -72,8 +72,8 @@ earlier ones. Specs referenced in parentheses.
 
 ### Phase 2 — Feeds, sitemap, robots, footer (Spec 03)
 
-> **Status (2026-09):** RSS, category RSS, sitemap, robots, and the `/feed.xml`
-> redirect are delivered. The publication footer settings work remains pending.
+> **Status (2026-09):** RSS, category RSS, sitemap, robots, the `/feed.xml`
+> redirect, and the two-level default footer with owner links are delivered.
 
 Independent of everything else — ship early.
 

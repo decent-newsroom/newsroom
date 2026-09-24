@@ -1,0 +1,33 @@
+.unfold-footer {
+    border-top: 1px solid #ccc;
+    margin-top: 40px;
+    color: #555;
+    font-size: 0.9rem;
+    text-align: center;
+}
+.unfold-footer__publication,
+.unfold-footer__platform {
+    padding: 20px 0;
+}
+.unfold-footer__platform {
+    border-top: 1px solid #ccc;
+}
+.unfold-footer__title {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+.unfold-footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem 1.25rem;
+    margin: 0.5rem 0;
+}
+.unfold-footer__links a,
+.unfold-footer__platform p a {
+    color: inherit;
+    text-decoration: underline;
+}
+.unfold-footer__support {
+    margin: 0.75rem auto 0;
+}

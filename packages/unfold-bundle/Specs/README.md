@@ -3,7 +3,8 @@
 Status: staged implementation specifications. Internal Composer extraction,
 publication discovery, shared local setup, and persistent theme settings are
 delivered. Owner administration now delivers overview/settings through both
-mounts. Wizard migration, analytics, content/footer configuration, audience/payment
+mounts. The publication footer and owner links are delivered. Wizard migration,
+analytics, content configuration, audience/payment
 workflows, and gated access remain planned.
 
 An Unfold is permanently identified by exactly one immutable root magazine
@@ -22,7 +23,7 @@ admin mounts and ownership rules alongside the deferred consolidation work.
 | `00-refactor-plan.md` | Master plan, implementation stages, decision log, and risks. |
 | `01-owner-admin.md` | Delivered local setup, theme settings, and owner administration foundation. |
 | `02-audiences-and-payment-targets.md` | Planned audience and payment events with local reference selections. |
-| `03-feeds-sitemap-footer.md` | Delivered discovery endpoints and planned publication footer. |
+| `03-feeds-sitemap-footer.md` | Delivered discovery endpoints and two-level publication footer; conditional future links remain planned. |
 | `04-owner-dashboard-and-content-management.md` | Delivered overview/theme settings and planned analytics/content pages. |
 | `05-tests-and-rollout.md` | Setup coverage, compatibility, migration requirements, and later rollout. |
 | `06-gated-access-and-payments.md` | Gated-access contract for kinds `38133`/`30879`/`8879`/`28877`/`28878`. |
@@ -51,7 +52,7 @@ admin mounts and ownership rules alongside the deferred consolidation work.
 
 1. **Delivered:** shared operator/subscription setup and persistent local settings.
 2. **Delivered:** publication context, both owner admin mounts, overview, and theme settings.
-3. Complete footer settings and consolidate content management/editor workflows.
+3. Consolidate content management/editor workflows.
 4. Add audience/payment events and selected references; optionally ship Audience
    Preview as **Gated access coming soon**, without checkout or entitlements.
 5. Establish scope-aware publishing and authorization across all reads/caches,

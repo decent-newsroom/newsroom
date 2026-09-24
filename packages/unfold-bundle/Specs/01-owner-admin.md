@@ -16,8 +16,8 @@ event design is deferred until gated access is complete.
 ## Configuration Boundaries
 
 - Local publication settings are keyed by the root coordinate. The current
-  implementation stores the selected theme. Existing sites without settings
-  retain the default theme.
+  implementation stores the selected theme and up to five owner footer links.
+  Existing sites without settings retain the default theme and empty link list.
 - The root index and its descendants remain the sources for publication content,
   title, description, and navigation. Settings do not duplicate those fields.
 - `UnfoldSite` maps a subdomain to the root coordinate. Hosting and subscription
@@ -54,8 +54,8 @@ Spec `08-unified-publication-admin.md` defines both mounts:
 - On the subdomain: `/admin` and its child pages.
 - On the main domain: `/mag/{mag}/admin` and equivalent child pages.
 
-Overview and `/admin/settings` are delivered on both mounts. Settings edit only
-the theme, using the shared validation and coordinate-keyed local store. Audiences,
+Overview and `/admin/settings` are delivered on both mounts. Settings edit the
+theme and owner footer links, using shared validation and the coordinate-keyed local store. Audiences,
 payment targets, content, analytics, and wizard migration remain planned.
 
 Access rules:

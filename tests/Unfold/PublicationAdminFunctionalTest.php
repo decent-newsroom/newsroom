@@ -30,19 +30,27 @@ final class PublicationAdminFunctionalTest extends WebTestCase
         $token = $client->getCrawler()->filter('input[name="_token"]')->attr('value');
         $client->request('POST', 'https://publication.localhost/admin/settings', [
             '_token' => $token, 'theme' => 'default', 'coordinate' => '30040:' . str_repeat('b', 64) . ':other',
+            'footer_links' => [['label' => 'Owner', 'url' => 'https://owner.example']],
         ]);
         self::assertResponseRedirects('/admin/settings', 303);
         self::assertCount(1, $store->saved);
         self::assertSame($this->coordinate(), $store->saved[0]->coordinate);
+        self::assertSame([['label' => 'Owner', 'url' => 'https://owner.example']], $store->saved[0]->footerLinks);
 
         $client->request('GET', 'https://localhost/mag/root/admin/settings');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('form[action="/mag/root/admin/settings"]');
+        self::assertSame('https://owner.example', $client->getCrawler()->filter('#publication-link-url-0')->attr('value'));
         $token = $client->getCrawler()->filter('input[name="_token"]')->attr('value');
-        $client->request('POST', 'https://localhost/mag/root/admin/settings', ['_token' => $token, 'theme' => 'default']);
+        $client->request('POST', 'https://localhost/mag/root/admin/settings', [
+            '_token' => $token,
+            'theme' => 'default',
+            'footer_links' => [['label' => 'Owner', 'url' => 'https://owner.example']],
+        ]);
         self::assertResponseRedirects('/mag/root/admin/settings', 303);
         self::assertCount(2, $store->saved);
         self::assertSame($store->saved[0]->coordinate, $store->saved[1]->coordinate);
+        self::assertSame($store->saved[0]->footerLinks, $store->saved[1]->footerLinks);
         $client->request('GET', 'https://localhost/mag/root/admin');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Fixture publication');
@@ -88,7 +96,7 @@ final class PublicationAdminFunctionalTest extends WebTestCase
         [$client] = $this->client(hosted: false);
         $client->request('GET', 'https://localhost/mag/root/admin');
         self::assertResponseIsSuccessful();
-        self::assertSelectorNotExists('a[target="_blank"]');
+        self::assertSelectorNotExists('.publication-admin-header a[target="_blank"]');
         $client->request('GET', 'https://localhost/mag/root/admin/settings');
         self::assertResponseIsSuccessful();
     }

@@ -20,6 +20,7 @@
         "symfony/routing": "^7.4",
         "symfony/security-csrf": "^7.4",
         "symfony/twig-bundle": "^7.4",
+        "symfony/translation-contracts": "^3.0",
         "symfony/yaml": "^7.4",
         "zordius/lightncandy": "^1.2"
     },

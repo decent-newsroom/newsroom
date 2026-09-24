@@ -28,9 +28,9 @@ The `UnfoldRequestListener` intercepts requests, checks if the hostname matches 
 
 An Unfold is permanently identified by one root `30040:<pubkey>:<dtag>` magazine
 coordinate. The index events supply publication content and navigation. Local
-settings, keyed by that coordinate, persist the selected theme separately from
-subdomain hosting and subscription billing. Existing sites without settings use
-the default theme.
+settings, keyed by that coordinate, persist the selected theme and owner footer
+links separately from subdomain hosting and subscription billing. Existing sites
+without settings use the default theme and an empty owner-link list.
 
 [Setup and local settings](site-creation-signing.md) work without fetching,
 signing, or publishing kind `30078`. Legacy AppData loading is compatibility-only.

@@ -21,13 +21,14 @@ final class SiteConfigLoaderSettingsTest extends TestCase
         $coordinate = '30040:' . str_repeat('AB', 32) . ':Magazine:Draft';
         $normalizedCoordinate = '30040:' . str_repeat('ab', 32) . ':Magazine:Draft';
         $theme = 'first';
+        $links = [['label' => 'First', 'url' => 'https://example.com/first']];
 
         $settings = $this->createMock(PublicationSettingsStoreInterface::class);
         $settings->expects(self::exactly(2))
             ->method('find')
             ->with($normalizedCoordinate)
-            ->willReturnCallback(function () use ($normalizedCoordinate, &$theme): PublicationSettings {
-                return new PublicationSettings($normalizedCoordinate, $theme);
+            ->willReturnCallback(function () use ($normalizedCoordinate, &$theme, &$links): PublicationSettings {
+                return new PublicationSettings($normalizedCoordinate, $theme, $links);
             });
 
         $gateway = $this->createMock(EventReadGatewayInterface::class);
@@ -41,10 +42,13 @@ final class SiteConfigLoaderSettingsTest extends TestCase
 
         $first = $loader->loadFromCoordinate($coordinate);
         $theme = 'second';
+        $links = [['label' => 'Second', 'url' => 'https://example.com/second']];
         $second = $loader->loadFromCoordinate($coordinate);
 
         self::assertSame('first', $first->theme);
+        self::assertSame([['label' => 'First', 'url' => 'https://example.com/first']], $first->footerLinks);
         self::assertSame('second', $second->theme);
+        self::assertSame($links, $second->footerLinks);
         self::assertSame('Magazine', $second->title);
     }
 

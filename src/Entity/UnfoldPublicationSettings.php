@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
@@ -18,6 +19,10 @@ class UnfoldPublicationSettings
     #[ORM\Column(length: 255)]
     private string $theme = 'default';
 
+    /** @var list<array{label: string, url: string}> */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    private array $footerLinks = [];
+
     public function __construct(PublicationSettings $settings)
     {
         $this->coordinate = $settings->coordinate;
@@ -30,10 +35,11 @@ class UnfoldPublicationSettings
             throw new \InvalidArgumentException('unfold_setup.immutable_coordinate');
         }
         $this->theme = $settings->theme;
+        $this->footerLinks = $settings->footerLinks;
     }
 
     public function toSettings(): PublicationSettings
     {
-        return new PublicationSettings($this->coordinate, $this->theme);
+        return new PublicationSettings($this->coordinate, $this->theme, $this->footerLinks);
     }
 }

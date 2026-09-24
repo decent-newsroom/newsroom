@@ -107,15 +107,14 @@ class SiteConfigLoader
     public function loadFromCoordinate(string $coordinate, ?string $theme = null): SiteConfig
     {
         $coordinate = $this->normalizeCoordinate($coordinate);
-        if ($theme === null) {
-            try {
-                $theme = $this->settingsStore?->find($coordinate)?->theme ?? 'default';
-            } catch (\InvalidArgumentException $e) {
-                // Existing malformed mappings retain the loader's placeholder behavior.
-                $this->logger->warning('Invalid publication settings coordinate', ['coordinate' => $coordinate]);
-                $theme = 'default';
-            }
+        $settings = null;
+        try {
+            $settings = $this->settingsStore?->find($coordinate);
+        } catch (\InvalidArgumentException $e) {
+            // Existing malformed mappings retain the loader's placeholder behavior.
+            $this->logger->warning('Invalid publication settings coordinate', ['coordinate' => $coordinate]);
         }
+        $theme ??= $settings?->theme ?? 'default';
         $cacheKey = 'site_config_coord_' . md5($coordinate);
 
         // Create a placeholder SiteConfig to use if fetch fails
@@ -130,6 +129,9 @@ class SiteConfigLoader
         );
 
         // Apply local settings after the event cache, including warm and stale entries.
+        if ($settings !== null) {
+            $config = $config->withSettings($settings);
+        }
         return $config->withTheme($theme);
     }
 

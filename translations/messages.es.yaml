@@ -1382,6 +1382,7 @@ unfold_setup:
     invalid_subdomain: 'El subdominio no es válido.'
     subdomain_taken: 'Ese subdominio ya está en uso.'
     invalid_theme: 'El tema seleccionado no es válido.'
+    invalid_footer_links: 'Los enlaces del pie de página deben tener una etiqueta y una URL HTTPS (hasta cinco enlaces).'
     save_failed: 'No se pudo guardar el sitio. Inténtalo de nuevo.'
 
 
@@ -1403,6 +1404,20 @@ unfold_admin:
     immutable: "La coordenada identifica permanentemente esta publicación y no se puede cambiar."
     save: "Guardar configuración"
     saved: "Configuración guardada."
+    owner_links: "Enlaces del propietario"
+    owner_links_help: "Añade hasta cinco enlaces. Cada enlace necesita una etiqueta y una URL HTTPS. Deja ambos campos vacíos para omitir un enlace."
+    link_number: "Enlace %number%"
+    link_label: "Etiqueta"
+    link_url: "URL HTTPS"
+
+unfold_footer:
+    publication: "Publicación"
+    platform: "Plataforma"
+    home: "Inicio"
+    rss: "Fuente RSS"
+    powered_by: "Desarrollado por Decent Newsroom"
+    owner_links: "Enlaces"
+    support: "Apoyar"
 
 admin_snapshot:
     analytics_title: 'Analítica de visitas'

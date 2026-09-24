@@ -7,7 +7,10 @@ dt { font-weight: bold; margin-top: 1rem; }
 dd { margin: 0; overflow-wrap: anywhere; }
 code { overflow-wrap: anywhere; }
 form { display: grid; gap: 1rem; max-width: 30rem; }
-select, button { font: inherit; padding: .65rem; border: 1px solid currentColor; border-radius: 0; }
+select, input, button { font: inherit; padding: .65rem; border: 1px solid currentColor; border-radius: 0; }
 button { cursor: pointer; }
 a { text-underline-offset: .2em; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+fieldset { border: 1px solid currentColor; margin: 0; min-width: 0; padding: 1rem; }
+.publication-footer-link { display: grid; gap: .4rem; border-top: 1px solid currentColor; padding-block: 1rem; }
+.publication-footer-link input { min-width: 0; }

@@ -1381,6 +1381,7 @@ unfold_setup:
     invalid_subdomain: 'Poddomena ni veljavna.'
     subdomain_taken: 'Ta poddomena je že v uporabi.'
     invalid_theme: 'Izbrana tema ni veljavna.'
+    invalid_footer_links: 'Povezave v nogi morajo imeti oznako in naslov HTTPS (največ pet povezav).'
     save_failed: 'Strani ni bilo mogoče shraniti. Poskusite znova.'
 
 
@@ -1402,6 +1403,20 @@ unfold_admin:
     immutable: "Koordinata trajno določa to publikacijo in je ni mogoče spremeniti."
     save: "Shrani nastavitve"
     saved: "Nastavitve shranjene."
+    owner_links: "Povezave lastnika"
+    owner_links_help: "Dodajte največ pet povezav. Vsaka potrebuje oznako in naslov HTTPS. Če povezave ne želite dodati, pustite obe polji prazni."
+    link_number: "Povezava %number%"
+    link_label: "Oznaka"
+    link_url: "Naslov HTTPS"
+
+unfold_footer:
+    publication: "Publikacija"
+    platform: "Platforma"
+    home: "Domov"
+    rss: "Vir RSS"
+    powered_by: "Omogoča Decent Newsroom"
+    owner_links: "Povezave"
+    support: "Podpri"
 
 admin_snapshot:
     analytics_title: 'Analitika obiskov'

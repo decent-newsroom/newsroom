@@ -1,21 +1,40 @@
-<footer>
-    {{#if site.creator_lud16}}
-        <button
-            class="zap-button zap-button-sm"
-            data-zap-button
-            data-zap-pubkey="{{site.creator_pubkey}}"
-            data-zap-lud16="{{site.creator_lud16}}"
-            {{#if site.creator_lud06}}data-zap-lud06="{{site.creator_lud06}}"{{/if}}
-            data-zap-recipient="{{site.title}}"
-            style="margin: 0.5rem auto;"
-        >
-            <span class="zap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-            </svg></span>
-            Support this magazine
-        </button>
-        <br>
-    {{/if}}
-    <p>&copy; {{site.title}}. Powered by <a href="https://decentnewsroom.com/unfold" target="_blank">Unfold</a>.</p>
+<footer class="unfold-footer">
+    <div class="unfold-footer__publication">
+        <p class="unfold-footer__title">{{publication_footer.title}}</p>
+        <nav class="unfold-footer__links" aria-label="{{publication_footer.label}}">
+            {{#each publication_footer.navigation}}
+                <a href="{{url}}">{{label}}</a>
+            {{/each}}
+        </nav>
+        {{#if publication_footer.owner_links}}
+            <nav class="unfold-footer__links" aria-label="{{publication_footer.owner_links_label}}">
+                {{#each publication_footer.owner_links}}
+                    <a href="{{url}}" rel="noopener noreferrer">{{label}}</a>
+                {{/each}}
+            </nav>
+        {{/if}}
+        {{#if site.creator_lud16}}
+            <button
+                class="zap-button zap-button-sm unfold-footer__support"
+                data-zap-button
+                data-zap-pubkey="{{site.creator_pubkey}}"
+                data-zap-lud16="{{site.creator_lud16}}"
+                {{#if site.creator_lud06}}data-zap-lud06="{{site.creator_lud06}}"{{/if}}
+                data-zap-recipient="{{site.title}}"
+            >
+                <span class="zap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg></span>
+                {{publication_footer.support_label}}
+            </button>
+        {{/if}}
+    </div>
+    <div class="unfold-footer__platform" aria-label="{{dn_footer.label}}">
+        <p><a href="{{dn_footer.brand_url}}">Unfold</a> - {{dn_footer.powered_by}}</p>
+        <nav class="unfold-footer__links" aria-label="{{dn_footer.label}}">
+            {{#each dn_footer.links}}
+                <a href="{{url}}">{{label}}</a>
+            {{/each}}
+        </nav>
+    </div>
 </footer>
-

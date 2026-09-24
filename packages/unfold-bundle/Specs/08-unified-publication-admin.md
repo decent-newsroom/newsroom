@@ -1,7 +1,7 @@
 # Unified Publication Admin And Mounts
 
 Status: both owner-admin mounts, publication context, overview, and local theme
-settings are delivered. Wizard/draft migration, analytics, content management,
+settings and owner footer links are delivered. Wizard/draft migration, analytics, content management,
 and article-editor integration remain planned.
 
 Complements the local setup model in `01-owner-admin.md` and the
@@ -13,7 +13,7 @@ may access them*.
 
 One publication administration implementation, reachable from two mounts, with
 the publication permanently identified by exactly one immutable root magazine
-coordinate. Overview and theme settings now share this administration surface.
+coordinate. Overview, theme settings, and owner footer links now share this administration surface.
 The wider owner-admin consolidation described below remains future work.
 
 The subdomain becomes a presentation feature, not an administration

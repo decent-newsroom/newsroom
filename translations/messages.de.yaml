@@ -1392,6 +1392,7 @@ unfold_setup:
     invalid_subdomain: 'Die Subdomain ist ungültig.'
     subdomain_taken: 'Diese Subdomain wird bereits verwendet.'
     invalid_theme: 'Das ausgewählte Theme ist ungültig.'
+    invalid_footer_links: 'Footer-Links benötigen eine Bezeichnung und eine HTTPS-URL (höchstens fünf Links).'
     save_failed: 'Die Site konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.'
 
 
@@ -1413,6 +1414,20 @@ unfold_admin:
     immutable: "Die Koordinate identifiziert diese Publikation dauerhaft und kann nicht geändert werden."
     save: "Einstellungen speichern"
     saved: "Einstellungen gespeichert."
+    owner_links: "Links des Eigentümers"
+    owner_links_help: "Fügen Sie bis zu fünf Links hinzu. Jeder Link benötigt eine Bezeichnung und eine HTTPS-URL. Lassen Sie beide Felder leer, um einen Link auszulassen."
+    link_number: "Link %number%"
+    link_label: "Bezeichnung"
+    link_url: "HTTPS-URL"
+
+unfold_footer:
+    publication: "Publikation"
+    platform: "Plattform"
+    home: "Startseite"
+    rss: "RSS-Feed"
+    powered_by: "Bereitgestellt von Decent Newsroom"
+    owner_links: "Links"
+    support: "Unterstützen"
 
 admin_snapshot:
     analytics_title: 'Besucheranalysen'

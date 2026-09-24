@@ -6,7 +6,7 @@
 > subdomain or a `/mag/{mag}/admin` coordinate mount. Paths below are relative
 > to `PublicationContext.adminPathPrefix`.
 
-Status: owner overview and theme settings are delivered on both mounts. Analytics,
+Status: owner overview, theme settings, and footer links are delivered on both mounts. Analytics,
 content management, audiences, payment targets, and the expanded dashboard remain
 planned. Operator setup remains a separate host administration surface.
 

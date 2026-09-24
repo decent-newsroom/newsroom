@@ -15,6 +15,20 @@
                 <option value="{{ theme }}"{% if theme == selectedTheme %} selected{% endif %}>{{ theme }}</option>
             {% endfor %}
         </select>
+        <fieldset class="publication-footer-links">
+            <legend>{{ 'unfold_admin.owner_links'|trans }}</legend>
+            <p>{{ 'unfold_admin.owner_links_help'|trans }}</p>
+            {% for index in 0..4 %}
+                {% set link = footerLinks[index] ?? {label: '', url: ''} %}
+                <div class="publication-footer-link">
+                    <strong>{{ 'unfold_admin.link_number'|trans({'%number%': loop.index}) }}</strong>
+                    <label for="publication-link-label-{{ index }}">{{ 'unfold_admin.link_label'|trans }}</label>
+                    <input type="text" id="publication-link-label-{{ index }}" name="footer_links[{{ index }}][label]" value="{{ link.label }}" maxlength="80">
+                    <label for="publication-link-url-{{ index }}">{{ 'unfold_admin.link_url'|trans }}</label>
+                    <input type="url" id="publication-link-url-{{ index }}" name="footer_links[{{ index }}][url]" value="{{ link.url }}" maxlength="2048">
+                </div>
+            {% endfor %}
+        </fieldset>
         <button type="submit">{{ 'unfold_admin.save'|trans }}</button>
     </form>
 {% endblock %}

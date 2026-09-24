@@ -17,6 +17,7 @@ readonly class SiteConfig
      * @param array<string> $categories List of category event coordinates (kind:pubkey:d-tag)
      * @param string $pubkey Owner's hex pubkey
      * @param string $theme Locally selected theme
+     * @param list<array{label: string, url: string}> $footerLinks Owner-selected footer links
      */
     public function __construct(
         public string $naddr,
@@ -26,11 +27,17 @@ readonly class SiteConfig
         public array $categories,
         public string $pubkey,
         public string $theme = 'default',
+        public array $footerLinks = [],
     ) {}
 
     public function withTheme(string $theme): self
     {
-        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $theme);
+        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $theme, $this->footerLinks);
+    }
+
+    public function withSettings(PublicationSettings $settings): self
+    {
+        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $settings->theme, $settings->footerLinks);
     }
 
     /**

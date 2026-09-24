@@ -24,7 +24,7 @@ final class UnfoldSetupServiceTest extends TestCase
         $sites = $this->createMock(UnfoldSiteRepository::class);
         $sites->expects(self::once())->method('findBySubdomain')->with('magazine')->willReturn(null);
 
-        $existingSettings = new PublicationSettings(self::COORDINATE, 'casper');
+        $existingSettings = new PublicationSettings(self::COORDINATE, 'casper', [['label' => 'Owner', 'url' => 'https://owner.example']]);
         $settings = $this->createMock(PublicationSettingsStoreInterface::class);
         $settings->expects(self::once())->method('find')->with(self::COORDINATE)->willReturn($existingSettings);
         $settings->expects(self::once())->method('save')->with($existingSettings);
@@ -53,13 +53,16 @@ final class UnfoldSetupServiceTest extends TestCase
         $sites = $this->createMock(UnfoldSiteRepository::class);
         $sites->expects(self::once())->method('findBySubdomain')->with('magazine')->willReturn($site);
 
+        $existingLinks = [['label' => 'Owner', 'url' => 'https://owner.example']];
         $settings = $this->createMock(PublicationSettingsStoreInterface::class);
-        $settings->expects(self::never())->method('find');
+        $settings->expects(self::once())->method('find')->with(self::COORDINATE)
+            ->willReturn(new PublicationSettings(self::COORDINATE, 'default', $existingLinks));
         $settings->expects(self::once())
             ->method('save')
             ->with(self::callback(
                 static fn (PublicationSettings $value): bool => $value->coordinate === self::COORDINATE
                     && $value->theme === 'casper'
+                    && $value->footerLinks === $existingLinks
             ));
 
         $entityManager = $this->transactionalEntityManager();

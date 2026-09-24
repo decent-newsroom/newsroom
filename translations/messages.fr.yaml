@@ -1381,6 +1381,7 @@ unfold_setup:
     invalid_subdomain: 'Le sous-domaine est invalide.'
     subdomain_taken: 'Ce sous-domaine est déjà utilisé.'
     invalid_theme: 'Le thème sélectionné est invalide.'
+    invalid_footer_links: 'Les liens de pied de page doivent avoir un libellé et une URL HTTPS (cinq liens au maximum).'
     save_failed: 'Le site n’a pas pu être enregistré. Veuillez réessayer.'
 
 
@@ -1402,6 +1403,20 @@ unfold_admin:
     immutable: "La coordonnée identifie cette publication de manière permanente et ne peut pas être modifiée."
     save: "Enregistrer les paramètres"
     saved: "Paramètres enregistrés."
+    owner_links: "Liens du propriétaire"
+    owner_links_help: "Ajoutez jusqu’à cinq liens. Chaque lien nécessite un libellé et une URL HTTPS. Laissez les deux champs vides pour omettre un lien."
+    link_number: "Lien %number%"
+    link_label: "Libellé"
+    link_url: "URL HTTPS"
+
+unfold_footer:
+    publication: "Publication"
+    platform: "Plateforme"
+    home: "Accueil"
+    rss: "Flux RSS"
+    powered_by: "Propulsé par Decent Newsroom"
+    owner_links: "Liens"
+    support: "Soutenir"
 
 admin_snapshot:
     analytics_title: 'Analyse des visites'

@@ -1760,6 +1760,7 @@ unfold_setup:
     invalid_subdomain: 'The subdomain is invalid.'
     subdomain_taken: 'That subdomain is already in use.'
     invalid_theme: 'The selected theme is invalid.'
+    invalid_footer_links: 'Footer links must have a label and an HTTPS URL (up to five links).'
     save_failed: 'The site could not be saved. Please try again.'
 
 
@@ -1781,6 +1782,20 @@ unfold_admin:
     immutable: "The coordinate permanently identifies this publication and cannot be changed."
     save: "Save settings"
     saved: "Settings saved."
+    owner_links: "Owner links"
+    owner_links_help: "Add up to five links. Each link needs a label and an HTTPS URL. Leave both fields blank to omit a link."
+    link_number: "Link %number%"
+    link_label: "Label"
+    link_url: "HTTPS URL"
+
+unfold_footer:
+    publication: "Publication"
+    platform: "Platform"
+    home: "Home"
+    rss: "RSS feed"
+    powered_by: "Powered by Decent Newsroom"
+    owner_links: "Links"
+    support: "Support"
 
 admin_snapshot:
     analytics_title: 'Visitor Analytics'

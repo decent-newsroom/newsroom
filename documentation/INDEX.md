@@ -140,6 +140,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 
 - [Comments in UnfoldBundle](Unfold/comments.md)
 - [Unfold discovery documents](Unfold/discovery-documents.md)
+- [Unfold publication footer](Unfold/publication-footer.md)
 - [Local Development Unfold Sites](Unfold/local-development-sites.md)
 - [Unfold Publication Administration](Unfold/publication-admin.md)
 - [Unfold Setup And Local Settings](Unfold/site-creation-signing.md)

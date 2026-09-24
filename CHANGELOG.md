@@ -2,6 +2,7 @@
 
 ## v0.0.53
 
+- [Feature] Added owner-configurable Unfold footer links and separate publication/platform footer sections across hosted pages.
 - [Change] Removed Active Indexing subscriptions, scheduled fetches, and related UI while preserving Updates Pro receipt processing and other payment flows.
 - [Fix] Routed profile-triggered author content refresh through bounded author write relays instead of the viewer's broader relay pool.
 - [Fix] Allowed links in comment content to navigate normally instead of reloading the comments Turbo Frame.
