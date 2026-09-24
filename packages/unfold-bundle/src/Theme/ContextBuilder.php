@@ -42,7 +42,7 @@ class ContextBuilder
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'home',
-            ...$this->buildFooterContext($site, $siteContext),
+            ...$this->buildFooterContext($site),
             'posts' => array_map([$this, 'buildPostListItemContext'], $posts),
             'pagination' => $this->buildPaginationContext(count($posts)),
         ];
@@ -66,7 +66,7 @@ class ContextBuilder
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'tag',
-            ...$this->buildFooterContext($site, $siteContext),
+            ...$this->buildFooterContext($site),
             'category' => [
                 'slug' => $category->slug,
                 'title' => $category->title,
@@ -91,7 +91,7 @@ class ContextBuilder
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'post',
-            ...$this->buildFooterContext($site, $siteContext),
+            ...$this->buildFooterContext($site),
             'post' => $this->buildSinglePostContext($post, $primaryCategory),
         ];
     }
@@ -139,7 +139,7 @@ class ContextBuilder
     }
 
     /** Keep publication-owned links separate from the host platform's links. */
-    private function buildFooterContext(SiteConfig $site, array $siteContext): array
+    private function buildFooterContext(SiteConfig $site): array
     {
         $platformBaseUrl = rtrim($this->platformBaseUrl, '/');
 
@@ -151,11 +151,8 @@ class ContextBuilder
                 'support_label' => $this->translate('unfold_footer.support'),
                 'navigation' => [
                     ['label' => $this->translate('unfold_footer.home'), 'url' => '/'],
-                    ...array_map(
-                        static fn (array $item): array => ['label' => $item['label'], 'url' => $item['url']],
-                        $siteContext['navigation'],
-                    ),
                     ['label' => $this->translate('unfold_footer.rss'), 'url' => '/rss.xml'],
+                    ['label' => $this->translate('footer.sitemap'), 'url' => '/sitemap.xml'],
                 ],
                 'owner_links' => $site->footerLinks,
             ],
@@ -166,7 +163,6 @@ class ContextBuilder
                 'links' => [
                     ['label' => $this->translate('footer.about'), 'url' => $platformBaseUrl . '/about'],
                     ['label' => $this->translate('footer.termsOfService'), 'url' => $platformBaseUrl . '/tos'],
-                    ['label' => $this->translate('footer.sitemap'), 'url' => $platformBaseUrl . '/sitemap.xml'],
                 ],
             ],
         ];
@@ -367,7 +363,12 @@ class ContextBuilder
                 $events
             )));
 
-            // Fetch all author metadata at once
+            foreach ($events as $event) {
+                $pubkeys = array_merge($pubkeys, CommentContentRenderer::profilePubkeys($event->content));
+            }
+            $pubkeys = array_values(array_unique($pubkeys));
+
+            // Fetch all author and mentioned-profile metadata at once
             $metadataMap = [];
             if (!empty($pubkeys)) {
                 $metadataArray = $this->profileMetadata->getMultipleMetadata($pubkeys);
@@ -387,6 +388,7 @@ class ContextBuilder
                     'kind' => $event->kind,
                     'pubkey' => $pubkey,
                     'content' => $event->content,
+                    'content_html' => CommentContentRenderer::render($event->content, $metadataMap, $this->platformBaseUrl),
                     'created_at' => $event->createdAt,
                     'created_at_formatted' => date('F j, Y', $event->createdAt),
                     'author' => [

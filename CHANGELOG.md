@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.54
+
+- [Fix] Render validated NIP-21 profile and event links in Unfold comments, including profile mentions, with escaped comment text and links to the main platform.
+- [Fix] Moved the Unfold sitemap link beside RSS in the publication footer and removed the platform sitemap link.
+- [Fix] Removed category links from the Unfold publication footer while retaining Home, RSS, and its sitemap.
+
+
 ## v0.0.53
 
 - [Feature] Added owner-configurable Unfold footer links and separate publication/platform footer sections across hosted pages.

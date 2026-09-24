@@ -29,7 +29,8 @@ Each comment in the `post.comments` array contains:
   id: string,            // Event ID
   kind: number,          // 1111 (comment) or 9735 (zap)
   pubkey: string,        // Author's hex pubkey
-  content: string,       // Comment text or zap message
+  content: string,       // Original comment text or zap message
+  content_html: string,  // Escaped text with NIP-21 links rendered
   created_at: number,    // Unix timestamp
   created_at_formatted: string, // Human-readable date (e.g., "January 15, 2026")
   author: {
@@ -64,7 +65,8 @@ Comments are displayed at the bottom of post pages with:
 
 - Author avatar and name
 - Publication date
-- Comment content (plain text, no markdown processing)
+- Comment content remains plain text except for validated NIP-21 nostr: references. Profile references (npub and nprofile) become @name mentions linked to the main platform; event references (note, nevent, and naddr) become links to the main platform. Malformed references remain text.
+- Comment text and profile names are HTML-escaped before rendering. HTML and Markdown supplied in a comment are not interpreted. Mention metadata is fetched in the same bulk lookup as comment author metadata.
 - Zaps highlighted with a gold left border and lightning icon
 
 ## Limitations
@@ -75,7 +77,7 @@ Compare with the main app (`src/Twig/Components/Organisms/Comments.php`), which 
 - Real-time Mercure updates
 - Comment form with NIP-07/NIP-46 signing
 - Nested reply structure (NIP-22)
-- Link parsing and embeds
+- Rich event embeds and the main app’s full content rendering
 - Full zap UI
 
 Future enhancements could add these features to UnfoldBundle if needed.

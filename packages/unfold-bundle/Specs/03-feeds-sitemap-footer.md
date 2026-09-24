@@ -80,9 +80,9 @@ The default Unfold footer becomes two levels:
 Publication level:
 
 - Publication title.
-- Publication navigation links.
+- Home link.
 - About link when local settings select an `about` article.
-- RSS link.
+- RSS link, followed by the publication's `/sitemap.xml` link.
 - Audience/subscription link when audiences exist.
 - Publication payment/tip link when payment targets exist.
 
@@ -90,7 +90,6 @@ DN level:
 
 - Powered by Unfold / Decent Newsroom.
 - DN legal/platform links.
-- DN sitemap link only if pointing at the main domain.
 
 Theme context should expose footer sections separately, for example:
 

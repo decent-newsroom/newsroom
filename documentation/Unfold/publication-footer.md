@@ -8,7 +8,7 @@ The root magazine coordinate remains the immutable publication identity. `Public
 
 The settings form saves theme and links together under the existing owner access and coordinate-scoped CSRF checks. Blank rows are omitted. Labels are trimmed and limited to 80 characters. Links must be absolute HTTPS URLs of at most 2,048 bytes, without credentials or control characters. A save invalidates the publication's site configuration cache. Theme changes and hosting updates preserve existing links.
 
-`SiteConfigLoader` applies local settings after its cached root-event read, so a settings change does not depend on a fresh relay fetch. `ContextBuilder` gives every home, category, and article template a `publication_footer` and `dn_footer` context. The default theme displays publication title, home/category/RSS navigation, owner links, and the existing creator zap action in the publication section. The DN section uses the configured platform base URL for Unfold, About, Terms, and the main-domain sitemap.
+`SiteConfigLoader` applies local settings after its cached root-event read, so a settings change does not depend on a fresh relay fetch. `ContextBuilder` gives every home, category, and article template a `publication_footer` and `dn_footer` context. The default theme displays publication title, home/RSS/sitemap links, owner links, and the existing creator zap action in the publication section. The sitemap link uses the publication's `/sitemap.xml` route. The DN section uses the configured platform base URL for Unfold, About, and Terms.
 
 ## Key files
 
