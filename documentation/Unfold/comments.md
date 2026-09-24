@@ -65,7 +65,7 @@ Comments are displayed at the bottom of post pages with:
 
 - Author avatar and name
 - Publication date
-- Comment content remains plain text except for validated NIP-21 nostr: references. Profile references (npub and nprofile) become @name mentions linked to the main platform; event references (note, nevent, and naddr) become links to the main platform. Malformed references remain text.
+- Comment content remains plain text except for validated NIP-21 nostr: references. Profile references (npub and nprofile) become @name mentions linked to the main platform; event references (note, nevent, and naddr) become links to the main platform. Malformed references remain text with break opportunities inside long identifiers, so they cannot widen the comment layout.
 - Comment text and profile names are HTML-escaped before rendering. HTML and Markdown supplied in a comment are not interpreted. Mention metadata is fetched in the same bulk lookup as comment author metadata.
 - Zaps highlighted with a gold left border and lightning icon
 
