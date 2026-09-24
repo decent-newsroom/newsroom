@@ -2,7 +2,7 @@
 
 namespace App\Enum;
 
-enum ActiveIndexingStatus: string
+enum UpdateProStatus: string
 {
     case PENDING = 'pending';    // Invoice generated, awaiting payment
     case ACTIVE = 'active';      // Subscription active

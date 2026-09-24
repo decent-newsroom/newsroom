@@ -9,8 +9,7 @@ namespace App\Enum;
  * heavier update source types (NIP-51 set expansion) and higher
  * per-user subscription caps.
  *
- * Cheaper than Active Indexing: one HTTP/DB lookup per incoming event, not a
- * persistent relay fetch loop.
+ * A low-cost entitlement check uses one HTTP/DB lookup per incoming event.
  */
 enum UpdateProTier: string
 {

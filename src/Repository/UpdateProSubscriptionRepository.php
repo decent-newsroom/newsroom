@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\UpdateProSubscription;
-use App\Enum\ActiveIndexingStatus;
+use App\Enum\UpdateProStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -30,7 +30,7 @@ class UpdateProSubscriptionRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->where('s.status = :status')
             ->andWhere('s.pendingInvoiceBolt11 IS NOT NULL')
-            ->setParameter('status', ActiveIndexingStatus::PENDING)
+            ->setParameter('status', UpdateProStatus::PENDING)
             ->getQuery()
             ->getResult();
     }
@@ -41,7 +41,7 @@ class UpdateProSubscriptionRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->where('s.status = :status')
             ->andWhere('s.expiresAt < :now')
-            ->setParameter('status', ActiveIndexingStatus::ACTIVE)
+            ->setParameter('status', UpdateProStatus::ACTIVE)
             ->setParameter('now', new \DateTime())
             ->getQuery()
             ->getResult();
@@ -53,7 +53,7 @@ class UpdateProSubscriptionRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->where('s.status = :status')
             ->andWhere('s.graceEndsAt < :now')
-            ->setParameter('status', ActiveIndexingStatus::GRACE)
+            ->setParameter('status', UpdateProStatus::GRACE)
             ->setParameter('now', new \DateTime())
             ->getQuery()
             ->getResult();

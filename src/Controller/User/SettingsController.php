@@ -11,7 +11,6 @@ use App\Enum\KindsEnum;
 use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Message\UpdateRelayListMessage;
 use App\Repository\EventRepository;
-use App\Service\ActiveIndexingService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventVerifier;
@@ -42,7 +41,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Provides a unified settings page where authenticated users can:
  * - View/edit their profile (kind 0 metadata)
  * - See all their Nostr events used by the newsroom
- * - Manage subscriptions (vanity name, active indexing, publication subdomain)
+ * - Manage subscriptions (vanity name, publication subdomain)
  * - Access content management links
  */
 class SettingsController extends AbstractController
@@ -52,7 +51,6 @@ class SettingsController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly CacheItemPoolInterface $npubCache,
         private readonly VanityNameService $vanityNameService,
-        private readonly ActiveIndexingService $activeIndexingService,
         private readonly PublicationSubdomainService $publicationSubdomainService,
         private readonly UserProfileService $userProfileService,
         private readonly RedisCacheService $redisCacheService,
@@ -105,7 +103,6 @@ class SettingsController extends AbstractController
 
         // Subscriptions
         $vanityName = $this->vanityNameService->getByNpub($npub);
-        $activeIndexing = $this->activeIndexingService->getSubscription($npub);
         $publicationSubdomain = $this->publicationSubdomainService->getByNpub($npub);
 
         // Build structured relay list from kind 10002 event for the Relays tab
@@ -128,7 +125,6 @@ class SettingsController extends AbstractController
             'relayActivity' => $relayActivity,
             'projectRelayUrl' => $this->relayRegistry->getPublicUrl(),
             'vanityName' => $vanityName,
-            'activeIndexing' => $activeIndexing,
             'publicationSubdomain' => $publicationSubdomain,
             'enabled_locales' => $this->getParameter('kernel.enabled_locales'),
         ]);

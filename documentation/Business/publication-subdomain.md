@@ -40,10 +40,10 @@ There are two entry points to subdomain subscription:
 App\Service\PublicationSubdomainService:
     arguments:
         $baseDomain: '%base_domain%'
-        $recipientLud16: '%active_indexing_recipient_lud16%'
+        $recipientLud16: '%payment_recipient_lud16%'
 ```
 
-Reuses the same Lightning payment address as Active Indexing and Vanity Names.
+Uses the shared Lightning payment recipient, also used by Vanity Names and Updates Pro.
 
 ### Admin Features
 

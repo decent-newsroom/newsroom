@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\Event;
-use App\Enum\ActiveIndexingStatus;
+use App\Enum\UpdateProStatus;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\UpdateProService;
@@ -21,13 +21,9 @@ use App\Service\Nostr\NostrKeyService;
 /**
  * Worker that monitors for zap receipts (kind 9735) that match pending Updates Pro
  * invoices. When a matching receipt is found, the subscription is activated.
- *
- * Active Indexing subscriptions are intentionally not handled here: they use plain
- * LNURL-pay invoices (no zap request) which never produce a kind-9735 receipt, so
- * they are activated manually via `active-indexing:activate` or the admin dashboard.
  */
 #[AsCommand(
-    name: 'active-indexing:check-receipts',
+    name: 'updates-pro:check-receipts',
     description: 'Check for zap receipts matching pending Updates Pro invoices'
 )]
 class SubscriptionZapReceiptWorkerCommand extends Command
@@ -113,7 +109,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
             $bolt11Lower = strtolower($bolt11FromReceipt);
             if (isset($proInvoiceMap[$bolt11Lower])) {
                 $sub = $proInvoiceMap[$bolt11Lower];
-                if ($sub->getStatus() === ActiveIndexingStatus::PENDING) {
+                if ($sub->getStatus() === UpdateProStatus::PENDING) {
                     $this->notificationProService->activateSubscription($sub, $receipt->getId());
                     $io->success(sprintf('Activated Updates Pro for %s', $sub->getNpub()));
                 } else {

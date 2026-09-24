@@ -23,6 +23,13 @@ Author profile pages (`/p/{npub}`) show:
 - Tabbed content: articles, highlights, media
 - Articles fetched from Redis view store with DB fallback
 
+## Author content refresh
+
+A profile-tab revalidation may dispatch a background author-content fetch. The dispatcher throttles this to one fetch per author every five minutes and requests a six-hour freshness window. Visitors request public content types; the profile owner may also request owner-only types such as drafts.
+
+The dispatched message leaves its relay list unset. The fetch handler then asks UserRelayListService for a bounded author-content relay set led by the author's declared write relays, rather than using the visiting viewer's follows-pool relays. It sends one combined relay query for the requested kinds, projects returned events, and invalidates profile-tab caches after saving new content. The regular local relay and other ingestion paths continue independently; no Active Indexing subscription is required.
+
+Key implementation points: RevalidateProfileCacheHandler, FetchAuthorContentMessage, FetchAuthorContentHandler, and UserRelayListService. For missing content or contribution claims, follow the [ingestion audit guide](../../skills/audit-ingestion-path.md) and measure unique persisted articles rather than fetch counts.
 ## User Persistence
 
 When a user logs in or their profile is fetched, a `User` entity is created/updated with:

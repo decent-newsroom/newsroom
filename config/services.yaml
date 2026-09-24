@@ -66,9 +66,12 @@ parameters:
     project_contribution_npub: '%env(default::PROJECT_CONTRIBUTION_NPUB)%'
     project_contribution_lud16: '%env(default::PROJECT_CONTRIBUTION_LUD16)%'
     
-    # Active Indexing Service settings
-    active_indexing_recipient_pubkey: '%env(default:project_contribution_npub:ACTIVE_INDEXING_RECIPIENT_PUBKEY)%'
-    active_indexing_recipient_lud16: '%env(default:project_contribution_lud16:ACTIVE_INDEXING_RECIPIENT_LUD16)%'
+    # Shared payment recipients. Former environment variables remain as fallbacks
+    # during deployment so operator overrides keep their effective destination.
+    legacy_payment_recipient_pubkey: '%env(default:project_contribution_npub:ACTIVE_INDEXING_RECIPIENT_PUBKEY)%'
+    legacy_payment_recipient_lud16: '%env(default:project_contribution_lud16:ACTIVE_INDEXING_RECIPIENT_LUD16)%'
+    payment_recipient_pubkey: '%env(default:legacy_payment_recipient_pubkey:PAYMENT_RECIPIENT_PUBKEY)%'
+    payment_recipient_lud16: '%env(default:legacy_payment_recipient_lud16:PAYMENT_RECIPIENT_LUD16)%'
     
     # Vanity Name Service settings
     vanity_server_domain: '%base_domain%'
@@ -402,26 +405,22 @@ services:
     App\Controller\Api\CurationSyncController:
         tags: ['controller.service_arguments']
 
-    # Active Indexing Service
-    App\Service\ActiveIndexingService:
-        arguments:
-            $recipientLud16: '%active_indexing_recipient_lud16%'
 
     # Updates Pro Service — paywall for NIP-51 set subscriptions and higher caps
     App\Service\UpdateProService:
         arguments:
-            $recipientPubkey: '%active_indexing_recipient_pubkey%'
-            $recipientLud16: '%active_indexing_recipient_lud16%'
+            $recipientPubkey: '%payment_recipient_pubkey%'
+            $recipientLud16: '%payment_recipient_lud16%'
 
     App\Command\SubscriptionZapReceiptWorkerCommand:
         arguments:
-            $recipientPubkey: '%active_indexing_recipient_pubkey%'
+            $recipientPubkey: '%payment_recipient_pubkey%'
 
     # Vanity Name Service
     App\Service\VanityNameService:
         arguments:
             $serverDomain: '%vanity_server_domain%'
-            $recipientLud16: '%active_indexing_recipient_lud16%'
+            $recipientLud16: '%payment_recipient_lud16%'
 
     # NIP-05 Verification Service (needs server domain for local short-circuit)
     App\Service\Nostr\Nip05VerificationService:
@@ -432,7 +431,7 @@ services:
     App\Service\PublicationSubdomainService:
         arguments:
             $baseDomain: '%base_domain%'
-            $recipientLud16: '%active_indexing_recipient_lud16%'
+            $recipientLud16: '%payment_recipient_lud16%'
 
 
     # Reading List Workflow Service - bind the specific workflow

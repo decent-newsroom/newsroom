@@ -16,7 +16,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *  ACTIVE (expiresAt passed) → GRACE
  *  GRACE  (graceEndsAt passed) → EXPIRED  + revoke ROLE_UPDATES_PRO
  *
- * Run via cron once per hour (or each time active-indexing:check-receipts runs).
+ * Run via cron once per hour (or each time updates-pro:check-receipts runs).
  */
 #[AsCommand(
     name: 'updates-pro:expire-subscriptions',

@@ -14,7 +14,6 @@ use App\Message\RevalidateProfileCacheMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\ArticleRepository;
 use App\Service\DispatchThrottle;
-use App\Service\Nostr\UserRelayListService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use Doctrine\ORM\EntityManagerInterface;
@@ -48,7 +47,6 @@ class RevalidateProfileCacheHandler
         private readonly ArticleRepository $articleRepository,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface $messageBus,
-        private readonly UserRelayListService $userRelayListService,
         private readonly LoggerInterface $logger,
         private readonly DispatchThrottle $dispatchThrottle,
     ) {}
@@ -71,14 +69,12 @@ class RevalidateProfileCacheHandler
             // (e.g. multiple tabs viewed in quick succession) only produces
             // ONE FetchAuthorContentMessage on the async queue.
             if ($this->dispatchThrottle->acquire('author_content_fetch', $pubkey, self::CONTENT_FETCH_THROTTLE_TTL)) {
-                $relays = $this->userRelayListService->getRelaysForFetching($pubkey);
                 $since = max(0, time() - self::CONTENT_FETCH_SINCE_WINDOW_SECONDS);
                 $this->messageBus->dispatch(new FetchAuthorContentMessage(
                     $pubkey,
                     $isOwner ? AuthorContentType::cases() : AuthorContentType::publicTypes(),
                     $since,
-                    $isOwner,
-                    $relays
+                    $isOwner
                 ));
             } else {
                 $this->logger->debug('FetchAuthorContentMessage throttled — skipping relay fetch', [

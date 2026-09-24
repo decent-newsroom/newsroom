@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Enum\ActiveIndexingStatus;
+use App\Enum\UpdateProStatus;
 use App\Enum\UpdateProTier;
 use App\Repository\UpdateProSubscriptionRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Paid Updates Pro subscription. Mirrors the state machine used by
- * {@see ActiveIndexingSubscription} (pending → active → grace → expired) but
- * without the relay-fetch configuration — Updates Pro only gates
- * entitlement to the heavier update source types (NIP-51 sets) and a
- * higher per-user subscription cap; it does not involve a background worker.
- *
- * Uses the shared {@see ActiveIndexingStatus} enum as the status vocabulary.
+ * Paid Updates Pro subscription. Its status vocabulary is UpdateProStatus; the
+ * persisted state strings remain pending, active, grace, and expired. Updates Pro
+ * gates entitlement to heavier update source types and a higher per-user cap.
  */
 #[ORM\Entity(repositoryClass: UpdateProSubscriptionRepository::class)]
 #[ORM\Table(name: 'notification_pro_subscription')]
@@ -37,8 +33,8 @@ class UpdateProSubscription
     #[ORM\Column(length: 20, enumType: UpdateProTier::class)]
     private UpdateProTier $tier;
 
-    #[ORM\Column(length: 20, enumType: ActiveIndexingStatus::class)]
-    private ActiveIndexingStatus $status = ActiveIndexingStatus::PENDING;
+    #[ORM\Column(length: 20, enumType: UpdateProStatus::class)]
+    private UpdateProStatus $status = UpdateProStatus::PENDING;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $startedAt = null;
@@ -80,8 +76,8 @@ class UpdateProSubscription
         return $this;
     }
 
-    public function getStatus(): ActiveIndexingStatus { return $this->status; }
-    public function setStatus(ActiveIndexingStatus $status): self
+    public function getStatus(): UpdateProStatus { return $this->status; }
+    public function setStatus(UpdateProStatus $status): self
     {
         $this->status = $status;
         $this->updatedAt = new \DateTime();
@@ -112,13 +108,13 @@ class UpdateProSubscription
     public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
 
     public function isActive(): bool { return $this->status->isActive(); }
-    public function isExpired(): bool { return $this->status === ActiveIndexingStatus::EXPIRED; }
+    public function isExpired(): bool { return $this->status === UpdateProStatus::EXPIRED; }
 
     public function activate(): self
     {
         $now = new \DateTime();
         $this->startedAt = $now;
-        $this->status = ActiveIndexingStatus::ACTIVE;
+        $this->status = UpdateProStatus::ACTIVE;
 
         $expiresAt = clone $now;
         $expiresAt->modify('+' . $this->tier->getDurationDays() . ' days');
@@ -146,7 +142,7 @@ class UpdateProSubscription
         $graceEndsAt->modify('+' . $this->tier->getGracePeriodDays() . ' days');
         $this->graceEndsAt = $graceEndsAt;
 
-        $this->status = ActiveIndexingStatus::ACTIVE;
+        $this->status = UpdateProStatus::ACTIVE;
         $this->pendingInvoiceBolt11 = null;
         $this->updatedAt = $now;
         return $this;

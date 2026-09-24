@@ -6,7 +6,7 @@ namespace App\Service;
 
 use App\Entity\UpdateProSubscription;
 use App\Entity\User;
-use App\Enum\ActiveIndexingStatus;
+use App\Enum\UpdateProStatus;
 use App\Enum\UpdateProTier;
 use App\Enum\RolesEnum;
 use App\Repository\UpdateProSubscriptionRepository;
@@ -18,8 +18,7 @@ use App\Service\Nostr\NostrKeyService;
 /**
  * Manages paid Updates Pro subscriptions.
  *
- * Mirrors the lifecycle of {@see ActiveIndexingService} (invoice → activate /
- * renew → grace → expire) but without relay-fetch configuration.
+ * Handles invoice, activation, renewal, grace, and expiry without relay fetching.
  *
  * Free tier limits (enforced by callers / {@see UpdateAccessService}):
  *   - Up to {@see self::FREE_SUBSCRIPTION_CAP} npub + publication subscriptions.
@@ -75,7 +74,7 @@ class UpdateProService
 
         if (!$subscription) {
             $subscription = new UpdateProSubscription($npub, $tier);
-        } elseif ($subscription->isExpired() || $subscription->getStatus() === ActiveIndexingStatus::PENDING) {
+        } elseif ($subscription->isExpired() || $subscription->getStatus() === UpdateProStatus::PENDING) {
             $subscription->setTier($tier);
         }
 
@@ -90,7 +89,7 @@ class UpdateProService
         );
 
         $subscription->setPendingInvoiceBolt11($bolt11);
-        $subscription->setStatus(ActiveIndexingStatus::PENDING);
+        $subscription->setStatus(UpdateProStatus::PENDING);
         $this->subscriptionRepository->save($subscription);
 
         $this->logger->info('Created Updates Pro invoice', [
@@ -146,7 +145,7 @@ class UpdateProService
     {
         $subs = $this->subscriptionRepository->findExpiredNeedingGraceTransition();
         foreach ($subs as $sub) {
-            $sub->setStatus(ActiveIndexingStatus::GRACE);
+            $sub->setStatus(UpdateProStatus::GRACE);
             $this->subscriptionRepository->save($sub, false);
         }
         if ($subs) {
@@ -159,7 +158,7 @@ class UpdateProService
     {
         $subs = $this->subscriptionRepository->findGracePeriodEnded();
         foreach ($subs as $sub) {
-            $sub->setStatus(ActiveIndexingStatus::EXPIRED);
+            $sub->setStatus(UpdateProStatus::EXPIRED);
             $this->subscriptionRepository->save($sub, false);
             $this->revokeProRole($sub->getNpub());
         }
@@ -175,7 +174,7 @@ class UpdateProService
         if (!$sub) {
             throw new \RuntimeException('No subscription found for this user');
         }
-        if ($sub->getStatus() !== ActiveIndexingStatus::PENDING) {
+        if ($sub->getStatus() !== UpdateProStatus::PENDING) {
             throw new \RuntimeException('Only pending subscriptions can be cancelled');
         }
         $this->subscriptionRepository->remove($sub);

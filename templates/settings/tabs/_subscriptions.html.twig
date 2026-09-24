@@ -36,42 +36,6 @@
             {% endif %}
         </div>
 
-        {# Active Indexing #}
-        <div class="event-card">
-            <div class="event-card__header">
-                <span class="event-card__label">{{ 'settings.subscriptions.activeIndexing'|trans }}</span>
-                {% if activeIndexing and activeIndexing.isActive %}
-                    <span class="event-card__badge event-card__badge--found">{{ 'settings.subscriptions.active'|trans }}</span>
-                {% elseif activeIndexing %}
-                    <span class="event-card__badge event-card__badge--pending">{{ activeIndexing.status.label }}</span>
-                {% endif %}
-            </div>
-            {% if activeIndexing %}
-                <div class="event-card__meta">
-                    {{ 'settings.subscriptions.tier'|trans }}: <strong>{{ activeIndexing.tier.value }}</strong>
-                </div>
-                {% if activeIndexing.expiresAt %}
-                    <div class="event-card__meta">
-                        {{ 'settings.subscriptions.expires'|trans }}: {{ activeIndexing.expiresAt|date('F j, Y') }}
-                        {% if activeIndexing.daysRemaining is not null %}
-                            ({{ activeIndexing.daysRemaining }} {{ 'settings.subscriptions.daysLeft'|trans }})
-                        {% endif %}
-                    </div>
-                {% endif %}
-                <div class="event-card__meta">
-                    {{ activeIndexing.articlesIndexed }} {{ 'settings.subscriptions.articlesIndexed'|trans }}
-                </div>
-                <div class="event-card__actions">
-                    <a href="{{ path('active_indexing_settings') }}" class="btn btn--small">{{ 'settings.subscriptions.manage'|trans }}</a>
-                </div>
-            {% else %}
-                <p class="event-card__empty">{{ 'settings.subscriptions.noActiveIndexing'|trans }}</p>
-                <p class="text-muted">Get found, no matter where you publish your content.</p>
-                <div class="event-card__actions">
-                    <a href="{{ path('active_indexing_index') }}" class="btn btn--small btn--primary">{{ 'settings.subscriptions.subscribe'|trans }}</a>
-                </div>
-            {% endif %}
-        </div>
 
         {# Publication Subdomain #}
         <div class="event-card">

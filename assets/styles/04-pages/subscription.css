@@ -1,18 +1,7 @@
 /**
  * Subscription Pages Styles
- * Used for Active Indexing, Vanity Name, and other subscription pages
+ * Shared subscription page styles
  */
-
-/* ===== Hero Section ===== */
-.active-indexing-hero {
-    text-align: center;
-    padding: var(--spacing-6) 0;
-}
-
-.active-indexing-hero h1 {
-    font-size: 2.5rem;
-    margin-bottom: var(--spacing-2);
-}
 
 .hero-tagline {
     font-size: 1.25rem;
@@ -134,38 +123,6 @@
     width: 100%;
     padding: var(--spacing-3);
     font-size: 1.1rem;
-}
-
-/* ===== Relay Info (Active Indexing) ===== */
-.relay-info {
-    max-width: 480px;
-    margin: var(--spacing-5) auto 0;
-    text-align: center;
-    color: var(--color-text-mid);
-    font-size: 0.875rem;
-}
-
-.relay-info p {
-    margin-bottom: var(--spacing-2);
-}
-
-.relay-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--spacing-2);
-}
-
-.relay-list code {
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    background: var(--color-bg-light);
-    border-radius: 4px;
-}
-
-.more-relays {
-    color: var(--color-text-mid);
-    font-size: 0.75rem;
 }
 
 /* ===== Vanity Name Form ===== */

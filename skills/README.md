@@ -23,6 +23,8 @@ Reusable step-by-step guides for maintaining and extending this Symfony/Nostr ap
 | [write-nip-feature-spec.md](write-nip-feature-spec.md) | Writing a Gherkin `.feature` spec for NIP protocol compliance |
 | [add-translations.md](add-translations.md) | Adding i18n strings across all 5 locale files |
 | [add-feature-documentation.md](add-feature-documentation.md) | Documenting a new feature in `documentation/` |
+| [retire-feature.md](retire-feature.md) | Removing a product or workflow while preserving shared consumers |
+| [audit-ingestion-path.md](audit-ingestion-path.md) | Tracing Nostr events and measuring unique article contribution |
 | [run-rector.md](run-rector.md) | Running and configuring Rector for automated PHP modernisation and code quality |
 | [phase-1-navigation-refactor.md](phase-1-navigation-refactor.md) | Implementing the navigation refactor Phase 1 (Reading Nook and Newsroom layouts) |
 
@@ -65,12 +67,21 @@ User-facing text?
 Documentation for a new feature?
   → add-feature-documentation
 
+Retiring a feature or subscription?
+  → retire-feature
+
+Missing content or unclear ingestion contribution?
+  → audit-ingestion-path
+
+Jev-assisted project decision?
+  → ../documentation/Processes/jev-decision-record.md
+
 Code quality / PHP modernisation?
    → run-rector
 
 Navigation / layout refactoring?
    → phase-1-navigation-refactor
 ```
- 
+
 
 

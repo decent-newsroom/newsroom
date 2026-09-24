@@ -127,10 +127,6 @@ class User implements UserInterface, EquatableInterface, IdentityOwnerInterface
         return in_array(RolesEnum::MUTED, $this->roles, true);
     }
 
-    public function isActiveIndexingSubscriber(): bool
-    {
-        return in_array(RolesEnum::ACTIVE_INDEXING->value, $this->roles, true);
-    }
 
     public function isUpdatesProSubscriber(): bool
     {

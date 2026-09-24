@@ -86,7 +86,6 @@ Each card shows whether the event exists (✓/✗), last updated date, and relev
 
 Shows the status of:
 - **Vanity Name (NIP-05)** — links to `/subscription/vanity`
-- **Active Indexing** — links to `/subscription/active-indexing`
 - **Publication Subdomain** — links to `/subscription/publication-subdomain`
 
 

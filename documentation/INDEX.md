@@ -10,6 +10,7 @@ Start here for reader, writer, and developer guides. Detailed feature documentat
 - [Development guide](Guides/development.md) — code layout, working conventions, and validation.
 - [Setup and operations](../docs/INDEX.md) — environment setup, deployment, and troubleshooting.
 - [Implementation task guides](../skills/README.md) — repeatable development workflows.
+- [Jev decision records](Processes/jev-decision-record.md) — public-context sharing scope and decision workflow.
 
 ## Package documentation
 
@@ -81,7 +82,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 
 ### Publishing and profiles
 
-- [Active Indexing Service](Newsroom/active-indexing-service.md)
+- [Active Indexing removal plan](Newsroom/active-indexing-removal-plan.md)
 - [Article Broadcast Feature](Newsroom/article-broadcast-feature.md)
 - [Author Profiles & User Metadata](Newsroom/author-profile.md)
 - [Automatic Role Promotion](Newsroom/automatic-role-promotion.md)

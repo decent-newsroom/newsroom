@@ -46,7 +46,7 @@
                         <td>
                             {% for role in entry.user.roles %}
                                 {% if role != 'ROLE_USER' %}
-                                    <span class="badge {% if role == 'ROLE_ADMIN' %}bg-danger{% elseif role == 'ROLE_MUTED' %}bg-secondary{% elseif role == 'ROLE_FEATURED_WRITER' %}bg-success{% elseif role == 'ROLE_ACTIVE_INDEXING' %}bg-info{% elseif role == 'ROLE_RSS' %}bg-warning text-dark{% else %}bg-primary{% endif %}" style="margin-right: 4px;">
+                                    <span class="badge {% if role == 'ROLE_ADMIN' %}bg-danger{% elseif role == 'ROLE_MUTED' %}bg-secondary{% elseif role == 'ROLE_FEATURED_WRITER' %}bg-success{% elseif role == 'ROLE_RSS' %}bg-warning text-dark{% else %}bg-primary{% endif %}" style="margin-right: 4px;">
                                         {{ role }}
                                     </span>
                                 {% endif %}

@@ -94,7 +94,6 @@ footer:
     product: 'Producto'
     subscriptions: 'Suscripciones'
     vanityName: 'Nombre personalizado'
-    activeIndexing: 'Indexación activa'
     publicationSubdomain: 'Subdominio de publicación'
     support: 'Soporte'
     about: 'Acerca de'
@@ -878,13 +877,6 @@ pricing:
         feature2: 'URL de perfil personalizada'
         feature3: 'Insignia de verificación en clientes Nostr'
         cta: 'Obtener nombre'
-    indexing:
-        name: 'Indexación activa'
-        period: 'por mes · o 10.000 sats/año'
-        feature1: 'Contenido obtenido de tus relays preferidos'
-        feature2: 'Indexación fiable y continua'
-        feature3: 'Panel para monitorear el estado de indexación'
-        cta: 'Suscribirse'
     unfold:
         name: 'Hosting Unfold'
         period: 'por año'

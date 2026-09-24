@@ -16,10 +16,8 @@ The `cron` Docker service runs the schedule in `docker/cron/crontab`. Scripts in
 | Every 30 minutes | `project_magazines.sh` | Magazine projection |
 | Every 30 minutes | `unfold_cache_warm.sh` | Unfold site cache |
 | Daily at 03:00 | `dn:graph:audit --fix` | Audit and repair graph consistency |
-| Every 5 minutes | `active-indexing:check-receipts` | Updates Pro payment receipts |
+| Every 5 minutes | `updates-pro:check-receipts` | Updates Pro payment receipts |
 | At minutes 0 and 59 each hour | `updates-pro:expire-subscriptions` | Expire Updates Pro subscriptions |
-| Hourly at minute 0 | `active-indexing:fetch --since-hours=24` | Fetch subscriber content |
-| Hourly at minute 30 | `active-indexing:manage-subscriptions` | Active Indexing lifecycle |
 | Every 5 minutes | `vanity:check-receipts` | Vanity name payment checks |
 | Daily at 01:00 | `vanity:process-expired` | Release expired vanity names |
 | Every 5 minutes | `essayist:check-zap-receipts` | Essayist membership receipts |

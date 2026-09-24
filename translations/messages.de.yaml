@@ -94,7 +94,6 @@ footer:
     product: 'Produkt'
     subscriptions: 'Abonnements'
     vanityName: 'Vanity-Name'
-    activeIndexing: 'Aktive Indexierung'
     publicationSubdomain: 'Publikations-Subdomain'
     support: 'Support'
     about: 'Über uns'
@@ -889,13 +888,6 @@ pricing:
         feature2: 'Benutzerdefinierte Profil-URL'
         feature3: 'Verifizierungsabzeichen in Nostr-Clients'
         cta: 'Vanity-Name erhalten'
-    indexing:
-        name: 'Aktive Indexierung'
-        period: 'pro Monat · oder 10.000 Sats/Jahr'
-        feature1: 'Inhalte von Ihren bevorzugten Relays abgerufen'
-        feature2: 'Zuverlässige, laufende Indexierung'
-        feature3: 'Dashboard zur Überwachung des Indexierungsstatus'
-        cta: 'Abonnieren'
     unfold:
         name: 'Unfold-Hosting'
         period: 'pro Jahr'

@@ -94,7 +94,6 @@ footer:
     product: 'Produkt'
     subscriptions: 'Naročnine'
     vanityName: 'Osebno ime'
-    activeIndexing: 'Aktivno indeksiranje'
     publicationSubdomain: 'Poddomena publikacije'
     support: 'Podpora'
     about: 'O nas'
@@ -878,13 +877,6 @@ pricing:
         feature2: 'URL profila po meri'
         feature3: 'Značka preverjanja v Nostr odjemalcih'
         cta: 'Pridobi ime'
-    indexing:
-        name: 'Aktivno indeksiranje'
-        period: 'na mesec · ali 10.000 satov/leto'
-        feature1: 'Vsebina pridobljena iz vaših priljubljenih relayjev'
-        feature2: 'Zanesljivo, sprotno indeksiranje'
-        feature3: 'Nadzorna plošča za spremljanje stanja indeksiranja'
-        cta: 'Naroči se'
     unfold:
         name: 'Gostovanje Unfold'
         period: 'na leto'

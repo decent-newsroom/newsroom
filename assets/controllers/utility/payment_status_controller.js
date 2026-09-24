@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 /**
- * Controller for checking payment status of active indexing subscriptions.
+ * Controller for checking payment status of subscription purchases.
  * Polls the server periodically and redirects when payment is confirmed.
  */
 export default class extends Controller {

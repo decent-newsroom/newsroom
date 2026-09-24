@@ -11,6 +11,12 @@ And using Twig Live Components to create dynamic, interactive components in the 
 - This is a Nostr protocol client. Particular definitions and docs are in the `documentation/NIP` and `documentaion/NKBIP` folders. NIP stands for Nostr Implementation Possibilities, and NKBIP stands for Nostr Key Binding Implementation Possibilities. These folders contain detailed documentation on the specific implementations and features related to the Nostr protocol, which is essential for understanding how the client interacts with the protocol and how to implement various functionalities effectively.
 - Add features and bugfixes to the Changelog file. One item per feature or fix. Assume that the topmost version is currently in development and that the one before it is currently live.
 
+## Automatic approval denials
+
+If automatic approval review explicitly denies an action, stop that action immediately. Do not retry it through another command, tool, smaller payload, or indirect route.
+Tell the user which exact action was denied and the reviewer’s stated reason, then ask for their approval before attempting that action again. If a safer alternative is useful, describe it and ask for approval for that specific alternative too.
+Continue only unrelated work that is already authorized while waiting. Never treat silence as approval. If a managed policy cannot be overridden by the user, explain that limit instead of retrying.
+
 ## Project Architecture
 
 ### Tech Stack

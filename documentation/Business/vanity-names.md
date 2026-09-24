@@ -100,7 +100,7 @@ According to NIP-05, the vanity name system must:
 
 1. **Registration page**: `/vanity/register` - Form to request a vanity name
 2. **Availability check**: AJAX endpoint to check if a name is available
-3. **Payment flow**: Generate Lightning invoice (similar to ActiveIndexing)
+3. **Payment flow**: Generate a Lightning invoice using the shared payment recipient
 4. **Activation**: Activate vanity name upon payment confirmation
 
 ### 5. Admin Panel
@@ -188,7 +188,7 @@ config/
 6. **Admin Controller**: `VanityNameAdminController` for management
 7. **Vanity Profile Routing**: Added to `AuthorController`
 8. **Templates**: All user and admin templates with QR codes and payment status
-9. **Lightning Payment Integration**: Using same LNURL flow as ActiveIndexing
+9. **Lightning Payment Integration**: Uses the shared Lightning payment recipient
 10. **Migration**: Database schema for PostgreSQL
 11. **CLI Commands**:
     - `vanity:check-receipts` - Check for zap receipts matching pending invoices

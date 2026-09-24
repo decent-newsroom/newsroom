@@ -20,7 +20,6 @@ Brand values come from Twig configuration; visible labels use translation keys. 
 |---|---|---|
 | Reader | Free | Public reading and discovery. |
 | Vanity name | 5,000 sats per quarter | [Vanity names](vanity-names.md) |
-| Active indexing | 1,000 sats per month | [Active indexing](../Newsroom/active-indexing-service.md) |
 | Unfold hosting | 120,000 sats per year | [Publication subdomains](publication-subdomain.md) |
 
 The pricing template contains the displayed amounts; the relevant subscription service defines purchase behavior. Keep both in sync when changing an offering.
