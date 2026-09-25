@@ -147,6 +147,29 @@ class VisitRepository extends ServiceEntityRepository
             'capped' => (int) ($row['source_records'] ?? 0) >= self::ADMIN_SNAPSHOT_LIMIT,
         ];
     }
+
+    /**
+     * Raw recorded requests for one exact path, grouped by calendar day.
+     * Deliberately includes bots, API paths, assets, and every subdomain.
+     *
+     * @return list<array{day: string, count: int|string}>
+     */
+    public function getRawVisitCountsByExactRouteBetween(string $route, \DateTimeImmutable $since, \DateTimeImmutable $before): array
+    {
+        return $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT DATE(visited_at) AS day, COUNT(*) AS count
+             FROM visit
+             WHERE route = :route AND visited_at >= :since AND visited_at < :before
+             GROUP BY DATE(visited_at)
+             ORDER BY day ASC',
+            [
+                'route' => $route,
+                'since' => $since->format('Y-m-d H:i:s'),
+                'before' => $before->format('Y-m-d H:i:s'),
+            ],
+        )->fetchAllAssociative();
+    }
+
     public function getVisitCountByRoute(?\DateTimeImmutable $since = null): array
     {
         $qb = $this->createQueryBuilder('v')
@@ -216,6 +239,112 @@ class VisitRepository extends ServiceEntityRepository
         $this->applyTrackedVisitFilters($qb);
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Calculate one detail metric from the newest 100,000 visit rows.
+     * Sampling by primary key happens before the date and tracking filters.
+     */
+    public function getAdminDetailSampleMetric(string $metric, \DateTimeImmutable $since): int|float
+    {
+        $aggregate = match ($metric) {
+            'visits' => 'SELECT COUNT(*) FROM tracked',
+            'visitors' => 'SELECT COUNT(DISTINCT session_id) FROM tracked',
+            'average' => 'SELECT COALESCE(ROUND(COUNT(*)::numeric / NULLIF(COUNT(DISTINCT session_id), 0), 2), 0) FROM tracked',
+            'bounce' => 'SELECT COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE visit_count = 1) / NULLIF(COUNT(*), 0), 2), 0) FROM (SELECT COUNT(*) AS visit_count FROM tracked WHERE session_id IS NOT NULL GROUP BY session_id) sessions',
+            default => throw new \InvalidArgumentException('Unknown analytics metric'),
+        };
+
+        $params = [
+            'sampleLimit' => 100000,
+            'since' => $since->format('Y-m-d H:i:s'),
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        $exclusions = '';
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'detail_asset' . $i;
+            $exclusions .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'detail_partial' . $i;
+            $exclusions .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $sql = "WITH sample AS MATERIALIZED (
+                    SELECT visited_at, route, session_id, is_bot
+                    FROM visit
+                    ORDER BY id DESC
+                    LIMIT :sampleLimit
+                ), tracked AS MATERIALIZED (
+                    SELECT *
+                    FROM sample
+                    WHERE visited_at >= :since
+                      AND is_bot = false
+                      AND route <> :apiRoot
+                      AND route NOT LIKE :apiPrefix
+                      {$exclusions}
+                )
+                {$aggregate}";
+
+        $value = $this->getEntityManager()->getConnection()
+            ->executeQuery($sql, $params, ['sampleLimit' => ParameterType::INTEGER])
+            ->fetchOne();
+
+        return in_array($metric, ['average', 'bounce'], true) ? (float) $value : (int) $value;
+    }
+
+    /**
+     * Show repeat sessions in a fixed sample of the newest visits.
+     *
+     * LIMIT is applied before grouping, so this report cannot scan every
+     * session in a busy seven-day window. The result is a sample, not a
+     * complete seven-day session ranking.
+     */
+    public function getRecentSessionsFromSample(\DateTimeImmutable $since): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+        $params = [
+            'sampleLimit' => 5000,
+            'since' => $since->format('Y-m-d H:i:s'),
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        $types = ['sampleLimit' => ParameterType::INTEGER];
+        $exclusions = '';
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'session_asset' . $i;
+            $exclusions .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'session_partial' . $i;
+            $exclusions .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $sql = "SELECT session_id AS \"sessionId\", COUNT(id) AS \"visitCount\",
+                       MIN(visited_at) AS \"firstVisit\", MAX(visited_at) AS \"lastVisit\"
+                FROM (
+                    SELECT id, session_id, visited_at, route, is_bot
+                    FROM visit
+                    ORDER BY id DESC
+                    LIMIT :sampleLimit
+                ) recent
+                WHERE visited_at >= :since
+                  AND session_id IS NOT NULL
+                  AND is_bot = false
+                  AND route <> :apiRoot
+                  AND route NOT LIKE :apiPrefix
+                  {$exclusions}
+                GROUP BY session_id
+                HAVING COUNT(id) > 1
+                ORDER BY \"visitCount\" DESC
+                LIMIT 50";
+
+        return $conn->executeQuery($sql, $params, $types)->fetchAllAssociative();
     }
 
     /**

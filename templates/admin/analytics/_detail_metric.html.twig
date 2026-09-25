@@ -1,0 +1,34 @@
+<turbo-frame id="analytics-detail-{{ metric }}">
+    {% if metric == 'visits' or metric == 'visitors' %}
+        <p class="analytics-stats">{{ value|number_format }}</p>
+    {% elseif metric == 'average' %}
+        <p class="analytics-stats">{{ value }}</p>
+    {% elseif metric == 'bounce' %}
+        <p class="analytics-stats">{{ value }}%</p>
+    {% elseif metric == 'sessions' %}
+        {% if value|length > 0 %}
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'admin_visit_detail.session_id'|trans }}</th>
+                        <th class="text-right">{{ 'admin_visit_detail.session_visits'|trans }}</th>
+                        <th class="text-right">{{ 'admin_visit_detail.first_visit'|trans }}</th>
+                        <th class="text-right">{{ 'admin_visit_detail.last_visit'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in value %}
+                        <tr>
+                            <td><code>{{ stat.sessionId|slice(0, 12) }}...</code></td>
+                            <td class="text-right">{{ stat.visitCount }}</td>
+                            <td class="text-right">{{ stat.firstVisit|date('M d, H:i') }}</td>
+                            <td class="text-right">{{ stat.lastVisit|date('M d, H:i') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>{{ 'admin_visit_detail.empty_sessions'|trans }}</p>
+        {% endif %}
+    {% endif %}
+</turbo-frame>

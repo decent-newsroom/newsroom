@@ -1,0 +1,15 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'admin_snapshot.visits_graph'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="analytics-container">
+        <h1>{{ 'admin_snapshot.visits_graph'|trans }}</h1>
+        <p><a href="{{ path('admin_analytics') }}">← {{ 'admin_snapshot.analytics_title'|trans }}</a></p>
+        <p>{{ 'admin_snapshot.visits_graph_description'|trans }}</p>
+        <turbo-frame id="analytics-visits-graph" src="{{ path('admin_analytics_visits_graph_frame') }}" loading="lazy">
+            <p>{{ 'admin_snapshot.loading'|trans }}</p>
+        </turbo-frame>
+    </div>
+{% endblock %}
+

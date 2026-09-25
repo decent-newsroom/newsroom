@@ -1,0 +1,35 @@
+<turbo-frame id="route-lookup-result" aria-live="polite">
+    {% if error %}
+        <p role="alert">{{ 'admin_analytics.route_lookup.validation'|trans }}</p>
+    {% else %}
+        <div class="analytics-card">
+            <h2>{{ route }}</h2>
+            <p>{{ 'admin_analytics.route_lookup.period'|trans }}</p>
+            <p><strong>{{ 'admin_analytics.route_lookup.recorded_requests'|trans }}:</strong> {{ total|number_format }}</p>
+            <p class="analytics-note">{{ 'admin_analytics.route_lookup.includes_note'|trans }}</p>
+        </div>
+
+        <div class="analytics-card">
+            <h2>{{ 'admin_analytics.route_lookup.daily_breakdown'|trans }}</h2>
+            {% if total == 0 %}
+                <p>{{ 'admin_analytics.route_lookup.no_requests'|trans }}</p>
+            {% endif %}
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'admin_analytics.route_lookup.day'|trans }}</th>
+                        <th scope="col" class="text-right">{{ 'admin_analytics.route_lookup.requests'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in daily %}
+                        <tr>
+                            <td>{{ entry.day|date('Y-m-d') }}</td>
+                            <td class="text-right">{{ entry.count|number_format }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</turbo-frame>

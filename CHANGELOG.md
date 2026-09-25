@@ -2,6 +2,8 @@
 
 ## v0.0.54
 
+- [Feature] Split visitor detail, bot, and subdomain analytics into independently loaded reports and added a dedicated seven-day visits graph.
+- [Feature] Added an exact-route seven-day recorded-request lookup with daily counts, without changing visit tracking.
 - [Fix] Made advanced article search apply changed filters and sort, support filter-only queries, clear dates independently, validate inputs, and align Elasticsearch/PostgreSQL date bounds.
 - [Feature] Added hosted Unfold About pages with owner-selected or conventional article introductions and deduplicated publication people sections.
 - [Fix] Render validated NIP-21 profile and event links in Unfold comments, including profile mentions, with escaped comment text, links to the main platform, and wrapping for long malformed identifiers.

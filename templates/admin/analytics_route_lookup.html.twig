@@ -1,0 +1,25 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'admin_analytics.route_lookup.title'|trans }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('styles/04-pages/admin-dashboard.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="analytics-container">
+        <h1>{{ 'admin_analytics.route_lookup.title'|trans }}</h1>
+        <p><a href="{{ path('admin_analytics') }}">{{ 'admin_analytics.route_lookup.back'|trans }}</a></p>
+        <p>{{ 'admin_analytics.route_lookup.intro'|trans }}</p>
+
+        <form action="{{ path('admin_analytics_route_lookup_result') }}" method="get" data-turbo-frame="route-lookup-result">
+            <label for="route-lookup-path">{{ 'admin_analytics.route_lookup.path_label'|trans }}</label>
+            <input id="route-lookup-path" name="route" type="text" required maxlength="255" placeholder="{{ 'admin_analytics.route_lookup.path_placeholder'|trans }}" aria-describedby="route-lookup-help">
+            <button type="submit">{{ 'admin_analytics.route_lookup.submit'|trans }}</button>
+            <p id="route-lookup-help" class="analytics-note">{{ 'admin_analytics.route_lookup.path_help'|trans }}</p>
+        </form>
+
+        <turbo-frame id="route-lookup-result" aria-live="polite"></turbo-frame>
+    </div>
+{% endblock %}

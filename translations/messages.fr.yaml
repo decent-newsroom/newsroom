@@ -1433,6 +1433,47 @@ unfold_footer:
     support: "Soutenir"
 
 admin_snapshot:
+    bot_description: 'Bot traffic is detected from known User-Agent patterns and tracked separately. These visits are excluded from the main visitor analytics.' # TODO: translate
+    last_24_hours: 'Last 24 Hours' # TODO: translate
+    last_7_days: 'Last 7 Days' # TODO: translate
+    last_14_days: 'Last 14 Days' # TODO: translate
+    bot_vs_human: 'Bot vs Human' # TODO: translate
+    human_visits: 'Human visits' # TODO: translate
+    bot_visits: 'Bot visits' # TODO: translate
+    total: 'Total' # TODO: translate
+    bot_share: 'Bot share' # TODO: translate
+    bot_daily_title: 'Bot Traffic Per Day (Last 14 Days)' # TODO: translate
+    chart_requires_javascript: 'Enable JavaScript to see the chart.' # TODO: translate
+    no_bot_daily: 'No bot traffic recorded in the last 14 days.' # TODO: translate
+    bot_agents_title: 'Top Bot User-Agents (Last 7 Days)' # TODO: translate
+    user_agent: 'User-Agent' # TODO: translate
+    hits: 'Hits' # TODO: translate
+    no_bot_agents: 'No bot visits in the last 7 days.' # TODO: translate
+    bot_note: 'Bot visits are identified by user-agent and stored with is_bot = true. They are excluded from human-visit reports.' # TODO: translate
+    subdomain_description: 'Subdomain analytics track visits to Unfold site subdomains. These pages are user-created publications hosted on subdomains of your primary domain.' # TODO: translate
+    subdomain_visits_24h: 'Subdomain Visits — Last 24 Hours' # TODO: translate
+    subdomain_visits_7d: 'Subdomain Visits — Last 7 Days' # TODO: translate
+    subdomain_unique_7d: 'Unique Subdomain Visitors — Last 7 Days' # TODO: translate
+    subdomain_by_domain_title: 'Visits by Subdomain (Last 30 Days)' # TODO: translate
+    subdomain: 'Subdomain' # TODO: translate
+    no_subdomain_visits_30d: 'No subdomain visits recorded in the last 30 days.' # TODO: translate
+    subdomain_daily_title: 'Subdomain Visits Per Day (Last 30 Days)' # TODO: translate
+    date: 'Date' # TODO: translate
+    no_subdomain_daily: 'No subdomain visit data for the last 30 days.' # TODO: translate
+    subdomain_routes_title: 'Top Subdomain Routes (Last 7 Days)' # TODO: translate
+    no_subdomain_routes: 'No subdomain route data recorded in the last 7 days.' # TODO: translate
+    load_bot_daily: 'Load daily bot traffic' # TODO: translate
+    load_bot_agents: 'Load bot user agents' # TODO: translate
+    load_subdomain_24h: 'Load last 24 hours' # TODO: translate
+    load_subdomain_unique: 'Load unique visitors' # TODO: translate
+    load_subdomain_domains: 'Load visits by subdomain' # TODO: translate
+    load_subdomain_daily: 'Load daily subdomain visits' # TODO: translate
+    load_subdomain_routes: 'Load top routes' # TODO: translate
+    visits_graph: 'Visites au fil du temps'
+    visits_graph_description: 'Daily tracked human visits for the last seven completed days.' # TODO: translate
+    no_visits_graph: 'No tracked visits recorded in the last seven completed days.' # TODO: translate
+    loading: 'Loading analytics…' # TODO: translate
+    route_lookup: 'Recherche de route'
     analytics_title: 'Analyse des visites'
     window: 'Dernières 24 heures'
     sample_note: 'Métriques humaines hors ressources et API sur jusqu’à %limit% des requêtes enregistrées les plus récentes des dernières 24 heures (%records% en échantillon).'
@@ -1450,3 +1491,42 @@ admin_snapshot:
     bots: 'Analyse des robots'
     subdomains: 'Analyse des sous-domaines'
     dashboard: 'Tableau de bord administratif'
+admin_analytics:
+    route_lookup:
+        title: 'Route lookup' # TODO: translate
+        intro: 'Count recorded requests for one exact path over the last seven calendar days.' # TODO: translate
+        path_label: 'Route path' # TODO: translate
+        path_placeholder: '/topics' # TODO: translate
+        submit: 'Look up route' # TODO: translate
+        path_help: 'Enter a path only. Query strings are not stored, so /search?q=... is counted under /search.' # TODO: translate
+        validation: 'Enter an absolute path without a query string or fragment.' # TODO: translate
+        recorded_requests: 'Recorded requests' # TODO: translate
+        period: 'Last seven calendar days' # TODO: translate
+        daily_breakdown: 'Requests by day' # TODO: translate
+        day: 'Day' # TODO: translate
+        requests: 'Requests' # TODO: translate
+        no_requests: 'No requests recorded for this path in this period.' # TODO: translate
+        includes_note: 'Counts include bots, API requests, and visits on all subdomains.' # TODO: translate
+        back: 'Back to analytics' # TODO: translate
+admin_visit_detail:
+    sample_note: 'Thirty-day figures are calculated from the latest 100,000 recorded requests, so busy periods may show a partial window.' # TODO: translate
+    title: 'Analytics Detail' # TODO: translate
+    back: '← Back to main analytics' # TODO: translate
+    intro: 'Each report loads independently. Open the more expensive reports when you need them.' # TODO: translate
+    visits_title: 'Page views (Last 30 Days)' # TODO: translate
+    loading_visits: 'Loading page views…' # TODO: translate
+    visitors_title: 'Unique visitors (Last 30 Days)' # TODO: translate
+    loading_visitors: 'Loading unique visitors…' # TODO: translate
+    average_title: 'Average visits per session (Last 30 Days)' # TODO: translate
+    load_average: 'Load average visits' # TODO: translate
+    bounce_title: 'Bounce rate (Last 30 Days)' # TODO: translate
+    load_bounce: 'Load bounce rate' # TODO: translate
+    bounce_note: 'Bounce rate = sessions with only one page view.' # TODO: translate
+    sessions_title: 'Recent sessions (Last 7 Days)' # TODO: translate
+    sessions_note: 'Shows the busiest sessions among the latest 5,000 recorded visits.' # TODO: translate
+    load_sessions: 'Load recent sessions' # TODO: translate
+    session_id: 'Session ID' # TODO: translate
+    session_visits: 'Visits' # TODO: translate
+    first_visit: 'First Visit' # TODO: translate
+    last_visit: 'Last Visit' # TODO: translate
+    empty_sessions: 'No visitor sessions recorded in the last 7 days.' # TODO: translate

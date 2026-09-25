@@ -24,66 +24,41 @@ class VisitorAnalyticsController extends AbstractController
 
     #[Route('/admin/analytics/detail', name: 'admin_analytics_detail')]
     #[IsGranted('ROLE_ADMIN')]
-    public function detailAnalytics(VisitRepository $visitRepository): Response
+    public function detailAnalytics(): Response
+    {
+        return $this->render('admin/analytics_detail.html.twig');
+    }
+
+    #[Route('/admin/analytics/detail/{metric}', name: 'admin_analytics_detail_metric', requirements: ['metric' => 'visits|visitors|average|bounce|sessions'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function detailMetric(string $metric, VisitRepository $visitRepository): Response
     {
         $since30 = new \DateTimeImmutable('-30 days');
-        $since7  = new \DateTimeImmutable('-7 days');
+        $value = match ($metric) {
+            'visits' => $visitRepository->getAdminDetailSampleMetric('visits', $since30),
+            'visitors' => $visitRepository->getAdminDetailSampleMetric('visitors', $since30),
+            'average' => $visitRepository->getAdminDetailSampleMetric('average', $since30),
+            'bounce' => $visitRepository->getAdminDetailSampleMetric('bounce', $since30),
+            'sessions' => $visitRepository->getRecentSessionsFromSample(new \DateTimeImmutable('-7 days')),
+        };
 
-        // All counts capped to last 30 days — no full-table scans
-        $totalVisitsLast30 = $visitRepository->countVisitsSince($since30);
-        $totalUniqueVisitorsLast30 = $visitRepository->countUniqueSessionsSince($since30);
-        $bounceRate = $visitRepository->getBounceRateSince($since30);
-        $averageVisitsPerSession = $visitRepository->getAverageVisitsPerSessionSince($since30);
-
-        // Session detail (7d)
-        $visitsBySessionLast7Days = $visitRepository->getVisitsBySession($since7);
-
-        return $this->render('admin/analytics_detail.html.twig', [
-            'totalVisitsLast30' => $totalVisitsLast30,
-            'totalUniqueVisitorsLast30' => $totalUniqueVisitorsLast30,
-            'averageVisitsPerSession' => $averageVisitsPerSession,
-            'bounceRate' => $bounceRate,
-            'visitsBySessionLast7Days' => $visitsBySessionLast7Days,
+        return $this->render('admin/analytics/_detail_metric.html.twig', [
+            'metric' => $metric,
+            'value' => $value,
         ]);
     }
 
     #[Route('/admin/analytics/bot', name: 'admin_analytics_bot')]
     #[IsGranted('ROLE_ADMIN')]
-    public function botAnalytics(VisitRepository $visitRepository): Response
+    public function botAnalytics(): Response
     {
-        // Bot traffic statistics
-        $botVsHumanStats = $visitRepository->getBotVsHumanStats();
-        $topBotUserAgents = $visitRepository->getTopBotUserAgents(20, new \DateTimeImmutable('-7 days'));
-        $botVisitsPerDayLast14Days = $visitRepository->getBotVisitsPerDay(14);
-
-        return $this->render('admin/analytics_bot.html.twig', [
-            'botVsHumanStats' => $botVsHumanStats,
-            'topBotUserAgents' => $topBotUserAgents,
-            'botVisitsPerDayLast14Days' => $botVisitsPerDayLast14Days,
-        ]);
+        return $this->render('admin/analytics_bot.html.twig');
     }
 
     #[Route('/admin/analytics/subdomains', name: 'admin_analytics_subdomains')]
     #[IsGranted('ROLE_ADMIN')]
-    public function subdomainAnalytics(VisitRepository $visitRepository): Response
+    public function subdomainAnalytics(): Response
     {
-        // Subdomain analytics
-        $subdomainVisitsLast24Hours = $visitRepository->countSubdomainVisitsSince(new \DateTimeImmutable('-24 hours'));
-        $subdomainVisitsLast7Days = $visitRepository->countSubdomainVisitsSince(new \DateTimeImmutable('-7 days'));
-        $totalSubdomainVisits = $visitRepository->countTotalSubdomainVisits();
-        $subdomainUniqueVisitorsLast7Days = $visitRepository->countUniqueSubdomainVisitorsSince(new \DateTimeImmutable('-7 days'));
-        $subdomainVisitCountsLast30Days = $visitRepository->getSubdomainVisitCounts(new \DateTimeImmutable('-30 days'));
-        $subdomainVisitsPerDayLast30Days = $visitRepository->getSubdomainVisitsPerDay(30);
-        $topSubdomainRoutesLast7Days = $visitRepository->getTopSubdomainRoutes(15, new \DateTimeImmutable('-7 days'));
-
-        return $this->render('admin/analytics_subdomains.html.twig', [
-            'subdomainVisitsLast24Hours' => $subdomainVisitsLast24Hours,
-            'subdomainVisitsLast7Days' => $subdomainVisitsLast7Days,
-            'totalSubdomainVisits' => $totalSubdomainVisits,
-            'subdomainUniqueVisitorsLast7Days' => $subdomainUniqueVisitorsLast7Days,
-            'subdomainVisitCountsLast30Days' => $subdomainVisitCountsLast30Days,
-            'subdomainVisitsPerDayLast30Days' => $subdomainVisitsPerDayLast30Days,
-            'topSubdomainRoutesLast7Days' => $topSubdomainRoutesLast7Days,
-        ]);
+        return $this->render('admin/analytics_subdomains.html.twig');
     }
 }

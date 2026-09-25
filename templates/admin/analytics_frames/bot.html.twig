@@ -1,0 +1,54 @@
+<turbo-frame id="analytics-bot-{{ report }}">
+{% if report == 'summary' %}
+    <div class="analytics-summary-row">
+        {% for period, stats in data %}
+            {% set label = period == 'last_24_hours' ? 'admin_snapshot.last_24_hours'|trans : (period == 'last_7_days' ? 'admin_snapshot.last_7_days'|trans : 'admin_snapshot.last_14_days'|trans) %}
+            <div class="analytics-card">
+                <h2>{{ 'admin_snapshot.bot_vs_human'|trans }} — {{ label }}</h2>
+                <ul class="analytics-stats">
+                    <li><strong>{{ 'admin_snapshot.human_visits'|trans }}:</strong> {{ stats.human|number_format }}</li>
+                    <li><strong>{{ 'admin_snapshot.bot_visits'|trans }}:</strong> {{ stats.bot|number_format }}</li>
+                    <li><strong>{{ 'admin_snapshot.total'|trans }}:</strong> {{ stats.total|number_format }}</li>
+                    <li><strong>{{ 'admin_snapshot.bot_share'|trans }}:</strong> <span class="{{ stats.bot_pct > 50 ? 'analytics-alert' : '' }}">{{ stats.bot_pct }}%</span></li>
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+{% elseif report == 'daily' %}
+    <div class="analytics-card">
+        <h2>{{ 'admin_snapshot.bot_daily_title'|trans }}</h2>
+        {% if data|length > 0 %}
+            <canvas id="botVisitsPerDayChart"
+                    data-controller="analytics--visits-per-day-chart"
+                    data-analytics--visits-per-day-chart-labels-value="{{ data|map(s => s.day)|json_encode|e('html_attr') }}"
+                    data-analytics--visits-per-day-chart-counts-value="{{ data|map(s => s.count)|json_encode|e('html_attr') }}"
+                    height="60"></canvas>
+            <noscript><p><em>{{ 'admin_snapshot.chart_requires_javascript'|trans }}</em></p></noscript>
+        {% else %}
+            <p>{{ 'admin_snapshot.no_bot_daily'|trans }}</p>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="analytics-card">
+        <h2>{{ 'admin_snapshot.bot_agents_title'|trans }}</h2>
+        {% if data|length > 0 %}
+            <table class="analytics-table">
+                <thead><tr><th>{{ 'admin_snapshot.user_agent'|trans }}</th><th class="text-right">{{ 'admin_snapshot.hits'|trans }}</th></tr></thead>
+                <tbody>
+                {% for row in data %}
+                    <tr>
+                        <td><span title="{{ row.userAgent }}">{{ row.userAgent|length > 80 ? row.userAgent|slice(0, 80) ~ '…' : row.userAgent }}</span></td>
+                        <td class="text-right">{{ row.count|number_format }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>{{ 'admin_snapshot.no_bot_agents'|trans }}</p>
+        {% endif %}
+        <p class="analytics-note">{{ 'admin_snapshot.bot_note'|trans }}</p>
+    </div>
+{% endif %}
+</turbo-frame>
+
+

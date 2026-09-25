@@ -8,9 +8,19 @@ Both `/admin` and `/admin/analytics` show the same lightweight snapshot, cached 
 
 The snapshot shows page views, distinct non-null visitor/session IDs, visits with a referer, and the five most visited routes. Counts describe only this sample; they are not extrapolated totals. A notice appears when the 1,000,000-record cap is reached. The same route path on different subdomains is combined, as in the existing generic analytics. Empty data is shown as zero, while a failed query or cache read shows an unavailable message.
 
-The dashboard no longer performs corpus-wide article deduplication, database/user totals, all-time bounce-rate queries, or live relay diagnostics. Admin tool links remain available. The analytics overview no longer runs long-range charts, referrer rankings, publish/zap totals, or bot summaries. Existing detail, bot, and subdomain reports are still separate opt-in pages and can still be expensive on a large database.
+The dashboard no longer performs corpus-wide article deduplication, database/user totals, all-time bounce-rate queries, or live relay diagnostics. Admin tool links remain available. The analytics overview no longer runs long-range charts, referrer rankings, publish/zap totals, or bot summaries. Detail, bot, and subdomain reports now render lightweight shells. Each report loads through its own admin-only Turbo Frame endpoint; expensive sections require an explicit click.
 
 The dashboard Refresh action invalidates the shared snapshot for both pages.
+
+## Independent reports and route lookup
+
+The detail page starts without aggregate queries. Page views and unique visitors load in separate lazy frames; average visits per session, bounce rate, and recent sessions load when selected. Thirty-day detail metrics use at most the newest 100,000 recorded visits before applying the time and human-traffic filters. They may cover only part of a busy 30-day period and are labeled as sampled figures. Recent sessions use at most the newest 5,000 recorded visits and return at most 50 sessions.
+
+Bot and subdomain report pages also render without aggregate queries. Their metrics and charts use independent frames, with expensive reports opened on demand. The all-time subdomain total was removed from the report.
+
+The visits-over-time page has its own daily chart frame. It shows tracked human page views for the seven completed calendar days before today. It does not run engagement, session, bot, or subdomain aggregates.
+
+The route lookup at `/admin/analytics/route-lookup` accepts one exact stored path, such as `/topics` or `/search`. Its result frame shows the total and daily recorded request counts for today and the six preceding calendar days. Counts include bots, API requests, and all subdomains, unlike the general human-visit reports. The query is restricted to that path and date window; a `(route, visited_at)` index supports the lookup. Query strings are not stored in `visit.route`, so older records cannot distinguish topic selections or search queries. This feature does not change visit capture or backfill historical data.
 
 ## What is tracked
 
@@ -42,14 +52,14 @@ When a visit lands on an Unfold subdomain (e.g. `support.decentnewsroom.com`), t
 
 The separate `/admin/analytics/subdomains` page includes:
 
-- total subdomain visit counts (24h / 7d / all time)
+- total subdomain visit counts (24h / 7d), each loaded independently
 - unique subdomain visitors (last 7 days)
 - visits broken down by subdomain (last 30 days)
 - subdomain visits per day chart (last 30 days)
 - top subdomain routes table (last 7 days)
-- recent subdomain visits table
 
-Subdomain metrics are separate from (and additive to) the main-domain analytics. Visits with `subdomain IS NULL` are main-domain traffic; visits with a non-null subdomain are Unfold traffic.
+
+Subdomain reports isolate visits with a non-null subdomain. Generic visitor totals include both main-domain and subdomain traffic.
 
 ## Excluded routes
 

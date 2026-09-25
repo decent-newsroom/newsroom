@@ -1,0 +1,63 @@
+<turbo-frame id="analytics-subdomains-{{ report }}">
+<div class="analytics-card">
+{% if report == 'visits24' %}
+    <h2>{{ 'admin_snapshot.subdomain_visits_24h'|trans }}</h2>
+    <p>{{ data|number_format }}</p>
+{% elseif report == 'visits7' %}
+    <h2>{{ 'admin_snapshot.subdomain_visits_7d'|trans }}</h2>
+    <p>{{ data|number_format }}</p>
+{% elseif report == 'unique7' %}
+    <h2>{{ 'admin_snapshot.subdomain_unique_7d'|trans }}</h2>
+    <p>{{ data|number_format }}</p>
+{% elseif report == 'domains' %}
+    <h2>{{ 'admin_snapshot.subdomain_by_domain_title'|trans }}</h2>
+    {% if data|length > 0 %}
+        <table class="analytics-table">
+            <thead><tr><th>{{ 'admin_snapshot.subdomain'|trans }}</th><th class="text-right">{{ 'admin_snapshot.visits'|trans }}</th></tr></thead>
+            <tbody>
+            {% for stat in data %}
+                <tr><td><code>{{ stat.subdomain }}</code></td><td class="text-right">{{ stat.count|number_format }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>{{ 'admin_snapshot.no_subdomain_visits_30d'|trans }}</p>
+    {% endif %}
+{% elseif report == 'daily' %}
+    <h2>{{ 'admin_snapshot.subdomain_daily_title'|trans }}</h2>
+    {% if data|length > 0 %}
+        <canvas id="subdomainVisitsPerDayChart"
+                data-controller="analytics--visits-per-day-chart"
+                data-analytics--visits-per-day-chart-labels-value="{{ data|map(stat => stat.day|date('Y-m-d'))|json_encode|e('html_attr') }}"
+                data-analytics--visits-per-day-chart-counts-value="{{ data|map(stat => stat.count)|json_encode|e('html_attr') }}"
+                height="80"></canvas>
+        <table class="analytics-table">
+            <thead><tr><th>{{ 'admin_snapshot.date'|trans }}</th><th class="text-right">{{ 'admin_snapshot.visits'|trans }}</th></tr></thead>
+            <tbody>
+            {% for stat in data %}
+                <tr><td>{{ stat.day|date('Y-m-d') }}</td><td class="text-right">{{ stat.count|number_format }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>{{ 'admin_snapshot.no_subdomain_daily'|trans }}</p>
+    {% endif %}
+{% else %}
+    <h2>{{ 'admin_snapshot.subdomain_routes_title'|trans }}</h2>
+    {% if data|length > 0 %}
+        <table class="analytics-table">
+            <thead><tr><th>{{ 'admin_snapshot.subdomain'|trans }}</th><th>{{ 'admin_snapshot.route'|trans }}</th><th class="text-right">{{ 'admin_snapshot.visits'|trans }}</th></tr></thead>
+            <tbody>
+            {% for stat in data %}
+                <tr><td><code>{{ stat.subdomain }}</code></td><td>{{ stat.route }}</td><td class="text-right">{{ stat.count|number_format }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>{{ 'admin_snapshot.no_subdomain_routes'|trans }}</p>
+    {% endif %}
+{% endif %}
+</div>
+</turbo-frame>
+
+

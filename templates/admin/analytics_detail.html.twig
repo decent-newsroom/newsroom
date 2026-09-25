@@ -1,60 +1,56 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Analytics Detail{% endblock %}
+{% block title %}{{ 'admin_visit_detail.title'|trans }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('styles/04-pages/admin-dashboard.css') }}">
+{% endblock %}
 
 {% block body %}
     <div class="analytics-container">
-        <h1>Analytics — Detail View</h1>
-        <p><a href="{{ path('admin_analytics') }}">← Back to main analytics</a></p>
+        <h1>{{ 'admin_visit_detail.title'|trans }}</h1>
+        <p><a href="{{ path('admin_analytics') }}">{{ 'admin_visit_detail.back'|trans }}</a></p>
+        <p>{{ 'admin_visit_detail.intro'|trans }}</p>
+        <p>{{ 'admin_visit_detail.sample_note'|trans }}</p>
 
         <div class="analytics-summary-row">
             <div class="analytics-card">
-                <h2>Totals (Last 30 Days)</h2>
-                <ul class="analytics-stats">
-                    <li><strong>Page views:</strong> {{ totalVisitsLast30|number_format }}</li>
-                    <li><strong>Unique visitors:</strong> {{ totalUniqueVisitorsLast30|number_format }}</li>
-                </ul>
+                <h2>{{ 'admin_visit_detail.visits_title'|trans }}</h2>
+                <turbo-frame id="analytics-detail-visits" src="{{ path('admin_analytics_detail_metric', {metric: 'visits'}) }}" loading="lazy">
+                    <p>{{ 'admin_visit_detail.loading_visits'|trans }}</p>
+                </turbo-frame>
             </div>
-
             <div class="analytics-card">
-                <h2>Engagement (Last 30 Days)</h2>
-                <ul class="analytics-stats">
-                    <li><strong>Avg. Visits / Session:</strong> {{ averageVisitsPerSession }}</li>
-                    <li><strong>Bounce Rate:</strong> {{ bounceRate }}%</li>
-                </ul>
-                <p class="analytics-note">Bounce rate = sessions with only one page view.</p>
+                <h2>{{ 'admin_visit_detail.visitors_title'|trans }}</h2>
+                <turbo-frame id="analytics-detail-visitors" src="{{ path('admin_analytics_detail_metric', {metric: 'visitors'}) }}" loading="lazy">
+                    <p>{{ 'admin_visit_detail.loading_visitors'|trans }}</p>
+                </turbo-frame>
+            </div>
+        </div>
+
+        <div class="analytics-summary-row">
+            <div class="analytics-card">
+                <h2>{{ 'admin_visit_detail.average_title'|trans }}</h2>
+                <turbo-frame id="analytics-detail-average">
+                    <a href="{{ path('admin_analytics_detail_metric', {metric: 'average'}) }}">{{ 'admin_visit_detail.load_average'|trans }}</a>
+                </turbo-frame>
+            </div>
+            <div class="analytics-card">
+                <h2>{{ 'admin_visit_detail.bounce_title'|trans }}</h2>
+                <turbo-frame id="analytics-detail-bounce">
+                    <a href="{{ path('admin_analytics_detail_metric', {metric: 'bounce'}) }}">{{ 'admin_visit_detail.load_bounce'|trans }}</a>
+                </turbo-frame>
+                <p class="analytics-note">{{ 'admin_visit_detail.bounce_note'|trans }}</p>
             </div>
         </div>
 
         <div class="analytics-card">
-            <h2>Sessions (Last 7 Days)</h2>
-            {% if visitsBySessionLast7Days|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Session ID</th>
-                            <th class="text-right">Visits</th>
-                            <th class="text-right">First Visit</th>
-                            <th class="text-right">Last Visit</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stat in visitsBySessionLast7Days %}
-                            {% if stat.visitCount > 1 %}
-                            <tr>
-                                <td><code>{{ stat.sessionId|slice(0, 12) }}...</code></td>
-                                <td class="text-right">{{ stat.visitCount }}</td>
-                                <td class="text-right">{{ stat.firstVisit|date('M d, H:i') }}</td>
-                                <td class="text-right">{{ stat.lastVisit|date('M d, H:i') }}</td>
-                            </tr>
-                            {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No visitor sessions recorded in the last 7 days.</p>
-            {% endif %}
+            <h2>{{ 'admin_visit_detail.sessions_title'|trans }}</h2>
+            <p>{{ 'admin_visit_detail.sessions_note'|trans }}</p>
+            <turbo-frame id="analytics-detail-sessions">
+                <a href="{{ path('admin_analytics_detail_metric', {metric: 'sessions'}) }}">{{ 'admin_visit_detail.load_sessions'|trans }}</a>
+            </turbo-frame>
         </div>
-
     </div>
 {% endblock %}
