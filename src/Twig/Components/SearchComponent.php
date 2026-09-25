@@ -3,6 +3,7 @@
 namespace App\Twig\Components;
 
 use App\Dto\SearchFilters;
+use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Search\ArticleSearchInterface;
@@ -11,7 +12,7 @@ use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
@@ -26,7 +27,9 @@ final class SearchComponent extends AbstractController
 
     #[LiveProp(writable: true, useSerializerForHydration: true)]
     public string $query = '';
+    /** @var Article[] */
     public array $results = [];
+    /** @var array<string, \stdClass> */
     public array $authors = [];
 
     public bool $interactive = true;
@@ -67,114 +70,119 @@ final class SearchComponent extends AbstractController
     #[LiveProp(writable: true)]
     public string $filterSort = 'relevance';
 
-    private const SESSION_KEY = 'last_search_results';
-    private const SESSION_QUERY_KEY = 'last_search_query';
+    public string $filterError = '';
+
+    private const SESSION_CRITERIA_KEY = 'last_search_criteria';
+    private const LEGACY_SESSION_KEY = 'last_search_results';
+    private const LEGACY_SESSION_QUERY_KEY = 'last_search_query';
 
     public function __construct(
         private readonly ArticleSearchInterface $articleSearch,
         private readonly LoggerInterface $logger,
-        private readonly CacheInterface $cache,
         private readonly RequestStack $requestStack,
         private readonly RedisCacheService $redisCacheService
-    )
-    {
+    ) {
     }
 
-    public function mount($query = '', $currentRoute = 'search'): void
+    public function mount(string $query = '', string $currentRoute = 'search'): void
     {
         $this->currentRoute = $currentRoute;
-        $this->query = $query;
+        $this->query = trim((string) $query);
 
-        $this->logger->info('SearchComponent mount called with query: "' . $this->query . '"');
+        $request = $this->requestStack->getCurrentRequest();
+        $explicitQuery = $request?->attributes->get('_route') === 'app_search_index'
+            && $request->query->has('q');
 
-
-        // If a query is provided (from URL or prop), perform the search automatically
-        if (!empty($this->query)) {
-            $this->logger->info('Query detected in mount, triggering search for: ' . $this->query);
-            // Clear cache if this is a different query than what's cached
-            $session = $this->requestStack->getSession();
-            if ($session->has(self::SESSION_QUERY_KEY)) {
-                $cachedQuery = $session->get(self::SESSION_QUERY_KEY);
-                if ($cachedQuery !== $this->query) {
-                    $this->clearSearchCache();
-                    $this->logger->info('Cleared cache for different query. Old: ' . $cachedQuery . ', New: ' . $this->query);
-                }
+        if ($this->query !== '' || $explicitQuery) {
+            if ($this->query === '') {
+                $this->forgetSearchCriteria();
+                return;
             }
 
-            try {
-                $this->search();
-            } catch (\Exception $e) {
-                $this->logger->error('Search error on mount: ' . $e->getMessage());
-            }
+            $this->search();
             return;
         }
 
-        // Otherwise, restore search results from session if available
-        if ($this->currentRoute == 'search') {
-            $session = $this->requestStack->getSession();
-            if ($session->has(self::SESSION_QUERY_KEY)) {
-                $this->query = $session->get(self::SESSION_QUERY_KEY);
-                $this->results = $session->get(self::SESSION_KEY, []);
-                $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
-                $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
-                $this->logger->info('Restored search results from session for query: ' . $this->query);
-            }
+        if ($this->currentRoute !== 'search') {
+            return;
+        }
+
+        $saved = $this->requestStack->getSession()->get(self::SESSION_CRITERIA_KEY);
+        if (!is_array($saved) || !is_array($saved['criteria'] ?? null)) {
+            return;
+        }
+
+        $criteria = $saved['criteria'];
+        $this->query = (string) ($criteria['query'] ?? '');
+        $this->filterDateFrom = (string) ($criteria['dateFrom'] ?? '');
+        $this->filterDateTo = (string) ($criteria['dateTo'] ?? '');
+        $this->filterAuthor = (string) ($criteria['author'] ?? '');
+        $this->filterTags = (string) ($criteria['tags'] ?? '');
+        $this->filterKind = (string) ($criteria['kind'] ?? '');
+        $this->filterSort = (string) ($criteria['sort'] ?? 'relevance');
+        $this->page = max(1, (int) ($saved['page'] ?? 1));
+        $this->showFilters = (bool) ($saved['showFilters'] ?? $this->hasActiveFilters());
+
+        if ($this->query !== '' || $this->hasActiveFilters()) {
+            $this->search();
         }
     }
 
     /**
-     * Perform search
+     * Run the current query and filters. Only a completely blank search remains empty.
      */
     #[LiveAction]
-    public function search()
+    public function search(): ?Response
     {
-        $this->logger->info("Query: {$this->query}");
+        $this->query = trim($this->query);
+        $this->filterError = '';
 
-        if (empty($this->query)) {
+        if ($this->query === '' && !$this->hasActiveFilters()) {
             $this->results = [];
             $this->authors = [];
-            $this->clearSearchCache();
-            return null;
-        }
-
-        // Check if the query is a Nostr identifier and handle redirect
-        $nostrType = (static function (string $identifier): ?string { $id = trim($identifier); if (str_starts_with($id, 'nostr:')) { $id = substr($id, 6); } foreach (['npub1' => 'npub', 'naddr1' => 'naddr', 'nevent1' => 'nevent', 'note1' => 'note', 'nprofile1' => 'nprofile', 'nsec1' => 'nsec'] as $prefix => $type) { if (str_starts_with($id, $prefix)) { return $type; } } return null; })((string) ($this->query));
-        if ($nostrType !== null) {
-            $identifier = (static function (string $identifier): string { $identifier = trim($identifier); if (str_starts_with($identifier, 'nostr:')) { return substr($identifier, 6); } return $identifier; })((string) ($this->query));
-            $this->logger->info('Detected Nostr identifier, redirecting', ['type' => $nostrType, 'identifier' => $identifier]);
-
-            // Route based on identifier type
-            return match($nostrType) {
-                'npub' => $this->redirectToRoute('author-profile', ['npub' => $identifier]),
-                'naddr', 'nevent', 'note', 'nprofile' => $this->redirectToRoute('nevent', ['nevent' => $identifier]),
-                default => null
-            };
-        }
-
-        // Check if the same query exists in session (works for both auth and anon)
-        $session = $this->requestStack->getSession();
-        if ($session->has(self::SESSION_QUERY_KEY) &&
-            $session->get(self::SESSION_QUERY_KEY) === $this->query) {
-            $this->results = $session->get(self::SESSION_KEY, []);
-            $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
-            $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
-            $this->logger->info('Using cached search results for query: ' . $this->query);
+            $this->page = 1;
+            $this->forgetSearchCriteria();
             return null;
         }
 
         try {
+            $filters = $this->buildFilters();
+        } catch (\InvalidArgumentException $e) {
+            $this->filterError = $e->getMessage();
             $this->results = [];
+            $this->authors = [];
+            return null;
+        }
 
-            // Perform search with default results per page limit
-            $this->results = $this->performOptimizedSearch($this->query);
-            $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
-            $metadataMap = $this->redisCacheService->getMultipleMetadata($pubkeys);
-            // Convert UserMetadata DTOs to stdClass for template compatibility
+        // Nostr identifiers keep their existing redirect behavior.
+        $identifier = $this->query;
+        if (str_starts_with($identifier, 'nostr:')) {
+            $identifier = substr($identifier, 6);
+        }
+        foreach (['npub1' => 'npub', 'naddr1' => 'naddr', 'nevent1' => 'nevent', 'note1' => 'note', 'nprofile1' => 'nprofile', 'nsec1' => 'nsec'] as $prefix => $type) {
+            if (!str_starts_with($identifier, $prefix)) {
+                continue;
+            }
+            return match ($type) {
+                'npub' => $this->redirectToRoute('author-profile', ['npub' => $identifier]),
+                'naddr', 'nevent', 'note', 'nprofile' => $this->redirectToRoute('nevent', ['nevent' => $identifier]),
+                default => null,
+            };
+        }
+
+        $session = $this->requestStack->getSession();
+        $previous = $session->get(self::SESSION_CRITERIA_KEY);
+        if (is_array($previous) && ($previous['criteria'] ?? null) !== $this->criteriaSignature()) {
+            $this->page = 1;
+        }
+        $this->page = max(1, $this->page);
+
+        try {
+            $this->results = $this->performOptimizedSearch($this->query, $filters);
+            $pubkeys = array_unique(array_map(fn($article) => $article->getPubkey(), $this->results));
+            $metadataMap = $pubkeys === [] ? [] : $this->redisCacheService->getMultipleMetadata($pubkeys);
             $this->authors = array_map(fn($metadata) => $metadata->toStdClass(), $metadataMap);
-
-            // Cache the search results in session
-            $this->saveSearchToSession($this->query, $this->results);
-
+            $this->saveSearchCriteria();
         } catch (\Exception $e) {
             $this->logger->error('Search error: ' . $e->getMessage());
             $this->results = [];
@@ -210,14 +218,12 @@ final class SearchComponent extends AbstractController
      * Perform optimized single search query
      * @param string $query The search query
      * @param int|null $maxResults Maximum number of results (null for default)
+     * @return Article[]
      */
-    private function performOptimizedSearch(string $query, ?int $maxResults = null): array
+    private function performOptimizedSearch(string $query, SearchFilters $filters, ?int $maxResults = null): array
     {
-        // Pagination - use maxResults if provided, otherwise use default resultsPerPage
         $effectiveResultsPerPage = $maxResults ?? $this->resultsPerPage;
         $offset = ($this->page - 1) * $effectiveResultsPerPage;
-
-        $filters = $this->buildFilters();
 
         if ($filters->hasActiveFilters()) {
             $results = $this->articleSearch->advancedSearch($query, $filters, $effectiveResultsPerPage, $offset);
@@ -231,40 +237,85 @@ final class SearchComponent extends AbstractController
     }
 
     /**
-     * Build a SearchFilters DTO from the current LiveProp values.
+     * Build validated filters from the current LiveProp values.
      */
     private function buildFilters(): SearchFilters
     {
-        // Resolve author to hex pubkey if it looks like an npub
-        $authorHex = null;
-        if (!empty($this->filterAuthor)) {
-            $author = trim($this->filterAuthor);
-            if (str_starts_with(strtolower(trim((string) ($author))), 'npub1')) {
-                try {
-                    $authorHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($author));
-                } catch (\InvalidArgumentException) {
-                    // keep null — invalid npub is ignored
-                }
-            } elseif (PublicKey::fromHex(strtolower(trim((string) ($author)))) !== null) {
-                $authorHex = $author;
+        $dateFrom = trim($this->filterDateFrom);
+        $dateTo = trim($this->filterDateTo);
+        foreach ([$dateFrom, $dateTo] as $date) {
+            if ($date !== '' && (!$this->isValidDate($date))) {
+                throw new \InvalidArgumentException('search.filters.invalidDateRange');
             }
-            // If it's a plain name, we leave authorHex null (name search not supported yet)
+        }
+        if ($dateFrom !== '' && $dateTo !== '' && $dateFrom > $dateTo) {
+            throw new \InvalidArgumentException('search.filters.invalidDateRange');
         }
 
+        if (!in_array($this->filterSort, ['relevance', 'newest', 'oldest'], true)) {
+            throw new \InvalidArgumentException('search.filters.invalidSort');
+        }
+
+        $authorHex = null;
+        $author = strtolower(trim($this->filterAuthor));
+        if ($author !== '') {
+            if (str_starts_with($author, 'nostr:')) {
+                $author = substr($author, 6);
+            }
+            try {
+                $publicKey = str_starts_with($author, 'npub1')
+                    ? PublicKey::fromBech32($author)
+                    : PublicKey::fromHex($author);
+            } catch (\InvalidArgumentException) {
+                $publicKey = null;
+            }
+            if ($publicKey === null) {
+                throw new \InvalidArgumentException('search.filters.invalidAuthor');
+            }
+            $authorHex = strtolower($publicKey->toHex());
+        }
+
+        $tags = trim($this->filterTags);
+        $kind = trim($this->filterKind);
+
         return new SearchFilters(
-            dateFrom: $this->filterDateFrom !== '' ? $this->filterDateFrom : null,
-            dateTo: $this->filterDateTo !== '' ? $this->filterDateTo : null,
+            dateFrom: $dateFrom !== '' ? $dateFrom : null,
+            dateTo: $dateTo !== '' ? $dateTo : null,
             author: $authorHex,
-            tags: $this->filterTags !== '' ? $this->filterTags : null,
-            kind: $this->filterKind !== '' ? (int) $this->filterKind : null,
+            tags: $tags !== '' ? $tags : null,
+            kind: $kind !== '' ? (int) $kind : null,
             sortBy: $this->filterSort,
         );
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date, new \DateTimeZone('UTC'));
+
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
     }
 
     #[LiveAction]
     public function toggleFilters(): void
     {
         $this->showFilters = !$this->showFilters;
+        $this->search();
+    }
+
+    #[LiveAction]
+    public function clearDateFrom(): void
+    {
+        $this->filterDateFrom = '';
+        $this->page = 1;
+        $this->search();
+    }
+
+    #[LiveAction]
+    public function clearDateTo(): void
+    {
+        $this->filterDateTo = '';
+        $this->page = 1;
+        $this->search();
     }
 
     #[LiveAction]
@@ -277,7 +328,7 @@ final class SearchComponent extends AbstractController
         $this->filterKind = '';
         $this->filterSort = 'relevance';
         $this->page = 1;
-        $this->clearSearchCache();
+        $this->search();
     }
 
     /**
@@ -297,30 +348,49 @@ final class SearchComponent extends AbstractController
      */
     public function hasActiveFilters(): bool
     {
-        return $this->buildFilters()->hasActiveFilters();
-    }
-
-
-
-    /**
-     * Save search results to session
-     */
-    private function saveSearchToSession(string $query, array $results): void
-    {
-        $session = $this->requestStack->getSession();
-        $session->set(self::SESSION_QUERY_KEY, $query);
-        $session->set(self::SESSION_KEY, $results);
-        $this->logger->info('Saved search results to session for query: ' . $query);
+        return trim($this->filterDateFrom) !== ''
+            || trim($this->filterDateTo) !== ''
+            || trim($this->filterAuthor) !== ''
+            || trim($this->filterTags) !== ''
+            || trim($this->filterKind) !== ''
+            || $this->filterSort !== 'relevance';
     }
 
     /**
-     * Clear search cache from session
+     * Keep the criteria needed to reproduce the view, never serialized result objects.
      */
-    private function clearSearchCache(): void
+    /** @return array{query: string, dateFrom: string, dateTo: string, author: string, tags: string, kind: string, sort: string} */
+    /** @return array{query: string, dateFrom: string, dateTo: string, author: string, tags: string, kind: string, sort: string} */
+    private function criteriaSignature(): array
+    {
+        return [
+            'query' => $this->query,
+            'dateFrom' => trim($this->filterDateFrom),
+            'dateTo' => trim($this->filterDateTo),
+            'author' => trim($this->filterAuthor),
+            'tags' => trim($this->filterTags),
+            'kind' => trim($this->filterKind),
+            'sort' => $this->filterSort,
+        ];
+    }
+
+    private function saveSearchCriteria(): void
     {
         $session = $this->requestStack->getSession();
-        $session->remove(self::SESSION_QUERY_KEY);
-        $session->remove(self::SESSION_KEY);
-        $this->logger->info('Cleared search cache from session');
+        $session->set(self::SESSION_CRITERIA_KEY, [
+            'criteria' => $this->criteriaSignature(),
+            'page' => $this->page,
+            'showFilters' => $this->showFilters,
+        ]);
+        $session->remove(self::LEGACY_SESSION_KEY);
+        $session->remove(self::LEGACY_SESSION_QUERY_KEY);
+    }
+
+    private function forgetSearchCriteria(): void
+    {
+        $session = $this->requestStack->getSession();
+        $session->remove(self::SESSION_CRITERIA_KEY);
+        $session->remove(self::LEGACY_SESSION_KEY);
+        $session->remove(self::LEGACY_SESSION_QUERY_KEY);
     }
 }

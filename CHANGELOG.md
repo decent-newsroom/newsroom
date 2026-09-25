@@ -2,6 +2,7 @@
 
 ## v0.0.54
 
+- [Fix] Made advanced article search apply changed filters and sort, support filter-only queries, clear dates independently, validate inputs, and align Elasticsearch/PostgreSQL date bounds.
 - [Feature] Added hosted Unfold About pages with owner-selected or conventional article introductions and deduplicated publication people sections.
 - [Fix] Render validated NIP-21 profile and event links in Unfold comments, including profile mentions, with escaped comment text, links to the main platform, and wrapping for long malformed identifiers.
 - [Fix] Moved the Unfold sitemap link beside RSS in the publication footer and removed the platform sitemap link.

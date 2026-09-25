@@ -91,11 +91,12 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
         }
 
         try {
+            $query = trim($query);
             $mainQuery = new Query();
             $boolQuery = new BoolQuery();
 
             // Text query — if provided, use the same multi-match approach as search()
-            if (!empty($query)) {
+            if ($query !== '') {
                 $phraseMatch = new Query\MatchPhrase();
                 $phraseMatch->setField('search_combined', [
                     'query' => $query,
@@ -118,10 +119,13 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
             // Date range
             $rangeParams = [];
             if ($filters->dateFrom) {
-                $rangeParams['gte'] = $filters->dateFrom;
+                $rangeParams['gte'] = (new \DateTimeImmutable($filters->dateFrom . ' 00:00:00', new \DateTimeZone('UTC')))
+                    ->format('Y-m-d\TH:i:s\Z');
             }
             if ($filters->dateTo) {
-                $rangeParams['lte'] = $filters->dateTo;
+                $rangeParams['lt'] = (new \DateTimeImmutable($filters->dateTo . ' 00:00:00', new \DateTimeZone('UTC')))
+                    ->modify('+1 day')
+                    ->format('Y-m-d\TH:i:s\Z');
             }
             if (!empty($rangeParams)) {
                 $boolQuery->addFilter(new Range('createdAt', $rangeParams));
@@ -147,7 +151,7 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
             }
 
             // If no text query was given, match all (filters only)
-            if (empty($query)) {
+            if ($query === '') {
                 $boolQuery->addMust(new Query\MatchAll());
             }
 
@@ -157,7 +161,7 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
             $mainQuery->setParam('collapse', ['field' => 'slug']);
 
             // Only set minimum score when there is a text query
-            if (!empty($query)) {
+            if ($query !== '') {
                 $mainQuery->setMinScore(0.25);
             }
 
@@ -165,7 +169,7 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
             $sort = match ($filters->sortBy) {
                 'newest' => [['createdAt' => ['order' => 'desc']]],
                 'oldest' => [['createdAt' => ['order' => 'asc']]],
-                default  => !empty($query)
+                default  => $query !== ''
                     ? [['_score' => ['order' => 'desc']], ['createdAt' => ['order' => 'desc']]]
                     : [['createdAt' => ['order' => 'desc']]],
             };

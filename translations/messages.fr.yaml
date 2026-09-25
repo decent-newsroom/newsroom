@@ -381,6 +381,11 @@ search:
         toggle: 'Filtres avancés'
         dateFrom: 'À partir du'
         dateTo: "Jusqu'au"
+        clearDateFrom: 'Effacer la date de début'
+        clearDateTo: 'Effacer la date de fin'
+        invalidAuthor: 'Saisissez un npub valide ou une clé publique hexadécimale de 64 caractères.'
+        invalidDateRange: 'Saisissez une plage de dates valide.'
+        invalidSort: 'Choisissez un ordre de tri valide.'
         author: 'Auteur'
         authorPlaceholder: 'npub ou clé publique hex'
         tags: 'Tags'

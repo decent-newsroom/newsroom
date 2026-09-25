@@ -581,6 +581,7 @@ class ArticleRepository extends ServiceEntityRepository
      */
     public function advancedSearch(string $query, SearchFilters $filters, int $limit = 12, int $offset = 0, bool $includeEssayistExclusive = false): array
     {
+        $query = trim($query);
         $qb = $this->createQueryBuilder('a');
 
         // Exclude slashes in slug
@@ -592,7 +593,7 @@ class ArticleRepository extends ServiceEntityRepository
         }
 
         // Text query (LIKE fallback)
-        if (!empty($query)) {
+        if ($query !== '') {
             $searchTerm = '%' . $query . '%';
             $qb->andWhere(
                 $qb->expr()->orX(
@@ -607,13 +608,13 @@ class ArticleRepository extends ServiceEntityRepository
         // Date from
         if ($filters->dateFrom) {
             $qb->andWhere('a.createdAt >= :dateFrom')
-                ->setParameter('dateFrom', new \DateTimeImmutable($filters->dateFrom));
+                ->setParameter('dateFrom', new \DateTimeImmutable($filters->dateFrom . ' 00:00:00', new \DateTimeZone('UTC')));
         }
 
-        // Date to (end of day)
+        // Date to (exclusive start of the following day)
         if ($filters->dateTo) {
-            $qb->andWhere('a.createdAt <= :dateTo')
-                ->setParameter('dateTo', new \DateTimeImmutable($filters->dateTo . ' 23:59:59'));
+            $qb->andWhere('a.createdAt < :dateTo')
+                ->setParameter('dateTo', (new \DateTimeImmutable($filters->dateTo . ' 00:00:00', new \DateTimeZone('UTC')))->modify('+1 day'));
         }
 
         // Author (hex pubkey)
@@ -665,7 +666,7 @@ class ArticleRepository extends ServiceEntityRepository
         }
 
         // Text query
-        if (!empty($query)) {
+        if ($query !== '') {
             $wheres[] = "(title ILIKE :search OR content ILIKE :search OR summary ILIKE :search)";
             $params['search'] = '%' . $query . '%';
             $types['search'] = ParameterType::STRING;
@@ -674,12 +675,15 @@ class ArticleRepository extends ServiceEntityRepository
         // Date range
         if ($filters->dateFrom) {
             $wheres[] = "created_at >= :dateFrom";
-            $params['dateFrom'] = $filters->dateFrom;
+            $params['dateFrom'] = (new \DateTimeImmutable($filters->dateFrom . ' 00:00:00', new \DateTimeZone('UTC')))
+                ->format('Y-m-d H:i:s');
             $types['dateFrom'] = ParameterType::STRING;
         }
         if ($filters->dateTo) {
-            $wheres[] = "created_at <= :dateTo";
-            $params['dateTo'] = $filters->dateTo . ' 23:59:59';
+            $wheres[] = "created_at < :dateTo";
+            $params['dateTo'] = (new \DateTimeImmutable($filters->dateTo . ' 00:00:00', new \DateTimeZone('UTC')))
+                ->modify('+1 day')
+                ->format('Y-m-d H:i:s');
             $types['dateTo'] = ParameterType::STRING;
         }
 

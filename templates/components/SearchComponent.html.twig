@@ -39,17 +39,35 @@
                     {# Date range #}
                     <div class="advanced-filters__field">
                         <label for="filter-date-from">{{ 'search.filters.dateFrom'|trans }}</label>
-                        <input type="date"
-                               id="filter-date-from"
-                               data-model="filterDateFrom"
-                               value="{{ this.filterDateFrom }}" />
+                        <div class="advanced-filters__date-control">
+                            <input type="date"
+                                   id="filter-date-from"
+                                   data-model="norender|filterDateFrom"
+                                   value="{{ this.filterDateFrom }}" />
+                            <button type="button"
+                                    class="advanced-filters__clear-date"
+                                    data-action="live#action"
+                                    data-live-action-param="clearDateFrom"
+                                    aria-controls="filter-date-from">
+                                {{ 'search.filters.clearDateFrom'|trans }}
+                            </button>
+                        </div>
                     </div>
                     <div class="advanced-filters__field">
                         <label for="filter-date-to">{{ 'search.filters.dateTo'|trans }}</label>
-                        <input type="date"
-                               id="filter-date-to"
-                               data-model="filterDateTo"
-                               value="{{ this.filterDateTo }}" />
+                        <div class="advanced-filters__date-control">
+                            <input type="date"
+                                   id="filter-date-to"
+                                   data-model="norender|filterDateTo"
+                                   value="{{ this.filterDateTo }}" />
+                            <button type="button"
+                                    class="advanced-filters__clear-date"
+                                    data-action="live#action"
+                                    data-live-action-param="clearDateTo"
+                                    aria-controls="filter-date-to">
+                                {{ 'search.filters.clearDateTo'|trans }}
+                            </button>
+                        </div>
                     </div>
 
                     {# Author #}
@@ -57,7 +75,7 @@
                         <label for="filter-author">{{ 'search.filters.author'|trans }}</label>
                         <input type="text"
                                id="filter-author"
-                               data-model="filterAuthor"
+                               data-model="norender|filterAuthor"
                                value="{{ this.filterAuthor }}"
                                placeholder="{{ 'search.filters.authorPlaceholder'|trans }}" />
                     </div>
@@ -67,7 +85,7 @@
                         <label for="filter-tags">{{ 'search.filters.tags'|trans }}</label>
                         <input type="text"
                                id="filter-tags"
-                               data-model="filterTags"
+                               data-model="norender|filterTags"
                                value="{{ this.filterTags }}"
                                placeholder="{{ 'search.filters.tagsPlaceholder'|trans }}" />
                     </div>
@@ -76,7 +94,7 @@
                     <div class="advanced-filters__field">
                         <label for="filter-sort">{{ 'search.filters.sortBy'|trans }}</label>
                         <select id="filter-sort"
-                                data-model="filterSort">
+                                data-model="norender|filterSort">
                             <option value="relevance" {{ this.filterSort == 'relevance' ? 'selected' : '' }}>{{ 'search.filters.sortRelevance'|trans }}</option>
                             <option value="newest" {{ this.filterSort == 'newest' ? 'selected' : '' }}>{{ 'search.filters.sortNewest'|trans }}</option>
                             <option value="oldest" {{ this.filterSort == 'oldest' ? 'selected' : '' }}>{{ 'search.filters.sortOldest'|trans }}</option>
@@ -99,6 +117,9 @@
                     </button>
                 </div>
             </div>
+            {% endif %}
+            {% if this.filterError is not empty %}
+                <p class="advanced-filters__error" role="alert">{{ this.filterError|trans }}</p>
             {% endif %}
         </div>
 
@@ -151,7 +172,7 @@
             {% else %}
                 <twig:Organisms:CardList :list="this.results" class="article-list" />
             {% endif %}
-        {% elseif this.query is not empty or this.hasActiveFilters %}
+        {% elseif this.filterError is empty and (this.query is not empty or this.hasActiveFilters) %}
             <p><small>{{ 'text.noResults'|trans }}</small></p>
         {% endif %}
 </div>
