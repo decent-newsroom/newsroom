@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DecentNewsroom\UnfoldBundle\Controller\Admin;
 
 use DecentNewsroom\UnfoldBundle\Admin\PublicationContext;
+use DecentNewsroom\UnfoldBundle\Config\AboutArticleReference;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
@@ -56,6 +57,7 @@ final readonly class PublicationAdminController
     {
         $selectedTheme = $publication->settings->theme;
         $footerLinks = $publication->settings->footerLinks;
+        $aboutArticle = $publication->settings->aboutArticleCoordinate ?? '';
         $error = null;
         $status = 200;
         if ($request->isMethod('POST')) {
@@ -66,7 +68,45 @@ final readonly class PublicationAdminController
             $selectedTheme = (string) $request->request->get('theme', '');
             try {
                 $footerLinks = $this->submittedFooterLinks($request);
-                $this->settings->savePresentation($publication->coordinate, $selectedTheme, $footerLinks);
+                $form = $request->request->all();
+                $updateAboutArticle = array_key_exists('about_article', $form);
+                if ($updateAboutArticle && !is_string($form['about_article'])) {
+                    throw new \InvalidArgumentException('unfold_setup.invalid_about_article');
+                }
+                if ($updateAboutArticle) {
+                    $aboutArticle = $form['about_article'];
+                }
+                $reference = $updateAboutArticle && trim($aboutArticle) !== ''
+                    ? AboutArticleReference::fromInput($aboutArticle) : null;
+                $relayHints = $reference === null ? [] : $reference->relayHints;
+                if ($reference !== null && $relayHints === []
+                    && $reference->coordinate === $publication->settings->aboutArticleCoordinate) {
+                    $relayHints = $publication->settings->aboutRelayHints;
+                }
+                if ($updateAboutArticle && $reference !== null) {
+                    $event = $this->events->findByCoordinate($reference->coordinate, $relayHints);
+                    $parts = explode(':', $reference->coordinate, 3);
+                    $dtag = null;
+                    foreach ($event === null ? [] : $event->tags as $tag) {
+                        if (($tag[0] ?? null) === 'd') {
+                            $dtag = $tag[1] ?? null;
+                            break;
+                        }
+                    }
+                    if ($event === null || $event->kind !== 30023
+                        || strtolower($event->pubkey) !== $parts[1]
+                        || $dtag !== $parts[2]) {
+                        throw new \InvalidArgumentException('unfold_setup.invalid_about_article');
+                    }
+                }
+                $this->settings->savePresentation(
+                    $publication->coordinate,
+                    $selectedTheme,
+                    $footerLinks,
+                    $reference?->coordinate,
+                    $relayHints,
+                    $updateAboutArticle,
+                );
                 $request->getSession()->getFlashBag()->add('unfold_success', 'unfold_admin.saved');
                 return new RedirectResponse($publication->adminPathPrefix . '/settings', 303);
             } catch (\InvalidArgumentException $e) {
@@ -83,6 +123,7 @@ final readonly class PublicationAdminController
             'themes' => $this->renderer->getAvailableThemes(),
             'selectedTheme' => $selectedTheme,
             'footerLinks' => $footerLinks,
+            'aboutArticle' => $aboutArticle,
             'error' => $error,
         ]), $status);
     }

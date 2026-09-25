@@ -1382,6 +1382,7 @@ unfold_setup:
     subdomain_taken: 'Ta poddomena je že v uporabi.'
     invalid_theme: 'Izbrana tema ni veljavna.'
     invalid_footer_links: 'Povezave v nogi morajo imeti oznako in naslov HTTPS (največ pet povezav).'
+    invalid_about_article: "Vnesite koordinato ali naddr objavljenega članka, ki se ujema z izbranim člankom."
     save_failed: 'Strani ni bilo mogoče shraniti. Poskusite znova.'
 
 
@@ -1408,6 +1409,14 @@ unfold_admin:
     link_number: "Povezava %number%"
     link_label: "Oznaka"
     link_url: "Naslov HTTPS"
+    about_article: "Članek O nas"
+    about_article_help: "Vnesite koordinato ali naddr objavljenega članka. Pustite prazno za edini članek na korenski ravni; sicer se uporabi opis revije ali privzeto besedilo."
+
+unfold_about:
+    title: "O nas"
+    default_intro: "Spoznajte %title% in ljudi, ki ga ustvarjajo."
+    magazine_people: "Sodelavci revije"
+    featured_writers: "Izpostavljeni avtorji"
 
 unfold_footer:
     publication: "Publikacija"

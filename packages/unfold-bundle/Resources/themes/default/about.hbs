@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{about.title}} - {{site.title}}</title>
+    <meta name="description" content="{{site.description}}">
+    <link rel="stylesheet" href="/unfold-themes/default/footer.css">
+    <link rel="stylesheet" href="/unfold-themes/default/about.css">
+</head>
+<body>
+    {{> header}}
+
+    <main class="about-page">
+        <h1>{{about.title}}</h1>
+
+        <section class="about-introduction" aria-label="{{about.title}}">
+            {{#if about.has_article}}
+                {{#if about.article_title}}<h2>{{about.article_title}}</h2>{{/if}}
+                <div class="about-article-content">{{{about.article_html}}}</div>
+            {{else}}
+                <p>{{about.intro_text}}</p>
+            {{/if}}
+        </section>
+
+        <section class="about-people" aria-labelledby="about-magazine-people">
+            <h2 id="about-magazine-people">{{about.magazine_people_label}}</h2>
+            <ul class="about-people-list">
+                {{#each about.magazine_people}}
+                    <li class="about-person">
+                        <a href="{{url}}">
+                            {{#if picture}}<img src="{{picture}}" alt="" loading="lazy">{{/if}}
+                            <span>{{name}}</span>
+                        </a>
+                    </li>
+                {{/each}}
+            </ul>
+        </section>
+
+        <section class="about-people" aria-labelledby="about-featured-writers">
+            <h2 id="about-featured-writers">{{about.featured_writers_label}}</h2>
+            <ul class="about-people-list">
+                {{#each about.featured_writers}}
+                    <li class="about-person">
+                        <a href="{{url}}">
+                            {{#if picture}}<img src="{{picture}}" alt="" loading="lazy">{{/if}}
+                            <span>{{name}}</span>
+                        </a>
+                    </li>
+                {{/each}}
+            </ul>
+        </section>
+    </main>
+
+    {{> footer}}
+</body>
+</html>

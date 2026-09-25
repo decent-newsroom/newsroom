@@ -18,6 +18,9 @@ readonly class SiteConfig
      * @param string $pubkey Owner's hex pubkey
      * @param string $theme Locally selected theme
      * @param list<array{label: string, url: string}> $footerLinks Owner-selected footer links
+     * @param list<string> $rootArticleCoordinates Direct root-index kind 30023 references
+     * @param list<string> $authorPubkeys Valid root-index p tags in source order
+     * @param list<string> $aboutRelayHints Relay hints from owner-selected naddr
      */
     public function __construct(
         public string $naddr,
@@ -28,16 +31,20 @@ readonly class SiteConfig
         public string $pubkey,
         public string $theme = 'default',
         public array $footerLinks = [],
+        public array $rootArticleCoordinates = [],
+        public array $authorPubkeys = [],
+        public ?string $aboutArticleCoordinate = null,
+        public array $aboutRelayHints = [],
     ) {}
 
     public function withTheme(string $theme): self
     {
-        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $theme, $this->footerLinks);
+        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $theme, $this->footerLinks, $this->rootArticleCoordinates, $this->authorPubkeys, $this->aboutArticleCoordinate, $this->aboutRelayHints);
     }
 
     public function withSettings(PublicationSettings $settings): self
     {
-        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $settings->theme, $settings->footerLinks);
+        return new self($this->naddr, $this->title, $this->description, $this->logo, $this->categories, $this->pubkey, $settings->theme, $settings->footerLinks, $this->rootArticleCoordinates, $this->authorPubkeys, $settings->aboutArticleCoordinate, $settings->aboutRelayHints);
     }
 
     /**
@@ -50,6 +57,8 @@ readonly class SiteConfig
         $description = '';
         $logo = null;
         $categories = [];
+        $rootArticleCoordinates = [];
+        $authorPubkeys = [];
 
         foreach ($tags as $tag) {
             if (!is_array($tag) || count($tag) < 2) {
@@ -60,7 +69,8 @@ readonly class SiteConfig
                 'title', 'name' => $title = $tag[1],
                 'description', 'summary' => $description = $tag[1],
                 'image', 'thumb', 'logo' => $logo = $tag[1],
-                'a' => $categories[] = self::normalizeCoordinate($tag[1]),
+                'a' => self::collectReference($tag[1], $categories, $rootArticleCoordinates),
+                'p' => self::collectPubkey($tag[1], $authorPubkeys),
                 default => null,
             };
         }
@@ -83,7 +93,35 @@ readonly class SiteConfig
             categories: $categories,
             pubkey: $event->pubkey,
             theme: $theme,
+            rootArticleCoordinates: $rootArticleCoordinates,
+            authorPubkeys: $authorPubkeys,
         );
+    }
+
+    /**
+     * @param list<string> $categories
+     * @param list<string> $articles
+     */
+    private static function collectReference(string $reference, array &$categories, array &$articles): void
+    {
+        if (preg_match('/^(30040|30023):([^:]+):(.+)$/D', $reference, $matches) !== 1) {
+            return;
+        }
+
+        $coordinate = self::normalizeCoordinate($reference);
+        if ($matches[1] === '30040') {
+            $categories[] = $coordinate;
+        } else {
+            $articles[] = $coordinate;
+        }
+    }
+
+    /** @param list<string> $pubkeys */
+    private static function collectPubkey(string $pubkey, array &$pubkeys): void
+    {
+        if (preg_match('/^[a-fA-F0-9]{64}$/D', $pubkey) === 1) {
+            $pubkeys[] = strtolower($pubkey);
+        }
     }
 
     /**

@@ -75,8 +75,9 @@ final class DiscoveryResponseServicesTest extends TestCase
 
         self::assertSame('application/xml; charset=UTF-8', $response->headers->get('Content-Type'));
         self::assertSame('max-age=600, public', $response->headers->get('Cache-Control'));
-        self::assertSame(3, substr_count($body, '<url>'));
+        self::assertSame(4, substr_count($body, '<url>'));
         self::assertStringContainsString('<loc>https://publication.example.test/</loc>', $body);
+        self::assertStringContainsString('<loc>https://publication.example.test/about</loc>', $body);
         self::assertStringContainsString('<loc>https://publication.example.test/news</loc>', $body);
         self::assertStringContainsString('<loc>https://publication.example.test/a/story</loc>', $body);
     }

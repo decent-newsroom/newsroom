@@ -1383,6 +1383,7 @@ unfold_setup:
     subdomain_taken: 'Ese subdominio ya está en uso.'
     invalid_theme: 'El tema seleccionado no es válido.'
     invalid_footer_links: 'Los enlaces del pie de página deben tener una etiqueta y una URL HTTPS (hasta cinco enlaces).'
+    invalid_about_article: "Introduce la coordenada o el naddr de un artículo publicado que coincida con el artículo."
     save_failed: 'No se pudo guardar el sitio. Inténtalo de nuevo.'
 
 
@@ -1409,6 +1410,14 @@ unfold_admin:
     link_number: "Enlace %number%"
     link_label: "Etiqueta"
     link_url: "URL HTTPS"
+    about_article: "Artículo Acerca de"
+    about_article_help: "Introduce la coordenada o el naddr de un artículo publicado. Déjalo vacío para usar un único artículo de la raíz; si no lo hay, la descripción de la revista o el texto predeterminado."
+
+unfold_about:
+    title: "Acerca de"
+    default_intro: "Conoce más sobre %title% y las personas que lo hacen posible."
+    magazine_people: "Personas de la revista"
+    featured_writers: "Autores destacados"
 
 unfold_footer:
     publication: "Publicación"

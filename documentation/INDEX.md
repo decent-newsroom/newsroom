@@ -138,6 +138,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 
 ### Hosted publications
 
+- [Unfold About page](Unfold/about-page.md)
 - [Comments in UnfoldBundle](Unfold/comments.md)
 - [Unfold discovery documents](Unfold/discovery-documents.md)
 - [Unfold publication footer](Unfold/publication-footer.md)

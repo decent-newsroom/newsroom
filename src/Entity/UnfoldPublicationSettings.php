@@ -23,6 +23,13 @@ class UnfoldPublicationSettings
     #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
     private array $footerLinks = [];
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $aboutArticleCoordinate = null;
+
+    /** @var list<string> */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    private array $aboutRelayHints = [];
+
     public function __construct(PublicationSettings $settings)
     {
         $this->coordinate = $settings->coordinate;
@@ -36,10 +43,12 @@ class UnfoldPublicationSettings
         }
         $this->theme = $settings->theme;
         $this->footerLinks = $settings->footerLinks;
+        $this->aboutArticleCoordinate = $settings->aboutArticleCoordinate;
+        $this->aboutRelayHints = $settings->aboutRelayHints;
     }
 
     public function toSettings(): PublicationSettings
     {
-        return new PublicationSettings($this->coordinate, $this->theme, $this->footerLinks);
+        return new PublicationSettings($this->coordinate, $this->theme, $this->footerLinks, $this->aboutArticleCoordinate, $this->aboutRelayHints);
     }
 }

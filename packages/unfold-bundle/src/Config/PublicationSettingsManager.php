@@ -44,10 +44,22 @@ class PublicationSettingsManager
         $this->loader->invalidateFromCoordinate($settings->coordinate);
     }
 
-    /** @param array<mixed> $footerLinks */
-    public function savePresentation(string $coordinate, string $theme, array $footerLinks): void
-    {
+    /**
+     * @param array<mixed> $footerLinks
+     * @param list<string> $aboutRelayHints
+     */
+    public function savePresentation(
+        string $coordinate,
+        string $theme,
+        array $footerLinks,
+        ?string $aboutArticleCoordinate = null,
+        array $aboutRelayHints = [],
+        bool $updateAboutArticle = false,
+    ): void {
         $settings = $this->resolve($coordinate, $theme)->withFooterLinks($footerLinks);
+        if ($updateAboutArticle) {
+            $settings = $settings->withAboutArticle($aboutArticleCoordinate, $aboutRelayHints);
+        }
         $this->store->save($settings);
         $this->loader->invalidateFromCoordinate($settings->coordinate);
     }

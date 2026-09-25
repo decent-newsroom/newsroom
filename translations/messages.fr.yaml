@@ -1382,6 +1382,7 @@ unfold_setup:
     subdomain_taken: 'Ce sous-domaine est déjà utilisé.'
     invalid_theme: 'Le thème sélectionné est invalide.'
     invalid_footer_links: 'Les liens de pied de page doivent avoir un libellé et une URL HTTPS (cinq liens au maximum).'
+    invalid_about_article: "Saisissez la coordonnée ou le naddr d'un article publié correspondant à cet article."
     save_failed: 'Le site n’a pas pu être enregistré. Veuillez réessayer.'
 
 
@@ -1408,6 +1409,14 @@ unfold_admin:
     link_number: "Lien %number%"
     link_label: "Libellé"
     link_url: "URL HTTPS"
+    about_article: "Article À propos"
+    about_article_help: "Saisissez la coordonnée ou le naddr d'un article publié. Laissez ce champ vide pour utiliser un seul article à la racine ; sinon, la description du magazine ou le texte par défaut."
+
+unfold_about:
+    title: "À propos"
+    default_intro: "Découvrez %title% et les personnes qui y contribuent."
+    magazine_people: "Équipe du magazine"
+    featured_writers: "Auteurs en vedette"
 
 unfold_footer:
     publication: "Publication"

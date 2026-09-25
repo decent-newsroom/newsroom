@@ -2,8 +2,8 @@
 
 > **Implementation status (2026-09):** RSS, category RSS, sitemap, robots, and
 > the `/feed.xml` redirect, two-level default footer, and locally configured
-> owner links are delivered. About, audience, and publication payment links remain
-> conditional on their later workflows.
+> owner links and the publication About page are delivered. Audience and
+> publication payment links remain conditional on their later workflows.
 
 ## Goal
 
@@ -18,6 +18,7 @@ Add explicit Unfold routes before the catch-all site controller:
 - [x] `GET /{category}/rss.xml`: category RSS feed.
 - [x] `GET /sitemap.xml`: publication sitemap.
 - [x] `GET /robots.txt`: publication robots response.
+- [x] `GET /about`: publication introduction and deduplicated people sections.
 
 These routes must run before `RouteMatcher` static-file rejection, because `.xml` and `.txt` paths are currently considered static-like and would otherwise 404.
 
@@ -49,7 +50,7 @@ Response headers:
 The publication sitemap includes:
 
 - [x] Home page `/`.
-- [ ] About page if local settings have an `about` coordinate and the route is implemented.
+- [x] About page `/about` for every hosted publication.
 - [x] Category pages from the publication index.
 - [x] Article pages from all category descendants.
 - RSS/feed URLs may be listed with low priority only if useful for crawler discovery.
@@ -81,7 +82,7 @@ Publication level:
 
 - Publication title.
 - Home link.
-- About link when local settings select an `about` article.
+- About link for every hosted publication.
 - RSS link, followed by the publication's `/sitemap.xml` link.
 - Audience/subscription link when audiences exist.
 - Publication payment/tip link when payment targets exist.

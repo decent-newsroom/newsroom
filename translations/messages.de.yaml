@@ -1393,6 +1393,7 @@ unfold_setup:
     subdomain_taken: 'Diese Subdomain wird bereits verwendet.'
     invalid_theme: 'Das ausgewählte Theme ist ungültig.'
     invalid_footer_links: 'Footer-Links benötigen eine Bezeichnung und eine HTTPS-URL (höchstens fünf Links).'
+    invalid_about_article: "Gib die Koordinate oder naddr eines veröffentlichten Artikels ein, der zu diesem Artikel passt."
     save_failed: 'Die Site konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.'
 
 
@@ -1419,6 +1420,14 @@ unfold_admin:
     link_number: "Link %number%"
     link_label: "Bezeichnung"
     link_url: "HTTPS-URL"
+    about_article: "Über-uns-Artikel"
+    about_article_help: "Gib die Koordinate oder naddr eines veröffentlichten Artikels ein. Leer lassen, um einen einzelnen Artikel der Hauptebene zu verwenden; sonst die Magazinbeschreibung oder den Standardtext."
+
+unfold_about:
+    title: "Über uns"
+    default_intro: "Erfahre mehr über %title% und die Menschen dahinter."
+    magazine_people: "Menschen des Magazins"
+    featured_writers: "Vorgestellte Autorinnen und Autoren"
 
 unfold_footer:
     publication: "Publikation"

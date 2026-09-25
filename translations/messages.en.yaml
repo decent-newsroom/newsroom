@@ -1761,6 +1761,7 @@ unfold_setup:
     subdomain_taken: 'That subdomain is already in use.'
     invalid_theme: 'The selected theme is invalid.'
     invalid_footer_links: 'Footer links must have a label and an HTTPS URL (up to five links).'
+    invalid_about_article: "Enter a published article coordinate or naddr that resolves to the matching article."
     save_failed: 'The site could not be saved. Please try again.'
 
 
@@ -1787,6 +1788,14 @@ unfold_admin:
     link_number: "Link %number%"
     link_label: "Label"
     link_url: "HTTPS URL"
+    about_article: "About article"
+    about_article_help: "Enter a published article coordinate or naddr. Leave blank to use a single root article, or otherwise the magazine description or default text."
+
+unfold_about:
+    title: "About"
+    default_intro: "Learn more about %title% and the people behind it."
+    magazine_people: "Magazine people"
+    featured_writers: "Featured writers"
 
 unfold_footer:
     publication: "Publication"

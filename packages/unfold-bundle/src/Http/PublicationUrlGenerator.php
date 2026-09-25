@@ -43,6 +43,11 @@ final class PublicationUrlGenerator
         return $this->absolute('/', $request);
     }
 
+    public function about(?Request $request = null): string
+    {
+        return $this->absolute('/about', $request);
+    }
+
     public function category(CategoryData|string $category, ?Request $request = null): string
     {
         $slug = $category instanceof CategoryData ? $category->slug : $category;

@@ -352,6 +352,82 @@ class ContentProvider
     }
 
     /**
+     * Resolve the introduction article. An explicit owner choice suppresses
+     * root-index auto-selection even when the chosen article is unavailable.
+     */
+    public function getAboutArticle(SiteConfig $site): ?PostData
+    {
+        $coordinate = $site->aboutArticleCoordinate;
+        $relayHints = $site->aboutRelayHints;
+
+        if ($coordinate === null) {
+            $rootArticles = array_values(array_unique($site->rootArticleCoordinates));
+            if (count($rootArticles) !== 1) {
+                return null;
+            }
+
+            $coordinate = $rootArticles[0];
+            $relayHints = [];
+        }
+
+        try {
+            $event = $this->eventGateway->findByCoordinate($coordinate, $relayHints);
+        } catch (\Throwable $e) {
+            $this->logger->warning('About article lookup failed', [
+                'coordinate' => $coordinate,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        return $event !== null && $this->matchesArticleCoordinate($event, $coordinate)
+            ? PostData::fromEvent($event)
+            : null;
+    }
+
+    /**
+     * Actual article authors, following category and article-reference order.
+     *
+     * @param CategoryData[] $categories
+     * @return list<string>
+     */
+    public function getCategoryArticleAuthorPubkeys(array $categories): array
+    {
+        $authors = [];
+
+        foreach ($categories as $category) {
+            // Reuse the graph-backed, SWR-cached collection used by publication pages.
+            $postsByCoordinate = [];
+            foreach ($this->getCategoryPosts($category->coordinate) as $post) {
+                if (str_starts_with($post->coordinate, '30023:')) {
+                    $postsByCoordinate[$this->normalizeCoordinate($post->coordinate)] = $post;
+                }
+            }
+
+            foreach ($category->articleCoordinates as $coordinate) {
+                $post = $postsByCoordinate[$this->normalizeCoordinate($coordinate)] ?? null;
+                if ($post === null) {
+                    continue;
+                }
+
+                $pubkey = strtolower($post->pubkey);
+                if (preg_match('/^[a-f0-9]{64}$/D', $pubkey) === 1) {
+                    $authors[$pubkey] = true;
+                }
+            }
+        }
+
+        return array_keys($authors);
+    }
+
+    private function matchesArticleCoordinate(NostrEvent $event, string $coordinate): bool
+    {
+        return $event->kind === 30023
+            && $this->normalizeCoordinate($this->eventCoordinate($event)) === $this->normalizeCoordinate($coordinate);
+    }
+
+    /**
      * Get a single post by slug
      */
     public function getPost(string $slug, SiteConfig $site): ?PostData

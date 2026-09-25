@@ -60,6 +60,57 @@ final class PublicationAdminFunctionalTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'Fixture publication');
     }
 
+    public function testAboutArticleCanBeSelectedAndClearedAcrossBothAdminMounts(): void
+    {
+        [$client, , $store] = $this->client();
+        $client->request('GET', 'https://publication.localhost/admin/settings');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('input[name="about_article"]');
+        $token = $client->getCrawler()->filter('input[name="_token"]')->attr('value');
+        $client->request('POST', 'https://publication.localhost/admin/settings', [
+            '_token' => $token, 'theme' => 'default', 'about_article' => $this->aboutCoordinate(),
+        ]);
+        self::assertResponseRedirects('/admin/settings', 303);
+        self::assertCount(1, $store->saved);
+        self::assertSame($this->aboutCoordinate(), $store->saved[0]->aboutArticleCoordinate);
+        self::assertSame([], $store->saved[0]->aboutRelayHints);
+
+        $client->request('GET', 'https://localhost/mag/root/admin/settings');
+        self::assertResponseIsSuccessful();
+        self::assertSame($this->aboutCoordinate(), $client->getCrawler()->filter('#publication-about-article')->attr('value'));
+        $token = $client->getCrawler()->filter('input[name="_token"]')->attr('value');
+        $client->request('POST', 'https://localhost/mag/root/admin/settings', [
+            '_token' => $token, 'theme' => 'default', 'about_article' => '',
+        ]);
+        self::assertResponseRedirects('/mag/root/admin/settings', 303);
+        self::assertCount(2, $store->saved);
+        self::assertSame($store->saved[0]->coordinate, $store->saved[1]->coordinate);
+        self::assertNull($store->saved[1]->aboutArticleCoordinate);
+        self::assertSame([], $store->saved[1]->aboutRelayHints);
+    }
+
+    public function testInvalidAboutArticleDoesNotWriteSettings(): void
+    {
+        [$client, , $store] = $this->client();
+        $client->request('GET', 'https://publication.localhost/admin/settings');
+        $token = $client->getCrawler()->filter('input[name="_token"]')->attr('value');
+        $client->request('POST', 'https://publication.localhost/admin/settings', [
+            '_token' => $token, 'theme' => 'default', 'about_article' => '30040:' . str_repeat('a', 64) . ':root',
+        ]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $store->saved);
+        $client->request('POST', 'https://publication.localhost/admin/settings', [
+            '_token' => $token, 'theme' => 'default', 'about_article' => '30023:' . str_repeat('c', 64) . ':missing',
+        ]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $store->saved);
+        $client->request('POST', 'https://publication.localhost/admin/settings', [
+            '_token' => $token, 'theme' => 'default', 'about_article' => '30023:' . str_repeat('c', 64) . ':mismatch',
+        ]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $store->saved);
+    }
+
     public function testCsrfAndThemeFailuresDoNotWrite(): void
     {
         [$client, , $store] = $this->client();
@@ -125,11 +176,26 @@ final class PublicationAdminFunctionalTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testHostedAboutRendersArticleAndAppearsInSitemap(): void
+    {
+        [$client] = $this->client();
+        $client->request('GET', 'https://publication.localhost/about');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.about-article-content', 'About article body');
+        self::assertSelectorExists('#about-magazine-people');
+        self::assertSelectorExists('#about-featured-writers');
+        self::assertSelectorExists('a[href="/about"]');
+
+        $client->request('GET', 'https://publication.localhost/sitemap.xml');
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('https://publication.localhost/about', $client->getResponse()->getContent());
+    }
+
     public function testCompiledDiscoveryAndPublicRoutesStillResolveBeforeCatchAll(): void
     {
         [$client] = $this->client();
         $router = static::getContainer()->get('router');
-        foreach (['/rss.xml' => 'unfold_rss', '/feed.xml' => 'unfold_feed', '/sitemap.xml' => 'unfold_sitemap', '/robots.txt' => 'unfold_robots', '/' => 'unfold_site'] as $path => $name) {
+        foreach (['/rss.xml' => 'unfold_rss', '/feed.xml' => 'unfold_feed', '/sitemap.xml' => 'unfold_sitemap', '/robots.txt' => 'unfold_robots', '/about' => 'unfold_site', '/' => 'unfold_site'] as $path => $name) {
             $request = Request::create('https://publication.localhost' . $path);
             $request->attributes->set('_unfold_site', new PublicationSite('publication', $this->coordinate()));
             self::assertSame($name, $router->matchRequest($request)['_route']);
@@ -137,6 +203,7 @@ final class PublicationAdminFunctionalTest extends WebTestCase
     }
 
     private function coordinate(): string { return '30040:' . str_repeat('a', 64) . ':root'; }
+    private function aboutCoordinate(): string { return '30023:' . str_repeat('c', 64) . ':about'; }
 
     private function client(bool $hosted = true, bool $metadataAvailable = true): array
     {
@@ -167,8 +234,18 @@ final class PublicationAdminFunctionalTest extends WebTestCase
         $sites->method('findBySubdomain')->willReturnCallback(fn (string $subdomain) => $hosted && $subdomain === 'publication' ? new PublicationSite('publication', $coordinate) : null);
         $sites->method('findByCoordinate')->willReturn($hosted ? new PublicationSite('publication', $coordinate) : null);
         $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->method('findByCoordinate')->willReturnCallback(fn (string $key) => $metadataAvailable && $key === $coordinate
-            ? new NostrEvent(str_repeat('e', 64), str_repeat('a', 64), 30040, '', [['d', 'root'], ['title', 'Fixture publication']], 123, '') : null);
+        $aboutCoordinate = $this->aboutCoordinate();
+        $events->method('findByCoordinate')->willReturnCallback(static function (string $key) use ($metadataAvailable, $coordinate, $aboutCoordinate): ?NostrEvent {
+            if ($key === $aboutCoordinate) {
+                return new NostrEvent(str_repeat('f', 64), str_repeat('c', 64), 30023, 'About article body', [['d', 'about'], ['title', 'About this publication']], 124, '');
+            }
+            if ($key === '30023:' . str_repeat('c', 64) . ':mismatch') {
+                return new NostrEvent(str_repeat('f', 64), str_repeat('c', 64), 30023, 'Wrong article', [['d', 'different']], 125, '');
+            }
+            return $metadataAvailable && $key === $coordinate
+                ? new NostrEvent(str_repeat('e', 64), str_repeat('a', 64), 30040, '', [['d', 'root'], ['title', 'Fixture publication'], ['description', 'Fixture description'], ['a', $aboutCoordinate]], 123, '')
+                : null;
+        });
         $container->set(PublicationAdminIdentityInterface::class, $identity);
         $container->set(PublicationSettingsStoreInterface::class, $store);
         $container->set(SiteRegistryInterface::class, $sites);

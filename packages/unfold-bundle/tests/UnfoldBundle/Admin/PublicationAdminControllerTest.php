@@ -9,8 +9,10 @@ use DecentNewsroom\UnfoldBundle\Admin\PublicationMount;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationAdminController;
 use DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer;
+use nostriphant\NIP19\Bech32;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -102,6 +104,73 @@ final class PublicationAdminControllerTest extends TestCase
         );
     }
 
+    public function testResolvesNaddrBeforeSavingAboutArticle(): void
+    {
+        $coordinate = '30023:' . str_repeat('b', 64) . ':about';
+        $naddr = (string) Bech32::naddr(kind: 30023, pubkey: str_repeat('b', 64), identifier: 'about', relays: ['wss://relay.example']);
+        $settings = $this->createMock(PublicationSettingsManager::class);
+        $settings->expects(self::once())->method('savePresentation')->with(
+            self::COORDINATE, 'default', [], $coordinate, ['wss://relay.example'], true,
+        );
+        $events = $this->createMock(EventReadGatewayInterface::class);
+        $events->expects(self::once())->method('findByCoordinate')->with($coordinate, ['wss://relay.example'])
+            ->willReturn(new NostrEvent(str_repeat('c', 64), str_repeat('b', 64), 30023, 'About', [['d', 'about']], 123, ''));
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::never())->method('render');
+        $request = $this->post([]);
+        $request->request->set('about_article', 'nostr:' . $naddr);
+
+        $response = $this->controller($twig, $settings, $this->validCsrf(), $events)
+            ->settings($request, $this->publication(PublicationMount::SUBDOMAIN, '/admin'));
+
+        self::assertSame(303, $response->getStatusCode());
+    }
+
+    public function testMismatchedArticleKeepsSubmittedInputAndDoesNotSave(): void
+    {
+        $coordinate = '30023:' . str_repeat('b', 64) . ':about';
+        $settings = $this->createMock(PublicationSettingsManager::class);
+        $settings->expects(self::never())->method('savePresentation');
+        $events = $this->createMock(EventReadGatewayInterface::class);
+        $events->method('findByCoordinate')->with($coordinate)
+            ->willReturn(new NostrEvent(str_repeat('c', 64), str_repeat('b', 64), 30023, 'About', [['d', 'other']], 123, ''));
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->with(
+            '@Unfold/admin/settings.html.twig',
+            self::callback(static fn (array $context): bool => $context['aboutArticle'] === $coordinate
+                && $context['error'] === 'unfold_setup.invalid_about_article'),
+        )->willReturn('invalid article');
+        $request = $this->post([]);
+        $request->request->set('about_article', $coordinate);
+
+        $response = $this->controller($twig, $settings, $this->validCsrf(), $events)
+            ->settings($request, $this->publication(PublicationMount::COORDINATE, '/mag/edition/admin'));
+
+        self::assertSame(422, $response->getStatusCode());
+    }
+    public function testSavingUnchangedAboutCoordinatePreservesRelayHints(): void
+    {
+        $coordinate = '30023:' . str_repeat('b', 64) . ':about';
+        $hints = ['wss://relay.example'];
+        $publication = new PublicationContext(
+            self::COORDINATE,
+            new PublicationSettings(self::COORDINATE, 'default', [], $coordinate, $hints),
+            PublicationMount::SUBDOMAIN,
+            '/admin',
+        );
+        $settings = $this->createMock(PublicationSettingsManager::class);
+        $settings->expects(self::once())->method('savePresentation')->with(
+            self::COORDINATE, 'default', [], $coordinate, $hints, true,
+        );
+        $events = $this->createMock(EventReadGatewayInterface::class);
+        $events->expects(self::once())->method('findByCoordinate')->with($coordinate, $hints)
+            ->willReturn(new NostrEvent(str_repeat('c', 64), str_repeat('b', 64), 30023, 'About', [['d', 'about']], 123, ''));
+        $request = $this->post([]);
+        $request->request->set('about_article', $coordinate);
+        $response = $this->controller($this->createMock(Environment::class), $settings, $this->validCsrf(), $events)
+            ->settings($request, $publication);
+        self::assertSame(303, $response->getStatusCode());
+    }
     public static function mounts(): iterable
     {
         yield 'subdomain' => [PublicationMount::SUBDOMAIN, '/admin'];
@@ -146,6 +215,7 @@ final class PublicationAdminControllerTest extends TestCase
         Environment $twig,
         PublicationSettingsManager $settings,
         CsrfTokenManagerInterface $csrf,
+        ?EventReadGatewayInterface $events = null,
     ): PublicationAdminController {
         $renderer = $this->createMock(HandlebarsRenderer::class);
         $renderer->method('getAvailableThemes')->willReturn(['default']);
@@ -154,7 +224,7 @@ final class PublicationAdminControllerTest extends TestCase
             $twig,
             $settings,
             $renderer,
-            $this->createMock(EventReadGatewayInterface::class),
+            $events ?? $this->createMock(EventReadGatewayInterface::class),
             $csrf,
             $this->createMock(LoggerInterface::class),
         );

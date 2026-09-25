@@ -26,6 +26,10 @@
             {% endfor %}
         </select>
 
+        <label for="publication-about-article">{{ 'unfold_admin.about_article'|trans }}</label>
+        <p id="publication-about-article-help">{{ 'unfold_admin.about_article_help'|trans }}</p>
+        <input type="text" id="publication-about-article" name="about_article" value="{{ aboutArticle }}" aria-describedby="publication-about-article-help">
+
         <fieldset class="unfold-admin-footer-links">
             <legend>{{ 'unfold_admin.owner_links'|trans }}</legend>
             <p>{{ 'unfold_admin.owner_links_help'|trans }}</p>

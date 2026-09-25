@@ -2,7 +2,9 @@
 
 namespace DecentNewsroom\UnfoldBundle\Controller;
 
+use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader;
+use DecentNewsroom\UnfoldBundle\Content\CategoryData;
 use DecentNewsroom\UnfoldBundle\Content\ContentProvider;
 use DecentNewsroom\UnfoldBundle\Http\HostResolver;
 use DecentNewsroom\UnfoldBundle\Http\RouteMatcher;
@@ -80,6 +82,7 @@ class SiteController
         // 6. Build context and render based on page type
         return match ($route['type']) {
             RouteMatcher::PAGE_HOME => $this->renderHome($siteConfig, $categories),
+            RouteMatcher::PAGE_ABOUT => $this->renderAbout($siteConfig, $categories),
             RouteMatcher::PAGE_CATEGORY => $this->renderCategory($siteConfig, $categories, $route),
             RouteMatcher::PAGE_POST => $this->renderPost($siteConfig, $categories, $route),
             RouteMatcher::PAGE_NOT_FOUND => throw new NotFoundHttpException('Page not found'),
@@ -95,6 +98,16 @@ class SiteController
         $html = $this->renderer->render('index', $context);
 
         return new Response($html);
+    }
+
+    /** @param CategoryData[] $categories */
+    private function renderAbout(SiteConfig $siteConfig, array $categories): Response
+    {
+        $article = $this->contentProvider->getAboutArticle($siteConfig);
+        $writers = $this->contentProvider->getCategoryArticleAuthorPubkeys($categories);
+        $context = $this->contextBuilder->buildAboutContext($siteConfig, $categories, $article, $writers);
+
+        return new Response($this->renderer->render('about', $context));
     }
 
     private function renderCategory($siteConfig, array $categories, array $route): Response

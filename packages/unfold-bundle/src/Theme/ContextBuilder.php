@@ -97,6 +97,100 @@ class ContextBuilder
     }
 
     /**
+     * Build the publication About page, including two independently deduped people lists.
+     *
+     * @param CategoryData[] $categories
+     * @param list<string> $featuredWriterPubkeys
+     * @return array<string, mixed>
+     */
+    public function buildAboutContext(SiteConfig $site, array $categories, ?PostData $article, array $featuredWriterPubkeys): array
+    {
+        $siteContext = $this->buildSiteContext($site, $categories, '/about');
+        $indexAuthors = $site->authorPubkeys;
+        foreach ($categories as $category) {
+            array_push($indexAuthors, ...$category->authorPubkeys);
+        }
+
+        $indexAuthors = $this->uniquePubkeys($indexAuthors);
+        $featuredWriterPubkeys = $this->uniquePubkeys($featuredWriterPubkeys);
+        $profiles = $this->buildPeopleProfiles(array_values(array_unique(array_merge($indexAuthors, $featuredWriterPubkeys))));
+
+        $introText = trim($site->description);
+        if ($introText === '') {
+            $introText = $this->translator?->trans('unfold_about.default_intro', ['%title%' => $site->title])
+                ?? sprintf('About %s.', $site->title);
+        }
+
+        return [
+            '@site' => $siteContext,
+            'site' => $siteContext,
+            '@custom' => $this->buildCustomContext(),
+            '@pageType' => 'about',
+            ...$this->buildFooterContext($site),
+            'about' => [
+                'title' => $this->translate('unfold_about.title'),
+                'intro_text' => $introText,
+                'has_article' => $article !== null,
+                'article_title' => $article?->title,
+                'article_html' => $article !== null
+                    ? $this->markdownToHtml($article->content, $article->coordinate)
+                    : null,
+                'magazine_people_label' => $this->translate('unfold_about.magazine_people'),
+                'featured_writers_label' => $this->translate('unfold_about.featured_writers'),
+                'magazine_people' => array_map(static fn(string $pubkey): array => $profiles[$pubkey], $indexAuthors),
+                'featured_writers' => array_map(static fn(string $pubkey): array => $profiles[$pubkey], $featuredWriterPubkeys),
+            ],
+        ];
+    }
+
+    /**
+     * @param list<string> $pubkeys
+     * @return list<string>
+     */
+    private function uniquePubkeys(array $pubkeys): array
+    {
+        $unique = [];
+        foreach ($pubkeys as $pubkey) {
+            $pubkey = strtolower($pubkey);
+            if (preg_match('/^[a-f0-9]{64}$/D', $pubkey) === 1) {
+                $unique[$pubkey] = true;
+            }
+        }
+
+        return array_keys($unique);
+    }
+
+    /**
+     * @param list<string> $pubkeys
+     * @return array<string, array{pubkey: string, name: string, picture: ?string, url: string}>
+     */
+    private function buildPeopleProfiles(array $pubkeys): array
+    {
+        if ($pubkeys === []) {
+            return [];
+        }
+
+        try {
+            $metadata = $this->profileMetadata->getMultipleMetadata($pubkeys);
+        } catch (\Throwable) {
+            $metadata = [];
+        }
+
+        $profiles = [];
+        foreach ($pubkeys as $pubkey) {
+            $person = $metadata[$pubkey] ?? null;
+            $profiles[$pubkey] = [
+                'pubkey' => $pubkey,
+                'name' => $person?->displayName ?: $person?->name ?: substr($pubkey, 0, 8) . '…',
+                'picture' => $person?->picture,
+                'url' => rtrim($this->platformBaseUrl, '/') . '/p/' . $pubkey,
+            ];
+        }
+
+        return $profiles;
+    }
+
+    /**
      * Build @site context (Ghost-compatible)
      *
      * @param CategoryData[] $categories
@@ -130,6 +224,8 @@ class ContextBuilder
             'url' => '/',
             'navigation' => $navigation,
             'home_current' => $currentUrl === '/',
+            'about_label' => $this->translate('unfold_about.title'),
+            'about_current' => $currentUrl === '/about',
             'locale' => 'en',
             'members_enabled' => false,
             'creator_pubkey' => $site->pubkey,
@@ -151,6 +247,7 @@ class ContextBuilder
                 'support_label' => $this->translate('unfold_footer.support'),
                 'navigation' => [
                     ['label' => $this->translate('unfold_footer.home'), 'url' => '/'],
+                    ['label' => $this->translate('unfold_about.title'), 'url' => '/about'],
                     ['label' => $this->translate('unfold_footer.rss'), 'url' => '/rss.xml'],
                     ['label' => $this->translate('footer.sitemap'), 'url' => '/sitemap.xml'],
                 ],
@@ -316,8 +413,8 @@ class ContextBuilder
      */
     private function markdownToHtml(string $markdown, string $coordinate): string
     {
-        // Cache key based on event coordinate (content is fixed per event)
-        $cacheKey = 'unfold_html_' . str_replace([':', '/'], '_', $coordinate);
+        // Addressable articles can be revised under the same coordinate.
+        $cacheKey = 'unfold_html_' . hash('sha256', $coordinate . "\0" . $markdown);
 
         try {
             $item = $this->cache->getItem($cacheKey);

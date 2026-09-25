@@ -32,4 +32,15 @@ final class UnfoldPublicationSettingsTest extends TestCase
 
         self::assertSame([], $record->toSettings()->footerLinks);
     }
+    public function testAboutArticleAndRelayHintsRoundTrip(): void
+    {
+        $about = '30023:' . str_repeat('b', 64) . ':about';
+        $record = new UnfoldPublicationSettings(new PublicationSettings(self::COORDINATE, 'default', [], $about, ['wss://relay.example']));
+        self::assertSame($about, $record->toSettings()->aboutArticleCoordinate);
+        self::assertSame(['wss://relay.example'], $record->toSettings()->aboutRelayHints);
+
+        $record->update($record->toSettings()->withAboutArticle(null));
+        self::assertNull($record->toSettings()->aboutArticleCoordinate);
+        self::assertSame([], $record->toSettings()->aboutRelayHints);
+    }
 }

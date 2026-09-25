@@ -69,7 +69,7 @@ final class FooterContextTest extends TestCase
         foreach ($contexts as $template => $context) {
             self::assertSame($site->footerLinks, $context['publication_footer']['owner_links']);
             self::assertSame('https://dn.example/unfold', $context['dn_footer']['brand_url']);
-            self::assertSame(['/', '/rss.xml', '/sitemap.xml'], array_column($context['publication_footer']['navigation'], 'url'));
+            self::assertSame(['/', '/about', '/rss.xml', '/sitemap.xml'], array_column($context['publication_footer']['navigation'], 'url'));
             self::assertSame(['https://dn.example/about', 'https://dn.example/tos'], array_column($context['dn_footer']['links'], 'url'));
             self::assertNotContains($site->footerLinks[0], $context['dn_footer']['links']);
 

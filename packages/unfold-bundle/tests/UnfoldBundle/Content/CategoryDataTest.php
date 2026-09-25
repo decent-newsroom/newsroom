@@ -36,6 +36,31 @@ final class CategoryDataTest extends TestCase
         self::assertSame(['30023:pubkey:article-1'], $cat->articleCoordinates);
     }
 
+    public function testAuthorTagsAreNormalizedAndInvalidTagsIgnored(): void
+    {
+        $pubkey = str_repeat('A', 64);
+        $event = new NostrEvent(
+            id: 'event-id',
+            pubkey: strtolower($pubkey),
+            kind: 30040,
+            content: '',
+            tags: [
+                ['d', 'writers'],
+                ['p', $pubkey],
+                ['p', 'invalid'],
+                ['a', '30023:' . $pubkey . ':story'],
+                ['a', '30040:' . $pubkey . ':nested'],
+            ],
+            createdAt: 1,
+            sig: 'signature',
+        );
+
+        $category = CategoryData::fromEvent($event, '30040:' . strtolower($pubkey) . ':writers');
+
+        self::assertSame([strtolower($pubkey)], $category->authorPubkeys);
+        self::assertSame(['30023:' . strtolower($pubkey) . ':story'], $category->articleCoordinates);
+    }
+
     public function testFromEventParsesSummaryFromJsonContentFallback(): void
     {
         $event = new NostrEvent(

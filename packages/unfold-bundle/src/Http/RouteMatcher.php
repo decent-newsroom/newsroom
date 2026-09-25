@@ -11,6 +11,7 @@ use DecentNewsroom\UnfoldBundle\Content\CategoryData;
 class RouteMatcher
 {
     public const PAGE_HOME = 'home';
+    public const PAGE_ABOUT = 'about';
     public const PAGE_CATEGORY = 'category';
     public const PAGE_POST = 'post';
     public const PAGE_NOT_FOUND = 'not_found';
@@ -46,6 +47,11 @@ class RouteMatcher
         // Home page
         if ($path === '/' || $path === '') {
             return ['type' => self::PAGE_HOME];
+        }
+
+        // About is reserved ahead of category slugs.
+        if ($path === '/about' || $path === '/about/') {
+            return ['type' => self::PAGE_ABOUT];
         }
 
         // Post page: /a/{slug}

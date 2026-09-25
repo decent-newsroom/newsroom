@@ -27,7 +27,7 @@ final class SitemapService
      */
     public function createResponse(SiteConfig $site, array $categories, array $posts): Response
     {
-        $locations = [$this->urls->home()];
+        $locations = [$this->urls->home(), $this->urls->about()];
 
         foreach ($categories as $category) {
             $locations[] = $this->urls->category($category);
