@@ -7,10 +7,10 @@
     {{/if}}
     <nav>
         <a href="/" {{#if site.home_current}}class="nav-current"{{/if}}>Home</a>
-        <a href="/about" {{#if site.about_current}}class="nav-current"{{/if}}>{{site.about_label}}</a>
         {{#each site.navigation}}
         <a href="{{url}}" {{#if current}}class="nav-current"{{/if}}>{{label}}</a>
         {{/each}}
+        <a href="/about" {{#if site.about_current}}class="nav-current"{{/if}}>{{site.about_label}}</a>
     </nav>
 </header>
 
