@@ -1799,7 +1799,7 @@ unfold_admin:
 unfold_about:
     title: "About"
     default_intro: "Learn more about %title% and the people behind it."
-    magazine_people: "Magazine people"
+    magazine_people: "Editorial team"
     featured_writers: "Featured writers"
 
 unfold_footer:
