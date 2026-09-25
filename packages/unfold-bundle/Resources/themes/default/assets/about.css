@@ -25,7 +25,8 @@ header nav a {
 }
 header nav a:hover { text-decoration: underline; }
 header nav a.nav-current { border-bottom: 2px solid currentColor; }
-.about-page h1 { margin-bottom: 1.5rem; font-size: 2.25rem; }
+.about-page h1 { margin-bottom: 0; font-size: 2.25rem; }
+.about-page__subtitle { margin: 0 0 1.5rem; color: #666; font-size: 1.15rem; }
 .about-introduction { margin-bottom: 3rem; }
 .about-introduction h2, .about-people h2 { font-size: 1.5rem; }
 .about-article-content img { max-width: 100%; height: auto; }

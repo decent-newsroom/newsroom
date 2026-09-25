@@ -25,7 +25,7 @@ final class AboutContextTest extends TestCase
         $second = str_repeat('b', 64);
         $third = str_repeat('c', 64);
         $profiles = $this->createMock(ProfileMetadataProviderInterface::class);
-        $profiles->method('getMetadata')->willReturn(new ProfileMetadata());
+        $profiles->method('getMetadata')->willReturn(new ProfileMetadata(lud16: ['owner@example.com']));
         $profiles->expects(self::once())
             ->method('getMultipleMetadata')
             ->with([$first, $second, $third])
@@ -35,9 +35,10 @@ final class AboutContextTest extends TestCase
             ]);
 
         $builder = $this->builder($profiles, $this->createMock(MarkdownConverterInterface::class));
-        $site = new SiteConfig('30040:' . $first . ':root', 'Magazine', 'A magazine description.', null, [], $first, authorPubkeys: [$first, $first]);
-        $category = new CategoryData('culture', 'Culture', '30040:' . $first . ':culture', authorPubkeys: [$second, $first]);
-        $context = $builder->buildAboutContext($site, [$category], null, [$second, $third, $second]);
+        $site = new SiteConfig('30040:' . $first . ':root', 'Magazine', 'A magazine description.', null, [], $first, authorPubkeys: [$third]);
+        $category = new CategoryData('culture', 'Culture', '30040:' . $second . ':culture', authorPubkeys: [$third]);
+        $duplicateCategory = new CategoryData('arts', 'Arts', '30040:' . $second . ':arts');
+        $context = $builder->buildAboutContext($site, [$category, $duplicateCategory], null, [$second, $third, $second]);
 
         self::assertSame([$first, $second], array_column($context['about']['magazine_people'], 'pubkey'));
         self::assertSame([$second, $third], array_column($context['about']['featured_writers'], 'pubkey'));
@@ -52,6 +53,12 @@ final class AboutContextTest extends TestCase
         self::assertStringContainsString('A magazine description.', $html);
         self::assertStringContainsString('First Person', $html);
         self::assertStringContainsString('href="/about"', $html);
+        self::assertStringContainsString('<h1>unfold_about.title</h1>', $html);
+        self::assertStringContainsString('<p class="about-page__subtitle">Magazine</p>', $html);
+        self::assertStringContainsString('/unfold-themes/default/zap.css', $html);
+        self::assertStringContainsString('data-zap-button', $html);
+        self::assertStringContainsString('data-zap-lud16="owner@example.com"', $html);
+        self::assertStringContainsString('/unfold-themes/default/zap.js', $html);
     }
 
     public function testArticleRevisionAtSameCoordinateGetsFreshRenderedHtml(): void

@@ -6,6 +6,7 @@
     <title>{{about.title}} - {{site.title}}</title>
     <meta name="description" content="{{site.description}}">
     <link rel="stylesheet" href="/unfold-themes/default/footer.css">
+    <link rel="stylesheet" href="/unfold-themes/default/zap.css">
     <link rel="stylesheet" href="/unfold-themes/default/about.css">
 </head>
 <body>
@@ -13,6 +14,7 @@
 
     <main class="about-page">
         <h1>{{about.title}}</h1>
+        <p class="about-page__subtitle">{{site.title}}</p>
 
         <section class="about-introduction" aria-label="{{about.title}}">
             {{#if about.has_article}}
@@ -53,5 +55,6 @@
     </main>
 
     {{> footer}}
+    <script src="/unfold-themes/default/zap.js"></script>
 </body>
 </html>

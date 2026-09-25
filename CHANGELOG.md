@@ -2,6 +2,8 @@
 
 ## v0.0.54
 
+- [Fix] Made the route-lookup index migration transactional so all-or-nothing startup migrations can run.
+- [Fix] Restored the About footer zap button, showed the magazine title under About, and listed the signers of magazine and category indices.
 - [Feature] Split visitor detail, bot, and subdomain analytics into independently loaded reports and added a dedicated seven-day visits graph.
 - [Feature] Added an exact-route seven-day recorded-request lookup with daily counts, without changing visit tracking.
 - [Fix] Made advanced article search apply changed filters and sort, support filter-only queries, clear dates independently, validate inputs, and align Elasticsearch/PostgreSQL date bounds.

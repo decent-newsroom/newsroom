@@ -106,9 +106,12 @@ class ContextBuilder
     public function buildAboutContext(SiteConfig $site, array $categories, ?PostData $article, array $featuredWriterPubkeys): array
     {
         $siteContext = $this->buildSiteContext($site, $categories, '/about');
-        $indexAuthors = $site->authorPubkeys;
+        $indexAuthors = [$site->pubkey];
         foreach ($categories as $category) {
-            array_push($indexAuthors, ...$category->authorPubkeys);
+            $coordinateParts = explode(':', $category->coordinate, 3);
+            if (count($coordinateParts) === 3 && $coordinateParts[0] === '30040') {
+                $indexAuthors[] = $coordinateParts[1];
+            }
         }
 
         $indexAuthors = $this->uniquePubkeys($indexAuthors);
