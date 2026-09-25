@@ -15,7 +15,7 @@ a short translated sentence naming the magazine when that description is empty.
 An unavailable selected article falls back to that default text. The people
 sections appear regardless of which introduction is shown.
 
-"Magazine people" contains the pubkeys that signed the root magazine index and
+"Editorial team" contains the pubkeys that signed the root magazine index and
 each category index, in root and category order. "Featured writers" contains
 authors of published articles referenced by the categories. Each section
 deduplicates normalized pubkeys independently; someone can appear in both.

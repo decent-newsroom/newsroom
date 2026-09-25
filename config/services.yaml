@@ -170,6 +170,16 @@ services:
         tags:
             - { name: kernel.event_listener, event: 'FOS\\ElasticaBundle\\Event\\PostIndexPopulateEvent', method: 'postIndexPopulate' }
     
+    App\Command\DeleteMutedEventsCommand:
+        arguments:
+            $articleIndex: '@fos_elastica.index.articles'
+            $elasticsearchEnabled: '%elasticsearch_enabled%'
+
+    App\Command\QualityCheckArticlesCommand:
+        arguments:
+            $articleIndex: '@fos_elastica.index.articles'
+            $elasticsearchEnabled: '%elasticsearch_enabled%'
+
     App\Command\IndexArticlesCommand:
         arguments:
             $itemPersister: '@fos_elastica.object_persister.articles'

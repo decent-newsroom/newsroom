@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Entity\Article;
 use App\Enum\IndexStatusEnum;
+use App\Util\IndexableArticleChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use FOS\ElasticaBundle\Persister\ObjectPersisterInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -16,19 +17,22 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'articles:index', description: 'Persist selected articles to Elastic')]
 class IndexArticlesCommand extends Command
 {
-    private const BATCH_SIZE = 100; // Define batch size
+    private const BATCH_SIZE = 100;
 
-    public function __construct(private readonly EntityManagerInterface $entityManager, private readonly ObjectPersisterInterface $itemPersister)
-    {
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly ObjectPersisterInterface $itemPersister,
+        private readonly IndexableArticleChecker $indexableArticleChecker,
+    ) {
         parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $processedCount = 0;
+        $indexedCount = 0;
+        $mutedCount = 0;
         $lastId = 0;
 
-        // Fetch in batches using ID-based pagination (indexStatus is NOT changed here)
         do {
             $articles = $this->entityManager->createQueryBuilder()
                 ->select('a')
@@ -47,22 +51,44 @@ class IndexArticlesCommand extends Command
                 break;
             }
 
-            $this->flushAndPersistBatch($articles);
-            $processedCount += $batchCount;
-
-            // Track last ID for next batch
             $lastId = end($articles)->getId();
+            $indexable = [];
+            $mutedIds = [];
+
+            foreach ($articles as $article) {
+                if ($this->indexableArticleChecker->isMutedAuthor($article)) {
+                    $mutedIds[] = (string) $article->getId();
+                    $article->setIndexStatus(IndexStatusEnum::DO_NOT_INDEX);
+                    continue;
+                }
+
+                if ($this->indexableArticleChecker->isIndexable($article)) {
+                    $indexable[] = $article;
+                }
+            }
+
+            // This command calls the persister directly, bypassing the FOS
+            // indexable callback. Remove stale documents before changing status.
+            if ($mutedIds !== []) {
+                $this->itemPersister->deleteManyByIdentifiers($mutedIds);
+                $mutedCount += count($mutedIds);
+                $this->entityManager->flush();
+            }
+
+            if ($indexable !== []) {
+                $this->itemPersister->replaceMany($indexable);
+                $indexedCount += count($indexable);
+            }
 
             $this->entityManager->clear();
         } while ($batchCount === self::BATCH_SIZE);
 
-        $output->writeln("$processedCount items indexed in Elasticsearch.");
-        return Command::SUCCESS;
-    }
+        $output->writeln(sprintf(
+            '%d items indexed in Elasticsearch; %d muted-author articles excluded.',
+            $indexedCount,
+            $mutedCount,
+        ));
 
-    private function flushAndPersistBatch(array $items): void
-    {
-        // Persist batch to Elasticsearch
-        $this->itemPersister->replaceMany($items);
+        return Command::SUCCESS;
     }
 }

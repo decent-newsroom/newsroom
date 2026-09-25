@@ -20,7 +20,7 @@ Bot and subdomain report pages also render without aggregate queries. Their metr
 
 The visits-over-time page has its own daily chart frame. It shows tracked human page views for the seven completed calendar days before today. It does not run engagement, session, bot, or subdomain aggregates.
 
-The route lookup at `/admin/analytics/route-lookup` accepts one exact stored path, such as `/topics` or `/search`. Its result frame shows the total and daily recorded request counts for today and the six preceding calendar days. Counts include bots, API requests, and all subdomains, unlike the general human-visit reports. The query is restricted to that path and date window; a `(route, visited_at)` index supports the lookup. Query strings are not stored in `visit.route`, so older records cannot distinguish topic selections or search queries. This feature does not change visit capture or backfill historical data.
+The route lookup at `/admin/analytics/route-lookup` accepts one exact stored path, such as `/topics` or `/search`. Its result frame shows the total and daily recorded request counts for today and the six preceding calendar days. Counts include bots, API requests, and all subdomains, unlike the general human-visit reports. The query is restricted to that path and date window; a `(route, visited_at)` index supports the lookup. Its transactional migration may block visit writes while the index builds. Query strings are not stored in `visit.route`, so older records cannot distinguish topic selections or search queries. This feature does not change visit capture or backfill historical data.
 
 ## What is tracked
 

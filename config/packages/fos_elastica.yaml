@@ -32,7 +32,7 @@ fos_elastica:
                             type: custom
                             tokenizer: standard
                             filter: [ lowercase, snowball, asciifolding ]
-            indexable_callback: [ 'App\Util\IndexableArticleChecker', 'isIndexable' ]
+            indexable_callback: [ '@App\Util\IndexableArticleChecker', 'isIndexable' ]
             properties:
                 createdAt:
                     type: date

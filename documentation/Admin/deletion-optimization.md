@@ -26,7 +26,9 @@ docker compose exec php bin/console admin:delete-muted-events --dry-run
 docker compose exec php bin/console admin:delete-muted-events --confirm
 ```
 
-Use this after applying `ROLE_MUTED` when you want stored content from muted users removed locally.
+Use this after applying `ROLE_MUTED` when you want stored content from muted users removed locally. With Elasticsearch enabled, the command removes their article documents from the search index before deleting database rows. It also removes stale search documents when matching database rows were deleted in an earlier run. A search deletion failure stops the database deletion so the command can be retried.
+
+The `--dry-run` option only previews database counts; it does not modify Elasticsearch. To keep stored articles but remove them from search, run `articles:qa`, which marks muted authors' articles `DO_NOT_INDEX` and removes their existing search documents.
 
 ### Replay NIP-09 Deletion Requests
 

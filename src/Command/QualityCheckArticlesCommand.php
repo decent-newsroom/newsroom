@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\Article;
-use App\Entity\User;
 use App\Enum\IndexStatusEnum;
 use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Service\Nostr\NostrKeyService;
+use Elastica\Index;
+use Elastica\Query\Terms;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,25 +18,63 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'articles:qa', description: 'Mark articles by quality and select which to index')]
 class QualityCheckArticlesCommand extends Command
 {
-    private array $mutedUserNpubs = [];
+    /** @var array<string, true> */
+    private array $mutedPubkeys = [];
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly UserEntityRepository $userRepository
+        private readonly UserEntityRepository $userRepository,
+        private readonly Index $articleIndex,
+        private readonly bool $elasticsearchEnabled,
     )
     {
         parent::__construct();
     }
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // Load muted users
+        // Read the current admin mute list before approving any articles for indexing.
         try {
-            $mutedUsers = $this->userRepository->findMutedUsers();
-            $this->mutedUserNpubs = array_map(fn(User $user) => $user->getNpub(), $mutedUsers);
-            $output->writeln(sprintf('Found %d muted users to exclude', count($this->mutedUserNpubs)));
+            $this->mutedPubkeys = array_fill_keys(
+                array_map(strtolower(...), $this->userRepository->getMutedPubkeys()),
+                true,
+            );
+            $output->writeln(sprintf('Found %d muted users to exclude', count($this->mutedPubkeys)));
         } catch (\Exception $e) {
-            // Notify and continue
             $output->writeln('<error>Error fetching muted users: ' . $e->getMessage() . '</error>');
+            return Command::FAILURE;
+        }
+
+        // Authors can be muted after their articles have already passed QA.
+        if ($this->mutedPubkeys !== []) {
+            if ($this->elasticsearchEnabled) {
+                try {
+                    // Remove stale documents before changing database status. A failed
+                    // search deletion leaves the rows eligible for a retry.
+                    $response = $this->articleIndex->deleteByQuery(
+                        new Terms('pubkey', array_keys($this->mutedPubkeys)),
+                        ['refresh' => true],
+                    );
+                    $result = $response->getData();
+                    if (!empty($result['failures']) || !empty($result['timed_out'])) {
+                        throw new \RuntimeException('Elasticsearch delete-by-query reported failures.');
+                    }
+                    $output->writeln(sprintf('Removed %d muted-user articles from Elasticsearch', (int) ($result['deleted'] ?? 0)));
+                } catch (\Throwable $e) {
+                    $output->writeln('<error>Error removing muted-user articles from Elasticsearch: ' . $e->getMessage() . '</error>');
+                    return Command::FAILURE;
+                }
+            }
+
+            $updated = $this->entityManager->createQueryBuilder()
+                ->update(Article::class, 'a')
+                ->set('a.indexStatus', ':blocked')
+                ->where('LOWER(a.pubkey) IN (:pubkeys)')
+                ->andWhere('(a.indexStatus IS NULL OR a.indexStatus != :blocked)')
+                ->setParameter('blocked', IndexStatusEnum::DO_NOT_INDEX)
+                ->setParameter('pubkeys', array_keys($this->mutedPubkeys))
+                ->getQuery()
+                ->execute();
+            $output->writeln(sprintf('Marked %d existing muted-user articles as do_not_index', $updated));
         }
 
         $batchSize = 100;
@@ -76,13 +114,8 @@ class QualityCheckArticlesCommand extends Command
 
     private function meetsCriteria(Article $article): bool
     {
-        // Exclude muted users
-        $key = new NostrKeyService();
-        // Normalize hex pubkey to lowercase
-        $pubkeyHex = strtolower(trim($article->getPubkey()));
-        $authorNpub = $key->convertPublicKeyToBech32($pubkeyHex);
-        if (in_array($authorNpub, $this->mutedUserNpubs, true))
-        {
+        // Exclude admin-muted authors using the same hex pubkey as Article.
+        if (isset($this->mutedPubkeys[strtolower(trim($article->getPubkey()))])) {
             return false;
         }
 

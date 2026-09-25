@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\UserEntityRepository;
+use Elastica\Index;
+use Elastica\Query\Terms;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\DBAL\Connection;
@@ -39,6 +41,8 @@ class DeleteMutedEventsCommand extends Command
         private readonly EntityManagerInterface $em,
         private readonly UserEntityRepository $userRepository,
         private readonly LoggerInterface $logger,
+        private readonly Index $articleIndex,
+        private readonly bool $elasticsearchEnabled,
     ) {
         parent::__construct();
     }
@@ -67,7 +71,8 @@ class DeleteMutedEventsCommand extends Command
         $counts = $this->getCounts($conn, $pubkeys);
 
         if ($counts['total'] === 0 && $counts['articles'] === 0
-            && $counts['highlights'] === 0 && $counts['magazines'] === 0) {
+            && $counts['highlights'] === 0 && $counts['magazines'] === 0
+            && !$this->elasticsearchEnabled) {
             $io->info(sprintf('No stored content found for %d muted user(s).', count($pubkeys)));
             return Command::SUCCESS;
         }
@@ -101,6 +106,21 @@ class DeleteMutedEventsCommand extends Command
         $io->section('Deleting...');
 
         try {
+            // DBAL deletes bypass Doctrine's FOS Elastica listener. Purge by
+            // author even if a prior run removed the database rows.
+            // Delete from search first so a failure leaves DB rows retryable.
+            if ($this->elasticsearchEnabled) {
+                $response = $this->articleIndex->deleteByQuery(
+                    new Terms('pubkey', $pubkeys),
+                    ['refresh' => true],
+                );
+                $result = $response->getData();
+                if (!empty($result['failures']) || !empty($result['timed_out'])) {
+                    throw new \RuntimeException('Elasticsearch delete-by-query reported failures.');
+                }
+                $io->writeln(sprintf('Removed %d article(s) from Elasticsearch.', (int) ($result['deleted'] ?? 0)));
+            }
+
             $deletedArticles = $this->deleteFromTable($conn, 'article', $pubkeys);
             $deletedHighlights = $this->deleteFromTable($conn, 'highlight', $pubkeys);
             $deletedMagazines = $this->deleteFromTable($conn, 'magazine', $pubkeys);

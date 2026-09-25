@@ -2,6 +2,8 @@
 
 ## v0.0.54
 
+- [Fix] Removed muted authors' article documents from Elasticsearch when bulk-deleting their local events, including stale search documents from earlier deletions.
+- [Fix] Marked muted authors' existing and new articles DO_NOT_INDEX during QA, purged their search documents, and excluded them from Elasticsearch population and direct indexing.
 - [Fix] Made the route-lookup index migration transactional so all-or-nothing startup migrations can run.
 - [Fix] Restored the About footer zap button, showed the magazine title under About, and listed the signers of magazine and category indices.
 - [Feature] Split visitor detail, bot, and subdomain analytics into independently loaded reports and added a dedicated seven-day visits graph.
