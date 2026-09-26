@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Api\Books\Controller;
 
 use App\Api\Books\Dto\PublicationSearchRequest;
+use App\Api\Books\Dto\PublicationRecommendationRequest;
 use App\Api\Books\Dto\SectionSearchRequest;
 use App\Api\Books\Elasticsearch\BooksIndex;
 use App\Api\Books\Elasticsearch\PublicationQueryBuilder;
@@ -12,6 +13,7 @@ use App\Api\Books\Elasticsearch\SectionQueryBuilder;
 use App\Api\Books\Http\ApiException;
 use App\Api\Books\Http\RequestDecoder;
 use App\Api\Books\Presenter\NostrEventPresenter;
+use App\Api\Books\Service\PublicationRecommendationService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -25,7 +27,20 @@ final class PublicationController
         private readonly SectionQueryBuilder $sectionQueryBuilder,
         private readonly BooksIndex $index,
         private readonly NostrEventPresenter $presenter,
+        private readonly PublicationRecommendationService $recommendations,
     ) {
+    }
+
+    #[Route('/recommendations', name: 'publications_recommendations', methods: ['POST'])]
+    public function recommendations(Request $request): JsonResponse
+    {
+        try {
+            $recommendation = PublicationRecommendationRequest::fromArray($this->decoder->jsonObject($request));
+
+            return $this->json($this->recommendations->recommend($recommendation));
+        } catch (ApiException $exception) {
+            return $this->error($exception);
+        }
     }
 
     #[Route('/search', name: 'publications_search', methods: ['POST'])]

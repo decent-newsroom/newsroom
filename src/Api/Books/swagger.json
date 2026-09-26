@@ -212,6 +212,45 @@
         }
       }
     },
+    "/publications/recommendations": {
+      "post": {
+        "tags": [
+          "Publications"
+        ],
+        "summary": "Recommend kind 30040 publications from a seed event",
+        "description": "Uses native Elasticsearch subject similarity and exact author matches. Excludes the seed and supplied IDs, deduplicates publication coordinates, and returns relevance-ranked signed events. Results may be fewer than the requested limit or empty. No language filter, personalization, index writes, or database/relay fallback.",
+        "parameters": [
+          {
+            "name": "recommendation",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PublicationRecommendationRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommended publication indexes, ordered by relevance descending and event ID ascending before coordinate deduplication. May be empty.",
+            "schema": {
+              "$ref": "#/definitions/PubEventList"
+            }
+          },
+          "400": {
+            "description": "Invalid request or seed event is not kind 30040.",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "404": {
+            "$ref": "#/responses/EventNotFound"
+          },
+          "503": {
+            "$ref": "#/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/publications/sections/search": {
       "post": {
         "tags": [
@@ -375,6 +414,35 @@
           "minimum": 1,
           "maximum": 100,
           "default": 25
+        }
+      }
+    },
+    "PublicationRecommendationRequest": {
+      "type": "object",
+      "required": [
+        "seed_event_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "seed_event_id": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "description": "Full Nostr event ID of an indexed kind 30040 publication; normalized to lowercase."
+        },
+        "exclude_ids": {
+          "type": "array",
+          "description": "Full event IDs to exclude. At most 100 supplied items before deduplication. Normalized to lowercase; duplicates are accepted and deduplicated.",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10
         }
       }
     },

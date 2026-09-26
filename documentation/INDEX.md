@@ -30,6 +30,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 
 ### Reading and discovery
 
+- [Author statistics](Reader/author-statistics.md)
 - [Advanced Search](Reader/advanced-search.md)
 - [Article Actions Dropdown](Reader/article-actions-dropdown.md)
 - [Article engagement turbo frames](Reader/article-engagement-turbo-frames.md)
