@@ -15,6 +15,8 @@ final class PublicationAdminRequestMatcher implements RequestMatcherInterface
         return $request->attributes->getBoolean('_unfold_admin') && in_array($request->attributes->get('_route'), [
             'unfold_admin_host_overview', 'unfold_admin_host_settings',
             'unfold_admin_coordinate_overview', 'unfold_admin_coordinate_settings',
+            'unfold_admin_host_about_prepare', 'unfold_admin_host_about_commit',
+            'unfold_admin_coordinate_about_prepare', 'unfold_admin_coordinate_about_commit',
         ], true);
     }
 }

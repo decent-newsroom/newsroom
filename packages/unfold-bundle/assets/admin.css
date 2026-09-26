@@ -14,3 +14,6 @@ a { text-underline-offset: .2em; }
 fieldset { border: 1px solid currentColor; margin: 0; min-width: 0; padding: 1rem; }
 .publication-footer-link { display: grid; gap: .4rem; border-top: 1px solid currentColor; padding-block: 1rem; }
 .publication-footer-link input { min-width: 0; }
+
+.publication-about-title { margin: 0; overflow-wrap: anywhere; }
+form [hidden] { display: none; }

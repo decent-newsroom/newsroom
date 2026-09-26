@@ -6,6 +6,8 @@ namespace App\Controller\Newsroom;
 
 use App\Dto\CategoryDraft;
 use App\Dto\MagazineDraft;
+use App\Repository\EventRepository;
+use App\Service\Magazine\RootArticleTagPreserver;
 use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\MagazineCategoriesType;
@@ -227,7 +229,7 @@ class MagazineWizardController extends AbstractController
     }
 
     #[Route('/magazine/wizard/review', name: 'mag_wizard_review')]
-    public function review(Request $request): Response
+    public function review(Request $request, EventRepository $events): Response
     {
         $draft = $this->getDraft($request);
         if (!$draft) {
@@ -325,6 +327,13 @@ class MagazineWizardController extends AbstractController
             }
         }
 
+        // Editing a root index must retain direct kind:30023 references,
+        // including its conventional About article and relay hints.
+        $existingRoot = null;
+        if ($pubkeyHex !== null && $draft->slug !== '') {
+            $existingRoot = $events->findByNaddr(30040, $pubkeyHex, $draft->slug);
+            $magTags = RootArticleTagPreserver::append($magTags, $existingRoot?->getTags() ?? []);
+        }
         // Add zap split to magazine event
         if ($zapSplitHex) {
             $magTags[] = ['zap', $zapSplitHex, '', '100'];
@@ -356,6 +365,7 @@ class MagazineWizardController extends AbstractController
         return $this->render('magazine/magazine_review.html.twig', [
             'draft' => $draft,
             'categoryEventsJson' => json_encode($categoryEvents, JSON_UNESCAPED_SLASHES),
+            'magazineBaseEventId' => $existingRoot?->getId(),
             'magazineEventJson' => json_encode($magazineEvent, JSON_UNESCAPED_SLASHES),
             'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
             'backRoute' => $backRoute,
@@ -373,6 +383,7 @@ class MagazineWizardController extends AbstractController
         LoggerInterface           $logger,
         UserRolePromoter          $userRolePromoter,
         EventIngestionListener    $eventIngestionListener,
+        EventRepository           $events,
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         if (!$data || !isset($data['event'])) {
@@ -404,6 +415,21 @@ class MagazineWizardController extends AbstractController
             return new JsonResponse(['error' => 'Missing d tag/slug'], 400);
         }
 
+        // A review page can remain open while About settings publish a newer root.
+        if (array_key_exists('base_event_id', $data)) {
+            $baseEventId = $data['base_event_id'];
+            if ($baseEventId !== null && (!is_string($baseEventId) || preg_match('/^[a-f0-9]{64}$/D', $baseEventId) !== 1)) {
+                return new JsonResponse(['error' => 'Invalid base event ID'], 400);
+            }
+            $current = $events->findByNaddr(
+                $eventObj->getKind()->toInt(),
+                $eventObj->getPubkey()->toHex(),
+                $slug,
+            );
+            if ($current?->getId() !== $baseEventId && $current?->getId() !== $eventObj->getId()->toHex()) {
+                return new JsonResponse(['error' => 'The magazine changed after this review was opened. Reload the review and sign again.'], 409);
+            }
+        }
         // Save to persistence as Event entity
         $skipLocalPostPersist = false;
         try {

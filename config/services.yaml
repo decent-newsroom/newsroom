@@ -365,6 +365,10 @@ services:
     DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface:
         alias: App\Unfold\CommentProviderAdapter
 
+    DecentNewsroom\UnfoldBundle\Contract\SignedPublicationIndexPublisherInterface:
+        alias: App\Unfold\SignedPublicationIndexPublisher
+        public: true
+
     DecentNewsroom\UnfoldBundle\Contract\PublicationRefreshInterface:
         alias: App\Unfold\PublicationRefreshAdapter
 

@@ -4,7 +4,31 @@
     <p>{{ 'unfold_admin.immutable'|trans }}</p>
     <p><code>{{ publication.coordinate }}</code></p>
     {% if error %}<p role="alert">{{ error|trans }}</p>{% endif %}
-    <form method="post" action="{{ publication.adminPathPrefix }}/settings">
+    <form method="post" action="{{ publication.adminPathPrefix }}/settings"
+          data-controller="nostr--nostr-unfold-about-settings"
+          data-action="submit->nostr--nostr-unfold-about-settings#submit"
+          data-nostr--nostr-unfold-about-settings-initial-about-value="{{ currentAboutArticle }}"
+          data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/settings/about/prepare"
+          data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/settings/about/commit"
+          data-nostr--nostr-unfold-about-settings-coordinate-admin-url-value="{{ url('unfold_admin_coordinate_settings', {mag: publication.dtag}) }}"
+          data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
+          data-nostr--nostr-unfold-about-settings-messages-value="{{ {
+              preparing: 'unfold_admin.about_preparing'|trans,
+              connecting: 'unfold_admin.about_connecting'|trans,
+              signing: 'unfold_admin.about_signing'|trans,
+              signingRejected: 'unfold_admin.about_signing_rejected'|trans,
+              publishing: 'unfold_admin.about_publishing'|trans,
+              saving: 'unfold_admin.about_saving'|trans,
+              noSigner: 'unfold_admin.about_no_signer'|trans,
+              wrongSigner: 'unfold_admin.about_wrong_signer'|trans,
+              invalidSignature: 'unfold_admin.about_invalid_signature'|trans,
+              invalidResponse: 'unfold_admin.about_invalid_response'|trans,
+              invalidArticle: 'unfold_admin.about_invalid_article'|trans,
+              stale: 'unfold_admin.about_stale'|trans,
+              failed: 'unfold_admin.about_failed'|trans,
+              relayPending: 'unfold_admin.about_relay_pending'|trans,
+              accessDenied: 'unfold_admin.about_access_denied'|trans
+          }|json_encode|e('html_attr') }}">
         <input type="hidden" name="_token" value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}">
         <label for="publication-theme">{{ 'unfold_admin.theme'|trans }}</label>
         <select name="theme" id="publication-theme" required>
@@ -17,7 +41,8 @@
         </select>
         <label for="publication-about-article">{{ 'unfold_admin.about_article'|trans }}</label>
         <p id="publication-about-article-help">{{ 'unfold_admin.about_article_help'|trans }}</p>
-        <input type="text" id="publication-about-article" name="about_article" value="{{ aboutArticle }}" aria-describedby="publication-about-article-help">
+        <input type="text" id="publication-about-article" name="about_article" value="{{ aboutArticle }}" aria-describedby="publication-about-article-help" data-nostr--nostr-unfold-about-settings-target="aboutArticle">
+        {% if aboutArticleTitle %}<p class="publication-about-title">{{ 'unfold_admin.about_selected_title'|trans }}: <strong>{{ aboutArticleTitle }}</strong></p>{% endif %}
         <fieldset class="publication-footer-links">
             <legend>{{ 'unfold_admin.owner_links'|trans }}</legend>
             <p>{{ 'unfold_admin.owner_links_help'|trans }}</p>
@@ -32,6 +57,9 @@
                 </div>
             {% endfor %}
         </fieldset>
-        <button type="submit">{{ 'unfold_admin.save'|trans }}</button>
+        <button type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.save'|trans }}</button>
+        <p data-nostr--nostr-unfold-about-settings-target="status" role="status" hidden></p>
+        <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
+        <a data-nostr--nostr-unfold-about-settings-target="handoff" hidden>{{ 'unfold_admin.about_open_main_admin'|trans }}</a>
     </form>
 {% endblock %}

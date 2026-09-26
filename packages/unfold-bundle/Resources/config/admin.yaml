@@ -9,3 +9,14 @@ settings:
     controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationAdminController::settings
     methods: [GET, POST]
     defaults: { _unfold_admin: true }
+about_prepare:
+    path: /settings/about/prepare
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\AboutIndexController::prepare
+    methods: [POST]
+    defaults: { _unfold_admin: true }
+
+about_commit:
+    path: /settings/about/commit
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\AboutIndexController::commit
+    methods: [POST]
+    defaults: { _unfold_admin: true }

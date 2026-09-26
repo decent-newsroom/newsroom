@@ -9,6 +9,7 @@ use DecentNewsroom\UnfoldBundle\Config\AboutArticleReference;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -57,7 +58,31 @@ final readonly class PublicationAdminController
     {
         $selectedTheme = $publication->settings->theme;
         $footerLinks = $publication->settings->footerLinks;
-        $aboutArticle = $publication->settings->aboutArticleCoordinate ?? '';
+        $currentAboutArticle = $this->currentAboutArticle($publication);
+        $aboutArticle = $currentAboutArticle ?? '';
+        $aboutRelayHints = $aboutArticle !== '' && $aboutArticle === $publication->settings->aboutArticleCoordinate
+            ? $publication->settings->aboutRelayHints : [];
+
+        // A draft may be handed from the hosted admin to the main-domain signer.
+        // It changes only this form's display, never the persisted selection.
+        if ($request->isMethod('GET') && $request->query->has('about_article')) {
+            $draft = $request->query->all()['about_article'] ?? null;
+            if (is_string($draft)) {
+                if (trim($draft) === '') {
+                    $aboutArticle = '';
+                    $aboutRelayHints = [];
+                } else {
+                    try {
+                        $reference = AboutArticleReference::fromInput($draft);
+                        $aboutArticle = trim($draft);
+                        $aboutRelayHints = $reference->relayHints;
+                    } catch (\InvalidArgumentException) {
+                        // Keep the saved or conventional selection for an invalid draft.
+                    }
+                }
+            }
+        }
+
         $error = null;
         $status = 200;
         if ($request->isMethod('POST')) {
@@ -69,43 +94,39 @@ final readonly class PublicationAdminController
             try {
                 $footerLinks = $this->submittedFooterLinks($request);
                 $form = $request->request->all();
-                $updateAboutArticle = array_key_exists('about_article', $form);
-                if ($updateAboutArticle && !is_string($form['about_article'])) {
-                    throw new \InvalidArgumentException('unfold_setup.invalid_about_article');
-                }
-                if ($updateAboutArticle) {
-                    $aboutArticle = $form['about_article'];
-                }
-                $reference = $updateAboutArticle && trim($aboutArticle) !== ''
-                    ? AboutArticleReference::fromInput($aboutArticle) : null;
-                $relayHints = $reference === null ? [] : $reference->relayHints;
-                if ($reference !== null && $relayHints === []
-                    && $reference->coordinate === $publication->settings->aboutArticleCoordinate) {
-                    $relayHints = $publication->settings->aboutRelayHints;
-                }
-                if ($updateAboutArticle && $reference !== null) {
-                    $event = $this->events->findByCoordinate($reference->coordinate, $relayHints);
-                    $parts = explode(':', $reference->coordinate, 3);
-                    $dtag = null;
-                    foreach ($event === null ? [] : $event->tags as $tag) {
-                        if (($tag[0] ?? null) === 'd') {
-                            $dtag = $tag[1] ?? null;
-                            break;
-                        }
-                    }
-                    if ($event === null || $event->kind !== 30023
-                        || strtolower($event->pubkey) !== $parts[1]
-                        || $dtag !== $parts[2]) {
+                $aboutCoordinateToSave = null;
+                $aboutHintsToSave = [];
+                $updateAboutRelayHints = false;
+                if (array_key_exists('about_article', $form)) {
+                    if (!is_string($form['about_article'])) {
                         throw new \InvalidArgumentException('unfold_setup.invalid_about_article');
                     }
+                    $aboutArticle = $form['about_article'];
+                    $reference = trim($aboutArticle) === '' ? null : AboutArticleReference::fromInput($aboutArticle);
+                    if ($reference?->coordinate !== $currentAboutArticle) {
+                        throw new \InvalidArgumentException('unfold_admin.about_article_signature_required');
+                    }
+                    if ($reference !== null) {
+                        $aboutArticle = $reference->coordinate;
+                        $aboutRelayHints = $reference->relayHints !== []
+                            ? $reference->relayHints : $publication->settings->aboutRelayHints;
+                        if ($reference->relayHints !== []) {
+                            $aboutCoordinateToSave = $reference->coordinate;
+                            $aboutHintsToSave = $reference->relayHints;
+                            $updateAboutRelayHints = true;
+                        }
+                    }
                 }
+
+                // The signed flow owns coordinate changes. New relay hints for
+                // the same coordinate can be saved with theme and footer links.
                 $this->settings->savePresentation(
                     $publication->coordinate,
                     $selectedTheme,
                     $footerLinks,
-                    $reference?->coordinate,
-                    $relayHints,
-                    $updateAboutArticle,
+                    $aboutCoordinateToSave,
+                    $aboutHintsToSave,
+                    $updateAboutRelayHints,
                 );
                 $request->getSession()->getFlashBag()->add('unfold_success', 'unfold_admin.saved');
                 return new RedirectResponse($publication->adminPathPrefix . '/settings', 303);
@@ -118,14 +139,90 @@ final readonly class PublicationAdminController
                 $status = 503;
             }
         }
+
         return new Response($this->twig->render('@Unfold/admin/settings.html.twig', [
             'publication' => $publication,
             'themes' => $this->renderer->getAvailableThemes(),
             'selectedTheme' => $selectedTheme,
             'footerLinks' => $footerLinks,
             'aboutArticle' => $aboutArticle,
+            'currentAboutArticle' => $currentAboutArticle ?? '',
+            'aboutArticleTitle' => $this->aboutArticleTitle($aboutArticle, $aboutRelayHints),
             'error' => $error,
         ]), $status);
+    }
+
+    private function currentAboutArticle(PublicationContext $publication): ?string
+    {
+        if ($publication->settings->aboutArticleCoordinate !== null) {
+            return $publication->settings->aboutArticleCoordinate;
+        }
+
+        try {
+            $event = $this->events->findByCoordinate($publication->coordinate);
+            if (!$this->matchesCoordinate($event, $publication->coordinate)) {
+                return null;
+            }
+
+            $references = array_values(array_unique(
+                SiteConfig::fromEvent($event, $publication->coordinate)->rootArticleCoordinates,
+            ));
+            return count($references) === 1 ? $references[0] : null;
+        } catch (\Throwable $e) {
+            $this->logger->warning('Publication About reference unavailable', [
+                'coordinate' => $publication->coordinate,
+                'exception' => $e,
+            ]);
+            return null;
+        }
+    }
+
+    /** @param list<string> $relayHints */
+    private function aboutArticleTitle(string $coordinate, array $relayHints): ?string
+    {
+        if ($coordinate === '') {
+            return null;
+        }
+
+        try {
+            $reference = AboutArticleReference::fromInput($coordinate);
+            $event = $this->events->findByCoordinate($reference->coordinate, $relayHints);
+            if (!$this->matchesCoordinate($event, $reference->coordinate)) {
+                return null;
+            }
+            foreach ($event->tags as $tag) {
+                if (($tag[0] ?? null) === 'title' && trim($tag[1] ?? '') !== '') {
+                    return trim($tag[1]);
+                }
+            }
+        } catch (\InvalidArgumentException) {
+            // Keep the coordinate visible if title metadata is unavailable.
+        } catch (\Throwable $e) {
+            $this->logger->warning('Publication About article title unavailable', [
+                'coordinate' => $coordinate,
+                'exception' => $e,
+            ]);
+        }
+
+        return null;
+    }
+
+    private function matchesCoordinate(?NostrEvent $event, string $coordinate): bool
+    {
+        if ($event === null) {
+            return false;
+        }
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3 || $event->kind !== (int) $parts[0]
+            || strtolower($event->pubkey) !== strtolower($parts[1])) {
+            return false;
+        }
+        foreach ($event->tags as $tag) {
+            if (($tag[0] ?? null) === 'd') {
+                return ($tag[1] ?? null) === $parts[2];
+            }
+        }
+        return false;
     }
 
     /** @return list<array{label: string, url: string}> */

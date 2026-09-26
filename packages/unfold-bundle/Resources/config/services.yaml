@@ -12,6 +12,9 @@ services:
 
     DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationAdminController:
         tags: ['controller.service_arguments']
+    DecentNewsroom\UnfoldBundle\Controller\Admin\AboutIndexController:
+        tags: ['controller.service_arguments']
+
 
     DecentNewsroom\UnfoldBundle\Controller\DiscoveryController:
         tags: ['controller.service_arguments']

@@ -160,3 +160,7 @@
     min-width: 0;
     border-radius: 0;
 }
+
+.unfold-admin-about-title { margin: 0; color: var(--color-text-mid); overflow-wrap: anywhere; }
+.unfold-admin-handoff { justify-self: start; }
+.unfold-admin-form [hidden] { display: none; }

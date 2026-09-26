@@ -2,6 +2,7 @@
 
 ## v0.0.54
 
+- [Feature] Prefilled Unfold About settings from root articles and published owner-signed root-index updates when the About article changes.
 - [Fix] Removed muted authors' article documents from Elasticsearch when bulk-deleting their local events, including stale search documents from earlier deletions.
 - [Fix] Marked muted authors' existing and new articles DO_NOT_INDEX during QA, purged their search documents, and excluded them from Elasticsearch population and direct indexing.
 - [Fix] Made the route-lookup index migration transactional so all-or-nothing startup migrations can run.

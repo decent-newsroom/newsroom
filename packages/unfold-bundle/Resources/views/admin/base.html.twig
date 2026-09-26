@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>{% block title %}{{ 'unfold_admin.title'|trans }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ asset('unfold/admin.css') }}">
+    {{ importmap('app') }}
 </head>
 <body>
 <header class="publication-admin-header">

@@ -66,6 +66,7 @@
     {{ stimulus_controller('nostr--nostr-index-sign', {
       categoryEvents: categoryEventsJson,
       magazineEvent: magazineEventJson,
+      magazineBaseEventId: magazineBaseEventId|default(''),
       publishUrl: path('api-index-publish'),
       csrfToken: csrfToken,
       redirectUrl: redirectUrl|default('')

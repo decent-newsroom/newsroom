@@ -24,23 +24,39 @@ metadata is missing.
 
 ## Administration
 
-The owner enters a kind `30023` coordinate or naddr in the About article field
-at `/admin/settings` on the hosted subdomain or `/mag/{mag}/admin/settings` on
-the main domain. The article may be outside the magazine. Saving validates that
-the resolved event matches the submitted article identity, stores a normalized
-coordinate and any naddr relay hints in the coordinate-keyed local publication
-settings, and invalidates the site configuration cache. Clearing the field
-removes the selection. The existing owner authorization and coordinate-scoped
-CSRF protection apply to both mounts.
+The About article field at `/admin/settings` on the hosted subdomain or
+`/mag/{mag}/admin/settings` on the main domain shows the saved selection,
+or the sole direct root-index article when no selection is saved. The form shows
+the resolved article title beside its coordinate. The owner may enter any
+published kind `30023` coordinate or naddr, including an article outside
+the magazine.
+
+Changing or clearing the field prepares a replacement root kind `30040`
+index. The owner signs it in their Nostr signer; the application verifies the
+signature, event identity, and expected tag change before saving. Selecting an
+article adds its direct `a` reference to the root index and removes the
+previous About reference. Clearing removes the About reference from the root index. If that leaves exactly one other direct article, it becomes the conventional About article. Unrelated root references,
+categories, and other event content are preserved. The normalized selection and
+any naddr relay hints remain in coordinate-keyed local publication settings.
+
+An unchanged About field needs no new signature, so theme and footer-link saves
+continue normally. A rejected signature or stale root index leaves the previous
+selection in place. If the signed event saves locally but relays do not accept
+it, the form offers a retry using the same signature. A hosted-subdomain owner
+whose NIP-46 signer is available only on the main domain can hand the draft
+to the main-domain admin form. The existing owner authorization and coordinate-scoped CSRF
+protection apply to both admin mounts.
+
+The magazine wizard preserves direct root article references when rebuilding the index. A review submitted after the root index changes is rejected so the owner can reload and sign the current version.
 
 ## Architecture
 
 The root kind `30040` index supplies publication metadata and references.
 Its kind `30040` references are categories; direct kind `30023` references are
 article candidates, never categories. Category references supply the article
-authors for Featured writers. The selected About reference is stored alongside
-the theme and footer links in local publication settings, separately from
-Nostr-published index events and hosting mappings.
+authors for Featured writers. The signed root event carries the selected
+article as a direct reference; local publication settings retain the explicit
+choice and optional relay hints alongside the theme and footer links.
 
 The bundle renders linked article content with the host Markdown converter.
 Rendered content caching varies by event ID or content hash so a revised

@@ -6,6 +6,7 @@ export default class extends Controller {
   static values = {
     categoryEvents: String,
     magazineEvent: String,
+    magazineBaseEventId: String,
     publishUrl: String,
     csrfToken: String,
     redirectUrl: { type: String, default: '' }
@@ -160,12 +161,16 @@ export default class extends Controller {
         console.log('[nostr-index-sign] Magazine signed successfully:', magSlug, signedMag);
 
         this.showStatus(`[${currentEvent}/${totalEvents}] Publishing magazine index "${magSlug}"…`);
-        await this.publishSigned(signedMag);
+        await this.publishSigned(signedMag, this.magazineBaseEventIdValue || null);
         console.log('[nostr-index-sign] Magazine published:', magSlug);
         published.push(`Magazine "${magSlug}"`);
         magazinePublished = true;
       } catch (e) {
         console.warn(`[nostr-index-sign] Skipping magazine "${magSlug}":`, e.message);
+        if (e.status === 409) {
+          this.showError(e.message);
+          return;
+        }
         skipped.push(`Magazine "${magSlug}"`);
       }
 
@@ -242,7 +247,9 @@ export default class extends Controller {
     }
   }
 
-  async publishSigned(signedEvent) {
+  async publishSigned(signedEvent, baseEventId = undefined) {
+    const payload = { event: signedEvent };
+    if (baseEventId !== undefined) payload.base_event_id = baseEventId;
     const res = await fetch(this.publishUrlValue, {
       method: 'POST',
       headers: {
@@ -250,11 +257,13 @@ export default class extends Controller {
         'X-CSRF-TOKEN': this.csrfTokenValue,
         'X-Requested-With': 'XMLHttpRequest'
       },
-      body: JSON.stringify({ event: signedEvent })
+      body: JSON.stringify(payload)
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `HTTP ${res.status}`);
+      const error = new Error(data.error || `HTTP ${res.status}`);
+      error.status = res.status;
+      throw error;
     }
     return res.json();
   }
