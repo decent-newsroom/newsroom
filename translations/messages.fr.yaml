@@ -717,6 +717,9 @@ profile:
 
 # ── Statistiques de profil ───────────────────────────────────────
 stats:
+    loading: 'Chargement des statistiques…'
+    loadError: 'Impossible de charger les statistiques. Veuillez réessayer.'
+    retry: 'Réessayer'
     thisWeek: 'Cette semaine'
     last30Days: '30 derniers jours'
     viewsThisWeek: 'Vues cette semaine'

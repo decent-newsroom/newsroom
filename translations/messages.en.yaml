@@ -894,6 +894,9 @@ profile:
 
 # ── Profile Stats page ───────────────────────────────────────────
 stats:
+    loading: 'Loading statistics…'
+    loadError: 'Statistics could not be loaded. Please try again.'
+    retry: 'Try again'
     thisWeek: 'This week'
     last30Days: 'Last 30 days'
     viewsThisWeek: 'Views this week'

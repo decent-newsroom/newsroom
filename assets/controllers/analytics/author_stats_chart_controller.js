@@ -12,7 +12,7 @@ export default class extends Controller {
         if (!this.hasLabelsValue) return;
         const ctx = this.element.getContext('2d');
 
-        new Chart(ctx, {
+        this.chart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: this.labelsValue,
@@ -96,5 +96,10 @@ export default class extends Controller {
                 }
             }
         });
+    }
+
+    disconnect() {
+        this.chart?.destroy();
+        this.chart = null;
     }
 }

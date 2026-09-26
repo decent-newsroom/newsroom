@@ -776,6 +776,94 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
+     * One scan per period. Totals include drafts and bots, as before; the article
+     * breakdown excludes drafts. Count distinct visitors across the whole period.
+     */
+    public function getAuthorStatsSummary(string $npub, int $days, ?\DateTimeImmutable $now = null): array
+    {
+        if (!in_array($days, [7, 30], true)) {
+            throw new \InvalidArgumentException('Author summary supports 7 or 30 days.');
+        }
+        $now ??= new \DateTimeImmutable();
+        $params = [
+            'since' => $now->modify("-{$days} days")->format('Y-m-d H:i:s'),
+            'npubPattern' => '/p/' . $npub . '%',
+        ];
+        $weeklyColumns = '';
+        if ($days === 7) {
+            $weeklyColumns = ',
+                COUNT(*) FILTER (WHERE visited_at >= :since24Hours) AS visits_24_hours,
+                COUNT(DISTINCT session_id) FILTER (WHERE visited_at >= :since24Hours) AS visitors_24_hours,
+                COUNT(*) FILTER (WHERE route NOT LIKE :articlePattern) AS profile_visits,
+                COUNT(*) FILTER (WHERE route LIKE :articlePattern AND route NOT LIKE :draftPath) AS article_visits';
+            $params += [
+                'since24Hours' => $now->modify('-24 hours')->format('Y-m-d H:i:s'),
+                'articlePattern' => '/p/' . $npub . '/d/%',
+                'draftPath' => '%/draft',
+            ];
+        }
+        $row = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT COUNT(*) AS visits, COUNT(DISTINCT session_id) AS visitors' . $weeklyColumns . '
+             FROM visit WHERE visited_at >= :since AND route LIKE :npubPattern',
+            $params,
+        )->fetchAssociative();
+        $summary = [
+            "visitsLast{$days}Days" => (int) $row['visits'],
+            "uniqueVisitorsLast{$days}Days" => (int) $row['visitors'],
+        ];
+        if ($days === 7) {
+            $profile = (int) $row['profile_visits'];
+            $articles = (int) $row['article_visits'];
+            $summary += [
+                'visitsLast24Hours' => (int) $row['visits_24_hours'],
+                'uniqueVisitorsLast24Hours' => (int) $row['visitors_24_hours'],
+                'visitBreakdownLast7Days' => [
+                    'profile' => $profile,
+                    'articles' => $articles,
+                    'total' => $profile + $articles,
+                ],
+            ];
+        }
+        return $summary;
+    }
+
+    /**
+     * One grouped query for the displayed calendar days, filling missing days.
+     *
+     * @return list<array{day: string, visits: int, uniqueVisitors: int}>
+     */
+    public function getAuthorStatsChart(string $npub, int $days = 30, ?\DateTimeImmutable $today = null): array
+    {
+        if ($days < 1) {
+            throw new \InvalidArgumentException('Chart days must be positive.');
+        }
+        $today = ($today ?? new \DateTimeImmutable())->setTime(0, 0);
+        $from = $today->modify('-' . ($days - 1) . ' days');
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT DATE(visited_at) AS day, COUNT(*) AS visits, COUNT(DISTINCT session_id) AS visitors
+             FROM visit
+             WHERE visited_at >= :from AND visited_at < :before AND route LIKE :npubPattern
+             GROUP BY DATE(visited_at) ORDER BY day ASC',
+            [
+                'from' => $from->format('Y-m-d H:i:s'),
+                'before' => $today->modify('+1 day')->format('Y-m-d H:i:s'),
+                'npubPattern' => '/p/' . $npub . '%',
+            ],
+        )->fetchAllAssociative();
+        $byDay = array_column($rows, null, 'day');
+        $chart = [];
+        for ($i = 0; $i < $days; ++$i) {
+            $day = $from->modify("+{$i} days")->format('Y-m-d');
+            $chart[] = [
+                'day' => $day,
+                'visits' => (int) ($byDay[$day]['visits'] ?? 0),
+                'uniqueVisitors' => (int) ($byDay[$day]['visitors'] ?? 0),
+            ];
+        }
+        return $chart;
+    }
+
+    /**
      * Count visits for routes matching a specific npub (author profile and articles).
      * Matches /p/{npub} and /p/{npub}/...
      */

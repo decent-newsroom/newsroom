@@ -1,0 +1,13 @@
+<div data-controller="analytics--stats-frame"
+     data-action="turbo:fetch-request-error->analytics--stats-frame#requestFailed turbo:frame-missing->analytics--stats-frame#frameMissing turbo:before-fetch-response->analytics--stats-frame#checkResponse">
+    <template data-analytics--stats-frame-target="loading">
+        <p class="stats-frame-status" role="status">{{ 'stats.loading'|trans }}</p>
+    </template>
+    <template data-analytics--stats-frame-target="error">
+        {% include 'stats/_error_content.html.twig' %}
+    </template>
+    <turbo-frame id="{{ frameId }}" src="{{ path(route) }}" loading="{{ loading }}"
+                 data-analytics--stats-frame-target="frame" aria-live="polite">
+        <p class="stats-frame-status" role="status">{{ 'stats.loading'|trans }}</p>
+    </turbo-frame>
+</div>

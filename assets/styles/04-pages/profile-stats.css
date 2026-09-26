@@ -188,3 +188,14 @@
     }
 }
 
+
+.author-stats turbo-frame {
+    display: block;
+}
+
+.stats-frame-status {
+    min-height: 8rem;
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+    border: 1px solid var(--color-border, #e5e7eb);
+}

@@ -717,6 +717,9 @@ profile:
 
 # ── Statistika profila ───────────────────────────────────────────
 stats:
+    loading: 'Nalaganje statistike…'
+    loadError: 'Statistike ni bilo mogoče naložiti. Poskusite znova.'
+    retry: 'Poskusi znova'
     thisWeek: 'Ta teden'
     last30Days: 'Zadnjih 30 dni'
     viewsThisWeek: 'Ogledi ta teden'

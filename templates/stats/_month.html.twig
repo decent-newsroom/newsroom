@@ -1,0 +1,37 @@
+<turbo-frame id="stats-month">
+        <div class="stats-hero">
+            <div class="stat-card stat-card--monthly">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitsLast30Days|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.monthlyViews'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--monthly">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ uniqueVisitorsLast30Days|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.monthlyUniqueReaders'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stats-articles-card span-2">
+                {% if topArticlesLast30Days|length > 0 %}
+                    <ul class="top-articles-list">
+                        {% for stat in topArticlesLast30Days %}
+                            <li class="top-article-item">
+                                <span class="top-article-rank">{{ loop.index }}</span>
+                                <a href="{{ stat.route }}" target="_blank" class="top-article-link">
+                                    {{ stat.route|split('/d/')|last|default(stat.route)|replace({'-': ' '})|title|slice(0, 40) }}{% if stat.route|split('/d/')|last|length > 40 %}...{% endif %}
+                                </a>
+                                <span class="top-article-views">{{ stat.count|number_format }} {{ 'stats.views'|trans }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="stats-empty-state stats-empty-state--small">
+                        <span>{{ 'stats.noArticleViewsMonth'|trans }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+</turbo-frame>

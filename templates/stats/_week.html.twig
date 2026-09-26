@@ -1,0 +1,57 @@
+<turbo-frame id="stats-week">
+        <div class="stats-hero">
+            <div class="stat-card stat-card--visits">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitsLast7Days|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.viewsThisWeek'|trans }}</span>
+                </div>
+                <div class="stat-card__trend">
+                    <span class="stat-card__period">24h: {{ visitsLast24Hours|number_format }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--visitors">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ uniqueVisitorsLast7Days|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.uniqueReaders'|trans }}</span>
+                </div>
+                <div class="stat-card__trend">
+                    <span class="stat-card__period">24h: {{ uniqueVisitorsLast24Hours|number_format }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--articles">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitBreakdownLast7Days.articles|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.articleReads'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--articles">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitBreakdownLast7Days.profile|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.profileViews'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stats-articles-card span-2">
+                {% if topArticlesLast7Days|length > 0 %}
+                    <ul class="top-articles-list">
+                        {% for stat in topArticlesLast7Days %}
+                            <li class="top-article-item">
+                                <span class="top-article-rank">{{ loop.index }}</span>
+                                <a href="{{ stat.route }}" target="_blank" class="top-article-link">
+                                    {{ stat.route|split('/d/')|last|default(stat.route)|replace({'-': ' '})|title|slice(0, 40) }}{% if stat.route|split('/d/')|last|length > 40 %}...{% endif %}
+                                </a>
+                                <span class="top-article-views">{{ stat.count|number_format }} {{ 'stats.views'|trans }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="stats-empty-state stats-empty-state--small">
+                        <span>{{ 'stats.noArticleViewsWeek'|trans }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+</turbo-frame>

@@ -4,78 +4,80 @@ declare(strict_types=1);
 
 namespace App\Controller\User;
 
-use App\Entity\User;
 use App\Repository\VisitRepository;
+use Doctrine\DBAL\Exception as DatabaseException;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+#[IsGranted('ROLE_ADMIN')]
 class ProfileStatsController extends AbstractController
 {
-    #[Route('/stats', name: 'profile_stats')]
-    #[IsGranted('ROLE_ADMIN')]
-    public function index(VisitRepository $visitRepository): Response
+    #[Route('/stats', name: 'profile_stats', methods: ['GET'])]
+    public function index(): Response
     {
-        /** @var User $user */
-        $user = $this->getUser();
-        $npub = $user->getUserIdentifier();
+        return $this->privateResponse('stats/index.html.twig');
+    }
 
-        // Total visits for different time periods
-        $visitsLast24Hours = $visitRepository->countVisitsForNpubSince($npub, new \DateTimeImmutable('-24 hours'));
-        $visitsLast7Days = $visitRepository->countVisitsForNpubSince($npub, new \DateTimeImmutable('-7 days'));
-        $visitsLast30Days = $visitRepository->countVisitsForNpubSince($npub, new \DateTimeImmutable('-30 days'));
+    #[Route('/stats/week', name: 'profile_stats_week', methods: ['GET'])]
+    public function week(VisitRepository $visitRepository, LoggerInterface $logger): Response
+    {
+        return $this->period(7, $visitRepository, $logger);
+    }
 
-        // Unique visitors for different time periods
-        $uniqueVisitorsLast24Hours = $visitRepository->countUniqueVisitorsForNpubSince($npub, new \DateTimeImmutable('-24 hours'));
-        $uniqueVisitorsLast7Days = $visitRepository->countUniqueVisitorsForNpubSince($npub, new \DateTimeImmutable('-7 days'));
-        $uniqueVisitorsLast30Days = $visitRepository->countUniqueVisitorsForNpubSince($npub, new \DateTimeImmutable('-30 days'));
+    #[Route('/stats/month', name: 'profile_stats_month', methods: ['GET'])]
+    public function month(VisitRepository $visitRepository, LoggerInterface $logger): Response
+    {
+        return $this->period(30, $visitRepository, $logger);
+    }
 
-        // Top articles
-        $topArticlesLast7Days = $visitRepository->getMostVisitedArticlesForNpub($npub, new \DateTimeImmutable('-7 days'), 10);
-        $topArticlesLast30Days = $visitRepository->getMostVisitedArticlesForNpub($npub, new \DateTimeImmutable('-30 days'), 10);
-
-        // Visits per day (last 30 days) - sparse array, only days with visits
-        $dailyVisitCountsRaw = $visitRepository->getVisitsPerDayForNpub($npub, 30);
-
-        // Daily unique visitors (last 30 days) - full array with all days
-        $dailyUniqueVisitors = $visitRepository->getDailyUniqueVisitorsForNpub($npub, 30);
-
-        // Create a lookup map for visits by day
-        $visitsMap = [];
-        foreach ($dailyVisitCountsRaw as $row) {
-            $visitsMap[$row['day']] = (int) $row['count'];
+    #[Route('/stats/chart', name: 'profile_stats_chart', methods: ['GET'])]
+    public function chart(VisitRepository $visitRepository, LoggerInterface $logger): Response
+    {
+        $npub = $this->getUser()?->getUserIdentifier() ?? throw $this->createAccessDeniedException();
+        try {
+            $data = $visitRepository->getAuthorStatsChart($npub);
+        } catch (DatabaseException $exception) {
+            return $this->unavailable('stats-chart', $exception, $logger);
         }
 
-        // Merge into aligned chart data using unique visitors days as the base (has all 30 days)
-        $chartData = [];
-        foreach ($dailyUniqueVisitors as $dayData) {
-            $day = $dayData['day'];
-            $chartData[] = [
-                'day' => $day,
-                'visits' => $visitsMap[$day] ?? 0,
-                'uniqueVisitors' => (int) $dayData['count'],
-            ];
+        return $this->privateResponse('stats/_chart.html.twig', ['chartData' => $data]);
+    }
+
+    private function period(int $days, VisitRepository $visitRepository, LoggerInterface $logger): Response
+    {
+        $npub = $this->getUser()?->getUserIdentifier() ?? throw $this->createAccessDeniedException();
+        $section = $days === 7 ? 'week' : 'month';
+        $now = new \DateTimeImmutable();
+        try {
+            $data = $visitRepository->getAuthorStatsSummary($npub, $days, $now);
+            $data['topArticlesLast' . $days . 'Days'] = $visitRepository->getMostVisitedArticlesForNpub(
+                $npub, $now->modify('-' . $days . ' days'), 10,
+            );
+        } catch (DatabaseException $exception) {
+            return $this->unavailable('stats-' . $section, $exception, $logger);
         }
 
-        // Visit breakdown (profile vs articles)
-        $visitBreakdownLast7Days = $visitRepository->getVisitBreakdownForNpub($npub, new \DateTimeImmutable('-7 days'));
-        $visitBreakdownLast30Days = $visitRepository->getVisitBreakdownForNpub($npub, new \DateTimeImmutable('-30 days'));
+        return $this->privateResponse('stats/_' . $section . '.html.twig', $data);
+    }
 
-        return $this->render('stats/index.html.twig', [
-            'visitsLast24Hours' => $visitsLast24Hours,
-            'visitsLast7Days' => $visitsLast7Days,
-            'visitsLast30Days' => $visitsLast30Days,
-            'uniqueVisitorsLast24Hours' => $uniqueVisitorsLast24Hours,
-            'uniqueVisitorsLast7Days' => $uniqueVisitorsLast7Days,
-            'uniqueVisitorsLast30Days' => $uniqueVisitorsLast30Days,
-            'topArticlesLast7Days' => $topArticlesLast7Days,
-            'topArticlesLast30Days' => $topArticlesLast30Days,
-            'chartData' => $chartData,
-            'visitBreakdownLast7Days' => $visitBreakdownLast7Days,
-            'visitBreakdownLast30Days' => $visitBreakdownLast30Days,
+    private function unavailable(string $frameId, DatabaseException $exception, LoggerInterface $logger): Response
+    {
+        $logger->warning('Author statistics section could not be loaded.', [
+            'section' => $frameId,
+            'exception' => $exception,
         ]);
+
+        return $this->privateResponse('stats/_error.html.twig', ['frameId' => $frameId], Response::HTTP_SERVICE_UNAVAILABLE);
+    }
+
+    private function privateResponse(string $template, array $data = [], int $status = Response::HTTP_OK): Response
+    {
+        $response = $this->render($template, $data, new Response(status: $status));
+        $response->headers->set('Cache-Control', 'private, no-store');
+
+        return $response;
     }
 }
-
-

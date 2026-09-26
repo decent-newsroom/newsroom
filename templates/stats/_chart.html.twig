@@ -1,0 +1,20 @@
+<turbo-frame id="stats-chart">
+        <div class="stats-chart-container">
+            <h3 class="stats-section-title hidden">{{ 'stats.trafficLast30Days'|trans }}</h3>
+            {% if chartData|length > 0 %}
+                <div class="chart-wrapper">
+                    <canvas id="authorCombinedChart"
+                            data-controller="analytics--author-stats-chart"
+                            data-analytics--author-stats-chart-labels-value='{{ chartData|map(stat => stat.day)|json_encode()|e('html_attr') }}'
+                            data-analytics--author-stats-chart-visits-value='{{ chartData|map(stat => stat.visits)|json_encode()|e('html_attr') }}'
+                            data-analytics--author-stats-chart-unique-visitors-value='{{ chartData|map(stat => stat.uniqueVisitors)|json_encode()|e('html_attr') }}'
+                    ></canvas>
+                </div>
+            {% else %}
+                <div class="stats-empty-state">
+                    <span class="stats-empty-state__icon">📭</span>
+                    <p>{{ 'stats.noTrafficYet'|trans }}</p>
+                </div>
+            {% endif %}
+        </div>
+</turbo-frame>
