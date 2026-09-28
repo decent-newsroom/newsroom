@@ -225,8 +225,8 @@ class GraphMagazineListService
     }
 
     /**
-     * A top-level magazine is a kind 30040 event whose "a" tags
-     * reference other kind 30040 events (sub-indices / sections).
+     * A top-level magazine is a kind 30040 event tagged as a magazine whose
+     * "a" tags reference other kind 30040 events (sub-indices / sections).
      */
     private function isTopLevelMagazine(?array $eventRow): bool
     {
@@ -239,12 +239,18 @@ class GraphMagazineListService
             return false;
         }
 
+        $isMagazine = false;
+        $hasSubIndex = false;
         foreach ($tags as $tag) {
+            if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
+                $isMagazine = true;
+            }
             if (($tag[0] ?? '') === 'a' && isset($tag[1]) && str_starts_with($tag[1], '30040:')) {
-                return true;
+                $hasSubIndex = true;
             }
         }
-        return false;
+
+        return $isMagazine && $hasSubIndex;
     }
 
     /**

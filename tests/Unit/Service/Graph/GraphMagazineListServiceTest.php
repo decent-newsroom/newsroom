@@ -55,8 +55,8 @@ class GraphMagazineListServiceTest extends TestCase
 
         yield 'event with only a-tag pointing to 30040 (sub-index)' => [
             ['tags' => json_encode([['a', '30040:' . str_repeat('ab', 32) . ':some-cat'], ['title', 'A Category']])],
-            true,
-            'Event with 30040 a-tag should be a top-level magazine',
+            false,
+            'Event without a type=magazine tag should not be a magazine',
         ];
 
         yield 'event with a-tag pointing to articles only' => [
@@ -75,6 +75,12 @@ class GraphMagazineListServiceTest extends TestCase
             ['tags' => json_encode([['type', 'magazine'], ['a', '30040:' . str_repeat('ab', 32) . ':cat-1']])],
             true,
             'Magazine with categories should be a magazine',
+        ];
+
+        yield 'event with child 30040 refs before its type=magazine tag' => [
+            ['tags' => json_encode([['a', '30040:' . str_repeat('ab', 32) . ':cat-1'], ['type', 'magazine']])],
+            true,
+            'Magazine classification should not depend on tag ordering',
         ];
 
         yield 'event with child 30040 and 30041 refs' => [
