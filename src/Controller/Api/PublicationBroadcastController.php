@@ -229,15 +229,6 @@ final class PublicationBroadcastController extends AbstractController
                 ], 422);
             }
 
-            if (!$event instanceof Event) {
-                return new JsonResponse([
-                    'success' => false,
-                    'error' => 'Publication event failed verification and was not broadcast.',
-                    'reason' => 'Stored publication payload could not be verified as a signed event',
-                    'event_id' => $publication->getId(),
-                ], 422);
-            }
-
             $this->logger->info('Broadcasting publication to relays', [
                 'event_id' => $publication->getId(),
                 'slug' => $publication->getSlug(),

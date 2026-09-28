@@ -269,19 +269,6 @@ class ArticleBroadcastController extends AbstractController
                 ], 422);
             }
 
-            if (!$event instanceof Event) {
-                $this->logger->warning('Broadcast rejected: event verification returned no valid Event', [
-                    'article_id' => $article->getId(),
-                ]);
-
-                return new JsonResponse([
-                    'success' => false,
-                    'error' => 'Article event failed verification and was not broadcast.',
-                    'reason' => 'Stored raw payload could not be verified as a signed event',
-                    'article_id' => $article->getId(),
-                ], 422);
-            }
-
             $this->logger->info('Broadcasting article to relays', [
                 'article_id' => $article->getId(),
                 'event_id' => $event->getId(),

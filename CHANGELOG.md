@@ -2,6 +2,7 @@
 
 ## v0.0.54
 
+- [Fix] Restored publication and article rebroadcasting by recognizing verified Nostr core event objects after reconstructing stored payloads.
 - [Feature] Added read-only Books API recommendations using Elasticsearch subject similarity and author matches, with bounded exclusions and publication-coordinate deduplication.
 - [Fix] Loaded author statistics in independent Turbo sections with retry states and consolidated visit queries to prevent the page waiting on all analytics.
 - [Feature] Prefilled Unfold About settings from root articles and published owner-signed root-index updates when the About article changes.
