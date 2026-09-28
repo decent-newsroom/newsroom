@@ -314,6 +314,38 @@ class UserRelayListServiceTest extends TestCase
         $this->assertLessThan($registryIdx, $followsIdx, 'Follows pool should come before registry defaults');
     }
 
+    public function testGetRelaysForPublishingUsesPersistedWriteRelaysAfterCacheMiss(): void
+    {
+        $hex = str_repeat('7', 64);
+
+        $relayList = new UserRelayList();
+        $relayList->setPubkey($hex);
+        $relayList->setWriteRelays(['wss://relay.write-one.example', 'wss://relay.write-two.example']);
+        $relayList->setReadRelays(['wss://relay.read-only.example']);
+        $relayList->setCreatedAt(time());
+
+        $cacheItem = $this->createMock(CacheItemInterface::class);
+        $cacheItem->method('isHit')->willReturn(false);
+
+        $this->cache->expects($this->exactly(2))
+            ->method('getItem')
+            ->willReturn($cacheItem);
+        $this->cache->expects($this->once())
+            ->method('save')
+            ->with($cacheItem)
+            ->willReturn(true);
+        $this->relayListRepository->expects($this->once())
+            ->method('findByPubkey')
+            ->with($hex)
+            ->willReturn($relayList);
+
+        $this->assertSame([
+            'ws://strfry:7777',
+            'wss://relay.write-one.example',
+            'wss://relay.write-two.example',
+        ], $this->service->getRelaysForPublishing($hex));
+    }
+
     public function testGetRelaysForEventLookupCacheOrDbDoesNotFetchNetworkOnMiss(): void
     {
         $hex = str_repeat('9', 64);
@@ -406,4 +438,3 @@ class UserRelayListServiceTest extends TestCase
         $this->assertSame($createdAt, $result['created_at']);
     }
 }
-

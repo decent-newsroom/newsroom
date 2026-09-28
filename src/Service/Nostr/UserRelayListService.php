@@ -405,7 +405,8 @@ class UserRelayListService
 
     /**
      * Get relays suitable for publishing on behalf of this author.
-     * Non-blocking: returns fallbacks immediately on cache miss.
+     * Non-blocking: resolves from cache first, then the persisted relay list,
+     * without making a network request.
      *
      * Priority order (no truncation — all available relays are returned):
      *   1. Local relay (ingests from multiple upstreams)
@@ -418,9 +419,15 @@ class UserRelayListService
     {
         $hex = $this->toHex($pubkeyOrNpub);
 
-        // Try cache only — publishing must be fast (non-blocking)
-        $cached = $this->fromCache($hex);
-        $writeRelays = $cached['write'] ?? $cached['all'] ?? null;
+        $relayList = $this->fromCache($hex);
+        if ($relayList === null) {
+            $relayList = $this->fromDatabase($hex);
+            if ($relayList !== null) {
+                $this->writeCache($hex, $relayList);
+            }
+        }
+
+        $writeRelays = $relayList['write'] ?? $relayList['all'] ?? null;
 
         $relays = [];
 
