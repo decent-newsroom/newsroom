@@ -51,25 +51,66 @@
 {% endblock %}
 
 {% block body %}
-    {% if list.image %}
-        <div class="magazine-hero__cover">
-            <img src="{{ list.image }}" alt="{{ list.title }}" class="magazine-hero__cover-img">
+    <div class="magazine-hero">
+        <div data-controller="ui--magazine-actions-dropdown" class="dropdown share-dropdown magazine-hero__actions">
+            <button data-ui--magazine-actions-dropdown-target="button"
+                    class="btn btn-sm"
+                    type="button"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    data-action="click->ui--magazine-actions-dropdown#toggle">
+                ⋯
+            </button>
+            <div data-ui--magazine-actions-dropdown-target="menu"
+                 class="dropdown-menu dropdown-menu-end">
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->ui--magazine-actions-dropdown#copy"
+                        data-copy="{{ url('reading-list', {slug: list.slug, npub: list.pubkey|toNpub}) }}">
+                    {{ ux_icon('iconoir:copy', {class: 'icon action-icon', 'aria-hidden': 'true'}) }}
+                    Newsroom Link
+                </button>
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->ui--magazine-actions-dropdown#copy"
+                        data-copy="{{ list|naddrEncode }}">
+                    {{ ux_icon('iconoir:copy', {class: 'icon action-icon', 'aria-hidden': 'true'}) }}
+                    Naddr
+                </button>
+                {% if app.user %}
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item"
+                            type="button"
+                            data-action="click->ui--magazine-actions-dropdown#broadcast"
+                            data-event-id="{{ list.id }}"
+                            data-coordinate="{{ list.kind }}:{{ list.pubkey }}:{{ list.slug }}">
+                        {{ ux_icon('iconoir:rss-feed', {class: 'icon action-icon', 'aria-hidden': 'true'}) }}
+                        Broadcast to Relays
+                    </button>
+                {% endif %}
+            </div>
         </div>
-    {% endif %}
-    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
-        <div class="container mt-5 mb-5">
-            <h1>{{ list.title }}</h1>
-            <p class="eyebrow">{{ list.summary }}</p>
-        </div>
-        <div>by
-            {% set listAuthor = list.author %}
-            {% if listAuthor %}
-                {{ listAuthor }}
-            {% else %}
-                <twig:Molecules:UserFromNpub :ident="list.pubkey" />
-            {% endif %}
-        </div>
-    </section>
+
+        {% if list.image %}
+            <div class="magazine-hero__cover">
+                <img src="{{ list.image }}" alt="{{ list.title }}" class="magazine-hero__cover-img">
+            </div>
+        {% endif %}
+        <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+            <div class="container mt-5 mb-5">
+                <h1>{{ list.title }}</h1>
+                <p class="eyebrow">{{ list.summary }}</p>
+            </div>
+            <div>by
+                {% set listAuthor = list.author %}
+                {% if listAuthor %}
+                    {{ listAuthor }}
+                {% else %}
+                    <twig:Molecules:UserFromNpub :ident="list.pubkey" />
+                {% endif %}
+            </div>
+        </section>
+    </div>
 
     <div class="w-container">
         <twig:Organisms:CardList :list="articles" class="article-list" />

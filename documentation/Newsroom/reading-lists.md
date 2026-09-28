@@ -13,6 +13,10 @@ Reading lists are curated collections of articles, implemented as Nostr kind 300
 
 The former `/reading-list/wizard/review` URL is retained as a compatibility redirect to the article workspace.
 
+## Sharing and Relay Broadcast
+
+The overflow menu in a published reading list's heading copies either its canonical Newsroom URL or NIP-19 `naddr`. Signed-in users can also broadcast the persisted kind `30040` event to their configured write relays through the existing publication broadcast endpoint.
+
 ## Consolidated Article Workspace
 
 The article workspace uses the flat editorial hierarchy established by the Newsroom `my-content` page: a large page heading, rule-separated metadata, compact inventory rows, and square controls without shaded cards.
@@ -42,6 +46,8 @@ Defined in `config/packages/workflow.yaml` (`reading_list_workflow`). States: `e
 | Navigation | `src/Service/ReadingListNavigationService.php` |
 | Selector component | `src/Twig/Components/ReadingListSelectorComponent.php` |
 | Draft component | `src/Twig/Components/ReadingListDraftComponent.php` |
+| Reading-list header | `templates/pages/list.html.twig` |
+| Menu behavior | `assets/controllers/ui/magazine_actions_dropdown_controller.js` |
 
 ## Input Formats
 
