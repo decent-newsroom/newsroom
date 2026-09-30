@@ -596,6 +596,61 @@ class EventRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * Find the latest persisted kind:0 metadata event for each requested pubkey.
+     *
+     * @param array<mixed> $pubkeys Hex pubkeys
+     * @return array<string, Event> Map of pubkey => metadata event
+     */
+    public function findLatestMetadataByPubkeys(array $pubkeys): array
+    {
+        $pubkeys = array_values(array_unique(array_filter(
+            $pubkeys,
+            static fn (mixed $pubkey): bool => is_string($pubkey) && $pubkey !== '',
+        )));
+
+        if ($pubkeys === []) {
+            return [];
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+        $ids = $connection->executeQuery(
+            <<<'SQL'
+                SELECT DISTINCT ON (pubkey) id
+                FROM event
+                WHERE kind = :kind
+                  AND pubkey IN (:pubkeys)
+                ORDER BY pubkey, created_at DESC, id DESC
+                SQL,
+            [
+                'kind' => KindsEnum::METADATA->value,
+                'pubkeys' => $pubkeys,
+            ],
+            [
+                'kind' => \Doctrine\DBAL\ParameterType::INTEGER,
+                'pubkeys' => \Doctrine\DBAL\ArrayParameterType::STRING,
+            ],
+        )->fetchFirstColumn();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        /** @var Event[] $events */
+        $events = $this->createQueryBuilder('e')
+            ->where('e.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+
+        $metadataByPubkey = [];
+        foreach ($events as $event) {
+            $metadataByPubkey[$event->getPubkey()] = $event;
+        }
+
+        return $metadataByPubkey;
+    }
+
 
     /**
      * Find latest profile event for a pubkey (metadata or relay list).

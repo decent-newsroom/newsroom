@@ -8,9 +8,14 @@
 | Highlights | `HighlightFeedService::loadLatestHighlights(200)`; the same Redis-first source as `/highlights` |
 | Featured writers | Shared `/featured-articles` feed for users with `ROLE_FEATURED_WRITER` |
 
-Recent articles exclude incomplete records, configured exclusions, bots, and the
-viewer's muted authors. `app:cache-latest-articles` rebuilds the Redis view every
-15 minutes. A cache miss uses local search rather than waiting for relay fetches.
+Recent articles exclude incomplete records, authors without a locally persisted
+kind-0 metadata event, configured exclusions, bots, and the viewer's muted
+authors. This eligibility check is local-only: Discover does not request or
+enqueue profile metadata for an author missing from the local database. Once
+normal event ingestion has stored that author's metadata event, their eligible
+articles can appear on a subsequent feed rebuild. `app:cache-latest-articles`
+rebuilds the Redis view every 15 minutes. A cache miss uses local search rather
+than waiting for relay fetches.
 
 The search form submits to `app_search_index` and uses `search--nostr-redirect`
 to recognize Nostr identifiers. Topic links come from `ForumTopics::TOPICS`;

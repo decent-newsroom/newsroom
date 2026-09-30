@@ -7,7 +7,7 @@ namespace App\ReadModel\RedisView;
  * Contains all data needed to render an item without additional queries
  *
  * This is the top-level structure stored in Redis as JSON for:
- * - view:articles:latest
+ * - view:articles:latest:v2
  * - view:highlights:latest
  * - view:user:articles:<pubkey>
  */
@@ -28,4 +28,3 @@ final readonly class RedisBaseObject
         public array $meta = [],
     ) {}
 }
-

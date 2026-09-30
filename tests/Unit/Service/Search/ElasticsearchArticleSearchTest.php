@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Search;
 
 use App\Dto\SearchFilters;
+use App\Repository\ArticleRepository;
 use App\Service\Search\ElasticsearchArticleSearch;
 use Elastica\Query;
 use FOS\ElasticaBundle\Finder\FinderInterface;
@@ -25,7 +26,7 @@ final class ElasticsearchArticleSearchTest extends TestCase
                 return [];
             });
 
-        $service = new ElasticsearchArticleSearch($finder, new NullLogger());
+        $service = new ElasticsearchArticleSearch($finder, new NullLogger(), $this->createMock(ArticleRepository::class));
         $service->advancedSearch('', new SearchFilters(
             dateFrom: '2026-09-01',
             dateTo: '2026-09-25',
@@ -53,10 +54,25 @@ final class ElasticsearchArticleSearchTest extends TestCase
                 return [];
             });
 
-        $service = new ElasticsearchArticleSearch($finder, new NullLogger());
+        $service = new ElasticsearchArticleSearch($finder, new NullLogger(), $this->createMock(ArticleRepository::class));
         $service->advancedSearch('0', new SearchFilters(sortBy: 'oldest'));
 
         self::assertNotNull($captured);
         self::assertSame('0', $captured['query']['bool']['must'][0]['multi_match']['query']);
+    }
+
+    public function testLatestFeedUsesMetadataQualifiedLocalRepositoryEvenWhenElasticsearchIsEnabled(): void
+    {
+        $finder = $this->createMock(FinderInterface::class);
+        $finder->expects(self::never())->method('find');
+
+        $repository = $this->createMock(ArticleRepository::class);
+        $repository->expects(self::once())
+            ->method('findLatestForRecentFeed')
+            ->with(12, ['muted-pubkey'])
+            ->willReturn([]);
+
+        $service = new ElasticsearchArticleSearch($finder, new NullLogger(), $repository);
+        self::assertSame([], $service->findLatest(12, ['muted-pubkey']));
     }
 }

@@ -297,24 +297,24 @@ class DefaultController extends AbstractController
         string $tab,
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
-        RedisCacheService $redisCacheService,
+        EventRepository $eventRepository,
         ContentSearchService $contentSearch,
         UserMuteListService $userMuteListService,
     ): Response
     {
         return match ($tab) {
-            'recent' => $this->discoverRecentTab($viewStore, $exclusionPolicy, $redisCacheService, $contentSearch, $userMuteListService),
+            'recent' => $this->discoverRecentTab($viewStore, $exclusionPolicy, $eventRepository, $contentSearch, $userMuteListService),
         };
     }
 
     /**
      * Serves the "Recent" tab for /discover from the cached latest articles list.
-     * Redis fast path (view:articles:latest) with database fallback.
+     * Redis fast path (view:articles:latest:v2) with database fallback.
      */
     private function discoverRecentTab(
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
-        RedisCacheService $redisCacheService,
+        EventRepository $eventRepository,
         ContentSearchService $contentSearch,
         UserMuteListService $userMuteListService,
     ): Response
@@ -331,20 +331,15 @@ class DefaultController extends AbstractController
             }
         }
 
-        // Fast path: Try Redis cache first (view:articles:latest)
+        // Fast path: Try Redis cache first (view:articles:latest:v2)
         $cachedView = $viewStore->fetchLatestArticles();
 
         if ($cachedView !== null) {
             $articles = [];
-            $authorsMetadata = [];
-
-            foreach ($cachedView as $baseObject) {
-                if (isset($baseObject['profiles'])) {
-                    foreach ($baseObject['profiles'] as $pubkey => $profile) {
-                        $authorsMetadata[$pubkey] = (object) $profile;
-                    }
-                }
-            }
+            $authorsMetadataStd = $this->findPersistedMetadata(
+                $eventRepository,
+                array_column(array_column($cachedView, 'article'), 'pubkey'),
+            );
 
             foreach ($cachedView as $baseObject) {
                 if (!isset($baseObject['article'])) {
@@ -354,11 +349,15 @@ class DefaultController extends AbstractController
                 $articlePayload = $baseObject['article'];
                 $articlePubkey = $articlePayload['pubkey'] ?? null;
 
+                if (!is_string($articlePubkey) || !isset($authorsMetadataStd[$articlePubkey])) {
+                    continue;
+                }
+
                 if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
                     continue;
                 }
 
-                $authorMetadata = $articlePubkey ? ($authorsMetadata[$articlePubkey] ?? null) : null;
+                $authorMetadata = $authorsMetadataStd[$articlePubkey];
 
                 if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
                     continue;
@@ -370,8 +369,6 @@ class DefaultController extends AbstractController
 
                 $articles[] = (object) $articlePayload;
             }
-
-            $authorsMetadataStd = $authorsMetadata; // already stdClass from cache
         } else {
             // Cache miss: fall back to database search (fast, non-blocking).
             // The cron job (app:cache-latest-articles, every 15 min) will repopulate Redis.
@@ -381,25 +378,15 @@ class DefaultController extends AbstractController
             )));
 
             $articles = $contentSearch->getLatest(50, $excludedPubkeys);
-
-            $authorPubkeys = [];
-            foreach ($articles as $article) {
-                $pk = $article->getPubkey();
-                if ($pk && PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null) {
-                    $authorPubkeys[] = $pk;
-                }
-            }
-            $authorPubkeys = array_unique($authorPubkeys);
-            $metaRaw = $redisCacheService->getMultipleMetadata($authorPubkeys);
-            $authorsMetadataStd = [];
-            foreach ($metaRaw as $pk => $m) {
-                $authorsMetadataStd[$pk] = $m instanceof UserMetadata ? $m->toStdClass() : $m;
-            }
+            $authorsMetadataStd = $this->findPersistedMetadata(
+                $eventRepository,
+                array_map(static fn (Article $article): ?string => $article->getPubkey(), $articles),
+            );
 
             $articles = array_values(array_filter($articles, function (Article $article) use ($authorsMetadataStd, $exclusionPolicy): bool {
                 $authorMetadata = $authorsMetadataStd[$article->getPubkey()] ?? null;
 
-                return !$exclusionPolicy->shouldExclude($article, $authorMetadata);
+                return $authorMetadata !== null && !$exclusionPolicy->shouldExclude($article, $authorMetadata);
             }));
         }
 
@@ -415,10 +402,10 @@ class DefaultController extends AbstractController
      */
     #[Route('/latest-articles', name: 'latest_articles')]
     public function latestArticles(
-        RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
+        EventRepository $eventRepository,
         UserMuteListService $userMuteListService,
     ): Response
     {
@@ -445,15 +432,10 @@ class DefaultController extends AbstractController
 
         if ($cachedView !== null) {
             $articles = [];
-            $authorsMetadata = [];
-
-            foreach ($cachedView as $baseObject) {
-                if (isset($baseObject['profiles'])) {
-                    foreach ($baseObject['profiles'] as $pubkey => $profile) {
-                        $authorsMetadata[$pubkey] = (object) $profile;
-                    }
-                }
-            }
+            $authorsMetadata = $this->findPersistedMetadata(
+                $eventRepository,
+                array_column(array_column($cachedView, 'article'), 'pubkey'),
+            );
 
             foreach ($cachedView as $baseObject) {
                 if (!isset($baseObject['article'])) {
@@ -463,11 +445,15 @@ class DefaultController extends AbstractController
                 $articlePayload = $baseObject['article'];
                 $articlePubkey = $articlePayload['pubkey'] ?? null;
 
+                if (!is_string($articlePubkey) || !isset($authorsMetadata[$articlePubkey])) {
+                    continue;
+                }
+
                 if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
                     continue;
                 }
 
-                $authorMetadata = $articlePubkey ? ($authorsMetadata[$articlePubkey] ?? null) : null;
+                $authorMetadata = $authorsMetadata[$articlePubkey];
 
                 if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
                     continue;
@@ -485,23 +471,16 @@ class DefaultController extends AbstractController
             // repopulate Redis.
             $articleSearch = $articleSearchFactory->create();
             $articles = $articleSearch->findLatest(50, $excludedPubkeys);
-
-            // Collect author pubkeys for metadata (findLatest returns Article[])
-            $authorPubkeys = [];
-            foreach ($articles as $article) {
-                $pk = $article->getPubkey();
-                if ($pk && PublicKey::fromHex(strtolower(trim((string) ($pk)))) !== null) {
-                    $authorPubkeys[] = $pk;
-                }
-            }
-            $authorPubkeys = array_unique($authorPubkeys);
-            $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
+            $authorsMetadata = $this->findPersistedMetadata(
+                $eventRepository,
+                array_map(static fn (Article $article): ?string => $article->getPubkey(), $articles),
+            );
 
             // Re-apply the shared policy after author metadata has been resolved.
             $articles = array_values(array_filter($articles, function (Article $article) use ($authorsMetadata, $exclusionPolicy): bool {
                 $authorMetadata = $authorsMetadata[$article->getPubkey()] ?? null;
 
-                return !$exclusionPolicy->shouldExclude($article, $authorMetadata);
+                return $authorMetadata !== null && !$exclusionPolicy->shouldExclude($article, $authorMetadata);
             }));
         }
 
@@ -520,6 +499,25 @@ class DefaultController extends AbstractController
             'newsBots' => array_slice($excludedPubkeys, 0, 4),
             'authorsMetadata' => $authorsMetadataStd,
         ]);
+    }
+
+    /**
+     * @param array<array-key, mixed> $pubkeys
+     * @return array<string, \stdClass>
+     */
+    private function findPersistedMetadata(EventRepository $eventRepository, array $pubkeys): array
+    {
+        $metadata = [];
+        $pubkeys = array_values(array_filter(
+            $pubkeys,
+            static fn (mixed $pubkey): bool => is_string($pubkey) && $pubkey !== '',
+        ));
+
+        foreach ($eventRepository->findLatestMetadataByPubkeys($pubkeys) as $pubkey => $event) {
+            $metadata[$pubkey] = UserMetadata::fromMetadataEvent($event)->toStdClass();
+        }
+
+        return $metadata;
     }
 
     /**

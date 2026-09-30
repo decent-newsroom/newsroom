@@ -14,7 +14,7 @@ use Psr\Log\LoggerInterface;
  */
 class RedisViewStore
 {
-    private const KEY_LATEST_ARTICLES = 'view:articles:latest';
+    private const KEY_LATEST_ARTICLES = 'view:articles:latest:v2';
     private const KEY_LATEST_HIGHLIGHTS = 'view:highlights:latest';
     private const KEY_USER_ARTICLES = 'view:user:articles:%s'; // sprintf with pubkey
     private const KEY_PROFILE_TAB = 'view:profile:tab:%s:%s'; // sprintf with pubkey and tab

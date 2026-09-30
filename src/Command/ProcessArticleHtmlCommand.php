@@ -338,7 +338,7 @@ class ProcessArticleHtmlCommand extends Command
     private function invalidateArticleCaches(string $pubkey): void
     {
         // Clear the global latest-articles view (rebuilt by cron every 15 min)
-        $this->redis->del('view:articles:latest');
+        $this->redis->del('view:articles:latest:v2');
 
         // Clear the per-author articles view
         $this->redis->del(sprintf('view:user:articles:%s', $pubkey));

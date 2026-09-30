@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto;
 
 
+use App\Entity\Event;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 /**
  * Data Transfer Object for Nostr user profile metadata (kind:0).
@@ -62,6 +63,16 @@ class UserMetadata
             nip05: self::extractMultiValueString($user->getNip05()),
             bot: false,
         );
+    }
+
+    /**
+     * Create from a persisted Nostr kind:0 event without fetching profile data.
+     */
+    public static function fromMetadataEvent(Event $event): self
+    {
+        $metadata = json_decode($event->getContent());
+
+        return self::fromStdClass($metadata instanceof \stdClass ? $metadata : new \stdClass());
     }
 
     /**

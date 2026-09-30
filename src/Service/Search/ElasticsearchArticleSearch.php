@@ -4,7 +4,7 @@ namespace App\Service\Search;
 
 use App\Dto\SearchFilters;
 use App\Entity\Article;
-use App\Enum\KindsEnum;
+use App\Repository\ArticleRepository;
 use Elastica\Aggregation\Filters as FiltersAgg;
 use Elastica\Index;
 use Elastica\Query;
@@ -21,6 +21,7 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
     public function __construct(
         private readonly FinderInterface $finder,
         private readonly LoggerInterface $logger,
+        private readonly ArticleRepository $articleRepository,
         private readonly bool $enabled = true,
         private readonly ?Index $index = null
     ) {
@@ -270,30 +271,10 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
 
     public function findLatest(int $limit = 50, array $excludedPubkeys = []): array
     {
-        if (!$this->enabled) {
-            return [];
-        }
-
         try {
-            $boolQuery = new BoolQuery();
-
-            // Exclude drafts (kind 30024)
-            $boolQuery->addMustNot(new Term(['kind' => KindsEnum::LONGFORM_DRAFT->value]));
-
-            if (!empty($excludedPubkeys)) {
-                $boolQuery->addMustNot(new Terms('pubkey', $excludedPubkeys));
-            }
-
-            $mainQuery = new Query($boolQuery);
-            $mainQuery->setSize($limit);
-            $mainQuery->setSort(['createdAt' => ['order' => 'desc']]);
-
-            // Collapse on slug to get unique articles
-            $mainQuery->setParam('collapse', [
-                'field' => 'slug'
-            ]);
-
-            return $this->finder->find($mainQuery);
+            // The recent feed is defined by local, persisted metadata. Search
+            // documents cannot prove that a kind-0 event exists in PostgreSQL.
+            return $this->articleRepository->findLatestForRecentFeed($limit, $excludedPubkeys);
         } catch (\Exception $e) {
             $this->logger->error('Elasticsearch findLatest error: ' . $e->getMessage());
             return [];
@@ -367,4 +348,3 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
         return $this->enabled;
     }
 }
-

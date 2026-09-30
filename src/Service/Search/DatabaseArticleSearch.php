@@ -84,7 +84,7 @@ class DatabaseArticleSearch implements ArticleSearchInterface
     public function findLatest(int $limit = 50, array $excludedPubkeys = []): array
     {
         try {
-            return $this->articleRepository->findLatestArticles($limit, $excludedPubkeys);
+            return $this->articleRepository->findLatestForRecentFeed($limit, $excludedPubkeys);
         } catch (\Exception $e) {
             $this->logger->error('Database findLatest error: ' . $e->getMessage());
             return [];
@@ -124,4 +124,3 @@ class DatabaseArticleSearch implements ArticleSearchInterface
         return true; // Database is always available
     }
 }
-

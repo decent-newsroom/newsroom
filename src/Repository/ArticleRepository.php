@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Dto\SearchFilters;
 use App\Entity\Article;
+use App\Entity\Event;
 use App\Enum\KindsEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception;
@@ -75,11 +76,32 @@ class ArticleRepository extends ServiceEntityRepository
      */
     public function findLatestArticles(int $limit = 50, array $excludedPubkeys = [], bool $includeEssayistExclusive = false): array
     {
+        return $this->queryLatestArticles($limit, $excludedPubkeys, $includeEssayistExclusive, false);
+    }
+
+    /**
+     * Recent feed candidates whose author already has a persisted kind-0 event.
+     * The EXISTS predicate runs before the row limit so missing profiles cannot
+     * consume the candidate budget.
+     *
+     * @param string[] $excludedPubkeys
+     * @return Article[]
+     */
+    public function findLatestForRecentFeed(int $limit = 50, array $excludedPubkeys = []): array
+    {
+        return $this->queryLatestArticles($limit, $excludedPubkeys, false, true);
+    }
+
+    /** @return Article[] */
+    private function queryLatestArticles(int $limit, array $excludedPubkeys, bool $includeEssayistExclusive, bool $requirePersistedMetadata): array
+    {
         $qb = $this->createQueryBuilder('a');
 
         $qb->where('a.publishedAt IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
+            ->andWhere("a.slug != ''")
             ->andWhere('a.title IS NOT NULL')
+            ->andWhere("a.title != ''")
             ->andWhere('a.kind != :draftKind')
             ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
             ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
@@ -93,6 +115,16 @@ class ArticleRepository extends ServiceEntityRepository
             $qb->andWhere('a.essayistExclusive = false');
         }
 
+        if ($requirePersistedMetadata) {
+            $metadataQuery = $this->getEntityManager()->createQueryBuilder()
+                ->select('metadata.id')
+                ->from(Event::class, 'metadata')
+                ->where('metadata.pubkey = a.pubkey')
+                ->andWhere('metadata.kind = :metadataKind');
+            $qb->andWhere($qb->expr()->exists($metadataQuery->getDQL()))
+                ->setParameter('metadataKind', KindsEnum::METADATA->value);
+        }
+
         if (!empty($excludedPubkeys)) {
             $qb->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))
                 ->setParameter('excludedPubkeys', $excludedPubkeys);
@@ -104,9 +136,11 @@ class ArticleRepository extends ServiceEntityRepository
         // Group by slug and keep the most recent version of each
         $slugMap = [];
         foreach ($allArticles as $article) {
-            $slug = $article->getSlug();
-            if (!isset($slugMap[$slug]) || $article->getCreatedAt() > $slugMap[$slug]->getCreatedAt()) {
-                $slugMap[$slug] = $article;
+            $key = $requirePersistedMetadata
+                ? $article->getPubkey() . ':' . $article->getSlug()
+                : $article->getSlug();
+            if (!isset($slugMap[$key]) || $article->getCreatedAt() > $slugMap[$key]->getCreatedAt()) {
+                $slugMap[$key] = $article;
             }
         }
 
@@ -961,4 +995,3 @@ class ArticleRepository extends ServiceEntityRepository
         );
     }
 }
-

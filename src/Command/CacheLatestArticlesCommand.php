@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Dto\UserMetadata;
 use App\Entity\Article;
-use App\Enum\KindsEnum;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\ArticleRepository;
-use App\Service\Cache\RedisCacheService;
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisViewStore;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -25,7 +25,7 @@ class CacheLatestArticlesCommand extends Command
 {
     public function __construct(
         private readonly ArticleRepository $articleRepository,
-        private readonly RedisCacheService $redisCacheService,
+        private readonly EventRepository $eventRepository,
         private readonly RedisViewStore $viewStore,
         private readonly RedisViewFactory $viewFactory,
         private readonly LatestArticlesExclusionPolicy $exclusionPolicy,
@@ -65,27 +65,8 @@ class CacheLatestArticlesCommand extends Command
         // many more candidates than the target to end up with enough human articles.
         $fetchLimit = max($target * 15, 500);
 
-        $qb = $this->articleRepository->createQueryBuilder('a');
-        $qb->where('a.publishedAt IS NOT NULL')
-            ->andWhere('a.slug IS NOT NULL')
-            ->andWhere("a.slug != ''")
-            ->andWhere('a.title IS NOT NULL')
-            ->andWhere("a.title != ''")
-            ->andWhere('a.kind != :draftKind')
-            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
-            // Only fresh releases: filter out revisions where published_at differs from created_at
-            ->andWhere('a.publishedAt = a.createdAt');
-
-        if (!empty($excludedPubkeys)) {
-            $qb->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))
-                ->setParameter('excludedPubkeys', $excludedPubkeys);
-        }
-
-        $qb->orderBy('a.createdAt', \SortDirection::Descending)
-            ->setMaxResults($fetchLimit);
-
         /** @var Article[] $allArticles */
-        $allArticles = $qb->getQuery()->getResult();
+        $allArticles = $this->articleRepository->findLatestForRecentFeed($fetchLimit, $excludedPubkeys);
 
         $output->writeln(sprintf('<info>Found %d articles from database</info>', count($allArticles)));
 
@@ -109,12 +90,24 @@ class CacheLatestArticlesCommand extends Command
             return Command::FAILURE;
         }
 
-        // Collect ALL author pubkeys for metadata fetching (needed for bot detection)
+        // Resolve only persisted kind:0 events. The latest feed must never
+        // trigger profile hydration for authors that are not known locally.
         $authorPubkeys = array_keys($articlesByAuthor);
+        $metadataEvents = $this->eventRepository->findLatestMetadataByPubkeys($authorPubkeys);
+        $authorsMetadata = [];
+        foreach ($metadataEvents as $pubkey => $event) {
+            $authorsMetadata[$pubkey] = UserMetadata::fromMetadataEvent($event);
+        }
 
-        $output->writeln(sprintf('<comment>Fetching metadata for %d authors...</comment>', count($authorPubkeys)));
-        $authorsMetadata = $this->redisCacheService->getMultipleMetadata($authorPubkeys);
-        $output->writeln(sprintf('<info>✓ Fetched %d author profiles</info>', count($authorsMetadata)));
+        $articlesByAuthor = array_filter(
+            $articlesByAuthor,
+            static fn (Article $article): bool => isset($authorsMetadata[$article->getPubkey()]),
+        );
+
+        $output->writeln(sprintf(
+            '<info>✓ Found persisted metadata for %d authors</info>',
+            count($authorsMetadata),
+        ));
 
         // Filter bots FIRST, then take the target number of human articles
         $output->writeln('<comment>Filtering bots and building Redis view objects...</comment>');
@@ -162,7 +155,7 @@ class CacheLatestArticlesCommand extends Command
         $output->writeln('');
         $output->writeln(sprintf('<info>✓ Successfully cached %d articles to Redis views</info>', count($baseObjects)));
         $output->writeln(sprintf('<info>  (target: %d, excluded %d filtered articles from %d unique authors)</info>', $target, $excludedCount, count($articlesByAuthor)));
-        $output->writeln('<info>  Key: view:articles:latest</info>');
+        $output->writeln('<info>  Key: view:articles:latest:v2</info>');
 
         return Command::SUCCESS;
     }
