@@ -8,6 +8,7 @@ use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\ArticleEventProjector;
+use App\Service\BooksChapterLookup;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrClient;
@@ -16,8 +17,6 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -32,9 +31,7 @@ final class FetchEventFromRelaysHandler
         private readonly HubInterface $hub,
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
-        private readonly HttpClientInterface $httpClient,
-        #[Autowire(param: 'bookshelf.books_api_base_url')]
-        private readonly string $booksApiBaseUrl,
+        private readonly BooksChapterLookup $booksChapterLookup,
     ) {}
 
     public function __invoke(FetchEventFromRelaysMessage $message): void
@@ -65,12 +62,17 @@ final class FetchEventFromRelaysHandler
             return;
         }
 
-        // Chapters can be indexed by the Books API even when they have not
-        // reached our local database or the relays we normally query.
-        $booksEvent = $this->findChapterInBooksApi($message);
-        if ($booksEvent !== null) {
-            $this->persistAndPublish($message, $booksEvent, 'books-api');
-            return;
+        if ($message->type === 'naddr'
+            && $message->kind === KindsEnum::PUBLICATION_CONTENT->value
+            && is_string($message->pubkey)
+            && is_string($message->identifier)) {
+            $booksEvent = $this->booksChapterLookup->find($message->pubkey, $message->identifier);
+            if ($booksEvent !== null) {
+                // The chapter page and cards hydrate from the API on reload.
+                // Do not create a local Event row for this response.
+                $this->publishResult($message->lookupKey, 'found', $booksEvent->getId());
+                return;
+            }
         }
 
         // Fetch from relays (this is the slow part — OK in a worker).
@@ -171,57 +173,6 @@ final class FetchEventFromRelaysHandler
             ]);
             $this->publishResult($message->lookupKey, 'error');
         }
-    }
-
-    private function findChapterInBooksApi(FetchEventFromRelaysMessage $message): ?object
-    {
-        if ($message->type !== 'naddr'
-            || $message->kind !== KindsEnum::PUBLICATION_CONTENT->value
-            || !is_string($message->pubkey) || $message->pubkey === ''
-            || !is_string($message->identifier) || $message->identifier === '') {
-            return null;
-        }
-
-        try {
-            $response = $this->httpClient->request(
-                'POST',
-                rtrim($this->booksApiBaseUrl, '/') . '/books/api/events/filter',
-                [
-                    'headers' => ['Accept' => 'application/json'],
-                    'json' => [
-                        'authors' => [$message->pubkey],
-                        'kinds' => [KindsEnum::PUBLICATION_CONTENT->value],
-                        '#d' => [$message->identifier],
-                        'limit' => 10,
-                    ],
-                ],
-            );
-            if ($response->getStatusCode() >= 400) {
-                return null;
-            }
-
-            foreach ($response->toArray(false) as $candidate) {
-                if (!is_array($candidate)
-                    || ($candidate['kind'] ?? null) !== KindsEnum::PUBLICATION_CONTENT->value
-                    || ($candidate['pubkey'] ?? null) !== $message->pubkey
-                    || !is_array($candidate['tags'] ?? null)) {
-                    continue;
-                }
-
-                foreach ($candidate['tags'] as $tag) {
-                    if (is_array($tag) && ($tag[0] ?? null) === 'd' && ($tag[1] ?? null) === $message->identifier) {
-                        return (object) $candidate;
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            $this->logger->warning('Books API chapter lookup failed; falling back to relays', [
-                'lookup_key' => $message->lookupKey,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        return null;
     }
 
     private function invalidateChapterCaches(FetchEventFromRelaysMessage $message, ?string $eventId): void

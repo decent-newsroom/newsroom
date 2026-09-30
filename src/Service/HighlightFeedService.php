@@ -38,10 +38,10 @@ class HighlightFeedService
                 $article = $baseObject['article'] ?? null;
 
                 $articleCoordinate = null;
-                if ($article && isset($article['kind'], $article['pubkey'], $article['slug'])) {
-                    $articleCoordinate = $article['kind'] . ':' . $article['pubkey'] . ':' . $article['slug'];
-                } elseif (isset($baseObject['highlight']['refs']['article_coordinate'])) {
+                if (isset($baseObject['highlight']['refs']['article_coordinate'])) {
                     $articleCoordinate = $baseObject['highlight']['refs']['article_coordinate'];
+                } elseif ($article && isset($article['kind'], $article['pubkey'], $article['slug'])) {
+                    $articleCoordinate = $article['kind'] . ':' . $article['pubkey'] . ':' . $article['slug'];
                 }
 
                 $naddr = $articleCoordinate ? $this->generateNaddr($articleCoordinate, []) : null;

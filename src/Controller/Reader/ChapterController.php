@@ -9,6 +9,7 @@ use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\ChapterParentPublicationResolver;
+use App\Service\BooksChapterLookup;
 use App\Service\Nostr\EventLookupKey;
 use App\Util\CommonMark\Converter;
 use nostriphant\NIP19\Bech32;
@@ -26,6 +27,7 @@ class ChapterController extends AbstractController
     public function show(
         string $naddr,
         EventRepository $eventRepository,
+        BooksChapterLookup $booksChapterLookup,
         MessageBusInterface $messageBus,
         Converter $converter,
         LoggerInterface $logger,
@@ -49,6 +51,9 @@ class ChapterController extends AbstractController
         }
 
         $chapter = $eventRepository->findByNaddr(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, $identifier);
+        if (!$chapter instanceof Event) {
+            $chapter = $booksChapterLookup->find($pubkey, $identifier);
+        }
         if (!$chapter instanceof Event) {
             $lookupKey = EventLookupKey::forNaddr(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, $identifier);
             $messageBus->dispatch(new FetchEventFromRelaysMessage(

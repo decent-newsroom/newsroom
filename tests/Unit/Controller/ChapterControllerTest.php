@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
+use App\Service\BooksChapterLookup;
 use App\Service\Nostr\EventLookupKey;
 use App\Util\CommonMark\Converter;
 use nostriphant\NIP19\Bech32;
@@ -45,11 +46,14 @@ final class ChapterControllerTest extends TestCase
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::never())->method('dispatch');
+        $booksLookup = $this->createMock(BooksChapterLookup::class);
+        $booksLookup->expects(self::never())->method('find');
 
         $controller = $this->makeController();
         $response = $controller->show(
             $this->encodeNaddr(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, 'intro'),
             $repository,
+            $booksLookup,
             $bus,
             $converter,
             $this->createMock(LoggerInterface::class),
@@ -88,11 +92,15 @@ final class ChapterControllerTest extends TestCase
 
         $converter = $this->createMock(Converter::class);
         $converter->expects(self::never())->method('convertAsciiDocToHTML');
+        $booksLookup = $this->createMock(BooksChapterLookup::class);
+        $booksLookup->expects(self::once())->method('find')
+            ->with($pubkey, 'missing')->willReturn(null);
 
         $controller = $this->makeController();
         $response = $controller->show(
             $naddr,
             $repository,
+            $booksLookup,
             $bus,
             $converter,
             $this->createMock(LoggerInterface::class),
@@ -104,6 +112,39 @@ final class ChapterControllerTest extends TestCase
         self::assertSame(EventLookupKey::topic($lookupKey), $controller->renderedParameters['lookupTopic']);
     }
 
+    public function testDbMissRendersBooksApiChapterWithoutDispatchingFetch(): void
+    {
+        $pubkey = str_repeat('b', 64);
+        $chapter = $this->makeEvent(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, 'intro', [
+            ['d', 'intro'],
+            ['title', 'Books chapter'],
+        ], '= Books chapter');
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())->method('findByNaddr')->willReturn(null);
+        $booksLookup = $this->createMock(BooksChapterLookup::class);
+        $booksLookup->expects(self::once())->method('find')
+            ->with($pubkey, 'intro')->willReturn($chapter);
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::never())->method('dispatch');
+        $converter = $this->createMock(Converter::class);
+        $converter->expects(self::once())->method('convertAsciiDocToHTML')
+            ->with('= Books chapter')->willReturn('<h1>Books chapter</h1>');
+
+        $controller = $this->makeController();
+        $response = $controller->show(
+            $this->encodeNaddr(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, 'intro'),
+            $repository,
+            $booksLookup,
+            $bus,
+            $converter,
+            $this->createMock(LoggerInterface::class),
+        );
+
+        self::assertSame('rendered:chapter/show.html.twig', $response->getContent());
+        self::assertSame($chapter, $controller->renderedParameters['chapter']);
+        self::assertSame('Books chapter', $controller->renderedParameters['title']);
+    }
+
     public function testNonChapterNaddrRedirectsToGenericEventRoute(): void
     {
         $naddr = $this->encodeNaddr(KindsEnum::LONGFORM->value, str_repeat('c', 64), 'article');
@@ -112,6 +153,7 @@ final class ChapterControllerTest extends TestCase
         $response = $controller->show(
             $naddr,
             $this->createMock(EventRepository::class),
+            $this->createMock(BooksChapterLookup::class),
             $this->createMock(MessageBusInterface::class),
             $this->createMock(Converter::class),
             $this->createMock(LoggerInterface::class),

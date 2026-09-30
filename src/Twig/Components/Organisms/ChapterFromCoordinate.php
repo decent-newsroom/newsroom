@@ -7,6 +7,7 @@ namespace App\Twig\Components\Organisms;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
+use App\Service\BooksChapterLookup;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
@@ -23,6 +24,7 @@ final class ChapterFromCoordinate
 
     public function __construct(
         private readonly EventRepository $eventRepository,
+        private readonly BooksChapterLookup $booksChapterLookup,
     ) {}
 
     public function mount(string $coordinate, array $relayHints = [], ?string $mag = null): void
@@ -52,6 +54,10 @@ final class ChapterFromCoordinate
             $pubkey,
             $slug,
         );
+
+        if (!$this->chapter instanceof Event) {
+            $this->chapter = $this->booksChapterLookup->find($pubkey, $slug);
+        }
 
         if (!$this->chapter instanceof Event) {
             $this->error = 'chapter.error.not_found';

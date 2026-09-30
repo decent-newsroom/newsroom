@@ -16,6 +16,7 @@ use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
+use App\Service\BooksChapterLookup;
 use App\Service\Graph\GraphMagazineListService;
 use App\Service\Magazine\MagazineStructureService;
 use App\Service\Magazine\PublicationIndexClassifier;
@@ -1033,6 +1034,7 @@ class DefaultController extends AbstractController
         EntityManagerInterface $entityManager,
         EventRepository $eventRepository,
         MagazineStructureService $magazineStructure,
+        BooksChapterLookup $booksChapterLookup,
         MessageBusInterface $messageBus,
         RedisCacheService $redisCacheService,
         Converter $converter,
@@ -1075,6 +1077,12 @@ class DefaultController extends AbstractController
                 $chapterReference['pubkey'],
                 $chapterReference['identifier'],
             );
+            if (!$chapter instanceof Event) {
+                $chapter = $booksChapterLookup->find(
+                    $chapterReference['pubkey'],
+                    $chapterReference['identifier'],
+                );
+            }
         }
 
         if (!$chapter instanceof Event) {
@@ -1158,7 +1166,7 @@ class DefaultController extends AbstractController
         $key = new NostrKeyService();
         $npub = $key->convertPublicKeyToBech32($chapter->getPubkey());
         $authorMetadata = $redisCacheService->getMetadata($chapter->getPubkey());
-        $author = $authorMetadata->toStdClass();
+        $author = $authorMetadata?->toStdClass();
 
         return $this->render('magazine/chapter.html.twig', [
             'magazine' => $magazine,

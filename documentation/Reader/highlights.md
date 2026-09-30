@@ -27,7 +27,7 @@ Highlights are Nostr kind 9802 events (NIP-84) — user-selected excerpts from a
 
 ### Kind 30041 source chapters
 
-When a highlight references a kind `30041` chapter, the feed first renders it from the local `event` table. A missing chapter shows a fetch action. That action queues the shared asynchronous chapter fetch: the worker checks the local database again, queries the Books API by author and `d` tag, then tries relay hints and the author's relays if the API has no exact match or is unavailable. The worker checks the returned event's kind, pubkey, and `d` tag before persisting it, then publishes a Mercure update so the chapter card can refresh. Other source kinds keep their existing lookup path.
+When a highlight references a kind `30041` chapter, the feed keeps the highlight's own coordinate even if an Article with the same author and slug appears in the Redis view. The chapter card reads the local `event` table first, then queries the Books API by author and `d` tag. An exact API result is hydrated into a temporary `Event` for rendering and cached briefly; no local database row is created. If neither source has the chapter, the existing fetch action searches relays asynchronously. The standalone and magazine chapter views use the same read-only Books API lookup before their relay-loading fallback. Other source kinds keep their existing lookup path.
 
 ## Creating Highlights
 

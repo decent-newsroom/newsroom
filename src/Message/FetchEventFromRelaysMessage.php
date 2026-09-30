@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Message;
 
 /**
- * Dispatched when an event is not found in the local database and needs
- * to be fetched from Nostr relays asynchronously.  The handler will query
- * relays, persist the event, and publish a Mercure update so the waiting
- * browser can reload.
+ * Dispatched when an event is not found locally. For kind 30041 chapters,
+ * the handler first checks the Books API and publishes a Mercure update
+ * without persisting an API result. Otherwise it fetches from relays,
+ * persists the result, and publishes an update for the waiting browser.
  */
 final class FetchEventFromRelaysMessage
 {
