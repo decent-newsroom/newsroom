@@ -2,6 +2,7 @@
 
 ## v0.0.54
 
+- [Fix] Looked up missing kind-30041 highlight source chapters in the Books API before trying relays, with exact-coordinate validation and relay fallback.
 - [Fix] Required locally persisted author metadata before articles can appear in the Discover Recent feed, without fetching missing profiles.
 - [Feature] Added published reading-list header actions to copy its Newsroom URL or NIP-19 address and broadcast the kind-30040 event to configured relays.
 - [Fix] Limited Newsstand magazine listings to root indices explicitly tagged with `type=magazine`.

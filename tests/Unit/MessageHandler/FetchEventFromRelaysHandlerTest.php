@@ -19,6 +19,8 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 final class FetchEventFromRelaysHandlerTest extends TestCase
 {
@@ -67,6 +69,9 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
             ->with($rawEvent, 'wss://hint.example')
             ->willReturn($persisted);
 
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects(self::never())->method('request');
+
         $hub = $this->hubExpecting($lookupKey, 'found', $rawEvent->id);
 
         $this->handler(
@@ -75,6 +80,7 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
             $projector,
             $hub,
             $userRelayListService,
+            httpClient: $httpClient,
         )(new FetchEventFromRelaysMessage(
             lookupKey: $lookupKey,
             type: 'naddr',
@@ -234,6 +240,122 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
         ));
     }
 
+    public function testMissingChapterIsFetchedFromBooksApiBeforeRelays(): void
+    {
+        $pubkey = str_repeat('5', 64);
+        $identifier = 'intro';
+        $lookupKey = EventLookupKey::forNaddr(30041, $pubkey, $identifier);
+        $rawEvent = $this->rawEvent(str_repeat('6', 64), 30041, $pubkey, $identifier);
+        $persisted = $this->eventEntity($rawEvent);
+
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository->expects(self::once())->method('findByNaddr')->willReturn(null);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects(self::once())
+            ->method('request')
+            ->with('POST', 'https://books.example/books/api/events/filter', self::callback(
+                static fn (array $options): bool => $options['json'] === [
+                    'authors' => [$pubkey],
+                    'kinds' => [30041],
+                    '#d' => [$identifier],
+                    'limit' => 10,
+                ],
+            ))
+            ->willReturn($this->booksResponse([(array) $rawEvent]));
+
+        $nostrClient = $this->createMock(NostrClient::class);
+        $nostrClient->expects(self::never())->method('getEventByNaddr');
+        $userRelayListService = $this->createMock(UserRelayListService::class);
+        $userRelayListService->expects(self::never())->method('getRelaysForFetching');
+
+        $projector = $this->createMock(GenericEventProjector::class);
+        $projector->expects(self::once())
+            ->method('projectEventFromNostrEvent')
+            ->with(self::callback(static fn (object $event): bool => (array) $event === (array) $rawEvent), 'books-api')
+            ->willReturn($persisted);
+
+        $cache = $this->createMock(CacheItemPoolInterface::class);
+        $cache->expects(self::once())->method('deleteItem')->with('chapter_' . $rawEvent->id)->willReturn(true);
+
+        $this->handler(
+            $nostrClient,
+            $eventRepository,
+            $projector,
+            $this->hubExpecting($lookupKey, 'found', $rawEvent->id),
+            $userRelayListService,
+            cache: $cache,
+            httpClient: $httpClient,
+        )(new FetchEventFromRelaysMessage(
+            lookupKey: $lookupKey,
+            type: 'naddr',
+            kind: 30041,
+            pubkey: $pubkey,
+            identifier: $identifier,
+        ));
+    }
+
+    public function testBooksApiIgnoresWrongCoordinateAndFallsBackToRelays(): void
+    {
+        $pubkey = str_repeat('7', 64);
+        $identifier = 'intro';
+        $lookupKey = EventLookupKey::forNaddr(30041, $pubkey, $identifier);
+        $rawEvent = $this->rawEvent(str_repeat('8', 64), 30041, $pubkey, $identifier);
+        $wrongEvent = $this->rawEvent(str_repeat('9', 64), 30041, $pubkey, 'other');
+
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository->method('findByNaddr')->willReturn(null);
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects(self::once())->method('request')
+            ->willReturn($this->booksResponse([(array) $wrongEvent]));
+        $userRelayListService = $this->createMock(UserRelayListService::class);
+        $userRelayListService->method('getRelaysForFetching')->willReturn([]);
+        $nostrClient = $this->createMock(NostrClient::class);
+        $nostrClient->expects(self::once())->method('getEventByNaddr')->willReturn($rawEvent);
+        $projector = $this->createMock(GenericEventProjector::class);
+        $projector->expects(self::once())->method('projectEventFromNostrEvent')
+            ->with($rawEvent, 'async-fetch')
+            ->willReturn($this->eventEntity($rawEvent));
+
+        $this->handler($nostrClient, $eventRepository, $projector,
+            $this->hubExpecting($lookupKey, 'found', $rawEvent->id), $userRelayListService,
+            httpClient: $httpClient,
+        )(new FetchEventFromRelaysMessage(
+            lookupKey: $lookupKey,
+            type: 'naddr',
+            kind: 30041,
+            pubkey: $pubkey,
+            identifier: $identifier,
+        ));
+    }
+
+    public function testBooksApiFailureFallsBackToRelays(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $lookupKey = EventLookupKey::forNaddr(30041, $pubkey, 'intro');
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository->method('findByNaddr')->willReturn(null);
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(503);
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects(self::once())->method('request')->willReturn($response);
+        $userRelayListService = $this->createMock(UserRelayListService::class);
+        $userRelayListService->method('getRelaysForFetching')->willReturn([]);
+        $nostrClient = $this->createMock(NostrClient::class);
+        $nostrClient->expects(self::once())->method('getEventByNaddr')->willReturn(null);
+
+        $this->handler($nostrClient, $eventRepository, $this->createMock(GenericEventProjector::class),
+            $this->hubExpecting($lookupKey, 'not_found'), $userRelayListService,
+            httpClient: $httpClient,
+        )(new FetchEventFromRelaysMessage(
+            lookupKey: $lookupKey,
+            type: 'naddr',
+            kind: 30041,
+            pubkey: $pubkey,
+            identifier: 'intro',
+        ));
+    }
+
     public function testAlreadyStoredPublicationChapterInvalidatesCacheAndPublishesFound(): void
     {
         $pubkey = str_repeat('3', 64);
@@ -249,6 +371,8 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
 
         $nostrClient = $this->createMock(NostrClient::class);
         $nostrClient->expects(self::never())->method('getEventByNaddr');
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects(self::never())->method('request');
 
         $cache = $this->createMock(CacheItemPoolInterface::class);
         $cache->expects(self::exactly(2))
@@ -266,6 +390,7 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
             $this->hubExpecting($lookupKey, 'found', $event->getId()),
             $this->createMock(UserRelayListService::class),
             cache: $cache,
+            httpClient: $httpClient,
         )(new FetchEventFromRelaysMessage(
             lookupKey: $lookupKey,
             type: 'naddr',
@@ -284,6 +409,7 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
         UserRelayListService $userRelayListService,
         ?LoggerInterface $logger = null,
         ?CacheItemPoolInterface $cache = null,
+        ?HttpClientInterface $httpClient = null,
     ): FetchEventFromRelaysHandler {
         return new FetchEventFromRelaysHandler(
             $nostrClient,
@@ -294,7 +420,27 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
             $hub,
             $cache ?? $this->createMock(CacheItemPoolInterface::class),
             $logger ?? $this->createMock(LoggerInterface::class),
+            $httpClient ?? $this->emptyBooksClient(),
+            'https://books.example',
         );
+    }
+
+    private function emptyBooksClient(): HttpClientInterface
+    {
+        $client = $this->createMock(HttpClientInterface::class);
+        $client->method('request')->willReturn($this->booksResponse([]));
+
+        return $client;
+    }
+
+    /** @param list<array<string, mixed>> $events */
+    private function booksResponse(array $events): ResponseInterface
+    {
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(200);
+        $response->method('toArray')->with(false)->willReturn($events);
+
+        return $response;
     }
 
     private function hubExpecting(string $lookupKey, string $status, ?string $eventId = null): HubInterface

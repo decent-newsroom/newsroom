@@ -25,6 +25,10 @@ Highlights are Nostr kind 9802 events (NIP-84) — user-selected excerpts from a
 - **Inline highlighting**: Existing highlights are marked inline in the article text (toggled via button)
 - **Highlights feed**: `/highlights` page shows latest highlights from Redis view store
 
+### Kind 30041 source chapters
+
+When a highlight references a kind `30041` chapter, the feed first renders it from the local `event` table. A missing chapter shows a fetch action. That action queues the shared asynchronous chapter fetch: the worker checks the local database again, queries the Books API by author and `d` tag, then tries relay hints and the author's relays if the API has no exact match or is unavailable. The worker checks the returned event's kind, pubkey, and `d` tag before persisting it, then publishes a Mercure update so the chapter card can refresh. Other source kinds keep their existing lookup path.
+
 ## Creating Highlights
 
 When a logged-in user selects text in an article:
