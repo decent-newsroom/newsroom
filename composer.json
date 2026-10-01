@@ -41,7 +41,7 @@
         "innis/nostr-client": "^0.1.7",
         "innis/nostr-core": "*",
         "laminas/laminas-diactoros": "^3.6",
-        "league/commonmark": "^2.7",
+        "league/commonmark": "^2.10",
         "league/html-to-markdown": "*",
         "minishlink/web-push": "^10.0",
         "nostriphant/nip-19": "^2.0",
