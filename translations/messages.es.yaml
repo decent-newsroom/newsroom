@@ -66,8 +66,6 @@ nav:
     startBlog: 'Iniciar una revista'
     readingList: 'Lista de lectura'
     article: 'Artículo'
-    expression: 'Expresión'
-    expressions: 'Expresiones'
     sendFeedback: 'Enviar comentarios'
     backToTop: 'Ir arriba'
     closeLeftSidebar: 'Cerrar barra lateral izquierda'
@@ -1067,71 +1065,8 @@ followPacks:
     curatedBy: 'Curado por'
 
 # ── Expresiones ───────────────────────────────────────────────────
-expressions:
-    heading: 'Expresiones'
-    tagline: 'Crea feeds personalizados con NIP-EX'
-    templates: 'Plantillas'
-    templatesDescription: 'Elige una plantilla para empezar y personalízala.'
-    builder: 'Constructor de Expresiones'
-    name: 'Título'
-    namePlaceholder: 'Mi feed personalizado'
-    description: 'Contenido'
-    descriptionPlaceholder: '¿Qué hace este feed?'
-    title: 'Crear Expresión'
-    titlePlaceholder: 'Mi feed personalizado'
-    content: 'Contenido'
-    contentPlaceholder: '¿Qué hace este feed?'
-    dtag: 'Identificador (d-tag)'
-    dtagPlaceholder: 'mi-feed-personalizado'
-    dtagHelp: 'Slug único para esta expresión. Se genera automáticamente del título si se deja vacío.'
-    addStage: 'Añadir Etapa'
-    jsonPreview: 'Vista previa JSON'
-    signAndPublish: 'Firmar y Publicar'
-    back: 'Volver a plantillas'
-    published: '¡Expresión Publicada!'
-    publishedDescription: 'Tu expresión de feed ha sido firmada y publicada en tus relays. Usa la URL de abajo para acceder al feed.'
-    feedUrl: 'URL del Feed API'
-    copyUrl: 'Copiar URL'
-    createAnother: 'Crear Otra'
-
 # ── Lista de Expresiones ──────────────────────────────────────────
-expressionsList:
-    heading: 'Expresiones'
-    eyebrow: 'expresiones de feeds personalizados'
-    noExpressions: 'Aún no hay expresiones publicadas.'
-    stages: 'etapas'
-    createNew: 'Crear nueva expresión'
-    createdBy: 'Creado por'
-    viewResults: 'Ver resultados'
-    edit: 'Editar'
-
 # ── Vista de Expresión ────────────────────────────────────────────
-expressionView:
-    by: 'Creado por'
-    noResults: 'Sin resultados para esta expresión.'
-    loginRequired: 'Inicia sesión para ver los resultados. Las expresiones se evalúan con tu contexto personal (contactos, intereses).'
-    backToList: 'Todas las Expresiones'
-    takingLonger: 'Buscando. Ordenando. Filtrando. Evaluando. Cargando...'
-    logPanelTitle: 'Registro de evaluación'
-
-# -- Spells (NIP-A7, kind 777) -------------------------------------
-spellsList:
-    heading: 'Spells'
-    eyebrow: 'portable query filters (NIP-A7, kind 777)'
-    noSpells: 'No spells published yet.'
-    createdBy: 'Created by'
-    viewResults: 'View results'
-spellView:
-    by: 'Created by'
-    noResults: 'No results from this spell.'
-    loginRequired: 'Log in to run this spell. Spells are evaluated with your personal context (contacts, interests).'
-    backToList: 'All Spells'
-    evaluating: 'Running spell...'
-    logPanelTitle: 'Registro de evaluación'
-    evaluatingDetail: 'Fetching events that match this spell from relays.'
-    takingLonger: 'Searching. Filtering. Loading...'
-    evaluationFailed: 'Spell evaluation failed. Please try again later.'
-
 webPreview:
     loadCta: 'Cargar vista previa'
     loadNotice: 'Haz clic para obtener una vista previa de %host%. Se contactará un servidor de terceros.'

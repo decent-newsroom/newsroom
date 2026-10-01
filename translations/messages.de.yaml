@@ -66,8 +66,6 @@ nav:
     startBlog: 'Magazin starten'
     readingList: 'Leseliste'
     article: 'Artikel'
-    expression: 'Ausdruck'
-    expressions: 'Ausdrücke'
     sendFeedback: 'Feedback senden'
     backToTop: 'Nach oben'
     closeLeftSidebar: 'Linke Seitenleiste schließen'
@@ -1078,71 +1076,8 @@ followPacks:
     curatedBy: 'Kuratiert von'
 
 # ── Ausdrücke ─────────────────────────────────────────────────────
-expressions:
-    heading: 'Ausdrücke'
-    tagline: 'Eigene Feeds mit NIP-EX erstellen'
-    templates: 'Vorlagen'
-    templatesDescription: 'Wähle eine Vorlage als Ausgangspunkt und passe sie an.'
-    builder: 'Ausdruck-Editor'
-    name: 'Titel'
-    namePlaceholder: 'Mein eigener Feed'
-    description: 'Inhalt'
-    descriptionPlaceholder: 'Was macht dieser Feed?'
-    title: 'Ausdruck erstellen'
-    titlePlaceholder: 'Mein eigener Feed'
-    content: 'Inhalt'
-    contentPlaceholder: 'Was macht dieser Feed?'
-    dtag: 'Bezeichner (d-tag)'
-    dtagPlaceholder: 'mein-eigener-feed'
-    dtagHelp: 'Eindeutiger Slug für diesen Ausdruck. Wird automatisch aus dem Titel generiert, wenn leer.'
-    addStage: 'Stufe hinzufügen'
-    jsonPreview: 'JSON-Vorschau'
-    signAndPublish: 'Signieren & Veröffentlichen'
-    back: 'Zurück zu Vorlagen'
-    published: 'Ausdruck veröffentlicht!'
-    publishedDescription: 'Dein Feed-Ausdruck wurde signiert und an deine Relays veröffentlicht. Verwende die URL unten, um auf den Feed zuzugreifen.'
-    feedUrl: 'Feed-API-URL'
-    copyUrl: 'URL kopieren'
-    createAnother: 'Weiteren erstellen'
-
 # ── Ausdrücke-Liste ───────────────────────────────────────────────
-expressionsList:
-    heading: 'Ausdrücke'
-    eyebrow: 'benutzerdefinierte Feed-Ausdrücke'
-    noExpressions: 'Noch keine Ausdrücke veröffentlicht.'
-    stages: 'Stufen'
-    createNew: 'Neuen Ausdruck erstellen'
-    createdBy: 'Erstellt von'
-    viewResults: 'Ergebnisse anzeigen'
-    edit: 'Bearbeiten'
-
 # ── Ausdruck-Ansicht ─────────────────────────────────────────────
-expressionView:
-    by: 'Erstellt von'
-    noResults: 'Keine Ergebnisse für diesen Ausdruck.'
-    loginRequired: 'Melde dich an, um die Ergebnisse zu sehen. Ausdrücke werden mit deinem persönlichen Kontext (Kontakte, Interessen) ausgewertet.'
-    backToList: 'Alle Ausdrücke'
-    takingLonger: 'Suchen. Sortieren. Filtern. Auswerten. Laden...'
-    logPanelTitle: 'Auswertungsprotokoll'
-
-# -- Spells (NIP-A7, kind 777) -------------------------------------
-spellsList:
-    heading: 'Spells'
-    eyebrow: 'portable query filters (NIP-A7, kind 777)'
-    noSpells: 'No spells published yet.'
-    createdBy: 'Created by'
-    viewResults: 'View results'
-spellView:
-    by: 'Created by'
-    noResults: 'No results from this spell.'
-    loginRequired: 'Log in to run this spell. Spells are evaluated with your personal context (contacts, interests).'
-    backToList: 'All Spells'
-    evaluating: 'Running spell...'
-    logPanelTitle: 'Auswertungsprotokoll'
-    evaluatingDetail: 'Fetching events that match this spell from relays.'
-    takingLonger: 'Searching. Filtering. Loading...'
-    evaluationFailed: 'Spell evaluation failed. Please try again later.'
-
 webPreview:
     loadCta: 'Vorschau laden'
     loadNotice: 'Klicken, um eine Vorschau von %host% zu laden. Dabei wird ein Drittanbieter kontaktiert.'

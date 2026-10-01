@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventInterface;
-use DecentNewsroom\ExpressionBundle\Contract\EventInterface;
 use App\Repository\EventRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -13,7 +12,7 @@ use App\Service\Nostr\NostrNip19Service;
  * Nostr events
  */
 #[ORM\Entity(repositoryClass: EventRepository::class)]
-class Event implements EventInterface, DirectoryEventInterface
+class Event implements DirectoryEventInterface
 {
     #[ORM\Id]
     #[ORM\Column(length: 225)]

@@ -74,7 +74,6 @@ class ResetMessengerStreamsCommand extends Command
         $streams = [
             "{$this->environment}:messenger:async"             => $this->environment,
             "{$this->environment}:messenger:async_low"         => "{$this->environment}-low",
-            "{$this->environment}:messenger:async_expressions" => "{$this->environment}-expressions",
             "{$this->environment}:messenger:async_profiles"    => "{$this->environment}-profiles",
         ];
 
@@ -88,7 +87,6 @@ class ResetMessengerStreamsCommand extends Command
         $allGroups = [
             $this->environment,
             "{$this->environment}-low",
-            "{$this->environment}-expressions",
             "{$this->environment}-profiles",
         ];
         if ($dsnStream !== null && $dsnStream !== '' && !isset($streams[$dsnStream])) {

@@ -63,12 +63,6 @@ class RunRelayWorkersCommand extends Command
                 'Disable user context hydration worker'
             )
             ->addOption(
-                'without-spells',
-                null,
-                InputOption::VALUE_NONE,
-                'Disable spell hydration worker'
-            )
-            ->addOption(
                 'without-essayist',
                 null,
                 InputOption::VALUE_NONE,
@@ -82,7 +76,6 @@ class RunRelayWorkersCommand extends Command
                 '  - Magazine hydration: Subscribes to relay for magazine events (kind 30040)' . "\n" .
                 '  - User context hydration: Subscribes to relay for user identity/social events' . "\n" .
                 '    (follows, bookmarks, interests, relay lists, etc.)' . "\n" .
-                '  - Spell hydration: Subscribes to relay for spell events (kind 777, NIP-A7)' . "\n" .
                 '  - Essayist hydration: Subscribes to strfry-essayist for kinds 30023/30024' . "\n" .
                 '    (only when ESSAYIST_RELAY_INTERNAL_URL is configured)' . "\n\n" .
                 'This command is designed to run as the worker-relay Docker service.' . "\n" .
@@ -132,13 +125,6 @@ class RunRelayWorkersCommand extends Command
             $workers['user-context'] = [
                 'command' => ['php', 'bin/console', 'user-context:subscribe-local-relay', '-vv'],
                 'description' => 'User context hydration worker',
-            ];
-        }
-
-        if (!$input->getOption('without-spells')) {
-            $workers['spells'] = [
-                'command' => ['php', 'bin/console', 'spells:subscribe-local-relay', '-vv'],
-                'description' => 'Spell hydration worker',
             ];
         }
 
@@ -238,4 +224,3 @@ class RunRelayWorkersCommand extends Command
         $this->shouldStop = true;
     }
 }
-

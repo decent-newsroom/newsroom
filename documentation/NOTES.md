@@ -1,5 +1,4 @@
 - start distinguishing magazines from books - liminal published 30041 content, so that should be a book
-- create a spell for personal notifications the way you want to see them 
 - create a nostr: association somehow
 - make highlighting work on mobile touch devices 
 - plan for a lightweight android DN app - what does it do though?? what's the highest value out there? is that even important? 

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d1f7d93dcea1fbc132c9f4bebfd2cf3f",
+    "content-hash": "2c4b44ab16211c096c3e14619813b216",
     "packages": [
         {
             "name": "amphp/amp",
@@ -1634,59 +1634,6 @@
                 "source": "https://github.com/decent-newsroom/bookshelf-bundle/tree/v0.1.2"
             },
             "time": "2026-09-09T09:13:40+00:00"
-        },
-        {
-            "name": "decent-newsroom/expression-bundle",
-            "version": "dev-main",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/decent-newsroom/expressions-bundle.git",
-                "reference": "0b23cc94b1705c67298ce9f2ec0dee4ddc4bea98"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/decent-newsroom/expressions-bundle/zipball/0b23cc94b1705c67298ce9f2ec0dee4ddc4bea98",
-                "reference": "0b23cc94b1705c67298ce9f2ec0dee4ddc4bea98",
-                "shasum": ""
-            },
-            "require": {
-                "innis/nostr-client": "^0.1.7",
-                "innis/nostr-core": "^0.3.17",
-                "php": "^8.3",
-                "psr/cache": "^3.0",
-                "psr/log": "^3.0",
-                "symfony/cache": "^7.4",
-                "symfony/framework-bundle": "^7.4",
-                "symfony/http-foundation": "^7.4",
-                "symfony/mercure-bundle": "^0.4",
-                "symfony/security-bundle": "^7.4",
-                "symfony/twig-bundle": "^7.4"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "^9.5"
-            },
-            "default-branch": true,
-            "type": "symfony-bundle",
-            "extra": {
-                "symfony": {
-                    "require": "7.4.*"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "DecentNewsroom\\ExpressionBundle\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "Reusable Symfony bundle for Nostr expression and spell evaluation",
-            "support": {
-                "issues": "https://github.com/decent-newsroom/expressions-bundle/issues",
-                "source": "https://github.com/decent-newsroom/expressions-bundle/tree/main"
-            },
-            "time": "2026-08-24T13:59:16+00:00"
         },
         {
             "name": "decent-newsroom/identity-bundle",
@@ -17539,7 +17486,6 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "decent-newsroom/expression-bundle": 20,
         "decent-newsroom/identity-bundle": 20,
         "decent-newsroom/nostr-kernel-bundle": 20,
         "decent-newsroom/relay-gateway-bundle": 20,

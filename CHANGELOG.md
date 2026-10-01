@@ -2,6 +2,7 @@
 
 ## v0.0.54
 
+- [Change] Removed the feed-expression (kind 30880) and NIP-A7 spell (kind 777) systems and purged their historical event rows.
 - [Fix] Rendered kind-30041 highlight sources and chapter views directly from exact Books API results without creating local rows, preserved chapter coordinates when Article kinds differ, and kept relay fallback.
 - [Fix] Required locally persisted author metadata before articles can appear in the Discover Recent feed, without fetching missing profiles.
 - [Feature] Added published reading-list header actions to copy its Newsroom URL or NIP-19 address and broadcast the kind-30040 event to configured relays.

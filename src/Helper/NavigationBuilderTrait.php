@@ -116,31 +116,6 @@ trait NavigationBuilderTrait
     }
 
     /**
-     * Build the Expressions local navigation structure.
-     *
-     * @return array<int, array{label: string, items: array<int, array{label: string, route: string}>}>
-     */
-    protected function buildExpressionsNav(): array
-    {
-        return [
-            [
-                'label' => 'expressions.workspace.nav.overview',
-                'items' => [
-                    ['label' => 'expressions.workspace.nav.workspace', 'route' => 'expressions_workspace', 'icon' => 'iconoir:home'],
-                    ['label' => 'expressions.workspace.nav.create_expression', 'route' => 'expression_create', 'icon' => 'iconoir:edit-pencil'],
-                ],
-            ],
-            [
-                'label' => 'expressions.workspace.nav.feed_testing',
-                'items' => [
-                    ['label' => 'expressions.workspace.nav.expressions', 'route' => 'expression_list', 'icon' => 'iconoir:list-select'],
-                    ['label' => 'expressions.workspace.nav.spells', 'route' => 'spell_list', 'icon' => 'iconoir:magic-wand'],
-                ],
-            ],
-        ];
-    }
-
-    /**
      * Build the main global navigation structure.
      *
      * @param bool|null $isAuthenticated If null, checks $this->getUser() (only works when used in AbstractController)
@@ -183,7 +158,6 @@ trait NavigationBuilderTrait
                 'items' => [
                     ['label' => 'nav.readingNook', 'route' => 'reading_nook', 'icon' => 'iconoir:bookmark'],
                     ['label' => 'nav.newsroom', 'route' => 'my_content', 'icon' => 'iconoir:home'],
-                    ['label' => 'nav.expressions', 'route' => 'expressions_workspace', 'icon' => 'iconoir:flask'],
                 ],
             ];
         }

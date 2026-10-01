@@ -460,24 +460,6 @@ services:
             $excludedPubkeys: '%newsroom.latest_articles.excluded_pubkeys%'
             $excludeBotProfiles: '%newsroom.latest_articles.exclude_bot_profiles%'
 
-    # ExpressionBundle host integration
-    DecentNewsroom\ExpressionBundle\Service\FeedCacheService:
-        arguments:
-            $cache: '@npub.cache'
-            $expressionCacheTtl: '%expression.cache_ttl%'
-
-    DecentNewsroom\ExpressionBundle\Contract\EventStoreInterface:
-        alias: App\Expression\ExpressionEventStore
-
-    DecentNewsroom\ExpressionBundle\Contract\RelaySelectorInterface:
-        alias: App\Expression\ExpressionRelaySelector
-
-    DecentNewsroom\ExpressionBundle\Contract\UserRelayProviderInterface:
-        alias: App\Expression\ExpressionUserRelayProvider
-
-    DecentNewsroom\ExpressionBundle\Contract\RelayEventClientInterface:
-        alias: DecentNewsroom\ExpressionBundle\Infrastructure\InnisRelayEventClient
-
     # BookshelfBundle host integration
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface:
         alias: App\Bookshelf\BookshelfEventStore

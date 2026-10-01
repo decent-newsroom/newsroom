@@ -18,7 +18,7 @@ The development Compose override supplies local Redis and source mounts. Product
 
 ## Application and package boundaries
 
-The application owns HTTP flows, domain entities, projections, and integration adapters under `src/`. Reusable Nostr kernel, client, identity, signing, relay gateway, expression, and bookshelf functionality is installed as Composer packages. Their bundle registration is in [config/bundles.php](../../config/bundles.php); their versions and sources are in [composer.lock](../../composer.lock).
+The application owns HTTP flows, domain entities, projections, and integration adapters under `src/`. Reusable Nostr kernel, client, identity, signing, relay gateway, and bookshelf functionality is installed as Composer packages. Their bundle registration is in [config/bundles.php](../../config/bundles.php); their versions and sources are in [composer.lock](../../composer.lock).
 
 Unfold is a Composer path dependency developed in [packages/unfold-bundle](../../packages/unfold-bundle/). It is no longer an application bundle under `src/UnfoldBundle`. Application-facing relay services under `src/Service/Nostr/` connect the packaged infrastructure to Newsroom's user context and persistence.
 
@@ -34,7 +34,7 @@ See [Nostr publishing](nostr-cms.md), [Redis views](../Redis/redis-views.md), [d
 
 | Service | Responsibility |
 |---|---|
-| `worker` | Messenger consumers for content, low-priority jobs, expressions, and relay feeds |
+| `worker` | Messenger consumers for content, low-priority jobs, and relay feeds |
 | `worker-relay` | Persistent local relay subscriptions for articles, media, publications, and user context |
 | `worker-profiles` | Profile refresh daemon and profile message consumer |
 | `cron` | Scheduled maintenance, fetching, and cache refresh |
@@ -42,7 +42,7 @@ See [Nostr publishing](nostr-cms.md), [Redis views](../Redis/redis-views.md), [d
 | `strfry-essayist`, `essayist-gateway` | Optional Essayist relay and public ingress (`essayist` profile) |
 | `mcp` | Optional read-only MCP service backed by the internal article API (`mcp` profile) |
 
-[Messenger configuration](../../config/packages/messenger.yaml) defines five transport lanes: `async`, `async_low_priority`, `async_expressions`, `async_relay_feeds`, and `async_profiles`. [Worker documentation](../Processes/workers.md) explains their managers; [docker/cron/crontab](../../docker/cron/crontab) is the schedule source of truth.
+[Messenger configuration](../../config/packages/messenger.yaml) defines four transport lanes: `async`, `async_low_priority`, `async_relay_feeds`, and `async_profiles`. [Worker documentation](../Processes/workers.md) explains their managers; [docker/cron/crontab](../../docker/cron/crontab) is the schedule source of truth.
 
 ## Relay selection
 

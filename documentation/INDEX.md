@@ -17,7 +17,6 @@ Start here for reader, writer, and developer guides. Detailed feature documentat
 Unfold is maintained locally in [packages/unfold-bundle](../packages/unfold-bundle/). Other reusable bundles are installed through Composer; their documentation lives with their source repositories, not in nonexistent host package directories. Versions and repository sources are recorded in [composer.lock](../composer.lock).
 
 - [decent-newsroom/bookshelf-bundle](https://github.com/decent-newsroom/bookshelf-bundle)
-- [decent-newsroom/expression-bundle](https://github.com/decent-newsroom/expressions-bundle)
 - [decent-newsroom/identity-bundle](https://github.com/decent-newsroom/identity-bundle)
 - [decent-newsroom/nostr-client-bundle](https://github.com/decent-newsroom/nostr-client-bundle)
 - [decent-newsroom/nostr-kernel-bundle](https://github.com/decent-newsroom/nostr-kernel-bundle)

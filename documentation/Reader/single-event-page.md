@@ -88,7 +88,7 @@ card baseline is kept).
   single-event page where the comment itself is the focus.
 - `templates/event/_event_meta.html.twig` — new.
 - `templates/partial/_comment_as_card.html.twig` — new. Inverted
-  layout used in feed contexts (bookmarks, expression results): the
+  layout used in feed contexts: the
   resolved root/parent target is the primary card, the comment text is
   shown as a small "X commented:" callout above it.
 - `templates/partial/_bookmark_event_card.html.twig` — dispatches kind
@@ -106,14 +106,11 @@ appears:
 |---------------------------------|---------------------------------------|----------------------|
 | `/e/{nevent}` single event page | `event/_kind1111_comment.html.twig`   | the comment          |
 | Bookmarks                       | `partial/_comment_as_card.html.twig`  | the referenced item  |
-| Expression results              | `partial/_comment_as_card.html.twig`  | the referenced item  |
 
-In feed contexts the inversion matters: a `kind:30880` expression that
-returns recent `kind:1111` events (e.g. "comments by my contacts") is
-much more useful when the cards in the result list are the articles
-those contacts commented on, rather than a stack of one-line replies
-without context. The comment author + text are preserved as a small
-callout so the conversational signal isn't lost.
+In feed contexts, the inversion makes comment cards more useful: the
+referenced item is shown instead of a context-free one-line reply. The
+comment author and text remain visible as a small callout so the
+conversational signal is not lost.
 
 
 ## Kind 1 thread root (OP)

@@ -19,8 +19,6 @@ use Symfony\Component\Process\Process;
  *     media discovery, magazine projection, embed prefetch, highlights,
  *     gateway persistence, login warmup, relay lists. High-volume but not
  *     user-blocking; dedicated consumer keeps it from starving `async`.
- *   - async_expressions: user-initiated expression evaluation (isolated so a
- *     backlog on `async` never delays the loading page).
  *   - async_relay_feeds (×3): relay feed WebSocket subscriptions. Each handler
  *     blocks for ~4.5 min, so three parallel consumers allow three feeds to run
  *     concurrently without queuing behind each other or blocking any other queue.
@@ -48,7 +46,6 @@ class RunWorkersCommand extends Command
                     '  - async: User-facing fetches (comments, author articles/content, event-from-relays)' . "\n" .
                     '  - async_low_priority: Background work (fan-out notifications, media, magazines, embeds,' . "\n" .
                     '                        highlights, gateway persistence, login warmup, relay lists)' . "\n" .
-                    '  - async_expressions: User-initiated expression evaluation' . "\n" .
                     '  - async_relay_feeds (×3): Relay feed WebSocket subscriptions (4.5 min each, 3 concurrent)' . "\n\n" .
                     'Relay subscriptions run in worker-relay (app:run-relay-workers).' . "\n" .
                     'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
@@ -85,13 +82,6 @@ class RunWorkersCommand extends Command
                     ],
                     'description' => 'Messenger consumer (async_low_priority: fan-out, media, magazines, embeds, highlights, warmup)',
                 ],
-            'messenger-expressions' => [
-                'command' => [
-                    'php', 'bin/console', 'messenger:consume', 'async_expressions',
-                    '-vv', '--memory-limit=192M', '--time-limit=3600',
-                ],
-                'description' => 'Messenger consumer (async_expressions: user-initiated expression evaluation)',
-            ],
             // Three parallel consumers for relay feeds.
             // Each StartRelayFeedMessage blocks ~4.5 min (open WebSocket), so three
             // workers means three feeds can run concurrently with no queuing delay.

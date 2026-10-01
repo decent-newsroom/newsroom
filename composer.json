@@ -27,7 +27,6 @@
         "decent-newsroom/relay-gateway-bundle": "@dev",
         "decent-newsroom/signing-bundle": "^0.1",
         "decent-newsroom/nostr-kernel-bundle": "@dev",
-        "decent-newsroom/expression-bundle": "@dev",
         "decent-newsroom/unfold-bundle": "@dev",
         "doctrine/dbal": "^4.2",
         "doctrine/doctrine-bundle": "^2.13",

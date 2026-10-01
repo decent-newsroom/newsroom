@@ -66,8 +66,6 @@ nav:
     startBlog: 'Ustvari revijo'
     readingList: 'Bralni seznam'
     article: 'Članek'
-    expression: 'Izraz'
-    expressions: 'Izrazi'
     sendFeedback: 'Pošlji povratno informacijo'
     backToTop: 'Na vrh'
     closeLeftSidebar: 'Zapri levi meni'
@@ -1067,71 +1065,8 @@ followPacks:
     curatedBy: 'Izbral/a'
 
 # ── Izrazi ────────────────────────────────────────────────────────
-expressions:
-    title: 'Ustvari izraz'
-    heading: 'Izrazi'
-    tagline: 'Ustvari prilagojene vire z NIP-EX'
-    templates: 'Predloge'
-    templatesDescription: 'Izberi predlogo za začetek in jo prilagodi svojim potrebam.'
-    builder: 'Urejevalnik izrazov'
-    name: 'Naslov'
-    namePlaceholder: 'Moj prilagojeni vir'
-    description: 'Vsebina'
-    descriptionPlaceholder: 'Kaj počne ta vir?'
-    titlePlaceholder: 'Moj prilagojeni vir'
-    content: 'Vsebina'
-    contentPlaceholder: 'Kaj počne ta vir?'
-    dtag: 'Identifikator (d-tag)'
-    dtagPlaceholder: 'moj-prilagojeni-vir'
-    dtagHelp: 'Edinstven slug za ta izraz. Samodejno ustvarjen iz naslova, če je prazno.'
-    addStage: 'Dodaj korak'
-    jsonPreview: 'JSON predogled'
-    signAndPublish: 'Podpiši in objavi'
-    back: 'Nazaj na predloge'
-    published: 'Izraz objavljen!'
-    publishedDescription: 'Tvoj izraz vira je bil podpisan in objavljen na tvojih relejih. Uporabi spodnji URL za dostop do vira.'
-    feedUrl: 'URL vira API'
-    copyUrl: 'Kopiraj URL'
-    createAnother: 'Ustvari novega'
-
 # ── Seznam izrazov ────────────────────────────────────────────────
-expressionsList:
-    heading: 'Izrazi'
-    eyebrow: 'prilagojeni izrazi virov'
-    noExpressions: 'Še ni objavljenih izrazov.'
-    stages: 'korakov'
-    createNew: 'Ustvari nov izraz'
-    createdBy: 'Ustvaril/a'
-    viewResults: 'Poglej rezultate'
-    edit: 'Uredi'
-
 # ── Pogled izraza ─────────────────────────────────────────────────
-expressionView:
-    by: 'Ustvaril/a'
-    noResults: 'Ni rezultatov za ta izraz.'
-    loginRequired: 'Prijavi se za ogled rezultatov. Izrazi se ovrednotijo z tvojim osebnim kontekstom (stiki, interesi).'
-    backToList: 'Vsi izrazi'
-    takingLonger: 'Iskanje. Razvrščanje. Filtriranje. Vrednotenje. Nalaganje...'
-    logPanelTitle: 'Dnevnik vrednotenja'
-
-# -- Spells (NIP-A7, kind 777) -------------------------------------
-spellsList:
-    heading: 'Spells'
-    eyebrow: 'portable query filters (NIP-A7, kind 777)'
-    noSpells: 'No spells published yet.'
-    createdBy: 'Created by'
-    viewResults: 'View results'
-spellView:
-    by: 'Created by'
-    noResults: 'No results from this spell.'
-    loginRequired: 'Log in to run this spell. Spells are evaluated with your personal context (contacts, interests).'
-    backToList: 'All Spells'
-    evaluating: 'Running spell...'
-    logPanelTitle: 'Dnevnik vrednotenja'
-    evaluatingDetail: 'Fetching events that match this spell from relays.'
-    takingLonger: 'Searching. Filtering. Loading...'
-    evaluationFailed: 'Spell evaluation failed. Please try again later.'
-
 webPreview:
     loadCta: 'Naloži predogled'
     loadNotice: 'Kliknite za prenos predogleda z %host%. Stik bo vzpostavljen s tujim strežnikom.'

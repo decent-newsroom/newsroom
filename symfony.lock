@@ -2,9 +2,6 @@
     "decent-newsroom/bookshelf-bundle": {
         "version": "dev-main"
     },
-    "decent-newsroom/expression-bundle": {
-        "version": "dev-main"
-    },
     "decent-newsroom/identity-bundle": {
         "version": "dev-main"
     },
