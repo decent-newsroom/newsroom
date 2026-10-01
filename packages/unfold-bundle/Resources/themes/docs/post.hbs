@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="{{site.locale}}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{post.title}} - {{site.title}}</title>
+    <meta name="description" content="{{post.excerpt}}">
+    {{#if post.feature_image}}<meta property="og:image" content="{{post.feature_image}}">{{/if}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="/unfold-themes/docs/docs.css">
+    <link rel="stylesheet" href="/unfold-themes/docs/zap.css">
+    <script defer src="/unfold-themes/docs/docs.js"></script>
+    <script defer src="/unfold-themes/default/zap.js"></script>
+    <script defer src="/unfold-themes/default/katex-init.js"></script>
+</head>
+<body>
+<div class="docs-shell">
+    {{> header}}
+    <main class="docs-main docs-article-layout">
+        <article class="docs-article">
+            <header class="docs-article-header">
+                {{#if post.primary_tag}}<a class="docs-section-link" href="{{post.primary_tag.url}}">{{post.primary_tag.name}}</a>{{/if}}
+                <h1>{{post.title}}</h1>
+                {{#if post.excerpt}}<p class="docs-lede">{{post.excerpt}}</p>{{/if}}
+                <p class="docs-meta">{{post.published_at_formatted}}{{#if post.primary_author}} · {{post.primary_author.name}}{{/if}} · {{post.reading_time}} min read</p>
+            </header>
+            {{#if post.feature_image}}<figure class="docs-feature-image"><img src="{{post.feature_image}}" alt="{{post.title}}"></figure>{{/if}}
+            <div class="docs-content" data-docs-content>
+                {{{post.html}}}
+            </div>
+            {{#if post.zap.lud16}}
+                <div class="docs-support">
+                    <button class="zap-button" data-zap-button data-zap-pubkey="{{post.zap.pubkey}}" data-zap-lud16="{{post.zap.lud16}}" {{#if post.zap.lud06}}data-zap-lud06="{{post.zap.lud06}}"{{/if}} {{#if post.zap.splits}}data-zap-splits='{{json post.zap.splits}}'{{/if}} data-zap-recipient="{{post.primary_author.name}}">Support this article</button>
+                </div>
+            {{/if}}
+            {{#if post.has_thread_activity}}
+                <section class="docs-comments" aria-labelledby="docs-comments-title">
+                    <h2 id="docs-comments-title">Comments ({{post.comments_count}})</h2>
+                    {{#each post.comments}}
+                        <article class="docs-comment">
+                            <p class="docs-meta">{{author.name}} · {{created_at_formatted}}</p>
+                            <div>{{{content_html}}}</div>
+                        </article>
+                    {{/each}}
+                </section>
+            {{/if}}
+            {{> footer}}
+        </article>
+        <aside class="docs-toc" data-docs-toc hidden aria-label="On this page"></aside>
+    </main>
+</div>
+</body>
+</html>

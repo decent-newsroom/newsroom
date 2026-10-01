@@ -1,0 +1,11 @@
+<aside class="docs-sidebar">
+    <a class="docs-brand" href="/">{{site.title}}</a>
+    {{#if site.description}}<p class="docs-description">{{site.description}}</p>{{/if}}
+    <nav class="docs-navigation" aria-label="Documentation navigation">
+        <a href="/" {{#if site.home_current}}aria-current="page"{{/if}}>Home</a>
+        {{#each site.navigation}}
+            <a href="{{url}}" {{#if current}}aria-current="page"{{/if}}>{{label}}</a>
+        {{/each}}
+        <a href="/about" {{#if site.about_current}}aria-current="page"{{/if}}>{{site.about_label}}</a>
+    </nav>
+</aside>

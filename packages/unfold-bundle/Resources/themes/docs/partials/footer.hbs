@@ -1,0 +1,12 @@
+<footer class="docs-footer">
+    <p><strong>{{publication_footer.title}}</strong></p>
+    <nav aria-label="{{publication_footer.label}}">
+        {{#each publication_footer.navigation}}
+            <a href="{{url}}">{{label}}</a>
+        {{/each}}
+        {{#each publication_footer.owner_links}}
+            <a href="{{url}}" rel="noopener noreferrer">{{label}}</a>
+        {{/each}}
+    </nav>
+    <p><a href="{{dn_footer.brand_url}}">Unfold</a> - {{dn_footer.powered_by}}</p>
+</footer>

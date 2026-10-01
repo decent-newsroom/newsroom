@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="{{site.locale}}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{category.title}} - {{site.title}}</title>
+    <meta name="description" content="{{category.summary}}">
+    <link rel="stylesheet" href="/unfold-themes/docs/docs.css">
+</head>
+<body>
+<div class="docs-shell">
+    {{> header}}
+    <main class="docs-main docs-index">
+        <header class="docs-page-header">
+            <p class="docs-eyebrow">Section</p>
+            <h1>{{category.title}}</h1>
+            {{#if category.summary}}<p>{{category.summary}}</p>{{/if}}
+        </header>
+        <section aria-label="{{category.title}}">
+            {{#each posts}}
+                <article class="docs-entry">
+                    <h2><a href="{{url}}">{{title}}</a></h2>
+                    {{#if excerpt}}<p>{{excerpt}}</p>{{/if}}
+                    <p class="docs-meta">{{published_at_formatted}}{{#if primary_author}} · {{primary_author.name}}{{/if}}</p>
+                </article>
+            {{/each}}
+        </section>
+        {{> footer}}
+    </main>
+</div>
+</body>
+</html>

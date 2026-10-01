@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="{{site.locale}}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{about.title}} - {{site.title}}</title>
+    <meta name="description" content="{{site.description}}">
+    <link rel="stylesheet" href="/unfold-themes/docs/docs.css">
+</head>
+<body>
+<div class="docs-shell">
+    {{> header}}
+    <main class="docs-main docs-article-layout">
+        <article class="docs-article">
+            <header class="docs-article-header">
+                <p class="docs-eyebrow">Publication</p>
+                <h1>{{about.title}}</h1>
+            </header>
+            <div class="docs-content">
+                {{#if about.has_article}}
+                    {{#if about.article_title}}<h2>{{about.article_title}}</h2>{{/if}}
+                    {{{about.article_html}}}
+                {{else}}
+                    <p>{{about.intro_text}}</p>
+                {{/if}}
+                <h2>{{about.magazine_people_label}}</h2>
+                <ul class="docs-people">
+                    {{#each about.magazine_people}}<li><a href="{{url}}">{{name}}</a></li>{{/each}}
+                </ul>
+                <h2>{{about.featured_writers_label}}</h2>
+                <ul class="docs-people">
+                    {{#each about.featured_writers}}<li><a href="{{url}}">{{name}}</a></li>{{/each}}
+                </ul>
+            </div>
+            {{> footer}}
+        </article>
+    </main>
+</div>
+</body>
+</html>
