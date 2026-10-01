@@ -78,6 +78,7 @@ parameters:
     
     # Unfold subdomain routing
     unfold_host: '%env(UNFOLD_HOST)%'
+    unfold.draft_ttl_seconds: 3600
     base_domain: '%env(default:server_name_default:BASE_DOMAIN)%'
     server_name_default: '%env(SERVER_NAME)%'
 
@@ -346,6 +347,14 @@ services:
     # Unfold package host adapters
     DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface:
         alias: App\Unfold\PublicationSettingsStore
+
+    DecentNewsroom\UnfoldBundle\Contract\PublicationDraftStoreInterface:
+        alias: App\Unfold\PublicationDraftStore
+
+    App\Unfold\PublicationDraftStore:
+        arguments:
+            $redis: '@Redis'
+            $ttlSeconds: '%unfold.draft_ttl_seconds%'
 
     DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface:
         alias: App\Unfold\SiteRegistryAdapter

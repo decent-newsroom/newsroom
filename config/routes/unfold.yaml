@@ -15,6 +15,11 @@ unfold_zap_api_invoice_split:
     methods: [POST]
     condition: "request.attributes.has('_unfold_site')"
 
+unfold_onboarding:
+    resource: '@UnfoldBundle/Resources/config/onboarding.yaml'
+    host: '%base_domain%'
+    name_prefix: unfold_onboarding_
+
 unfold_admin_coordinate:
     resource: '@UnfoldBundle/Resources/config/admin.yaml'
     prefix: /mag/{mag}/admin

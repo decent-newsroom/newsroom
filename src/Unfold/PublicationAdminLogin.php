@@ -100,6 +100,9 @@ final readonly class PublicationAdminLogin
         $host = $parts['host'];
         $path = $parts['path'];
         if ($host === $this->baseDomain) {
+            if ($path === '/magazine/onboarding') {
+                return $url;
+            }
             if (!preg_match('#^/mag/([^/]+)/admin(?:/settings)?$#D', $path, $matches)
                 || in_array(rawurldecode($matches[1]), ['.', '..'], true)
                 || preg_match('/[\x00-\x20\/\\\\]/', rawurldecode($matches[1]))) {

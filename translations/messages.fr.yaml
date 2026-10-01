@@ -1485,3 +1485,17 @@ admin_visit_detail:
     first_visit: 'First Visit' # TODO: translate
     last_visit: 'Last Visit' # TODO: translate
     empty_sessions: 'No visitor sessions recorded in the last 7 days.' # TODO: translate
+unfold_onboarding:
+    title: 'Créer une publication'
+    intro: 'Enregistrez maintenant les informations de base de la publication. La signature et le contenu seront ajoutés à l’étape suivante.'
+    dtag: 'Identifiant de publication'
+    publication_title: 'Titre'
+    summary: 'Résumé'
+    image_url: 'URL de l’image de couverture'
+    language: 'Langue'
+    tags: 'Étiquettes (séparées par des virgules)'
+    theme: 'Thème'
+    save: 'Enregistrer le brouillon'
+    discard: 'Abandonner le brouillon'
+    invalid_dtag: 'Saisissez un identifiant de publication valide.'
+    invalid_draft: 'Vérifiez les informations de la publication et réessayez.'

@@ -1,4 +1,18 @@
-# ── General / shared ───────────────────────────────────────────────
+# ── General / shared ─────────────────────────────────────────────
+unfold_onboarding:
+    title: 'Start a publication'
+    intro: 'Save the publication basics now. Signing and content setup happen in the next step.'
+    dtag: 'Publication identifier'
+    publication_title: 'Title'
+    summary: 'Summary'
+    image_url: 'Cover image URL'
+    language: 'Language'
+    tags: 'Tags (comma separated)'
+    theme: 'Theme'
+    save: 'Save draft'
+    discard: 'Discard draft'
+    invalid_dtag: 'Enter a valid publication identifier.'
+    invalid_draft: 'Check the publication details and try again.'──
 text:
     byline: 'By'
     search: 'Search articles or paste Nostr identifiers...'

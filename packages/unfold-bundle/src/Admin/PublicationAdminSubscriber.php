@@ -27,13 +27,17 @@ final readonly class PublicationAdminSubscriber implements EventSubscriberInterf
     public function resolve(ControllerEvent $event): void
     {
         $request = $event->getRequest();
-        if (!$request->attributes->getBoolean('_unfold_admin')) {
+        if (!$request->attributes->getBoolean('_unfold_admin') && !$request->attributes->getBoolean('_unfold_onboarding')) {
             return;
         }
         $pubkey = $this->identity->pubkey();
         if ($pubkey === null) {
             $url = $this->identity->loginUrl($request);
             $event->setController(static fn () => new RedirectResponse($url));
+            return;
+        }
+        if ($request->attributes->getBoolean('_unfold_onboarding')) {
+            $request->attributes->set('onboarding', new PublicationOnboardingContext($pubkey));
             return;
         }
         $resolver = $request->attributes->get('_unfold_mount') === PublicationMount::SUBDOMAIN->value
@@ -43,7 +47,7 @@ final readonly class PublicationAdminSubscriber implements EventSubscriberInterf
 
     public function makePrivate(ResponseEvent $event): void
     {
-        if ($event->getRequest()->attributes->getBoolean('_unfold_admin')) {
+        if ($event->getRequest()->attributes->getBoolean('_unfold_admin') || $event->getRequest()->attributes->getBoolean('_unfold_onboarding')) {
             $event->getResponse()->headers->set('Cache-Control', 'private, no-store');
         }
     }

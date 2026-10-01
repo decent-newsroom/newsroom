@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ 'unfold_onboarding.title'|trans }}</title>
+    <link rel="stylesheet" href="{{ asset('unfold/admin.css') }}">
+</head>
+<body>
+<main class="publication-admin-main">
+    <h1>{{ 'unfold_onboarding.title'|trans }}</h1>
+    <p>{{ 'unfold_onboarding.intro'|trans }}</p>
+    {% if error %}<p role="alert">{{ error|trans }}</p>{% endif %}
+    <form method="post" action="/magazine/onboarding">
+        <input type="hidden" name="_token" value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}">
+        <label for="publication-dtag">{{ 'unfold_onboarding.dtag'|trans }}</label>
+        <input id="publication-dtag" name="dtag" value="{{ draft ? draft.dtag : dtag }}" required{% if draft %} readonly{% endif %}>
+        <label for="publication-title">{{ 'unfold_onboarding.publication_title'|trans }}</label>
+        <input id="publication-title" name="title" value="{{ draft ? draft.title : '' }}" maxlength="200">
+        <label for="publication-summary">{{ 'unfold_onboarding.summary'|trans }}</label>
+        <textarea id="publication-summary" name="summary" maxlength="2000">{{ draft ? draft.summary : '' }}</textarea>
+        <label for="publication-image">{{ 'unfold_onboarding.image_url'|trans }}</label>
+        <input id="publication-image" name="image_url" type="url" value="{{ draft and draft.imageUrl ? draft.imageUrl : '' }}">
+        <label for="publication-language">{{ 'unfold_onboarding.language'|trans }}</label>
+        <input id="publication-language" name="language" value="{{ draft and draft.language ? draft.language : '' }}" maxlength="35">
+        <label for="publication-tags">{{ 'unfold_onboarding.tags'|trans }}</label>
+        <input id="publication-tags" name="tags" value="{{ draft ? draft.tags|join(', ') : '' }}">
+        <label for="publication-theme">{{ 'unfold_onboarding.theme'|trans }}</label>
+        <select id="publication-theme" name="theme">
+            {% for theme in themes %}
+                <option value="{{ theme }}"{% if (draft ? draft.theme : 'default') == theme %} selected{% endif %}>{{ theme }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">{{ 'unfold_onboarding.save'|trans }}</button>
+    </form>
+    {% if draft %}
+        <form method="post" action="/magazine/onboarding/discard">
+            <input type="hidden" name="_token" value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}">
+            <input type="hidden" name="dtag" value="{{ draft.dtag }}">
+            <button type="submit">{{ 'unfold_onboarding.discard'|trans }}</button>
+        </form>
+    {% endif %}
+</main>
+</body>
+</html>

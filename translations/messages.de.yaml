@@ -1498,3 +1498,17 @@ admin_visit_detail:
     first_visit: 'First Visit' # TODO: translate
     last_visit: 'Last Visit' # TODO: translate
     empty_sessions: 'No visitor sessions recorded in the last 7 days.' # TODO: translate
+unfold_onboarding:
+    title: 'Publikation starten'
+    intro: 'Speichern Sie jetzt die Grundlagen der Publikation. Signatur und Inhalte folgen im nächsten Schritt.'
+    dtag: 'Publikationskennung'
+    publication_title: 'Titel'
+    summary: 'Zusammenfassung'
+    image_url: 'URL des Titelbilds'
+    language: 'Sprache'
+    tags: 'Tags (durch Kommas getrennt)'
+    theme: 'Theme'
+    save: 'Entwurf speichern'
+    discard: 'Entwurf verwerfen'
+    invalid_dtag: 'Geben Sie eine gültige Publikationskennung ein.'
+    invalid_draft: 'Prüfen Sie die Publikationsdetails und versuchen Sie es erneut.'

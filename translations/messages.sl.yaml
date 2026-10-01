@@ -1487,3 +1487,17 @@ admin_visit_detail:
     first_visit: 'First Visit' # TODO: translate
     last_visit: 'Last Visit' # TODO: translate
     empty_sessions: 'No visitor sessions recorded in the last 7 days.' # TODO: translate
+unfold_onboarding:
+    title: 'Začni publikacijo'
+    intro: 'Zdaj shrani osnovne podatke publikacije. Podpis in vsebina sledita v naslednjem koraku.'
+    dtag: 'Identifikator publikacije'
+    publication_title: 'Naslov'
+    summary: 'Povzetek'
+    image_url: 'URL naslovne slike'
+    language: 'Jezik'
+    tags: 'Oznake (ločene z vejicami)'
+    theme: 'Tema'
+    save: 'Shrani osnutek'
+    discard: 'Zavrzi osnutek'
+    invalid_dtag: 'Vnesite veljaven identifikator publikacije.'
+    invalid_draft: 'Preverite podatke publikacije in poskusite znova.'

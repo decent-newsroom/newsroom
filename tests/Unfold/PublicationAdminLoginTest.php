@@ -29,6 +29,7 @@ final class PublicationAdminLoginTest extends TestCase
 
     public static function validReturnUrls(): iterable
     {
+        yield 'onboarding' => ['https://example.test/magazine/onboarding'];
         yield 'coordinate overview' => ['https://example.test/mag/daily/admin'];
         yield 'coordinate settings' => ['https://example.test/mag/daily/admin/settings'];
         yield 'encoded d-tag' => ['https://example.test/mag/daily%3Aedition/admin'];
@@ -111,6 +112,10 @@ final class PublicationAdminLoginTest extends TestCase
     public static function routeMarkers(): iterable
     {
         foreach (['unfold_admin_host_overview', 'unfold_admin_host_settings', 'unfold_admin_coordinate_overview', 'unfold_admin_coordinate_settings'] as $route) {
+            yield $route => [$route, true, true];
+            yield $route . ' unmarked' => [$route, false, false];
+        }
+        foreach (['unfold_onboarding_basics', 'unfold_onboarding_discard'] as $route) {
             yield $route => [$route, true, true];
             yield $route . ' unmarked' => [$route, false, false];
         }

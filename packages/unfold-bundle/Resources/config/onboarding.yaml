@@ -1,0 +1,11 @@
+basics:
+    path: /magazine/onboarding
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationOnboardingController::basics
+    methods: [GET, POST]
+    defaults: { _unfold_onboarding: true }
+
+discard:
+    path: /magazine/onboarding/discard
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationOnboardingController::discard
+    methods: [POST]
+    defaults: { _unfold_onboarding: true }

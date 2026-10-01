@@ -1488,3 +1488,17 @@ admin_visit_detail:
     first_visit: 'First Visit' # TODO: translate
     last_visit: 'Last Visit' # TODO: translate
     empty_sessions: 'No visitor sessions recorded in the last 7 days.' # TODO: translate
+unfold_onboarding:
+    title: 'Crear una publicación'
+    intro: 'Guarda ahora los datos básicos de la publicación. La firma y el contenido se completarán en el siguiente paso.'
+    dtag: 'Identificador de publicación'
+    publication_title: 'Título'
+    summary: 'Resumen'
+    image_url: 'URL de la imagen de portada'
+    language: 'Idioma'
+    tags: 'Etiquetas (separadas por comas)'
+    theme: 'Tema'
+    save: 'Guardar borrador'
+    discard: 'Descartar borrador'
+    invalid_dtag: 'Introduce un identificador de publicación válido.'
+    invalid_draft: 'Revisa los detalles de la publicación e inténtalo de nuevo.'

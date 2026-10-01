@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.55
+
+- [Feature] Added owner-scoped, Redis-backed Unfold publication onboarding drafts with expiry, safe discard, and pre-publication basics at `/magazine/onboarding`.
+
+
 ## v0.0.54
 
 - [Change] Removed the feed-expression (kind 30880) and NIP-A7 spell (kind 777) systems and purged their historical event rows.
