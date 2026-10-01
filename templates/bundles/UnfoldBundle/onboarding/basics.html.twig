@@ -1,0 +1,90 @@
+{% extends 'app-shell.html.twig' %}
+
+{% block title %}{{ 'unfold_onboarding.title'|trans }}{% endblock %}
+
+{% block ogtags %}
+    {{ parent() }}
+    <meta name="robots" content="noindex, nofollow">
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('styles/04-pages/unfold-admin.css') }}">
+{% endblock %}
+
+{% block sidebar %}
+    <twig:SidebarNav
+        id="leftNav"
+        :sections="build_main_nav()"
+        :footerComponent="'components/UserMenu.html.twig'"
+    />
+{% endblock %}
+
+{% block aside %}{% endblock %}
+
+{% block body %}
+    <section class="reading-nook-page unfold-admin-page unfold-onboarding-page">
+        <header class="unfold-admin-header">
+            <p class="eyebrow">{{ 'unfold_admin.title'|trans }}</p>
+            <h1>{{ 'unfold_onboarding.title'|trans }}</h1>
+            <p class="unfold-admin-intro">{{ 'unfold_onboarding.intro'|trans }}</p>
+        </header>
+
+        {% if error %}
+            <p class="unfold-admin-message unfold-admin-message--error" role="alert">{{ error|trans }}</p>
+        {% endif %}
+
+        <form class="unfold-admin-form" method="post" action="/magazine/onboarding">
+            <input type="hidden" name="_token" value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}">
+
+            <label for="publication-dtag">{{ 'unfold_onboarding.dtag'|trans }}</label>
+            <input id="publication-dtag" name="dtag" value="{{ draft ? draft.dtag : dtag }}" required{% if draft %} readonly{% endif %}>
+
+            <label for="publication-title">{{ 'unfold_onboarding.publication_title'|trans }}</label>
+            <input id="publication-title" name="title" value="{{ draft ? draft.title : '' }}" maxlength="200">
+
+            <label for="publication-summary">{{ 'unfold_onboarding.summary'|trans }}</label>
+            <textarea id="publication-summary" name="summary" maxlength="2000">{{ draft ? draft.summary : '' }}</textarea>
+
+            <label for="publication-image">{{ 'unfold_onboarding.image_url'|trans }}</label>
+            <input id="publication-image" name="image_url" type="url" value="{{ draft and draft.imageUrl ? draft.imageUrl : '' }}">
+
+            <label for="publication-language">{{ 'unfold_onboarding.language'|trans }}</label>
+            <input id="publication-language" name="language" value="{{ draft and draft.language ? draft.language : '' }}" maxlength="35">
+
+            <label for="publication-tags">{{ 'unfold_onboarding.tags'|trans }}</label>
+            <input id="publication-tags" name="tags" value="{{ draft ? draft.tags|join(', ') : '' }}">
+
+            <label for="publication-theme">{{ 'unfold_onboarding.theme'|trans }}</label>
+            <select id="publication-theme" name="theme">
+                {% for theme in themes %}
+                    <option value="{{ theme }}"{% if (draft ? draft.theme : 'default') == theme %} selected{% endif %}>{{ theme }}</option>
+                {% endfor %}
+            </select>
+
+            <button class="btn" type="submit">{{ 'unfold_onboarding.save'|trans }}</button>
+        </form>
+
+        {% if draft %}
+            <section
+                class="unfold-onboarding-publish"
+                data-controller="nostr--nostr-unfold-root-sign"
+                data-nostr--nostr-unfold-root-sign-prepare-url-value="/magazine/onboarding/prepare-root"
+                data-nostr--nostr-unfold-root-sign-commit-url-value="/magazine/onboarding/commit-root"
+                data-nostr--nostr-unfold-root-sign-dtag-value="{{ draft.dtag }}"
+                data-nostr--nostr-unfold-root-sign-csrf-token-value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}"
+            >
+                <h2>{{ 'unfold_onboarding.publish_title'|trans }}</h2>
+                <p>{{ 'unfold_onboarding.publish_intro'|trans }}</p>
+                <button class="btn" type="button" data-action="click->nostr--nostr-unfold-root-sign#publish" data-nostr--nostr-unfold-root-sign-target="publishButton">{{ 'unfold_onboarding.publish'|trans }}</button>
+                <p class="unfold-admin-message" role="status" hidden data-nostr--nostr-unfold-root-sign-target="status"></p>
+            </section>
+
+            <form class="unfold-onboarding-discard" method="post" action="/magazine/onboarding/discard">
+                <input type="hidden" name="_token" value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}">
+                <input type="hidden" name="dtag" value="{{ draft.dtag }}">
+                <button class="btn btn--secondary" type="submit">{{ 'unfold_onboarding.discard'|trans }}</button>
+            </form>
+        {% endif %}
+    </section>
+{% endblock %}

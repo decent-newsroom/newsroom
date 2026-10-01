@@ -4,6 +4,11 @@ Publication onboarding begins on the main domain at `/magazine/onboarding`.
 The initial flow saves publication basics locally before a root index is signed
 or a hosting claim is attached.
 
+In Newsroom, the bundle fallback is overridden at
+`templates/bundles/UnfoldBundle/onboarding/basics.html.twig` so onboarding uses
+the shared application shell, navigation, and publication-admin styling. The
+bundle retains its plain fallback for standalone hosts.
+
 ## Ownership and storage
 
 Each draft belongs to one normalized owner pubkey and d-tag. Its Redis key is

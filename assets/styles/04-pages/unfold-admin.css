@@ -164,3 +164,39 @@
 .unfold-admin-about-title { margin: 0; color: var(--color-text-mid); overflow-wrap: anywhere; }
 .unfold-admin-handoff { justify-self: start; }
 .unfold-admin-form [hidden] { display: none; }
+
+.unfold-onboarding-page {
+    max-width: 48rem;
+}
+
+.unfold-onboarding-page textarea {
+    min-height: 8rem;
+    resize: vertical;
+}
+
+.unfold-onboarding-publish {
+    display: grid;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-6);
+    padding-top: var(--spacing-5);
+    border-top: 1px solid var(--color-border-strong);
+}
+
+.unfold-onboarding-publish h2,
+.unfold-onboarding-publish p,
+.unfold-onboarding-discard {
+    margin: 0;
+}
+
+.unfold-onboarding-publish p {
+    color: var(--color-text-mid);
+}
+
+.unfold-onboarding-publish button,
+.unfold-onboarding-discard button {
+    justify-self: start;
+}
+
+.unfold-onboarding-discard {
+    margin-top: var(--spacing-5);
+}
