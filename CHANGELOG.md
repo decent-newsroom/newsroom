@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Feature] Added Unfold content management with an owner-signed About selector and reading-list category references on both publication administration mounts.
 - [Fix] Made the Unfold onboarding identifier optional, generating it from the publication title when omitted.
 - [Feature] Added the Unfold `docs` theme with category sidebar navigation, compact document indexes, and progressively enhanced article tables of contents for hosted publication subdomains.
 - [Feature] Added owner-scoped, Redis-backed Unfold publication onboarding drafts with expiry, safe discard, and pre-publication basics at `/magazine/onboarding`.

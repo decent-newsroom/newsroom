@@ -6,6 +6,9 @@ export default class extends Controller {
 
   static values = {
     initialAbout: String,
+    fieldName: { type: String, default: 'about_article' },
+    extraPayload: { type: Object, default: {} },
+    reloadOnSuccess: { type: Boolean, default: false },
     prepareUrl: String,
     commitUrl: String,
     coordinateAdminUrl: String,
@@ -42,7 +45,8 @@ export default class extends Controller {
     try {
       this.showStatus(this.message('preparing'));
       const prepared = await this.postJson(this.prepareUrlValue, {
-        about_article: selection,
+        [this.fieldNameValue]: selection,
+        ...this.extraPayloadValue,
         _token: this.csrfTokenValue,
       });
 
@@ -82,7 +86,8 @@ export default class extends Controller {
 
       this.showStatus(this.message('publishing'));
       const commitPayload = {
-        about_article: selection,
+        [this.fieldNameValue]: selection,
+        ...this.extraPayloadValue,
         base_event_id: prepared.base_event_id,
         event: signedEvent,
         _token: this.csrfTokenValue,
@@ -108,6 +113,10 @@ export default class extends Controller {
       this.clearPending();
       this.showStatus(this.message('saving'));
       this.aboutArticleTarget.disabled = true;
+      if (this.reloadOnSuccessValue) {
+        window.location.reload();
+        return;
+      }
       // Commit changed About. The regular form persists theme and footer links.
       this.element.submit();
     } catch (error) {
@@ -124,7 +133,7 @@ export default class extends Controller {
       return;
     }
     this.saving = true;
-    this.retryButtonTarget.disabled = true;
+    if (this.hasRetryButtonTarget) this.retryButtonTarget.disabled = true;
     this.saveButtonTarget.disabled = true;
     try {
       this.showStatus(this.message('publishing'));
@@ -136,6 +145,10 @@ export default class extends Controller {
       this.clearPending();
       this.showStatus(this.message('saving'));
       this.aboutArticleTarget.disabled = true;
+      if (this.reloadOnSuccessValue) {
+        window.location.reload();
+        return;
+      }
       this.element.submit();
     } catch (error) {
       if (error.uiMessage === this.message('stale')) {
@@ -145,7 +158,7 @@ export default class extends Controller {
       }
     } finally {
       this.saving = false;
-      this.retryButtonTarget.disabled = false;
+      if (this.hasRetryButtonTarget) this.retryButtonTarget.disabled = false;
       this.saveButtonTarget.disabled = false;
     }
   }
@@ -178,7 +191,7 @@ export default class extends Controller {
   clearPending() {
     this.pendingPayload = null;
     try { sessionStorage.removeItem(this.pendingStorageKey()); } catch (_) {}
-    this.retryButtonTarget.hidden = true;
+    if (this.hasRetryButtonTarget) this.retryButtonTarget.hidden = true;
   }
 
   pendingStorageKey() {
@@ -206,8 +219,8 @@ export default class extends Controller {
   clearStatus() {
     this.statusTarget.textContent = '';
     this.statusTarget.hidden = true;
-    this.handoffTarget.hidden = true;
-    this.retryButtonTarget.hidden = true;
+    if (this.hasHandoffTarget) this.handoffTarget.hidden = true;
+    if (this.hasRetryButtonTarget) this.retryButtonTarget.hidden = true;
   }
 
   showStatus(message) {
@@ -223,7 +236,7 @@ export default class extends Controller {
 
   showRelayPending() {
     this.showError(this.message('relayPending'));
-    this.retryButtonTarget.hidden = false;
+    if (this.hasRetryButtonTarget) this.retryButtonTarget.hidden = false;
   }
 
   message(key) {

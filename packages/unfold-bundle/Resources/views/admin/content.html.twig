@@ -1,0 +1,46 @@
+{% extends '@Unfold/admin/base.html.twig' %}
+{% block body %}
+    <h1>{{ 'unfold_admin.content'|trans }}</h1>
+    <section>
+        <h2>{{ 'unfold_admin.about_article'|trans }}</h2>
+        <form data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
+              data-nostr--nostr-unfold-about-settings-initial-about-value="{{ currentAboutArticle }}"
+              data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/content/about/prepare"
+              data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/about/commit"
+              data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
+              data-nostr--nostr-unfold-about-settings-messages-value="{{ {preparing: 'unfold_admin.about_preparing'|trans, connecting: 'unfold_admin.about_connecting'|trans, signing: 'unfold_admin.about_signing'|trans, publishing: 'unfold_admin.about_publishing'|trans, saving: 'unfold_admin.about_saving'|trans, noSigner: 'unfold_admin.about_no_signer'|trans, wrongSigner: 'unfold_admin.about_wrong_signer'|trans, invalidSignature: 'unfold_admin.about_invalid_signature'|trans, invalidResponse: 'unfold_admin.about_invalid_response'|trans, invalidArticle: 'unfold_admin.about_invalid_article'|trans, stale: 'unfold_admin.about_stale'|trans, failed: 'unfold_admin.about_failed'|trans, relayPending: 'unfold_admin.about_relay_pending'|trans, accessDenied: 'unfold_admin.about_access_denied'|trans}|json_encode|e('html_attr') }}">
+            <label for="about">{{ 'unfold_admin.about_article'|trans }}</label>
+            <input id="about" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ currentAboutArticle }}">
+            <button type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.save'|trans }}</button>
+            <p data-nostr--nostr-unfold-about-settings-target="status" role="status" hidden></p>
+            <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
+        </form>
+    </section>
+    <section>
+        <h2>{{ 'unfold_admin.categories'|trans }}</h2>
+        <ul>{% for category in categories %}<li><code>{{ category.coordinate }}</code>
+            <form data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
+                  data-nostr--nostr-unfold-about-settings-initial-about-value=""
+                  data-nostr--nostr-unfold-about-settings-field-name-value="category"
+                  data-nostr--nostr-unfold-about-settings-extra-payload-value="{{ {action: 'remove'}|json_encode|e('html_attr') }}"
+                  data-nostr--nostr-unfold-about-settings-reload-on-success-value="true"
+                  data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/content/categories/prepare"
+                  data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/categories/commit"
+                  data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
+                  data-nostr--nostr-unfold-about-settings-messages-value="{{ {preparing: 'unfold_admin.about_preparing'|trans, connecting: 'unfold_admin.about_connecting'|trans, signing: 'unfold_admin.about_signing'|trans, publishing: 'unfold_admin.about_publishing'|trans, failed: 'unfold_admin.about_failed'|trans, invalidArticle: 'unfold_admin.invalid_category'|trans, stale: 'unfold_admin.about_stale'|trans, accessDenied: 'unfold_admin.about_access_denied'|trans}|json_encode|e('html_attr') }}">
+                <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ category.coordinate }}"><button type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.remove_category'|trans }}</button><button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>Retry</button><p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
+            </form></li>{% else %}<li>{{ 'unfold_admin.no_categories'|trans }}</li>{% endfor %}</ul>
+        <p>{{ 'unfold_admin.category_add_help'|trans }}</p>
+        <form data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
+              data-nostr--nostr-unfold-about-settings-initial-about-value=""
+              data-nostr--nostr-unfold-about-settings-field-name-value="category"
+              data-nostr--nostr-unfold-about-settings-extra-payload-value="{{ {action: 'add'}|json_encode|e('html_attr') }}"
+              data-nostr--nostr-unfold-about-settings-reload-on-success-value="true"
+              data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/content/categories/prepare"
+              data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/categories/commit"
+              data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
+              data-nostr--nostr-unfold-about-settings-messages-value="{{ {preparing: 'unfold_admin.about_preparing'|trans, connecting: 'unfold_admin.about_connecting'|trans, signing: 'unfold_admin.about_signing'|trans, publishing: 'unfold_admin.about_publishing'|trans, failed: 'unfold_admin.about_failed'|trans, invalidArticle: 'unfold_admin.invalid_category'|trans, stale: 'unfold_admin.about_stale'|trans, accessDenied: 'unfold_admin.about_access_denied'|trans}|json_encode|e('html_attr') }}">
+            <label for="category">{{ 'unfold_admin.category_naddr'|trans }}</label><input id="category" data-nostr--nostr-unfold-about-settings-target="aboutArticle"><button type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.add_category'|trans }}</button><button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>Retry</button><p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
+        </form>
+    </section>
+{% endblock %}

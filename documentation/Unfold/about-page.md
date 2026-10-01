@@ -24,8 +24,8 @@ metadata is missing.
 
 ## Administration
 
-The About article field at `/admin/settings` on the hosted subdomain or
-`/mag/{mag}/admin/settings` on the main domain shows the saved selection,
+The About article field at `/admin/content` on the hosted subdomain or
+`/mag/{mag}/admin/content` on the main domain shows the saved selection,
 or the sole direct root-index article when no selection is saved. The form shows
 the resolved article title beside its coordinate. The owner may enter any
 published kind `30023` coordinate or naddr, including an article outside
@@ -57,6 +57,13 @@ article candidates, never categories. Category references supply the article
 authors for Featured writers. The signed root event carries the selected
 article as a direct reference; local publication settings retain the explicit
 choice and optional relay hints alongside the theme and footer links.
+
+## Categories
+
+Content management lists the category references in the root index. Owners can
+paste a kind `30040` reading-list coordinate or NIP-19 `naddr` to add it, or
+remove an existing category. The reading list is not edited: the owner signs a
+new revision of the root index that changes only its category `a` reference.
 
 The bundle renders linked article content with the host Markdown converter.
 Rendered content caching varies by event ID or content hash so a revised

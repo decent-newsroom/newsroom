@@ -13,6 +13,7 @@
     <a href="{{ publication.adminPathPrefix }}">{{ 'unfold_admin.title'|trans }}</a>
     <nav aria-label="{{ 'unfold_admin.navigation'|trans }}">
         <a href="{{ publication.adminPathPrefix }}">{{ 'unfold_admin.overview'|trans }}</a>
+        <a href="{{ publication.adminPathPrefix }}/content">{{ 'unfold_admin.content'|trans }}</a>
         <a href="{{ publication.adminPathPrefix }}/settings">{{ 'unfold_admin.settings'|trans }}</a>
         {% if publication.publicUrl %}
             <a href="{{ publication.publicUrl }}" target="_blank" rel="noopener noreferrer">{{ 'unfold_admin.visit'|trans }}</a>

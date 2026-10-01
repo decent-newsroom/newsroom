@@ -63,26 +63,6 @@ final readonly class PublicationAdminController
         $aboutRelayHints = $aboutArticle !== '' && $aboutArticle === $publication->settings->aboutArticleCoordinate
             ? $publication->settings->aboutRelayHints : [];
 
-        // A draft may be handed from the hosted admin to the main-domain signer.
-        // It changes only this form's display, never the persisted selection.
-        if ($request->isMethod('GET') && $request->query->has('about_article')) {
-            $draft = $request->query->all()['about_article'] ?? null;
-            if (is_string($draft)) {
-                if (trim($draft) === '') {
-                    $aboutArticle = '';
-                    $aboutRelayHints = [];
-                } else {
-                    try {
-                        $reference = AboutArticleReference::fromInput($draft);
-                        $aboutArticle = trim($draft);
-                        $aboutRelayHints = $reference->relayHints;
-                    } catch (\InvalidArgumentException) {
-                        // Keep the saved or conventional selection for an invalid draft.
-                    }
-                }
-            }
-        }
-
         $error = null;
         $status = 200;
         if ($request->isMethod('POST')) {
@@ -150,6 +130,25 @@ final readonly class PublicationAdminController
             'aboutArticleTitle' => $this->aboutArticleTitle($aboutArticle, $aboutRelayHints),
             'error' => $error,
         ]), $status);
+    }
+
+    public function content(PublicationContext $publication): Response
+    {
+        $categories = [];
+        try {
+            $root = $this->events->findByCoordinate($publication->coordinate);
+            if ($root !== null) {
+                $categories = \DecentNewsroom\UnfoldBundle\Admin\CategoryIndexMutation::categories($root);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Publication categories unavailable', ['coordinate' => $publication->coordinate, 'exception' => $e]);
+        }
+
+        return new Response($this->twig->render('@Unfold/admin/content.html.twig', [
+            'publication' => $publication,
+            'categories' => $categories,
+            'currentAboutArticle' => $this->currentAboutArticle($publication) ?? '',
+        ]));
     }
 
     private function currentAboutArticle(PublicationContext $publication): ?string
