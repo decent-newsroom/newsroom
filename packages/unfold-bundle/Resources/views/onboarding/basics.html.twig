@@ -14,8 +14,6 @@
     {% if error %}<p role="alert">{{ error|trans }}</p>{% endif %}
     <form method="post" action="/magazine/onboarding">
         <input type="hidden" name="_token" value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}">
-        <label for="publication-dtag">{{ 'unfold_onboarding.dtag'|trans }}</label>
-        <input id="publication-dtag" name="dtag" value="{{ draft ? draft.dtag : dtag }}" required{% if draft %} readonly{% endif %}>
         <label for="publication-title">{{ 'unfold_onboarding.publication_title'|trans }}</label>
         <input id="publication-title" name="title" value="{{ draft ? draft.title : '' }}" maxlength="200">
         <label for="publication-summary">{{ 'unfold_onboarding.summary'|trans }}</label>
@@ -26,6 +24,9 @@
         <input id="publication-language" name="language" value="{{ draft and draft.language ? draft.language : '' }}" maxlength="35">
         <label for="publication-tags">{{ 'unfold_onboarding.tags'|trans }}</label>
         <input id="publication-tags" name="tags" value="{{ draft ? draft.tags|join(', ') : '' }}">
+        <label for="publication-dtag">{{ 'unfold_onboarding.dtag'|trans }}</label>
+        <p>{{ 'unfold_onboarding.dtag_help'|trans }}</p>
+        <input id="publication-dtag" name="dtag" value="{{ draft ? draft.dtag : dtag }}"{% if draft %} readonly{% endif %}>
         <label for="publication-theme">{{ 'unfold_onboarding.theme'|trans }}</label>
         <select id="publication-theme" name="theme">
             {% for theme in themes %}

@@ -1502,6 +1502,7 @@ unfold_onboarding:
     title: 'Publikation starten'
     intro: 'Speichern Sie jetzt die Grundlagen der Publikation. Signatur und Inhalte folgen im nächsten Schritt.'
     dtag: 'Publikationskennung'
+    dtag_help: 'Optional. Leer lassen, um die Kennung aus dem Titel zu erzeugen; nach dem Speichern kann sie nicht geändert werden.'
     publication_title: 'Titel'
     summary: 'Zusammenfassung'
     image_url: 'URL des Titelbilds'

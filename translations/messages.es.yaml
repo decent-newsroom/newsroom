@@ -1492,6 +1492,7 @@ unfold_onboarding:
     title: 'Crear una publicación'
     intro: 'Guarda ahora los datos básicos de la publicación. La firma y el contenido se completarán en el siguiente paso.'
     dtag: 'Identificador de publicación'
+    dtag_help: 'Opcional. Déjalo vacío para generarlo a partir del título; no se puede cambiar después de guardarlo.'
     publication_title: 'Título'
     summary: 'Resumen'
     image_url: 'URL de la imagen de portada'

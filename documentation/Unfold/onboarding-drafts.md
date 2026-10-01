@@ -16,13 +16,18 @@ Each draft belongs to one normalized owner pubkey and d-tag. Its Redis key is
 time the owner saves it. The bundle owns the validated scalar draft shape; the
 Newsroom Redis adapter owns persistence and expiry.
 
+Owners may leave the identifier blank. On the initial save, onboarding derives
+an ASCII slug from the title; an explicit identifier remains available for cases
+where the owner needs a specific d-tag. The identifier becomes immutable once
+the draft exists.
+
 Drafts do not use the Symfony session. This avoids the old `mag_wizard` limit of
 one draft per browser session and keeps unpublished state separate from the
 legacy wizard while the replacement is introduced.
 
-After a verified root `kind:30040` is published, a later publishing slice moves
-the draft atomically to its canonical coordinate key. The move refuses to
-overwrite an existing canonical draft and preserves the TTL.
+After a verified root `kind:30040` is published, onboarding moves the draft
+atomically to its canonical coordinate key. The move refuses to overwrite an
+existing canonical draft and preserves the TTL.
 
 ## Access behavior
 

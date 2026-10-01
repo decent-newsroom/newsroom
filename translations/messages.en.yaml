@@ -3,6 +3,7 @@ unfold_onboarding:
     title: 'Start a publication'
     intro: 'Save the publication basics now. Signing and content setup happen in the next step.'
     dtag: 'Publication identifier'
+    dtag_help: 'Optional. Leave blank to generate it from the title; it cannot be changed after saving.'
     publication_title: 'Title'
     summary: 'Summary'
     image_url: 'Cover image URL'

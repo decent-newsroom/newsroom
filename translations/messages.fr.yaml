@@ -1489,6 +1489,7 @@ unfold_onboarding:
     title: 'Créer une publication'
     intro: 'Enregistrez maintenant les informations de base de la publication. La signature et le contenu seront ajoutés à l’étape suivante.'
     dtag: 'Identifiant de publication'
+    dtag_help: 'Facultatif. Laissez ce champ vide pour le générer à partir du titre ; il ne peut plus être modifié après l’enregistrement.'
     publication_title: 'Titre'
     summary: 'Résumé'
     image_url: 'URL de l’image de couverture'

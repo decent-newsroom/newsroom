@@ -1491,6 +1491,7 @@ unfold_onboarding:
     title: 'Začni publikacijo'
     intro: 'Zdaj shrani osnovne podatke publikacije. Podpis in vsebina sledita v naslednjem koraku.'
     dtag: 'Identifikator publikacije'
+    dtag_help: 'Neobvezno. Pustite prazno za ustvarjanje iz naslova; po shranjevanju ga ni mogoče spremeniti.'
     publication_title: 'Naslov'
     summary: 'Povzetek'
     image_url: 'URL naslovne slike'

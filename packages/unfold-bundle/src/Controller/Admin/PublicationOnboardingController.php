@@ -52,10 +52,14 @@ final readonly class PublicationOnboardingController
             }
 
             try {
+                $title = (string) $request->request->get('title', '');
+                if ($dtag === '') {
+                    $dtag = $this->slugifyTitle($title);
+                }
                 $draft = PublicationDraft::create(
                     $onboarding->ownerPubkey,
                     $dtag,
-                    (string) $request->request->get('title', ''),
+                    $title,
                     (string) $request->request->get('summary', ''),
                     $this->nullableString($request, 'image_url'),
                     $this->nullableString($request, 'language'),
@@ -236,5 +240,16 @@ final readonly class PublicationOnboardingController
             && $createdAt >= time() - 300 && $createdAt <= time() + 300
             && is_string($signed['id'] ?? null)
             && is_string($signed['sig'] ?? null);
+    }
+
+    private function slugifyTitle(string $title): string
+    {
+        $slug = strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $title)));
+        $slug = trim((string) preg_replace('/-+/', '-', $slug), '-');
+        if ($slug === '') {
+            throw new \InvalidArgumentException();
+        }
+
+        return $slug;
     }
 }
