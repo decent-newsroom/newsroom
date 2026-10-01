@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Feature] Added the Unfold `docs` theme with category sidebar navigation, compact document indexes, and progressively enhanced article tables of contents for hosted publication subdomains.
 - [Feature] Added owner-scoped, Redis-backed Unfold publication onboarding drafts with expiry, safe discard, and pre-publication basics at `/magazine/onboarding`.
 - [Feature] Added owner-signed initial Unfold root publication publishing from onboarding drafts.
 - [Fix] Rendered Unfold onboarding inside the shared Newsroom shell with portal navigation and publication-admin styling.
