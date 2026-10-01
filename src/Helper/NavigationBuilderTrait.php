@@ -31,6 +31,12 @@ trait NavigationBuilderTrait
                     'icon' => 'iconoir:home',
                 ],
                 [
+                    'label' => 'unfold_admin.content',
+                    'href' => $prefix . '/content',
+                    'active' => $currentPath === $prefix . '/content',
+                    'icon' => 'iconoir:journal-page',
+                ],
+                [
                     'label' => 'unfold_admin.settings',
                     'href' => $prefix . '/settings',
                     'active' => $currentPath === $prefix . '/settings',
