@@ -33,6 +33,11 @@ valid hosting mapping.
 
 ## Current scope
 
-The first slice saves title, summary, image URL, language, tags, and theme. It
-does not yet sign or publish an index, manage categories or articles, attach a
-subdomain, or retire the legacy magazine wizard.
+The onboarding flow signs and publishes the initial immutable root `kind:30040`
+index from a server-prepared payload. The server verifies the signature, exact
+owner and d-tag, and every signed tag before projecting it. Once the root is
+committed, the selected theme is stored for its canonical coordinate and the
+draft moves to its canonical Redis key.
+
+Category/article management, subdomain attachment, and legacy wizard retirement
+remain later slices.

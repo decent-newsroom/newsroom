@@ -1510,5 +1510,8 @@ unfold_onboarding:
     theme: 'Theme'
     save: 'Entwurf speichern'
     discard: 'Entwurf verwerfen'
+    publish_title: 'Publikation veröffentlichen'
+    publish_intro: 'Signieren Sie den unveränderlichen Stammindex, um diesen Entwurf in der Publikationsverwaltung verfügbar zu machen.'
+    publish: 'Signieren und veröffentlichen'
     invalid_dtag: 'Geben Sie eine gültige Publikationskennung ein.'
     invalid_draft: 'Prüfen Sie die Publikationsdetails und versuchen Sie es erneut.'

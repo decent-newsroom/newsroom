@@ -1499,5 +1499,8 @@ unfold_onboarding:
     theme: 'Tema'
     save: 'Shrani osnutek'
     discard: 'Zavrzi osnutek'
+    publish_title: 'Objavi publikacijo'
+    publish_intro: 'Podpišite nespremenljivi korenski indeks, da bo ta osnutek na voljo v upravljanju publikacij.'
+    publish: 'Podpiši in objavi'
     invalid_dtag: 'Vnesite veljaven identifikator publikacije.'
     invalid_draft: 'Preverite podatke publikacije in poskusite znova.'

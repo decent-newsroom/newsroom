@@ -1497,5 +1497,8 @@ unfold_onboarding:
     theme: 'Thème'
     save: 'Enregistrer le brouillon'
     discard: 'Abandonner le brouillon'
+    publish_title: 'Publier la publication'
+    publish_intro: 'Signez l’index racine immuable pour rendre ce brouillon disponible dans l’administration des publications.'
+    publish: 'Signer et publier'
     invalid_dtag: 'Saisissez un identifiant de publication valide.'
     invalid_draft: 'Vérifiez les informations de la publication et réessayez.'

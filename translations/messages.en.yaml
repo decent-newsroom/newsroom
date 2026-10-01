@@ -11,6 +11,9 @@ unfold_onboarding:
     theme: 'Theme'
     save: 'Save draft'
     discard: 'Discard draft'
+    publish_title: 'Publish publication'
+    publish_intro: 'Sign the immutable root publication index to make this draft available in publication administration.'
+    publish: 'Sign and publish'
     invalid_dtag: 'Enter a valid publication identifier.'
     invalid_draft: 'Check the publication details and try again.'──
 text:

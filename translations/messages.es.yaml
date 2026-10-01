@@ -1500,5 +1500,8 @@ unfold_onboarding:
     theme: 'Tema'
     save: 'Guardar borrador'
     discard: 'Descartar borrador'
+    publish_title: 'Publicar publicación'
+    publish_intro: 'Firma el índice raíz inmutable para que este borrador esté disponible en la administración de publicaciones.'
+    publish: 'Firmar y publicar'
     invalid_dtag: 'Introduce un identificador de publicación válido.'
     invalid_draft: 'Revisa los detalles de la publicación e inténtalo de nuevo.'

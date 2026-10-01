@@ -299,6 +299,9 @@ final class PublicationAdminFunctionalTest extends WebTestCase
         });
         $publisher = new class($store, $rootState) implements SignedPublicationIndexPublisherInterface {
             public function __construct(private object $store, private \stdClass $rootState) {}
+            public function publishRoot(array $signedEvent, string $publicationCoordinate): array {
+                return ['event_id' => $signedEvent['id'], 'published' => true, 'relay_results' => []];
+            }
             public function publish(array $signedEvent, string $publicationCoordinate, string $baseEventId, ?string $aboutCoordinate, array $relayHints, bool $updateAboutArticle = true): array {
                 $this->rootState->event = new NostrEvent(
                     $signedEvent['id'], $signedEvent['pubkey'], $signedEvent['kind'],

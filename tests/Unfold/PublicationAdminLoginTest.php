@@ -115,7 +115,7 @@ final class PublicationAdminLoginTest extends TestCase
             yield $route => [$route, true, true];
             yield $route . ' unmarked' => [$route, false, false];
         }
-        foreach (['unfold_onboarding_basics', 'unfold_onboarding_discard'] as $route) {
+        foreach (['unfold_onboarding_basics', 'unfold_onboarding_discard', 'unfold_onboarding_prepare_root', 'unfold_onboarding_commit_root'] as $route) {
             yield $route => [$route, true, true];
             yield $route . ' unmarked' => [$route, false, false];
         }

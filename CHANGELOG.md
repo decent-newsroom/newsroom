@@ -3,6 +3,7 @@
 ## v0.0.55
 
 - [Feature] Added owner-scoped, Redis-backed Unfold publication onboarding drafts with expiry, safe discard, and pre-publication basics at `/magazine/onboarding`.
+- [Feature] Added owner-signed initial Unfold root publication publishing from onboarding drafts.
 
 
 ## v0.0.54

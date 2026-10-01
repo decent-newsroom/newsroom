@@ -35,6 +35,18 @@
         <button type="submit">{{ 'unfold_onboarding.save'|trans }}</button>
     </form>
     {% if draft %}
+        <section
+            data-controller="nostr--nostr-unfold-root-sign"
+            data-nostr--nostr-unfold-root-sign-prepare-url-value="/magazine/onboarding/prepare-root"
+            data-nostr--nostr-unfold-root-sign-commit-url-value="/magazine/onboarding/commit-root"
+            data-nostr--nostr-unfold-root-sign-dtag-value="{{ draft.dtag }}"
+            data-nostr--nostr-unfold-root-sign-csrf-token-value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}"
+        >
+            <h2>{{ 'unfold_onboarding.publish_title'|trans }}</h2>
+            <p>{{ 'unfold_onboarding.publish_intro'|trans }}</p>
+            <button type="button" data-action="click->nostr--nostr-unfold-root-sign#publish" data-nostr--nostr-unfold-root-sign-target="publishButton">{{ 'unfold_onboarding.publish'|trans }}</button>
+            <p role="status" hidden data-nostr--nostr-unfold-root-sign-target="status"></p>
+        </section>
         <form method="post" action="/magazine/onboarding/discard">
             <input type="hidden" name="_token" value="{{ csrf_token('unfold_onboarding:' ~ onboarding.ownerPubkey) }}">
             <input type="hidden" name="dtag" value="{{ draft.dtag }}">

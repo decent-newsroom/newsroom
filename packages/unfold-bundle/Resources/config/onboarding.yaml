@@ -9,3 +9,15 @@ discard:
     controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationOnboardingController::discard
     methods: [POST]
     defaults: { _unfold_onboarding: true }
+
+prepare_root:
+    path: /magazine/onboarding/prepare-root
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationOnboardingController::prepareRoot
+    methods: [POST]
+    defaults: { _unfold_onboarding: true }
+
+commit_root:
+    path: /magazine/onboarding/commit-root
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationOnboardingController::commitRoot
+    methods: [POST]
+    defaults: { _unfold_onboarding: true }
