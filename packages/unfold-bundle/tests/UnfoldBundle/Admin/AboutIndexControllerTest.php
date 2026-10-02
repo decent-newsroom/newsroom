@@ -6,9 +6,9 @@ namespace DecentNewsroom\UnfoldBundle\Tests\UnfoldBundle\Admin;
 
 use DecentNewsroom\UnfoldBundle\Admin\PublicationContext;
 use DecentNewsroom\UnfoldBundle\Admin\PublicationMount;
+use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
-use DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\SignedPublicationIndexPublisherInterface;
@@ -148,9 +148,9 @@ final class AboutIndexControllerTest extends TestCase
             'published' => false,
             'relay_results' => ['wss://relay.example' => ['ok' => false]],
         ]);
-        $loader = $this->createMock(SiteConfigLoader::class);
-        $loader->expects(self::once())->method('invalidateFromCoordinate')->with(self::ROOT);
-        $response = $this->controller($publisher, loader: $loader)->commit(
+        $cacheWarmer = $this->createMock(SiteConfigCacheWarmer::class);
+        $cacheWarmer->expects(self::once())->method('warmPublication')->with(self::ROOT);
+        $response = $this->controller($publisher, cacheWarmer: $cacheWarmer)->commit(
             $this->request([
                 'about_article' => self::SECOND,
                 'base_event_id' => str_repeat('e', 64),
@@ -177,7 +177,7 @@ final class AboutIndexControllerTest extends TestCase
     private function controller(
         ?SignedPublicationIndexPublisherInterface $publisher = null,
         ?EventReadGatewayInterface $events = null,
-        ?SiteConfigLoader $loader = null,
+        ?SiteConfigCacheWarmer $cacheWarmer = null,
         ?PublicationSettingsManager $settings = null,
     ): AboutIndexController {
         $events ??= $this->createMock(EventReadGatewayInterface::class);
@@ -214,7 +214,7 @@ final class AboutIndexControllerTest extends TestCase
             $events,
             $publisher ?? $this->createMock(SignedPublicationIndexPublisherInterface::class),
             $settings,
-            $loader ?? $this->createMock(SiteConfigLoader::class),
+            $cacheWarmer ?? $this->createMock(SiteConfigCacheWarmer::class),
             $csrf,
             new NullLogger(),
         );

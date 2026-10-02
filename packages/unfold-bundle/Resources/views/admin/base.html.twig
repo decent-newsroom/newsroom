@@ -21,9 +21,6 @@
     </nav>
 </header>
 <main class="publication-admin-main">
-    {% for message in app.flashes('unfold_success') %}
-        <p role="status">{{ message|trans }}</p>
-    {% endfor %}
     {% block body %}{% endblock %}
 </main>
 </body>

@@ -6,9 +6,9 @@ namespace DecentNewsroom\UnfoldBundle\Controller\Admin;
 
 use DecentNewsroom\UnfoldBundle\Admin\AboutIndexMutation;
 use DecentNewsroom\UnfoldBundle\Admin\PublicationContext;
+use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\AboutArticleReference;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
-use DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationIndexConflictException;
@@ -25,7 +25,7 @@ final readonly class AboutIndexController
         private EventReadGatewayInterface $events,
         private SignedPublicationIndexPublisherInterface $publisher,
         private PublicationSettingsManager $settings,
-        private SiteConfigLoader $loader,
+        private SiteConfigCacheWarmer $cacheWarmer,
         private CsrfTokenManagerInterface $csrf,
         private LoggerInterface $logger,
     ) {}
@@ -140,7 +140,7 @@ final readonly class AboutIndexController
                 $relayHints,
                 !$retry,
             );
-            $this->loader->invalidateFromCoordinate($publication->coordinate);
+            $this->cacheWarmer->warmPublication($publication->coordinate);
 
             return new JsonResponse([
                 'ok' => true,

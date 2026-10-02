@@ -6,6 +6,7 @@ namespace DecentNewsroom\UnfoldBundle\Tests\UnfoldBundle\Admin;
 
 use DecentNewsroom\UnfoldBundle\Admin\PublicationContext;
 use DecentNewsroom\UnfoldBundle\Admin\PublicationMount;
+use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
@@ -40,6 +41,8 @@ final class PublicationAdminControllerTest extends TestCase
                 ['label' => 'Contact', 'url' => 'https://example.test/contact'],
             ],
         );
+        $cacheWarmer = $this->createMock(SiteConfigCacheWarmer::class);
+        $cacheWarmer->expects(self::once())->method('warmPublication')->with(self::COORDINATE);
         $twig = $this->createMock(Environment::class);
         $twig->expects(self::never())->method('render');
         $csrf = $this->validCsrf();
@@ -51,7 +54,7 @@ final class PublicationAdminControllerTest extends TestCase
             ['label' => '', 'url' => ''],
         ]);
 
-        $response = $this->controller($twig, $settings, $csrf)->settings($request, $this->publication($mount, $prefix));
+        $response = $this->controller($twig, $settings, $csrf, cacheWarmer: $cacheWarmer)->settings($request, $this->publication($mount, $prefix));
 
         self::assertInstanceOf(RedirectResponse::class, $response);
         self::assertSame(303, $response->getStatusCode());
@@ -427,6 +430,7 @@ final class PublicationAdminControllerTest extends TestCase
         PublicationSettingsManager $settings,
         CsrfTokenManagerInterface $csrf,
         ?EventReadGatewayInterface $events = null,
+        ?SiteConfigCacheWarmer $cacheWarmer = null,
     ): PublicationAdminController {
         $renderer = $this->createMock(HandlebarsRenderer::class);
         $renderer->method('getAvailableThemes')->willReturn(['default']);
@@ -438,6 +442,7 @@ final class PublicationAdminControllerTest extends TestCase
             $events ?? $this->createMock(EventReadGatewayInterface::class),
             $csrf,
             $this->createMock(LoggerInterface::class),
+            $cacheWarmer ?? $this->createMock(SiteConfigCacheWarmer::class),
         );
     }
 }

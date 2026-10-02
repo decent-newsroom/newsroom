@@ -31,7 +31,6 @@
         <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ category.coordinate }}">
         <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ ux_icon('iconoir:minus', {class: 'icon'}) }}{{ 'unfold_admin.remove_from_publication'|trans }}</button>
         <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ ux_icon('iconoir:refresh-circular', {class: 'icon'}) }}{{ 'unfold_admin.about_retry_publish'|trans }}</button>
-        <p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
     </form>
 {% endmacro %}
 
@@ -46,7 +45,6 @@
         <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="">
         <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ ux_icon('iconoir:minus', {class: 'icon'}) }}{{ 'unfold_admin.remove_from_publication'|trans }}</button>
         <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ ux_icon('iconoir:refresh-circular', {class: 'icon'}) }}{{ 'unfold_admin.about_retry_publish'|trans }}</button>
-        <p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
     </form>
 {% endmacro %}
 
@@ -141,7 +139,6 @@
                 <label class="my-content-search"><span class="visually-hidden">{{ 'unfold_admin.category_naddr'|trans }}</span>{{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}<input data-nostr--nostr-unfold-about-settings-target="aboutArticle" placeholder="{{ 'unfold_admin.category_naddr'|trans }}"></label>
                 <button class="btn" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.add_category'|trans }}</button>
                 <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
-                <p data-nostr--nostr-unfold-about-settings-target="status" role="status" hidden></p>
             </form>
         {% endif %}
 
@@ -155,7 +152,6 @@
                 <label class="my-content-search"><span class="visually-hidden">{{ 'unfold_admin.about_article'|trans }}</span>{{ ux_icon('iconoir:page-flip', {class: 'icon'}) }}<input data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ currentAboutArticle }}" placeholder="{{ 'unfold_admin.about_article'|trans }}"></label>
                 <button class="btn" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.set_about_article'|trans }}</button>
                 <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
-                <p data-nostr--nostr-unfold-about-settings-target="status" role="status" hidden></p>
             </form>
         {% endif %}
     </section>

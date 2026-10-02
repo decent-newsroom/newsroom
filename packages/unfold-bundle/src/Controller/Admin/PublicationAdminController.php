@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DecentNewsroom\UnfoldBundle\Controller\Admin;
 
 use DecentNewsroom\UnfoldBundle\Admin\PublicationContext;
+use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\AboutArticleReference;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
@@ -29,6 +30,7 @@ final readonly class PublicationAdminController
         private EventReadGatewayInterface $events,
         private CsrfTokenManagerInterface $csrf,
         private LoggerInterface $logger,
+        private SiteConfigCacheWarmer $cacheWarmer,
     ) {}
 
     public function overview(PublicationContext $publication): Response
@@ -129,6 +131,7 @@ final readonly class PublicationAdminController
                     $aboutHintsToSave,
                     $updateAboutRelayHints,
                 );
+                $this->cacheWarmer->warmPublication($publication->coordinate);
                 $request->getSession()->getFlashBag()->add('unfold_success', 'unfold_admin.saved');
                 return new RedirectResponse($publication->adminPathPrefix . '/settings', 303);
             } catch (\InvalidArgumentException $e) {

@@ -2,7 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 import { getSigner } from './signer_manager.js';
 
 export default class extends Controller {
-  static targets = ['aboutArticle', 'saveButton', 'status', 'handoff', 'retryButton'];
+  static targets = ['aboutArticle', 'saveButton', 'handoff', 'retryButton'];
 
   static values = {
     initialAbout: String,
@@ -217,26 +217,31 @@ export default class extends Controller {
   }
 
   clearStatus() {
-    this.statusTarget.textContent = '';
-    this.statusTarget.hidden = true;
     if (this.hasHandoffTarget) this.handoffTarget.hidden = true;
     if (this.hasRetryButtonTarget) this.retryButtonTarget.hidden = true;
   }
 
   showStatus(message) {
-    this.statusTarget.textContent = message;
-    this.statusTarget.hidden = false;
-    this.statusTarget.setAttribute('role', 'status');
+    this.showToast(message, 'info');
   }
 
   showError(message) {
-    this.showStatus(message);
-    this.statusTarget.setAttribute('role', 'alert');
+    this.showToast(message, 'danger');
   }
 
   showRelayPending() {
     this.showError(this.message('relayPending'));
     if (this.hasRetryButtonTarget) this.retryButtonTarget.hidden = false;
+  }
+
+  showToast(message, type) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, type);
+      return;
+    }
+
+    window.pendingToasts ||= [];
+    window.pendingToasts.push([message, type]);
   }
 
   message(key) {

@@ -6,8 +6,8 @@ namespace DecentNewsroom\UnfoldBundle\Controller\Admin;
 
 use DecentNewsroom\UnfoldBundle\Admin\CategoryIndexMutation;
 use DecentNewsroom\UnfoldBundle\Admin\PublicationContext;
+use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\CategoryReference;
-use DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\SignedPublicationIndexPublisherInterface;
@@ -21,7 +21,7 @@ final readonly class CategoryIndexController
     public function __construct(
         private EventReadGatewayInterface $events,
         private SignedPublicationIndexPublisherInterface $publisher,
-        private SiteConfigLoader $loader,
+        private SiteConfigCacheWarmer $cacheWarmer,
         private CsrfTokenManagerInterface $csrf,
     ) {}
 
@@ -53,7 +53,7 @@ final readonly class CategoryIndexController
                 return new JsonResponse(['error' => 'unfold_admin.invalid_category'], 422);
             }
             $result = $this->publisher->publish($signed, $publication->coordinate, $root->id, null, [], false);
-            $this->loader->invalidateFromCoordinate($publication->coordinate);
+            $this->cacheWarmer->warmPublication($publication->coordinate);
 
             return new JsonResponse(['ok' => true, 'published' => $result['published'], 'relay_results' => $result['relay_results']]);
         } catch (\InvalidArgumentException $e) {

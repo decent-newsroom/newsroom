@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Fix] Invalidated and rewarmed Unfold publication caches after owner administration updates, and moved administration progress notifications to global toasts.
 - [Feature] Added owner-scoped Unfold publication administration links to the Newsroom navigation.
 - [Fix] Displayed resolved owner names and linked hosted subdomains from the Unfold publication administration overview.
 - [Improvement] Resolved referenced publication content titles and simplified the content inventory to title, type, and icon-labeled actions.

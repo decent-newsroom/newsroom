@@ -24,10 +24,6 @@
 
 {% block body %}
     <section class="reading-nook-page unfold-admin-page">
-        {% for message in app.flashes('unfold_success') %}
-            <p class="unfold-admin-flash" role="status">{{ message|trans }}</p>
-        {% endfor %}
-
         {% block publication_content %}{% endblock %}
     </section>
 {% endblock %}

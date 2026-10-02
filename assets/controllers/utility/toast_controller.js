@@ -21,7 +21,7 @@ import { Controller } from '@hotwired/stimulus';
  * window.showToast('Success!', 'success');
  */
 export default class extends Controller {
-  static targets = ['container'];
+  static targets = ['container', 'flash'];
 
   connect() {
     console.log('Toast controller connected');
@@ -31,6 +31,16 @@ export default class extends Controller {
     window.showToast = (message, type = 'info', duration = 4000) => {
       this.show(message, type, duration);
     };
+
+    this.flashTargets.forEach((flash) => {
+      this.show(flash.textContent, flash.dataset.utilityToastType || 'info');
+      flash.remove();
+    });
+
+    for (const [message, type, duration] of window.pendingToasts || []) {
+      this.show(message, type, duration);
+    }
+    delete window.pendingToasts;
   }
 
   disconnect() {
@@ -131,4 +141,3 @@ export default class extends Controller {
     this.activeToasts.clear();
   }
 }
-

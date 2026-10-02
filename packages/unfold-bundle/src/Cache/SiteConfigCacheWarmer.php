@@ -25,29 +25,37 @@ class SiteConfigCacheWarmer
      */
     public function warmPublicationSite(PublicationSite $site): bool
     {
-        try {
-            $this->publicationRefresh?->refresh($site->coordinate);
+        return $this->warmPublication($site->coordinate, $site->subdomain);
+    }
 
-            $this->logger->info('Warming cache for UnfoldSite', [
-                'subdomain' => $site->subdomain,
-                'coordinate' => $site->coordinate,
+    /**
+     * Invalidate and warm cache for a publication, including publications without hosting.
+     */
+    public function warmPublication(string $coordinate, ?string $subdomain = null): bool
+    {
+        try {
+            $this->publicationRefresh?->refresh($coordinate);
+
+            $this->logger->info('Warming cache for Unfold publication', [
+                'subdomain' => $subdomain,
+                'coordinate' => $coordinate,
             ]);
 
             // Invalidate the SiteConfig cache first so loadFromCoordinate fetches fresh data.
             //    Without this, a fresh/stale SWR entry would be returned as-is (the background
             //    register_shutdown_function refresh never fires in console commands).
             $this->logger->info('Invalidating existing SiteConfig cache...');
-            $this->siteConfigLoader->invalidateFromCoordinate($site->coordinate);
+            $this->siteConfigLoader->invalidateFromCoordinate($coordinate);
 
             // Load and cache the SiteConfig (forced fresh fetch because we just invalidated)
             $this->logger->info('Loading SiteConfig from coordinate...');
-            $siteConfig = $this->siteConfigLoader->loadFromCoordinate($site->coordinate);
+            $siteConfig = $this->siteConfigLoader->loadFromCoordinate($coordinate);
 
             // Check if we got a placeholder
             if ($siteConfig->title === 'Loading...') {
                 $this->logger->warning('Got placeholder SiteConfig - fetch may have failed', [
-                    'subdomain' => $site->subdomain,
-                    'coordinate' => $site->coordinate,
+                    'subdomain' => $subdomain,
+                    'coordinate' => $coordinate,
                 ]);
                 return false;
             }
@@ -80,7 +88,7 @@ class SiteConfigCacheWarmer
             $this->contentProvider->getHomePosts($siteConfig, 3);
 
             $this->logger->info('Cache warmed successfully', [
-                'subdomain' => $site->subdomain,
+                'subdomain' => $subdomain,
                 'title' => $siteConfig->title,
                 'categories' => count($categories),
             ]);
@@ -88,8 +96,8 @@ class SiteConfigCacheWarmer
             return true;
         } catch (\Exception $e) {
             $this->logger->error('Failed to warm cache for UnfoldSite', [
-                'subdomain' => $site->subdomain,
-                'coordinate' => $site->coordinate,
+                'subdomain' => $subdomain,
+                'coordinate' => $coordinate,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
