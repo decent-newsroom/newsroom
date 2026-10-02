@@ -16,6 +16,39 @@
     relayPending: 'unfold_admin.about_relay_pending'|trans,
     accessDenied: 'unfold_admin.about_access_denied'|trans
 } %}
+{% set contentPath = publication.adminPathPrefix ~ '/content' %}
+
+{% macro category_remove_form(category, publication, signerMessages) %}
+    <form data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
+          data-nostr--nostr-unfold-about-settings-initial-about-value=""
+          data-nostr--nostr-unfold-about-settings-field-name-value="category"
+          data-nostr--nostr-unfold-about-settings-extra-payload-value="{{ {action: 'remove'}|json_encode|e('html_attr') }}"
+          data-nostr--nostr-unfold-about-settings-reload-on-success-value="true"
+          data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/content/categories/prepare"
+          data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/categories/commit"
+          data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
+          data-nostr--nostr-unfold-about-settings-messages-value="{{ signerMessages|json_encode|e('html_attr') }}">
+        <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ category.coordinate }}">
+        <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.remove_from_publication'|trans }}</button>
+        <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
+        <p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
+    </form>
+{% endmacro %}
+
+{% macro article_remove_form(article, publication, signerMessages) %}
+    <form data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
+          data-nostr--nostr-unfold-about-settings-initial-about-value=""
+          data-nostr--nostr-unfold-about-settings-reload-on-success-value="true"
+          data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/content/about/prepare"
+          data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/about/commit"
+          data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
+          data-nostr--nostr-unfold-about-settings-messages-value="{{ signerMessages|json_encode|e('html_attr') }}">
+        <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="">
+        <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.remove_from_publication'|trans }}</button>
+        <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
+        <p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
+    </form>
+{% endmacro %}
 
 {% block body %}
     <section class="my-content-page unfold-content-page">
@@ -26,82 +59,79 @@
                 <p>{{ 'unfold_admin.immutable'|trans }}</p>
             </div>
             <div class="my-content-header__actions">
-                <a class="btn btn-secondary" href="#add-category">{{ 'unfold_admin.add_category'|trans }}</a>
+                {% if activeType != 'articles' %}<a class="btn btn-secondary" href="#add-category">{{ 'unfold_admin.add_category'|trans }}</a>{% endif %}
+                {% if activeType != 'categories' %}<a class="btn" href="#set-about">{{ 'unfold_admin.set_about_article'|trans }}</a>{% endif %}
             </div>
         </header>
 
         <div class="my-content-summary">
-            <div>
-                <strong>{{ categories|length }}</strong>
-                <span>{{ 'unfold_admin.categories'|trans }}</span>
-            </div>
-            <div>
-                <strong>{{ currentAboutArticle ? '1' : '0' }}</strong>
-                <span>{{ 'unfold_admin.about_article'|trans }}</span>
-            </div>
-            <a href="#about">{{ 'unfold_admin.about_article'|trans }}</a>
+            <div><strong>{{ counts.all }}</strong><span>{{ 'unfold_admin.all'|trans }}</span></div>
+            <div><strong>{{ counts.articles }}</strong><span>{{ 'unfold_admin.articles'|trans }}</span></div>
+            <div><strong>{{ counts.categories }}</strong><span>{{ 'unfold_admin.categories'|trans }}</span></div>
         </div>
 
         <nav class="my-content-tabs" aria-label="{{ 'unfold_admin.navigation'|trans }}">
-            <a href="#categories" aria-current="page"><span>{{ 'unfold_admin.categories'|trans }}</span><strong>{{ categories|length }}</strong></a>
-            <a href="#about"><span>{{ 'unfold_admin.about_article'|trans }}</span><strong>{{ currentAboutArticle ? '1' : '0' }}</strong></a>
+            {% for type, label in {all: 'unfold_admin.all', articles: 'unfold_admin.articles', categories: 'unfold_admin.categories'} %}
+                <a href="{{ contentPath }}?type={{ type }}"{% if activeType == type %} aria-current="page"{% endif %}><span>{{ label|trans }}</span><strong>{{ attribute(counts, type) }}</strong></a>
+            {% endfor %}
         </nav>
 
-        <section id="categories">
-            <div class="my-content-results">
-                <p>{{ 'unfold_admin.categories'|trans }}</p>
+        <div class="my-content-inventory">
+            <div class="my-content-row my-content-row--head" aria-hidden="true">
+                <span>{{ 'unfold_admin.content'|trans }}</span>
+                <span>{{ 'unfold_admin.type'|trans }}</span>
+                <span>{{ 'unfold_admin.coordinate'|trans }}</span>
+                <span>&nbsp;</span>
             </div>
 
-            <div class="my-content-inventory">
-                <div class="my-content-row my-content-row--head" aria-hidden="true">
-                    <span>{{ 'unfold_admin.categories'|trans }}</span>
-                    <span>{{ 'unfold_admin.category_naddr'|trans }}</span>
-                    <span>&nbsp;</span>
-                    <span>&nbsp;</span>
-                </div>
+            {% if currentAboutArticle and activeType in ['all', 'articles'] %}
+                <article class="my-content-row">
+                    <div class="my-content-row__main">
+                        <span class="my-content-row__icon" aria-hidden="true">{{ ux_icon('iconoir:page-flip', {class: 'icon'}) }}</span>
+                        <div>
+                            <h2>{{ currentAboutArticle|split(':', 3)[2] }}</h2>
+                            <p>{{ 'unfold_admin.about_article'|trans }}</p>
+                        </div>
+                    </div>
+                    <div class="my-content-row__status"><span class="my-content-status my-content-status--published">{{ 'unfold_admin.articles'|trans }}</span></div>
+                    <code class="my-content-row__coordinate">{{ currentAboutArticle }}</code>
+                    <details class="my-content-menu">
+                        <summary aria-label="{{ 'unfold_admin.remove_from_publication'|trans }}">{{ ux_icon('iconoir:plus', {class: 'icon'}) }}</summary>
+                        <div class="my-content-menu__panel">{{ _self.article_remove_form(currentAboutArticle, publication, signerMessages) }}</div>
+                    </details>
+                </article>
+            {% endif %}
 
+            {% if activeType in ['all', 'categories'] %}
                 {% for category in categories %}
                     <article class="my-content-row">
                         <div class="my-content-row__main">
                             <span class="my-content-row__icon" aria-hidden="true">{{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}</span>
                             <div>
                                 <h2>{{ category.coordinate|split(':', 3)[2] }}</h2>
-                                <p class="my-content-row__slug">{{ category.coordinate }}</p>
+                                <p>{{ 'unfold_admin.categories'|trans }}</p>
                             </div>
                         </div>
-                        <div class="my-content-row__status">
-                            <span class="my-content-status my-content-status--list">{{ 'unfold_admin.categories'|trans }}</span>
-                        </div>
-                        <span class="my-content-row__no-actions">—</span>
+                        <div class="my-content-row__status"><span class="my-content-status my-content-status--list">{{ 'unfold_admin.categories'|trans }}</span></div>
+                        <code class="my-content-row__coordinate">{{ category.coordinate }}</code>
                         <details class="my-content-menu">
-                            <summary aria-label="{{ 'unfold_admin.remove_category'|trans }}">{{ ux_icon('iconoir:plus', {class: 'icon'}) }}</summary>
-                            <div class="my-content-menu__panel">
-                                <form data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
-                                      data-nostr--nostr-unfold-about-settings-initial-about-value=""
-                                      data-nostr--nostr-unfold-about-settings-field-name-value="category"
-                                      data-nostr--nostr-unfold-about-settings-extra-payload-value="{{ {action: 'remove'}|json_encode|e('html_attr') }}"
-                                      data-nostr--nostr-unfold-about-settings-reload-on-success-value="true"
-                                      data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/content/categories/prepare"
-                                      data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/categories/commit"
-                                      data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
-                                      data-nostr--nostr-unfold-about-settings-messages-value="{{ signerMessages|json_encode|e('html_attr') }}">
-                                    <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ category.coordinate }}">
-                                    <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.remove_category'|trans }}</button>
-                                    <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
-                                    <p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
-                                </form>
-                            </div>
+                            <summary aria-label="{{ 'unfold_admin.remove_from_publication'|trans }}">{{ ux_icon('iconoir:plus', {class: 'icon'}) }}</summary>
+                            <div class="my-content-menu__panel">{{ _self.category_remove_form(category, publication, signerMessages) }}</div>
                         </details>
                     </article>
-                {% else %}
-                    <div class="my-content-empty">
-                        {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
-                        <h2>{{ 'unfold_admin.no_categories'|trans }}</h2>
-                        <p>{{ 'unfold_admin.category_add_help'|trans }}</p>
-                    </div>
                 {% endfor %}
-            </div>
+            {% endif %}
 
+            {% if (activeType == 'articles' and not currentAboutArticle) or (activeType == 'categories' and not categories) or (activeType == 'all' and not counts.all) %}
+                <div class="my-content-empty">
+                    {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
+                    <h2>{{ 'unfold_admin.no_content'|trans }}</h2>
+                    <p>{{ activeType == 'categories' ? 'unfold_admin.category_add_help'|trans : 'unfold_admin.about_article_help'|trans }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if activeType != 'articles' %}
             <form id="add-category" class="my-content-toolbar" data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
                   data-nostr--nostr-unfold-about-settings-initial-about-value=""
                   data-nostr--nostr-unfold-about-settings-field-name-value="category"
@@ -111,34 +141,25 @@
                   data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/categories/commit"
                   data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
                   data-nostr--nostr-unfold-about-settings-messages-value="{{ signerMessages|json_encode|e('html_attr') }}">
-                <label class="my-content-search">
-                    <span class="visually-hidden">{{ 'unfold_admin.category_naddr'|trans }}</span>
-                    {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
-                    <input data-nostr--nostr-unfold-about-settings-target="aboutArticle" placeholder="{{ 'unfold_admin.category_naddr'|trans }}">
-                </label>
+                <label class="my-content-search"><span class="visually-hidden">{{ 'unfold_admin.category_naddr'|trans }}</span>{{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}<input data-nostr--nostr-unfold-about-settings-target="aboutArticle" placeholder="{{ 'unfold_admin.category_naddr'|trans }}"></label>
                 <button class="btn" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.add_category'|trans }}</button>
                 <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
                 <p data-nostr--nostr-unfold-about-settings-target="status" role="status" hidden></p>
             </form>
-        </section>
+        {% endif %}
 
-        <section id="about">
-            <div class="my-content-results"><p>{{ 'unfold_admin.about_article'|trans }}</p></div>
-            <form class="my-content-toolbar" data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
+        {% if activeType != 'categories' %}
+            <form id="set-about" class="my-content-toolbar" data-controller="nostr--nostr-unfold-about-settings" data-action="submit->nostr--nostr-unfold-about-settings#submit"
                   data-nostr--nostr-unfold-about-settings-initial-about-value="{{ currentAboutArticle }}"
                   data-nostr--nostr-unfold-about-settings-prepare-url-value="{{ publication.adminPathPrefix }}/content/about/prepare"
                   data-nostr--nostr-unfold-about-settings-commit-url-value="{{ publication.adminPathPrefix }}/content/about/commit"
                   data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
                   data-nostr--nostr-unfold-about-settings-messages-value="{{ signerMessages|json_encode|e('html_attr') }}">
-                <label class="my-content-search">
-                    <span class="visually-hidden">{{ 'unfold_admin.about_article'|trans }}</span>
-                    {{ ux_icon('iconoir:page-flip', {class: 'icon'}) }}
-                    <input data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ currentAboutArticle }}" placeholder="{{ 'unfold_admin.about_article'|trans }}">
-                </label>
-                <button class="btn" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.save'|trans }}</button>
+                <label class="my-content-search"><span class="visually-hidden">{{ 'unfold_admin.about_article'|trans }}</span>{{ ux_icon('iconoir:page-flip', {class: 'icon'}) }}<input data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ currentAboutArticle }}" placeholder="{{ 'unfold_admin.about_article'|trans }}"></label>
+                <button class="btn" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.set_about_article'|trans }}</button>
                 <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
                 <p data-nostr--nostr-unfold-about-settings-target="status" role="status" hidden></p>
             </form>
-        </section>
+        {% endif %}
     </section>
 {% endblock %}

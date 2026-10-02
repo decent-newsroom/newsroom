@@ -63,6 +63,27 @@ final readonly class PublicationAdminController
         $aboutRelayHints = $aboutArticle !== '' && $aboutArticle === $publication->settings->aboutArticleCoordinate
             ? $publication->settings->aboutRelayHints : [];
 
+        // Preserve signed-handoff links from older hosted-admin sessions.
+        // The selector now renders on Content, but this keeps a Settings URL
+        // from silently discarding a valid pending selection.
+        if ($request->isMethod('GET') && $request->query->has('about_article')) {
+            $draft = $request->query->all()['about_article'] ?? null;
+            if (is_string($draft)) {
+                if (trim($draft) === '') {
+                    $aboutArticle = '';
+                    $aboutRelayHints = [];
+                } else {
+                    try {
+                        $reference = AboutArticleReference::fromInput($draft);
+                        $aboutArticle = trim($draft);
+                        $aboutRelayHints = $reference->relayHints;
+                    } catch (\InvalidArgumentException) {
+                        // Retain the persisted selection when a handoff draft is invalid.
+                    }
+                }
+            }
+        }
+
         $error = null;
         $status = 200;
         if ($request->isMethod('POST')) {
@@ -132,7 +153,7 @@ final readonly class PublicationAdminController
         ]), $status);
     }
 
-    public function content(PublicationContext $publication): Response
+    public function content(Request $request, PublicationContext $publication): Response
     {
         $categories = [];
         try {
@@ -143,11 +164,23 @@ final readonly class PublicationAdminController
         } catch (\Throwable $e) {
             $this->logger->warning('Publication categories unavailable', ['coordinate' => $publication->coordinate, 'exception' => $e]);
         }
+        $aboutArticle = $this->currentAboutArticle($publication);
+        $counts = [
+            'all' => count($categories) + ($aboutArticle === null ? 0 : 1),
+            'articles' => $aboutArticle === null ? 0 : 1,
+            'categories' => count($categories),
+        ];
+        $activeType = $request->query->getString('type', 'all');
+        if (!array_key_exists($activeType, $counts)) {
+            $activeType = 'all';
+        }
 
         return new Response($this->twig->render('@Unfold/admin/content.html.twig', [
             'publication' => $publication,
             'categories' => $categories,
-            'currentAboutArticle' => $this->currentAboutArticle($publication) ?? '',
+            'currentAboutArticle' => $aboutArticle ?? '',
+            'counts' => $counts,
+            'activeType' => $activeType,
         ]));
     }
 

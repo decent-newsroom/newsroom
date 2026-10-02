@@ -165,6 +165,34 @@
 .unfold-admin-handoff { justify-self: start; }
 .unfold-admin-form [hidden] { display: none; }
 
+.unfold-content-page .my-content-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.unfold-content-page .my-content-row {
+    grid-template-columns: minmax(0, 1fr) 9.5rem minmax(12rem, 1fr) 2.75rem;
+}
+
+.my-content-row__coordinate {
+    min-width: 0;
+    overflow: hidden;
+    padding-inline: var(--spacing-3);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+    .unfold-content-page .my-content-row {
+        grid-template-columns: minmax(0, 1fr) 2.75rem;
+    }
+
+    .unfold-content-page .my-content-row__coordinate {
+        display: none;
+    }
+}
+
 .unfold-onboarding-page {
     max-width: 48rem;
 }
