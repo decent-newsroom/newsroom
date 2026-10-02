@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Fix] Displayed resolved owner names and linked hosted subdomains from the Unfold publication administration overview.
 - [Improvement] Resolved referenced publication content titles and simplified the content inventory to title, type, and icon-labeled actions.
 - [Improvement] Organized Unfold publication content into All, Articles, and Categories inventory tabs with publication-reference removal actions.
 - [Feature] Added Unfold content management with an owner-signed About selector and reading-list category references on both publication administration mounts.

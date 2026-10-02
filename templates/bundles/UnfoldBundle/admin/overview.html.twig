@@ -15,13 +15,22 @@
         <dd><code>{{ publication.coordinate }}</code></dd>
 
         <dt>{{ 'unfold_admin.owner'|trans }}</dt>
-        <dd><code>{{ publication.ownerPubkey }}</code></dd>
+        <dd><twig:Molecules:UserFromNpub :ident="publication.ownerPubkey" /></dd>
 
         <dt>{{ 'unfold_admin.theme'|trans }}</dt>
         <dd>{{ publication.settings.theme }}</dd>
 
         <dt>{{ 'unfold_admin.hosting'|trans }}</dt>
-        <dd>{{ publication.site ? publication.site.subdomain : 'unfold_admin.not_hosted'|trans }}</dd>
+        <dd>
+            {% if publication.site and publication.publicUrl %}
+                {{ publication.site.subdomain }}
+                <a href="{{ publication.publicUrl }}" target="_blank" rel="noopener" aria-label="{{ 'unfold_admin.visit'|trans }}">
+                    {{ ux_icon('iconoir:arrow-up-right-square', {class: 'icon', 'aria-hidden': 'true'}) }}
+                </a>
+            {% else %}
+                {{ 'unfold_admin.not_hosted'|trans }}
+            {% endif %}
+        </dd>
     </dl>
 
     {% if publication.publicUrl %}
