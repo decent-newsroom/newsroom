@@ -27,6 +27,23 @@ class PublicationSubdomainSubscriptionRepository extends ServiceEntityRepository
         return $this->findOneBy(['npub' => $npub]);
     }
 
+    /**
+     * @return PublicationSubdomainSubscription[]
+     */
+    public function findActiveValidByNpub(string $npub): array
+    {
+        return $this->createQueryBuilder('s')
+            ->where('s.npub = :npub')
+            ->andWhere('s.status = :status')
+            ->andWhere('s.expiresAt IS NULL OR s.expiresAt > :now')
+            ->setParameter('npub', $npub)
+            ->setParameter('status', PublicationSubdomainStatus::ACTIVE)
+            ->setParameter('now', new \DateTimeImmutable())
+            ->orderBy('s.createdAt', \SortDirection::Ascending)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findBySubdomain(string $subdomain): ?PublicationSubdomainSubscription
     {
         return $this->findOneBy(['subdomain' => strtolower($subdomain)]);
@@ -66,4 +83,3 @@ class PublicationSubdomainSubscriptionRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 }
-

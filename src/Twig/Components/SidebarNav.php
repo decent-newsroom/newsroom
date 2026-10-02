@@ -16,7 +16,7 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 class SidebarNav
 {
     /**
-     * @var array<int, array{label: string, items: array<int, array{label: string, route?: string, params?: array, href?: string, active?: bool, icon?: string}>}>
+     * @var array<int, array{label: string, items: array<int, array{label: string, route?: string, params?: array, href?: string, active?: bool, icon?: string, translate?: bool}>}>
      */
     public array $sections = [];
 
@@ -30,4 +30,3 @@ class SidebarNav
      */
     public ?string $footerComponent = null;
 }
-

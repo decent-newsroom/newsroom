@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Media;
 
 use App\Helper\NavigationBuilderTrait;
+use App\Service\NewsroomUnfoldNavigationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,13 +21,12 @@ class MediaManagerController extends AbstractController
     use NavigationBuilderTrait;
 
     #[Route('/media-manager', name: 'media_manager')]
-    public function index(): Response
+    public function index(NewsroomUnfoldNavigationService $unfoldNavigation): Response
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
         return $this->render('media_manager/index.html.twig', [
-            'newsroomNav' => $this->buildNewsroomNav(),
+            'newsroomNav' => $this->buildNewsroomNav($unfoldNavigation->forOwner($this->getUser()?->getUserIdentifier())),
         ]);
     }
 }
-

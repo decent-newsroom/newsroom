@@ -86,11 +86,12 @@ trait NavigationBuilderTrait
     /**
      * Build the Newsroom local navigation structure.
      *
-     * @return array<int, array{label: string, items: array<int, array{label: string, route: string, icon: string}>}>
+     * @param array<int, array{label: string, href: string, icon: string, translate: bool}> $unfoldItems
+     * @return array<int, array{label: string, items: array<int, array{label: string, route?: string, href?: string, icon: string, translate?: bool}>}>
      */
-    protected function buildNewsroomNav(): array
+    protected function buildNewsroomNav(array $unfoldItems = []): array
     {
-        return [
+        $sections = [
             [
                 'label' => 'newsroom.nav.overview',
                 'items' => [
@@ -104,21 +105,31 @@ trait NavigationBuilderTrait
                     ['label' => 'newsroom.nav.reading_lists', 'route' => 'reading_list_index', 'icon' => 'iconoir:journal-page'],
                 ],
             ],
-            [
-                'label' => 'newsroom.nav.media',
-                'items' => [
-                    ['label' => 'newsroom.nav.media_manager', 'route' => 'media_manager', 'icon' => 'iconoir:compass'],
-                ],
-            ],
-            [
-                'label' => 'nav.create',
-                'items' => [
-                    ['label' => 'nav.newArticle', 'route' => 'editor-create', 'icon' => 'iconoir:edit-pencil'],
-                    ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new', 'icon' => 'iconoir:plus'],
-                    ['label' => 'nav.newReadingList', 'route' => 'read_wizard_new', 'icon' => 'iconoir:journal-page'],
-                ],
+        ];
+
+        if ($unfoldItems !== []) {
+            $sections[] = [
+                'label' => 'newsroom.nav.unfold',
+                'items' => $unfoldItems,
+            ];
+        }
+
+        $sections[] = [
+            'label' => 'newsroom.nav.media',
+            'items' => [
+                ['label' => 'newsroom.nav.media_manager', 'route' => 'media_manager', 'icon' => 'iconoir:compass'],
             ],
         ];
+        $sections[] = [
+            'label' => 'nav.create',
+            'items' => [
+                ['label' => 'nav.newArticle', 'route' => 'editor-create', 'icon' => 'iconoir:edit-pencil'],
+                ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new', 'icon' => 'iconoir:plus'],
+                ['label' => 'nav.newReadingList', 'route' => 'read_wizard_new', 'icon' => 'iconoir:journal-page'],
+            ],
+        ];
+
+        return $sections;
     }
 
     /**

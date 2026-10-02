@@ -15,6 +15,7 @@ use App\Service\ReadingListManager;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\Nostr\NostrNip19Service;
+use App\Service\NewsroomUnfoldNavigationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -45,7 +46,11 @@ class ReadingListController extends AbstractController
      * Display the user's reading lists and curation sets.
      */
     #[Route('/reading-list', name: 'reading_list_index')]
-    public function index(EntityManagerInterface $em, Request $request): Response
+    public function index(
+        EntityManagerInterface $em,
+        Request $request,
+        NewsroomUnfoldNavigationService $unfoldNavigation,
+    ): Response
     {
         $user = $this->getUser();
         $pubkeyHex = null;
@@ -113,7 +118,7 @@ class ReadingListController extends AbstractController
         $visibleLists = array_slice($filteredLists, ($page - 1) * $pageSize, $pageSize);
 
         return $this->render('reading_list/index.html.twig', [
-            'newsroomNav' => $this->buildNewsroomNav(),
+            'newsroomNav' => $this->buildNewsroomNav($unfoldNavigation->forOwner($user?->getUserIdentifier())),
             'lists' => $visibleLists,
             'counts' => $counts,
             'activeType' => $activeType,
@@ -335,7 +340,11 @@ class ReadingListController extends AbstractController
     }
 
     #[Route('/reading-list/wizard/articles', name: 'read_wizard_articles')]
-    public function articles(Request $request, ReadingListManager $readingListManager): Response
+    public function articles(
+        Request $request,
+        ReadingListManager $readingListManager,
+        NewsroomUnfoldNavigationService $unfoldNavigation,
+    ): Response
     {
         $draft = $this->getDraft($request);
         $saved = false;
@@ -395,7 +404,7 @@ class ReadingListController extends AbstractController
         $type = $request->getSession()->get('read_wizard_type', 'reading-list');
 
         return $this->render('reading_list/reading_articles.html.twig', [
-            'newsroomNav' => $this->buildNewsroomNav(),
+            'newsroomNav' => $this->buildNewsroomNav($unfoldNavigation->forOwner($this->getUser()?->getUserIdentifier())),
             'form' => $form->createView(),
             'draft' => $draft,
             'eventJson' => json_encode(

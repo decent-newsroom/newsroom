@@ -838,6 +838,7 @@ newsroom:
         publications: 'Publikationen'
         magazines: 'Magazine'
         reading_lists: 'Leselisten'
+        unfold: 'Unfold'
         media: 'Medien'
         media_manager: 'Medienverwaltung'
 

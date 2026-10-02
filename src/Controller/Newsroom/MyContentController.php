@@ -10,6 +10,7 @@ use App\Helper\NavigationBuilderTrait;
 use App\Repository\ArticleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\Nostr\NostrKeyService;
+use App\Service\NewsroomUnfoldNavigationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,7 +27,11 @@ class MyContentController extends AbstractController
 
     #[Route('/my-content', name: 'my_content')]
     #[IsGranted('ROLE_USER')]
-    public function index(EntityManagerInterface $em, Request $request): Response
+    public function index(
+        EntityManagerInterface $em,
+        Request $request,
+        NewsroomUnfoldNavigationService $unfoldNavigation,
+    ): Response
     {
         $key = new NostrKeyService();
         $pubkeyHex = $key->convertToHex($this->getUser()->getUserIdentifier());
@@ -116,7 +121,7 @@ class MyContentController extends AbstractController
         $visibleItems = array_slice($filteredItems, ($page - 1) * $pageSize, $pageSize);
 
         return $this->render('my_content/index.html.twig', [
-            'newsroomNav' => $this->buildNewsroomNav(),
+            'newsroomNav' => $this->buildNewsroomNav($unfoldNavigation->forOwner($this->getUser()?->getUserIdentifier())),
             'contentItems' => $visibleItems,
             'counts' => $counts,
             'activeType' => $activeType,

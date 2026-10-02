@@ -36,7 +36,7 @@
                             {% if item.icon|default(null) %}
                                 {{ ux_icon(item.icon, {class: 'icon'}) }}
                             {% endif %}
-                            <span>{{ item.label|trans }}</span>
+                            <span>{{ item.translate is defined and not item.translate ? item.label : item.label|trans }}</span>
                         </a>
                     </li>
                 {% endfor %}

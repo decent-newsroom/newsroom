@@ -827,6 +827,7 @@ newsroom:
         publications: 'Publications'
         magazines: 'Magazines'
         reading_lists: 'Listes de lecture'
+        unfold: 'Unfold'
         media: 'Médias'
         media_manager: 'Gestionnaire de médias'
 

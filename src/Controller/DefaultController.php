@@ -45,6 +45,7 @@ use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\Nostr\NostrClient;
 use App\Service\UserMuteListService;
 use App\Service\HighlightFeedService;
+use App\Service\NewsroomUnfoldNavigationService;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 
@@ -78,7 +79,7 @@ class DefaultController extends AbstractController
      * My Magazines – newsstand filtered for the current user
      */
     #[Route('/my-magazines', name: 'my_magazines')]
-    public function myMagazines(): Response
+    public function myMagazines(NewsroomUnfoldNavigationService $unfoldNavigation): Response
     {
         $user = $this->getUser();
         if (!$user) {
@@ -94,7 +95,7 @@ class DefaultController extends AbstractController
         }
 
         return $this->render('pages/my-magazines.html.twig', [
-            'newsroomNav' => $this->buildNewsroomNav(),
+            'newsroomNav' => $this->buildNewsroomNav($unfoldNavigation->forOwner($user->getUserIdentifier())),
             'pubkey' => $pubkey,
         ]);
     }

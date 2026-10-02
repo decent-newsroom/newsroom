@@ -827,6 +827,7 @@ newsroom:
         publications: 'Publikacije'
         magazines: 'Revije'
         reading_lists: 'Bralni seznami'
+        unfold: 'Unfold'
         media: 'Mediji'
         media_manager: 'Upravitelj medijev'
 
