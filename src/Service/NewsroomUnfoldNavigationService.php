@@ -35,7 +35,7 @@ final readonly class NewsroomUnfoldNavigationService
                 'href' => $this->urlGenerator->generate('unfold_admin_coordinate_overview', [
                     'mag' => $this->identifierFor($subscription),
                 ]),
-                'icon' => 'iconoir:globe',
+                'icon' => 'iconoir:post',
                 'translate' => false,
             ];
         }
