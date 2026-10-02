@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Improvement] Resolved referenced publication content titles and simplified the content inventory to title, type, and icon-labeled actions.
 - [Improvement] Organized Unfold publication content into All, Articles, and Categories inventory tabs with publication-reference removal actions.
 - [Feature] Added Unfold content management with an owner-signed About selector and reading-list category references on both publication administration mounts.
 - [Fix] Made the Unfold onboarding identifier optional, generating it from the publication title when omitted.

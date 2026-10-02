@@ -8,7 +8,7 @@ use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 
 final class CategoryIndexMutation
 {
-    /** @return list<array{coordinate: string, relayHint: ?string}> */
+    /** @return list<array{coordinate: string, relayHint: ?string, title?: ?string}> */
     public static function categories(NostrEvent $root): array
     {
         $categories = [];

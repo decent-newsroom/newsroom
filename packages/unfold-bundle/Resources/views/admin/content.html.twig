@@ -29,8 +29,8 @@
           data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
           data-nostr--nostr-unfold-about-settings-messages-value="{{ signerMessages|json_encode|e('html_attr') }}">
         <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="{{ category.coordinate }}">
-        <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.remove_from_publication'|trans }}</button>
-        <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
+        <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ ux_icon('iconoir:minus', {class: 'icon'}) }}{{ 'unfold_admin.remove_from_publication'|trans }}</button>
+        <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ ux_icon('iconoir:refresh-circular', {class: 'icon'}) }}{{ 'unfold_admin.about_retry_publish'|trans }}</button>
         <p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
     </form>
 {% endmacro %}
@@ -44,8 +44,8 @@
           data-nostr--nostr-unfold-about-settings-csrf-token-value="{{ csrf_token('unfold_settings:' ~ publication.coordinate) }}"
           data-nostr--nostr-unfold-about-settings-messages-value="{{ signerMessages|json_encode|e('html_attr') }}">
         <input type="hidden" data-nostr--nostr-unfold-about-settings-target="aboutArticle" value="">
-        <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ 'unfold_admin.remove_from_publication'|trans }}</button>
-        <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ 'unfold_admin.about_retry_publish'|trans }}</button>
+        <button class="my-content-menu__danger" type="submit" data-nostr--nostr-unfold-about-settings-target="saveButton">{{ ux_icon('iconoir:minus', {class: 'icon'}) }}{{ 'unfold_admin.remove_from_publication'|trans }}</button>
+        <button type="button" data-action="click->nostr--nostr-unfold-about-settings#retryPublish" data-nostr--nostr-unfold-about-settings-target="retryButton" hidden>{{ ux_icon('iconoir:refresh-circular', {class: 'icon'}) }}{{ 'unfold_admin.about_retry_publish'|trans }}</button>
         <p data-nostr--nostr-unfold-about-settings-target="status" hidden></p>
     </form>
 {% endmacro %}
@@ -80,7 +80,6 @@
             <div class="my-content-row my-content-row--head" aria-hidden="true">
                 <span>{{ 'unfold_admin.content'|trans }}</span>
                 <span>{{ 'unfold_admin.type'|trans }}</span>
-                <span>{{ 'unfold_admin.coordinate'|trans }}</span>
                 <span>&nbsp;</span>
             </div>
 
@@ -89,14 +88,13 @@
                     <div class="my-content-row__main">
                         <span class="my-content-row__icon" aria-hidden="true">{{ ux_icon('iconoir:page-flip', {class: 'icon'}) }}</span>
                         <div>
-                            <h2>{{ currentAboutArticle|split(':', 3)[2] }}</h2>
+                            <h2>{{ aboutArticleTitle ?: currentAboutArticle|split(':', 3)[2] }}</h2>
                             <p>{{ 'unfold_admin.about_article'|trans }}</p>
                         </div>
                     </div>
                     <div class="my-content-row__status"><span class="my-content-status my-content-status--published">{{ 'unfold_admin.articles'|trans }}</span></div>
-                    <code class="my-content-row__coordinate">{{ currentAboutArticle }}</code>
                     <details class="my-content-menu">
-                        <summary aria-label="{{ 'unfold_admin.remove_from_publication'|trans }}">{{ ux_icon('iconoir:plus', {class: 'icon'}) }}</summary>
+                        <summary aria-label="{{ 'unfold_admin.actions'|trans }}">{{ ux_icon('iconoir:more-horiz', {class: 'icon'}) }}</summary>
                         <div class="my-content-menu__panel">{{ _self.article_remove_form(currentAboutArticle, publication, signerMessages) }}</div>
                     </details>
                 </article>
@@ -108,14 +106,13 @@
                         <div class="my-content-row__main">
                             <span class="my-content-row__icon" aria-hidden="true">{{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}</span>
                             <div>
-                                <h2>{{ category.coordinate|split(':', 3)[2] }}</h2>
+                                <h2>{{ category.title ?: category.coordinate|split(':', 3)[2] }}</h2>
                                 <p>{{ 'unfold_admin.categories'|trans }}</p>
                             </div>
                         </div>
                         <div class="my-content-row__status"><span class="my-content-status my-content-status--list">{{ 'unfold_admin.categories'|trans }}</span></div>
-                        <code class="my-content-row__coordinate">{{ category.coordinate }}</code>
                         <details class="my-content-menu">
-                            <summary aria-label="{{ 'unfold_admin.remove_from_publication'|trans }}">{{ ux_icon('iconoir:plus', {class: 'icon'}) }}</summary>
+                            <summary aria-label="{{ 'unfold_admin.actions'|trans }}">{{ ux_icon('iconoir:more-horiz', {class: 'icon'}) }}</summary>
                             <div class="my-content-menu__panel">{{ _self.category_remove_form(category, publication, signerMessages) }}</div>
                         </details>
                     </article>

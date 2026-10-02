@@ -165,6 +165,15 @@ final readonly class PublicationAdminController
             $this->logger->warning('Publication categories unavailable', ['coordinate' => $publication->coordinate, 'exception' => $e]);
         }
         $aboutArticle = $this->currentAboutArticle($publication);
+        $aboutArticleTitle = $aboutArticle === null
+            ? null
+            : $this->referenceTitle($aboutArticle, $publication->settings->aboutRelayHints);
+        foreach ($categories as $index => $category) {
+            $categories[$index]['title'] = $this->referenceTitle(
+                $category['coordinate'],
+                $category['relayHint'] === null ? [] : [$category['relayHint']],
+            );
+        }
         $counts = [
             'all' => count($categories) + ($aboutArticle === null ? 0 : 1),
             'articles' => $aboutArticle === null ? 0 : 1,
@@ -179,6 +188,7 @@ final readonly class PublicationAdminController
             'publication' => $publication,
             'categories' => $categories,
             'currentAboutArticle' => $aboutArticle ?? '',
+            'aboutArticleTitle' => $aboutArticleTitle,
             'counts' => $counts,
             'activeType' => $activeType,
         ]));
@@ -212,14 +222,27 @@ final readonly class PublicationAdminController
     /** @param list<string> $relayHints */
     private function aboutArticleTitle(string $coordinate, array $relayHints): ?string
     {
+        try {
+            $reference = AboutArticleReference::fromInput($coordinate);
+            return $this->referenceTitle(
+                $reference->coordinate,
+                $reference->relayHints !== [] ? $reference->relayHints : $relayHints,
+            );
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    /** @param list<string> $relayHints */
+    private function referenceTitle(string $coordinate, array $relayHints): ?string
+    {
         if ($coordinate === '') {
             return null;
         }
 
         try {
-            $reference = AboutArticleReference::fromInput($coordinate);
-            $event = $this->events->findByCoordinate($reference->coordinate, $relayHints);
-            if (!$this->matchesCoordinate($event, $reference->coordinate)) {
+            $event = $this->events->findByCoordinate($coordinate, $relayHints);
+            if (!$this->matchesCoordinate($event, $coordinate)) {
                 return null;
             }
             foreach ($event->tags as $tag) {
@@ -227,10 +250,8 @@ final readonly class PublicationAdminController
                     return trim($tag[1]);
                 }
             }
-        } catch (\InvalidArgumentException) {
-            // Keep the coordinate visible if title metadata is unavailable.
         } catch (\Throwable $e) {
-            $this->logger->warning('Publication About article title unavailable', [
+            $this->logger->warning('Publication content title unavailable', [
                 'coordinate' => $coordinate,
                 'exception' => $e,
             ]);

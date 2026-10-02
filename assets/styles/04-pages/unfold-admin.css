@@ -170,17 +170,7 @@
 }
 
 .unfold-content-page .my-content-row {
-    grid-template-columns: minmax(0, 1fr) 9.5rem minmax(12rem, 1fr) 2.75rem;
-}
-
-.my-content-row__coordinate {
-    min-width: 0;
-    overflow: hidden;
-    padding-inline: var(--spacing-3);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    grid-template-columns: minmax(0, 1fr) 9.5rem 2.75rem;
 }
 
 @media (max-width: 800px) {
@@ -188,9 +178,6 @@
         grid-template-columns: minmax(0, 1fr) 2.75rem;
     }
 
-    .unfold-content-page .my-content-row__coordinate {
-        display: none;
-    }
 }
 
 .unfold-onboarding-page {
