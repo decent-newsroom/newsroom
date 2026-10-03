@@ -158,11 +158,11 @@ inserted row without enqueueing or broadcasting events:
 docker compose exec -e RUN_UNFOLD_OUTBOX_DB_TESTS=1 php php bin/phpunit tests/Unfold/InteractionOutboxDatabaseTest.php
 ```
 
-## Known Cosmetic Follow-Up
+## Docs-Theme Zap Dialog Styling
 
-The docs-theme zap dialog is reported to work, but its styles need completion.
-This is cosmetic theme debt, not an invoice or payment failure. The follow-up
-should cover amount selection, split payments, QR/invoice display, copy/wallet
-controls, loading/errors/success, keyboard focus, and narrow-screen layout.
-Keep working payment behavior and use external assets without shadows,
-shading, or rounded edges. No zap-style or payment rewrite is included here.
+The docs-theme zap dialog now has complete external styling for amount
+selection, split-payment navigation, QR and invoice display, copy/open-wallet
+controls, loading/error/success states, keyboard focus, and narrow screens.
+Payment and signing behavior remains in the shared zap handler. The theme uses
+its existing documentation tokens and keeps the no-shadow, no-shading, and
+no-rounded-edge visual rules.

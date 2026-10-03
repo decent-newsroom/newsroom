@@ -298,22 +298,20 @@ checks; do not let each agent invent a signer or publication identity model.
   targeting the changed services/controllers/themes. No new test/build tooling,
   statistics pipeline, Xdebug, or breakpoints are required.
 
-## Known UI Follow-Up: Docs-Theme Zap Dialog
+## Docs-Theme Zap Dialog Styling (Delivered)
 
 User report: **the docs-theme zap dialog works, but its visual styling is
-incomplete/not polished**. Record this as cosmetic theme debt, not a broken
-invoice/payment feature. The docs post already loads `docs/assets/zap.css` and
-the shared `default/assets/zap.js`; the stylesheet is present but only covers
-part of the dialog's presentation.
+incomplete/not polished**. This cosmetic styling follow-up is now delivered;
+it does not change the invoice/payment feature. The docs post continues to
+load `docs/assets/zap.css` and the shared `default/assets/zap.js`.
 
 When addressing it, review all dynamically generated dialog states: amount
 selection, split recipients, QR/invoice display, copy/open-wallet controls,
 loading, validation/error, success, close/focus states, and narrow screens.
-Bring spacing, typography, controls, overflow, and contrast into the docs theme's
-design rather than copying the default theme's shadows and rounded corners.
-Use external assets, no shading/shadows or rounded edges. Preserve working zap
-and split-payment behavior. This note does not authorize a payment rewrite or
-claim a styling fix is delivered.
+Spacing, typography, controls, overflow, contrast, focus indication, and
+narrow-screen layout now follow the docs theme rather than copying the default
+theme's shadows and rounded corners. The external stylesheet covers every
+generated dialog state while preserving zap and split-payment behavior.
 
 ## Deferred Bookmarks, Highlights, And Gated Rules
 

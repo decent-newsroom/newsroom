@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Fix] Completed docs-theme zap dialog styling for amount and split-payment controls, invoice/QR presentation, wallet and copy actions, status states, focus, and narrow viewports without changing payment behavior.
 - [Feature] Added signed reader comments and replies to both Unfold themes, with local-first threaded discussion, pagination, reply previews, account-scoped drafts, and shared browser signing.
 - [Feature] Added positive reader likes to hosted Unfold content, with distinct-reader counts and persistent own-account state.
 - [Feature] Added confirmed kind-16 generic reposts of hosted Unfold content using verified originals, with protected-content handling and persistent own-account state.
