@@ -15,6 +15,20 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 class VisitTrackingListenerTest extends TestCase
 {
+    public function testReaderInteractionRequestsDoNotCreatePageVisits(): void
+    {
+        $repository = $this->createMock(VisitRepository::class);
+        $repository->expects(self::never())->method('save');
+        $listener = new VisitTrackingListener($repository, new BotDetector());
+        foreach (['/unfold/api/interactions', '/unfold/api/interactions/me', '/unfold/api/interactions/status'] as $path) {
+            $listener->onKernelRequest(new RequestEvent(
+                $this->createMock(HttpKernelInterface::class),
+                Request::create($path),
+                HttpKernelInterface::MAIN_REQUEST,
+            ));
+        }
+    }
+
     public function testTracksApiRoutes(): void
     {
         $capturedVisit = null;

@@ -329,8 +329,8 @@ class UnfoldDemoTest extends TestCase
 
         $this->assertSame(0, $context['post']['comments_count']);
         $this->assertTrue($context['post']['has_thread_activity']);
-        $this->assertStringContainsString('Comments (0)', $html);
-        $this->assertStringNotContainsString('Comments ()', $html);
+        $this->assertStringContainsString('data-comments-count="0"', $html);
+        $this->assertStringContainsString('data-unfold-count>0</p>', $html);
     }
 
     public function testRenderPostPageShowsOneCommentCountWhenThreadContainsOnlyComments(): void
@@ -402,8 +402,8 @@ class UnfoldDemoTest extends TestCase
 
         $this->assertSame(1, $context['post']['comments_count']);
         $this->assertTrue($context['post']['has_thread_activity']);
-        $this->assertStringContainsString('Comments (1)', $html);
-        $this->assertStringNotContainsString('Comments (0)', $html);
+        $this->assertStringContainsString('data-comments-count="1"', $html);
+        $this->assertStringContainsString('data-unfold-count>1</p>', $html);
     }
 
     public function testRenderPostPageShowsNonZapCountWhenThreadContainsCommentAndZap(): void
@@ -491,8 +491,8 @@ class UnfoldDemoTest extends TestCase
 
         $this->assertSame(1, $context['post']['comments_count']);
         $this->assertTrue($context['post']['has_thread_activity']);
-        $this->assertStringContainsString('Comments (1)', $html);
-        $this->assertStringNotContainsString('Comments (2)', $html);
+        $this->assertStringContainsString('data-comments-count="1"', $html);
+        $this->assertStringNotContainsString('data-comments-count="2"', $html);
     }
 
     public function testAssetPathsAreCorrect(): void

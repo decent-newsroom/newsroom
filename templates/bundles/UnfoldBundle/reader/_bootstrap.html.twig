@@ -1,0 +1,8 @@
+<link rel="stylesheet" href="{{ asset('styles/04-pages/unfold-reader-signing.css') }}">
+<div class="unfold-reader-signer" data-controller="utility--signer-modal">
+    <button type="button" data-action="click->utility--signer-modal#openDialog">
+        {{ 'unfold_interactions.connect_signer'|trans }}
+    </button>
+    {% include 'components/SignerModal.html.twig' %}
+</div>
+{{ importmap('unfold-reader-bootstrap') }}

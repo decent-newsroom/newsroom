@@ -1,0 +1,206 @@
+.unfold-interactions {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #ddd;
+}
+
+.unfold-interactions__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+.unfold-interactions__title {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.unfold-interactions__meta,
+.unfold-interactions__notice,
+.unfold-interactions__comment-time,
+.unfold-interactions__parent-note,
+.unfold-interactions__comment-zap {
+    margin: 0;
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.unfold-interactions__toolbar,
+.unfold-interactions__actions,
+.unfold-interactions__comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.unfold-reader-signer {
+    margin-top: 1rem;
+}
+
+.unfold-reader-signer > button,
+.unfold-interactions__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    border: 1px solid #333;
+    color: inherit;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+    border-radius: 0;
+    box-shadow: none;
+    text-decoration: none;
+}
+
+.unfold-interactions__button[disabled],
+.unfold-interactions__button.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.unfold-interactions__button.is-active {
+    font-weight: 600;
+}
+
+.unfold-interactions__composer {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #eee;
+}
+
+.unfold-interactions__label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.unfold-interactions__reply-preview {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.unfold-interactions__reply-meta {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.unfold-interactions__textarea {
+    width: 100%;
+    min-height: 8rem;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    resize: vertical;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.unfold-interactions__notice {
+    min-height: 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.unfold-interactions__thread {
+    margin-top: 2rem;
+}
+
+.unfold-interactions__thread-live {
+    display: none;
+}
+
+.unfold-interactions.is-ready .unfold-interactions__thread-live {
+    display: block;
+}
+
+.unfold-interactions.is-ready .unfold-interactions__fallback {
+    display: none;
+}
+
+.unfold-interactions__fallback,
+.unfold-interactions__list {
+    margin: 0;
+    padding: 0;
+}
+
+.unfold-interactions__list {
+    list-style: none;
+}
+
+.unfold-interactions__item {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.unfold-interactions__comment {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #ddd;
+}
+
+.unfold-interactions__comment--pending {
+    border-style: dashed;
+}
+
+.unfold-interactions__comment--depth-1 { margin-left: 1rem; }
+.unfold-interactions__comment--depth-2 { margin-left: 2rem; }
+.unfold-interactions__comment--depth-3 { margin-left: 3rem; }
+.unfold-interactions__comment--depth-4 { margin-left: 4rem; }
+.unfold-interactions__comment--depth-5 { margin-left: 5rem; }
+
+.unfold-interactions__comment-meta {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.unfold-interactions__avatar {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 0;
+}
+
+.unfold-interactions__comment-author-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.unfold-interactions__comment-author {
+    color: inherit;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.unfold-interactions__comment-content {
+    line-height: 1.6;
+}
+
+.unfold-interactions__comment-content p:last-child {
+    margin-bottom: 0;
+}
+
+.unfold-interactions__comment-content--draft {
+    white-space: pre-wrap;
+}
+
+.unfold-interactions__empty {
+    margin: 1rem 0 0;
+    color: #666;
+}
+
+.unfold-interactions__bootstrap {
+    margin-top: 1rem;
+}

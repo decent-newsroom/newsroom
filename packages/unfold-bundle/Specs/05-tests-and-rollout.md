@@ -75,8 +75,11 @@ reader's request, HTML metadata, feeds, or sitemaps.
 
 1. **Delivered:** persistent local settings and shared setup.
 2. **Delivered:** both owner admin mounts, overview, theme settings, and owner checks.
-3. Complete footer configuration; RSS/sitemap/robots are already delivered.
-4. Consolidate owner content management and publication-scoped editing.
+3. **Delivered:** public reader comments/replies, likes, and reposts in both themes,
+   following Spec 07's local-first reads, signed writes, and async delivery.
+   Stats/analytics are not part of this slice.
+4. Continue wizard consolidation, root editing, and publication-scoped editing;
+   category assignment, multi-kind reading, footer, and discovery are delivered.
 5. Add audience/payment events and local selections; optionally ship Audience
    Preview without checkout, entitlement claims, or fabricated analytics.
 6. Enable scoped publishing only with the central home-relay-only guard and

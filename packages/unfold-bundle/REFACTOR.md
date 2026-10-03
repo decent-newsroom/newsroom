@@ -23,6 +23,9 @@ abstraction or allow an existing Unfold to be retargeted to another root.
 - Hosted categories support articles (`30023`), chapters (`30041`), wiki entries
   (`30818`), and community-authored specifications (`30817`). Public content URLs
   include the author's npub before `a`, `chapter`, `wiki`, or `spec`.
+- Both themes provide public reader comments/replies (`1111`), positive likes
+  (`7`), and generic reposts (`16`), with local reads, shared browser signing,
+  durable asynchronous delivery, and same-event retry recovery.
 
 Index events remain authoritative for publication content and navigation; local
 settings own local choices. Future referenced events will own their own contents,
@@ -43,8 +46,12 @@ are needed in the delivered setup and owner-settings slices.
   The two-level default footer and locally configured owner links are delivered.
 - Owners can configure payment targets and scope/audience definitions through the
   relevant signed events, with their selections saved locally.
-- Reader interactions include likes (`7`), bookmarks, and highlights (`9802`).
-  Quoted gated content must follow the same access rules as its source.
+- Public reader interactions reuse host services behind bundle contracts and do
+  not add stats/analytics; see the delivered `Specs/07-reader-interactions.md`.
+- Bookmarks, highlights (`9802`), undo actions, and gated interactions remain
+  deferred. Quoted or embedded gated content must follow its source's access rules.
+- The docs-theme zap dialog is functionally working but needs cosmetic style
+  completion; Spec 07 records this without changing payment behavior.
 
 ## Scoped Access
 

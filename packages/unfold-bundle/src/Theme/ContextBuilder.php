@@ -3,6 +3,7 @@
 namespace DecentNewsroom\UnfoldBundle\Theme;
 
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
+use DecentNewsroom\UnfoldBundle\Config\CategoryReference;
 use DecentNewsroom\UnfoldBundle\Content\CategoryData;
 use DecentNewsroom\UnfoldBundle\Content\PostData;
 use DecentNewsroom\UnfoldBundle\Content\ContentKindPolicy;
@@ -11,6 +12,10 @@ use DecentNewsroom\UnfoldBundle\Contract\Comment;
 use DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface;
 use DecentNewsroom\UnfoldBundle\Contract\MarkdownConverterInterface;
 use DecentNewsroom\UnfoldBundle\Contract\ProfileMetadataProviderInterface;
+use DecentNewsroom\UnfoldBundle\Contract\ReaderBootstrapInterface;
+use DecentNewsroom\UnfoldBundle\Contract\InteractionReaderInterface;
+use Psr\Log\LoggerInterface;
+use nostriphant\NIP19\Bech32;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
@@ -33,6 +38,9 @@ class ContextBuilder
         private readonly ?TranslatorInterface $translator = null,
         private readonly string $platformBaseUrl = 'https://decentnewsroom.com',
         private readonly ?PublicationUrlGenerator $urls = null,
+        private readonly ?ReaderBootstrapInterface $readerBootstrap = null,
+        private readonly ?LoggerInterface $logger = null,
+        private readonly ?InteractionReaderInterface $interactionReader = null,
     ) {
         $this->sanitizer = new HtmlSanitizer((new HtmlSanitizerConfig())
             ->allowSafeElements()
@@ -117,7 +125,12 @@ class ContextBuilder
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'post',
             ...$this->buildFooterContext($site),
-            'post' => $this->buildSinglePostContext($post, $primaryCategory, $publicationPosts),
+            'post' => $this->buildSinglePostContext(
+                $post,
+                $primaryCategory,
+                $publicationPosts,
+                $this->interactionReader === null ? null : CategoryReference::fromInput($site->naddr)->coordinate,
+            ),
         ];
     }
 
@@ -360,7 +373,7 @@ class ContextBuilder
     /**
      * Build full post context for detail page
      */
-    private function buildSinglePostContext(PostData $post, ?CategoryData $primaryCategory = null, array $publicationPosts = []): array
+    private function buildSinglePostContext(PostData $post, ?CategoryData $primaryCategory = null, array $publicationPosts = [], ?string $publicationCoordinate = null): array
     {
         // Fetch author metadata from Redis cache
         $authorMetadata = $this->profileMetadata->getMetadata($post->pubkey);
@@ -380,8 +393,16 @@ class ContextBuilder
         }
 
         // Fetch comments and related zaps
-        $comments = $this->buildCommentsContext($post->coordinate);
-        $commentsCount = count(array_filter(
+        $page = null;
+        if ($this->interactionReader !== null && $publicationCoordinate !== null) {
+            $target = $this->interactionReader->target($publicationCoordinate, $post->coordinate);
+            if ($target === null) {
+                throw new NotFoundHttpException('Content not available publicly');
+            }
+            $page = $this->interactionReader->thread($target);
+        }
+        $comments = $this->buildCommentsContext($post->coordinate, $page?->comments);
+        $commentsCount = $page?->count ?? count(array_filter(
             $comments,
             static fn (array $item): bool => !($item['is_zap'] ?? false)
         ));
@@ -414,6 +435,11 @@ class ContextBuilder
             'comments' => $comments,
             'comments_count' => $commentsCount,
             'has_thread_activity' => [] !== $comments,
+            'interactions' => [
+                'bootstrap_html' => $this->readerBootstrap?->render($post) ?? '',
+                'labels' => $this->interactionLabels(),
+                'labels_json' => json_encode($this->interactionLabels(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            ],
             'primary_tag' => $primaryCategory !== null ? [
                 'name' => $primaryCategory->title,
                 'slug' => $primaryCategory->slug,
@@ -521,10 +547,10 @@ class ContextBuilder
      * @param string $coordinate Article coordinate (kind:pubkey:identifier)
      * @return array Array of comment objects
      */
-    private function buildCommentsContext(string $coordinate): array
+    private function buildCommentsContext(string $coordinate, ?array $events = null): array
     {
         try {
-            $events = $this->comments->findByCoordinate($coordinate);
+            $events ??= $this->comments->findByCoordinate($coordinate);
 
             if (empty($events)) {
                 return [];
@@ -568,7 +594,10 @@ class ContextBuilder
                         'name' => $metadata?->displayName ?: $metadata?->name ?: substr($pubkey, 0, 8) . '…',
                         'pic' => $metadata?->picture,
                         'pubkey' => $pubkey,
+                        'url' => preg_match('/^[a-f0-9]{64}$/D', $pubkey) === 1
+                            ? rtrim($this->platformBaseUrl, '/') . '/p/' . Bech32::npub($pubkey) : null,
                     ],
+                    'parent_id' => \DecentNewsroom\UnfoldBundle\Interactions\InteractionView::parentId($event),
                 ];
 
                 // Handle zaps (kind 9735)
@@ -587,10 +616,38 @@ class ContextBuilder
             usort($comments, fn($a, $b) => $b['created_at'] - $a['created_at']);
 
             return $comments;
-        } catch (\Throwable $e) {
-            // DB unavailable or other error – return empty list
-            return [];
+        } catch (\RuntimeException $e) {
+            $this->logger?->error('Publication discussion unavailable', ['coordinate' => $coordinate, 'exception' => $e]);
+            throw $e;
         }
+    }
+
+    /** @return array{zap_amount: ?int, zap_pubkey: ?string} */
+    public function zapContext(Comment $event): array
+    {
+        return ['zap_amount' => $this->extractZapAmount($event), 'zap_pubkey' => $this->extractZapPubkey($event)];
+    }
+
+    /** @return array<string, string> */
+    private function interactionLabels(): array
+    {
+        $keys = [
+            'comments', 'comment', 'reply', 'cancel_reply', 'replying_to', 'comment_placeholder',
+            'publish_comment', 'like', 'liked', 'repost', 'reposted', 'confirm_repost',
+            'load_more', 'empty', 'login_required', 'connect_signer', 'signer_required',
+            'signer_approval', 'signer_mismatch', 'signing', 'queued', 'published', 'partial',
+            'failed', 'retry', 'unavailable', 'invalid', 'invalid_comment', 'invalid_parent',
+            'stale_target', 'target_unavailable', 'repost_unavailable', 'delivery_unavailable',
+            'access_denied', 'rate_limited', 'parent_unavailable', 'zap', 'sats', 'loading',
+            'storage_unavailable', 'signing_cancelled', 'saved', 'login', 'pending',
+            'anonymous',
+            'status_exhausted',
+        ];
+        $labels = [];
+        foreach ($keys as $key) {
+            $labels[$key] = $this->translator?->trans('unfold_interactions.' . $key) ?? 'unfold_interactions.' . $key;
+        }
+        return $labels;
     }
 
     /**

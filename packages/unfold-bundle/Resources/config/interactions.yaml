@@ -1,0 +1,29 @@
+unfold_interactions:
+    path: /unfold/api/interactions
+    controller: DecentNewsroom\UnfoldBundle\Controller\ReaderInteractionController::index
+    methods: [GET]
+
+unfold_interactions_me:
+    path: /unfold/api/interactions/me
+    controller: DecentNewsroom\UnfoldBundle\Controller\ReaderInteractionController::me
+    methods: [GET]
+
+unfold_interactions_prepare:
+    path: /unfold/api/interactions/prepare
+    controller: DecentNewsroom\UnfoldBundle\Controller\ReaderInteractionController::prepare
+    methods: [POST]
+
+unfold_interactions_publish:
+    path: /unfold/api/interactions/publish
+    controller: DecentNewsroom\UnfoldBundle\Controller\ReaderInteractionController::publish
+    methods: [POST]
+
+unfold_interactions_status:
+    path: /unfold/api/interactions/status
+    controller: DecentNewsroom\UnfoldBundle\Controller\ReaderInteractionController::status
+    methods: [GET]
+
+unfold_interactions_retry:
+    path: /unfold/api/interactions/retry
+    controller: DecentNewsroom\UnfoldBundle\Controller\ReaderInteractionController::retry
+    methods: [POST]

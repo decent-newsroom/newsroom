@@ -1,0 +1,73 @@
+.unfold-interactions [hidden],
+.unfold-reader-signer .hidden {
+    display: none !important;
+}
+
+.unfold-reader-signer .iu-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+}
+
+.unfold-reader-signer .iu-backdrop {
+    position: absolute;
+    inset: 0;
+}
+
+.unfold-reader-signer .iu-modal {
+    position: relative;
+    width: min(42rem, calc(100% - 2rem));
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    margin: 1rem auto;
+    padding: 1.5rem;
+    border: 1px solid currentColor;
+    background: var(--color-bg, #fff);
+    color: inherit;
+}
+
+.unfold-reader-signer .modal-header,
+.unfold-reader-signer .input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.unfold-reader-signer .modal-header {
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.unfold-reader-signer .modal-body > div {
+    margin-top: 1rem;
+}
+
+.unfold-reader-signer input {
+    min-width: 0;
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid currentColor;
+    font: inherit;
+}
+
+.unfold-reader-signer button {
+    padding: 0.5rem;
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.unfold-reader-signer button:focus-visible,
+.unfold-reader-signer input:focus-visible,
+.unfold-interactions button:focus-visible,
+.unfold-interactions textarea:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+}
+
+.unfold-reader-signer svg {
+    max-width: 100%;
+    height: auto;
+}

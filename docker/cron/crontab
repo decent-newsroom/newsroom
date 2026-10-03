@@ -76,3 +76,9 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # Runs every 10 minutes so Google Search Console gets instant responses
 */10 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:cache-sitemap >> /var/log/cron-cache-sitemap.log 2>&1
 
+# Reader-interaction outbox recovery (Unfold comments/likes/reposts)
+# Runs every minute: Messenger queue middleware can silently swallow a dispatch
+# error right after local commit, so this scans for due/stale outbox rows
+# (lease-based claim, crash-safe) and re-dispatches them for relay delivery.
+* * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:dispatch-reader-interactions >> /var/log/cron-reader-interactions.log 2>&1
+

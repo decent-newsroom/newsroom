@@ -7,6 +7,8 @@ mounts, including content management and category content assignment. The
 publication footer, owner links, publication-first draft/root foundation and
 multi-kind hosted reading are delivered. Complete wizard migration, analytics,
 root metadata editing, audience/payment workflows, and gated access remain planned.
+Public reader comments/replies, likes, and reposts are delivered in both themes;
+this does not deliver analytics.
 
 An Unfold is permanently identified by exactly one immutable root magazine
 coordinate. Setting it up or changing local settings does not require any
@@ -28,7 +30,7 @@ admin mounts and ownership rules alongside the deferred consolidation work.
 | `04-owner-dashboard-and-content-management.md` | Delivered settings/content management and multi-kind reading; planned analytics and root editing. |
 | `05-tests-and-rollout.md` | Setup coverage, compatibility, migration requirements, and later rollout. |
 | `06-gated-access-and-payments.md` | Gated-access contract for kinds `38133`/`30879`/`8879`/`28877`/`28878`. |
-| `07-reader-interactions.md` | Likes, bookmarks, highlights, and gated interaction rules. |
+| `07-reader-interactions.md` | Delivered comments/replies, likes, reposts, durable delivery, and docs zap styling note; deferred bookmarks/highlights/gating. |
 | `08-unified-publication-admin.md` | Delivered mounts/context/ownership and planned host-admin consolidation. |
 
 ## Terms And Authority
@@ -53,12 +55,14 @@ admin mounts and ownership rules alongside the deferred consolidation work.
 
 1. **Delivered:** shared operator/subscription setup and persistent local settings.
 2. **Delivered:** publication context, both owner admin mounts, overview, and theme settings.
-3. **Delivered:** category content assignment and multi-kind hosted reading;
-   continue wizard consolidation, root editing and article-editor integration.
-4. Add audience/payment events and selected references; optionally ship Audience
+3. **Delivered:** category content assignment and multi-kind hosted reading.
+4. **Delivered:** public comments/replies, likes, and reposts in both themes (Spec 07).
+   Wizard consolidation, root editing, article-editor integration, and analytics
+   remain separate later work.
+5. Add audience/payment events and selected references; optionally ship Audience
    Preview as **Gated access coming soon**, without checkout or entitlements.
-5. Establish scope-aware publishing and authorization across all reads/caches,
+6. Establish scope-aware publishing and authorization across all reads/caches,
    then integrate the external bridge, mint, and relay.
-6. After gated access is complete, respecify publication-definition events.
+7. After gated access is complete, respecify publication-definition events.
 
 Existing coordinate-only mappings remain valid and use default settings.

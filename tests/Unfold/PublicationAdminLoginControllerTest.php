@@ -7,6 +7,7 @@ namespace App\Tests\Unfold;
 use App\Controller\LoginController;
 use App\Entity\User;
 use App\Unfold\PublicationAdminLogin;
+use App\Unfold\ReaderLogin;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationSite;
 use DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface;
 use PHPUnit\Framework\TestCase;
@@ -16,6 +17,29 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class PublicationAdminLoginControllerTest extends TestCase
 {
+    public function testReaderContinuationDoesNotRequirePublicationOwnership(): void
+    {
+        $owner = str_repeat('a', 64);
+        $reader = new User();
+        $reader->setNpub(\Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey::fromHex(str_repeat('b', 64))->toBech32());
+        $sites = $this->createMock(SiteRegistryInterface::class);
+        $sites->method('findBySubdomain')->willReturn(new PublicationSite('journal', '30040:' . $owner . ':daily'));
+        $destination = 'https://journal.example.test/' . \nostriphant\NIP19\Bech32::npub($owner) . '/a/story%2Fpart';
+        $controller = $this->getMockBuilder(LoginController::class)->onlyMethods(['render'])->getMock();
+        $controller->expects(self::never())->method('render');
+
+        $response = $controller->index(
+            $reader,
+            Request::create('https://example.test/login', 'GET', ['unfold_reader_return' => $destination]),
+            $this->login(),
+            new ReaderLogin($sites, 'example.test', '.example.test'),
+        );
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame($destination, $response->headers->get('Location'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+    }
+
     /** @dataProvider safeDestinations */
     public function testAuthenticatedPageVisitResumesTrustedAdministration(string $destination): void
     {

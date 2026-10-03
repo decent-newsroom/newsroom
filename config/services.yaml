@@ -345,6 +345,25 @@ services:
         alias: App\Unfold\PublicationAdminIdentityAdapter
 
     # Unfold package host adapters
+    DecentNewsroom\UnfoldBundle\Contract\InteractionReaderInterface:
+        alias: App\Unfold\InteractionReaderAdapter
+
+    DecentNewsroom\UnfoldBundle\Contract\SignedInteractionPublisherInterface:
+        alias: App\Unfold\SignedInteractionPublisher
+
+    DecentNewsroom\UnfoldBundle\Contract\ReaderIdentityInterface:
+        alias: App\Unfold\ReaderIdentityAdapter
+
+    DecentNewsroom\UnfoldBundle\Contract\ReaderWriteLimiterInterface:
+        alias: App\Unfold\ReaderWriteLimiterAdapter
+
+    DecentNewsroom\UnfoldBundle\Contract\ReaderBootstrapInterface:
+        alias: App\Unfold\ReaderBootstrapAdapter
+
+    DecentNewsroom\UnfoldBundle\Interactions\InteractionView:
+        arguments:
+            $platformBaseUrl: 'https://%base_domain%'
+
     DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface:
         alias: App\Unfold\PublicationSettingsStore
 

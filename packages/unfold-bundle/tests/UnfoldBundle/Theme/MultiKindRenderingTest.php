@@ -8,9 +8,11 @@ use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Content\ContentKindPolicy;
 use DecentNewsroom\UnfoldBundle\Content\PostData;
 use DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface;
+use DecentNewsroom\UnfoldBundle\Contract\Comment;
 use DecentNewsroom\UnfoldBundle\Contract\MarkdownConverterInterface;
 use DecentNewsroom\UnfoldBundle\Contract\ProfileMetadata;
 use DecentNewsroom\UnfoldBundle\Contract\ProfileMetadataProviderInterface;
+use DecentNewsroom\UnfoldBundle\Contract\ReaderBootstrapInterface;
 use DecentNewsroom\UnfoldBundle\Http\PublicationUrlGenerator;
 use DecentNewsroom\UnfoldBundle\Theme\ContextBuilder;
 use DecentNewsroom\UnfoldBundle\Theme\HandlebarsRenderer;
@@ -97,7 +99,9 @@ final class MultiKindRenderingTest extends TestCase
     {
         $converter = $this->createMock(MarkdownConverterInterface::class);
         $converter->method('convertToHTML')->willReturn('<p>Specification body</p>');
-        $builder = $this->builder($converter);
+        $bootstrap = $this->createMock(ReaderBootstrapInterface::class);
+        $bootstrap->method('render')->willReturn('<div class="unfold-reader-signer" data-controller="utility--signer-modal"></div>');
+        $builder = $this->builder($converter, $bootstrap);
         $context = $builder->buildPostContext($this->site(), [], $this->post(30817, 'custom-nip'));
         self::assertTrue($context['post']['is_community_specification']);
         $renderer = new HandlebarsRenderer(
@@ -113,6 +117,14 @@ final class MultiKindRenderingTest extends TestCase
             self::assertStringContainsString(str_repeat('a', 64), $html);
             self::assertStringContainsString('&lt;Writer&gt;', $html);
             self::assertStringContainsString('<p>Specification body</p>', $html);
+            self::assertStringContainsString('class="unfold-interactions"', $html);
+            self::assertStringContainsString('data-unfold-interactions', $html);
+            self::assertStringContainsString('/unfold-themes/default/interactions.css', $html);
+            if ($theme === 'docs') {
+                self::assertStringContainsString('/unfold-themes/docs/interactions.css', $html);
+            }
+            self::assertStringContainsString('class="unfold-reader-signer"', $html);
+            self::assertStringContainsString('data-controller="utility--signer-modal"', $html);
             self::assertStringNotContainsString('<Writer>', $html);
         }
     }
@@ -124,6 +136,29 @@ final class MultiKindRenderingTest extends TestCase
         $post = $this->post(30817, 'secret', [['s', 'members']]);
         $this->expectException(NotFoundHttpException::class);
         $this->builder($converter)->buildPostContext($this->site(), [], $post);
+    }
+
+    public function testBothThemesUseTranslatedReplyLabelsAndMainDomainProfileLinksWithoutZapReplies(): void
+    {
+        $converter = $this->createMock(MarkdownConverterInterface::class);
+        $converter->method('convertToHTML')->willReturn('<p>Body</p>');
+        $pubkey = str_repeat('c', 64);
+        $context = $this->builder($converter, comments: [
+            new Comment(str_repeat('b', 64), 1111, $pubkey, 'Comment', 100),
+            new Comment(str_repeat('d', 64), 9735, $pubkey, '', 200),
+        ])->buildPostContext($this->site(), [], $this->post(30023, 'story'));
+        $renderer = new HandlebarsRenderer(new NullLogger(), dirname(__DIR__, 3) . '/Resources/themes',
+            dirname(__DIR__, 5) . '/var/cache/unfold-public-content-tests');
+        foreach (['default', 'docs'] as $theme) {
+            $renderer->setTheme($theme);
+            $document = new \DOMDocument();
+            $document->loadHTML($renderer->render('post', $context), LIBXML_NONET | LIBXML_NOWARNING | LIBXML_NOERROR);
+            $xpath = new \DOMXPath($document);
+            self::assertSame(1, $xpath->query('//button[@data-unfold-reply-target]')->length);
+            self::assertSame('unfold_interactions.reply', trim($xpath->evaluate('string(//button[@data-unfold-reply-target])')));
+            self::assertSame(str_repeat('b', 64), $xpath->evaluate('string(//button/@data-unfold-reply-target)'));
+            self::assertSame(2, $xpath->query('//a[@href="https://platform.example/p/' . \nostriphant\NIP19\Bech32::npub($pubkey) . '"]')->length);
+        }
     }
 
     public function testRawConverterHtmlIsSanitizedBeforeThemeAndCache(): void
@@ -161,11 +196,13 @@ final class MultiKindRenderingTest extends TestCase
         return new SiteConfig('30040:' . $author . ':root', 'Publication', '', null, [], $author);
     }
 
-    private function builder(MarkdownConverterInterface $converter): ContextBuilder
+    private function builder(MarkdownConverterInterface $converter, ?ReaderBootstrapInterface $bootstrap = null, array $comments = []): ContextBuilder
     {
         $profiles = $this->createMock(ProfileMetadataProviderInterface::class);
         $profiles->method('getMetadata')->willReturn(new ProfileMetadata(displayName: '<Writer>'));
 
-        return new ContextBuilder($converter, new ArrayAdapter(), $profiles, $this->createMock(CommentProviderInterface::class), platformBaseUrl: 'https://platform.example');
+        $provider = $this->createMock(CommentProviderInterface::class);
+        $provider->method('findByCoordinate')->willReturn($comments);
+        return new ContextBuilder($converter, new ArrayAdapter(), $profiles, $provider, platformBaseUrl: 'https://platform.example', readerBootstrap: $bootstrap);
     }
 }

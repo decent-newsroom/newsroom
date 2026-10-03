@@ -88,13 +88,18 @@ Independent of everything else — ship early.
 
 ### Phase 2b — Reader interactions on Unfold (Spec 07)
 
-- Likes (`kind:7`), bookmarks (`kind:10003`), highlights view + create
-  (`kind:9802`) on publication pages.
-- Heavy reuse of host-app code (`ReactionController`, `HighlightService`,
-  bookmark/highlight Stimulus controllers) behind bundle interfaces.
-- Public-content interactions can ship right after Phase 2; **gated**-content
-  interactions (highlight scope tagging) depend on the Phase 5 chokepoint.
+- **Delivered:** comments/replies (`1111`), positive likes (`7`),
+  and generic reposts (`16`) for all four public content kinds in both themes.
+  Shared identity/signing/local-delivery foundations support comments,
+  likes, and reposts as complete reader journeys. See Spec 07 for delegation,
+  protocol details, boundaries, and acceptance criteria.
+- Reuse host comment/reaction/projector/hydration/signer services behind bundle
+  contracts; do not copy controllers or introduce synchronous relay reads.
+- Stats/analytics are not part of this slice. Bookmarks (`10003`), highlights
+  (`9802`), undo actions, and gated interactions remain deferred.
 - Uses the agreed subdomain session decision D18; signer approval remains per-origin.
+- Known cosmetic follow-up: the docs-theme zap dialog works but needs style
+  completion/polish; Spec 07 records it separately from payment behavior.
 
 ### Phase 3 — Unified publication admin: mounts, shell, wizard, analytics (Spec 08, Spec 04)
 

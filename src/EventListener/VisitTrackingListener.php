@@ -34,6 +34,7 @@ class VisitTrackingListener
         '/favicon.ico',
         // Unfold bundle asset paths
         '/unfold-themes/',
+        '/unfold/api/interactions',
         // Partial/preview routes (not full page views)
         '/editor/markdown/preview',
         '/article-editor/preview/',

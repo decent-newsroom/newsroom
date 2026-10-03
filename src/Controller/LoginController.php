@@ -15,12 +15,18 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 class LoginController extends AbstractController
 {
     #[Route('/login', name: 'app_login', methods: ['GET','POST'])]
-     public function index(#[CurrentUser] ?User $user, Request $request, \App\Unfold\PublicationAdminLogin $publicationLogin): Response
+     public function index(#[CurrentUser] ?User $user, Request $request, \App\Unfold\PublicationAdminLogin $publicationLogin, ?\App\Unfold\ReaderLogin $readerLogin = null): Response
     {
         if (null !== $user) {
             // Authenticated: for API calls still return JSON for backward compatibility.
             if ($request->isXmlHttpRequest() || str_contains($request->headers->get('Accept',''), 'application/json')) {
                 return new JsonResponse(['message' => 'Authentication Successful'], 200);
+            }
+            $readerContinuation = $request->query->get('unfold_reader_return', '');
+            if ($readerLogin !== null && is_string($readerContinuation) && ($destination = $readerLogin->validateReturnUrl($readerContinuation, $request)) !== null) {
+                $response = $this->redirect($destination, 303);
+                $response->headers->set('Cache-Control', 'private, no-store');
+                return $response;
             }
             $continuation = $request->query->get('unfold_return', '');
             if (is_string($continuation) && ($destination = $publicationLogin->resolveReturnUrl($continuation, $request, $user)) !== null) {

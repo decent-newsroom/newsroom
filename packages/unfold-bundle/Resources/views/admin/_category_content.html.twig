@@ -37,8 +37,8 @@
         <p role="status">{{ 'unfold_category.read_only'|trans }}</p>
     {% else %}
         <form class="unfold-category__add" data-mutation="add" data-action="submit->nostr--nostr-unfold-category#submit">
-            <label for="category-reference">{{ 'unfold_category.reference'|trans }}</label>
-            <input id="category-reference" required data-nostr--nostr-unfold-category-target="reference">
+            <label for="category-reference hidden">{{ 'unfold_category.reference'|trans }}</label>
+            <input id="category-reference" placeholder="{{ 'unfold_category.reference_placeholder'|trans }}" required data-nostr--nostr-unfold-category-target="reference">
             <button class="btn btn-secondary" type="submit">{{ 'unfold_category.add'|trans }}</button>
         </form>
     {% endif %}

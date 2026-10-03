@@ -2,6 +2,10 @@
 
 ## v0.0.55
 
+- [Feature] Added signed reader comments and replies to both Unfold themes, with local-first threaded discussion, pagination, reply previews, account-scoped drafts, and shared browser signing.
+- [Feature] Added positive reader likes to hosted Unfold content, with distinct-reader counts and persistent own-account state.
+- [Feature] Added confirmed kind-16 generic reposts of hosted Unfold content using verified originals, with protected-content handling and persistent own-account state.
+- [Feature] Added durable Unfold reader delivery with atomic local projection/outbox persistence, guarded asynchronous retries, same-event recovery after lost responses, and once-per-minute crash recovery through `app:dispatch-reader-interactions`.
 - [Fix] Reused the reading-list wizard's row layout and local Article/Event previews in Unfold category editing, restoring coordinate/naddr previews and displaying all signed content references without relay waits.
 - [Fix] Reused the reading-list wizard's exact-author database-only index lookup for Unfold editing, avoiding automatic relay fallback for roots, categories, and inventory titles while keeping unresolved references removable.
 - [Feature] Added owner-signed category content assignment and hosted reading for articles, chapters, wiki entries, and community-authored NIPs, with author-qualified URLs and retryable relay publication.

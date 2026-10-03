@@ -1,0 +1,102 @@
+<section
+    class="unfold-interactions"
+    data-unfold-interactions
+    data-coordinate="{{post.id}}"
+    data-comments-url="/unfold/api/interactions"
+    data-me-url="/unfold/api/interactions/me"
+    data-prepare-url="/unfold/api/interactions/prepare"
+    data-publish-url="/unfold/api/interactions/publish"
+    data-status-url="/unfold/api/interactions/status"
+    data-retry-url="/unfold/api/interactions/retry"
+    data-page-size="25"
+    data-max-depth="6"
+    data-comments-count="{{post.comments_count}}"
+    data-labels="{{post.interactions.labels_json}}"
+>
+    <header class="unfold-interactions__header">
+        <div>
+            <h2 id="unfold-interactions-title" class="unfold-interactions__title">{{post.interactions.labels.comments}}</h2>
+            <p class="unfold-interactions__meta" data-unfold-count>{{post.comments_count}}</p>
+        </div>
+        <div class="unfold-interactions__toolbar" aria-label="{{post.interactions.labels.comments}}">
+            <button type="button" class="unfold-interactions__button" data-unfold-like-action aria-pressed="false">
+                <span data-unfold-like-label>{{post.interactions.labels.like}}</span>
+                <span data-unfold-like-count hidden></span>
+            </button>
+            <button type="button" class="unfold-interactions__button" data-unfold-repost-action aria-pressed="false">
+                <span data-unfold-repost-label>{{post.interactions.labels.repost}}</span>
+                <span data-unfold-repost-count hidden></span>
+            </button>
+        </div>
+    </header>
+
+    <p class="unfold-interactions__notice" data-unfold-global-notice aria-live="polite"></p>
+
+    <form class="unfold-interactions__composer" data-unfold-composer-form>
+        <div class="unfold-interactions__reply-preview" data-unfold-reply-preview hidden>
+            <div>
+                <strong data-unfold-reply-author></strong>
+                <span data-unfold-reply-meta class="unfold-interactions__reply-meta"></span>
+            </div>
+            <button type="button" class="unfold-interactions__button" data-unfold-reply-cancel>{{post.interactions.labels.cancel_reply}}</button>
+        </div>
+
+        <label class="unfold-interactions__label" for="unfold-interactions-draft">{{post.interactions.labels.comment}}</label>
+        <textarea
+            id="unfold-interactions-draft"
+            class="unfold-interactions__textarea"
+            data-unfold-draft
+            rows="5"
+            placeholder="{{post.interactions.labels.comment_placeholder}}"
+            aria-label="{{post.interactions.labels.comment}}"
+        ></textarea>
+
+        <div class="unfold-interactions__actions">
+            <button type="submit" class="unfold-interactions__button" data-unfold-submit>{{post.interactions.labels.publish_comment}}</button>
+            <a class="unfold-interactions__button" data-unfold-login-button hidden href="#">{{post.interactions.labels.login}}</a>
+        </div>
+
+        <p class="unfold-interactions__notice" data-unfold-composer-notice aria-live="polite"></p>
+    </form>
+
+    <section class="unfold-interactions__thread" aria-labelledby="unfold-interactions-title">
+        <div class="unfold-interactions__thread-live" data-unfold-thread-live hidden></div>
+
+        <div class="unfold-interactions__fallback" data-unfold-fallback>
+            {{#if post.comments}}
+                {{#each post.comments}}
+                    <article class="unfold-interactions__comment unfold-interactions__comment--depth-0" data-comment-id="{{id}}" {{#if parent_id}}data-parent-id="{{parent_id}}"{{/if}}>
+                        <header class="unfold-interactions__comment-meta">
+                            {{#if author.pic}}<img class="unfold-interactions__avatar" src="{{author.pic}}" alt="{{author.name}}" loading="lazy">{{/if}}
+                            <div class="unfold-interactions__comment-author-wrap">
+                                {{#if author.url}}
+                                    <a class="unfold-interactions__comment-author" href="{{author.url}}" rel="noopener noreferrer">{{author.name}}</a>
+                                {{else}}
+                                    <span class="unfold-interactions__comment-author">{{author.name}}</span>
+                                {{/if}}
+                                <p class="unfold-interactions__comment-time">{{created_at_formatted}}</p>
+                            </div>
+                        </header>
+                        {{#if is_zap}}
+                            <p class="unfold-interactions__comment-zap">{{../post.interactions.labels.zap}}{{#if zap_amount}} · {{zap_amount}} {{../post.interactions.labels.sats}}{{/if}}</p>
+                        {{/if}}
+                        <div class="unfold-interactions__comment-content">{{{content_html}}}</div>
+                        {{#if parent_id}}<p class="unfold-interactions__parent-note">{{../post.interactions.labels.parent_unavailable}}</p>{{/if}}
+                        <div class="unfold-interactions__comment-actions">
+                            {{#unless is_zap}}
+                                <button type="button" class="unfold-interactions__button" data-unfold-reply-target="{{id}}" data-unfold-reply-author="{{author.name}}" data-unfold-reply-time="{{created_at_formatted}}">{{../post.interactions.labels.reply}}</button>
+                            {{/unless}}
+                        </div>
+                    </article>
+                {{/each}}
+            {{else}}
+                <p class="unfold-interactions__empty">{{post.interactions.labels.empty}}</p>
+            {{/if}}
+        </div>
+
+        <button type="button" class="unfold-interactions__button unfold-interactions__load-more" data-unfold-load-more hidden>{{post.interactions.labels.load_more}}</button>
+        <p class="unfold-interactions__notice" data-unfold-thread-notice aria-live="polite"></p>
+    </section>
+
+    <div class="unfold-interactions__bootstrap">{{{post.interactions.bootstrap_html}}}</div>
+</section>
