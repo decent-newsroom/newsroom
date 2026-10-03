@@ -135,7 +135,10 @@ class Converter implements MarkdownConverterInterface
     {
         return match ($kind) {
             KindsEnum::LONGFORM->value,
-            KindsEnum::LONGFORM_DRAFT->value => 'markdown',
+            KindsEnum::LONGFORM_DRAFT->value,
+            KindsEnum::CUSTOM_NIP->value => 'markdown',
+            KindsEnum::PUBLICATION_CONTENT->value,
+            KindsEnum::WIKI->value => 'asciidoc',
             default => null,
         };
     }

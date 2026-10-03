@@ -72,7 +72,7 @@ class GenericEventProjector
      * @throws \InvalidArgumentException If event is invalid
      * @throws \Exception|\Throwable If database operation fails
      */
-    public function projectEventFromNostrEvent(object $event, string $relayUrl): Event
+    public function projectEventFromNostrEvent(object $event, string $relayUrl, bool $requireGraphProjection = false): Event
     {
         // Validate event has required fields
         if (!isset($event->id) || !isset($event->kind)) {
@@ -176,6 +176,9 @@ class GenericEventProjector
         try {
             $this->eventIngestionListener->processEvent($entity);
         } catch (\Throwable $e) {
+            if ($requireGraphProjection) {
+                throw $e;
+            }
             $this->logger->warning('Failed to update graph tables for event', [
                 'event_id' => $event->id,
                 'error' => $e->getMessage(),

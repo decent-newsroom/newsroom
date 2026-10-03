@@ -6,9 +6,11 @@ namespace App\Unfold;
 
 use DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
+use DecentNewsroom\UnfoldBundle\Config\CategoryReference;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,8 +27,23 @@ final readonly class PublicationAdminLogin
     {
         $port = $request->getPort();
         $authority = $this->baseDomain . (in_array($port, [80, 443], true) ? '' : ':' . $port);
+        $continuation = $request->getSchemeAndHttpHost() . $request->getPathInfo();
+        if (str_ends_with($request->getPathInfo(), '/admin/content/category')) {
+            $query = $request->query->all();
+            if (isset($query['category'])) {
+                if (!is_string($query['category'])) {
+                    throw new BadRequestHttpException('Invalid category reference.');
+                }
+                try {
+                    $category = CategoryReference::fromInput($query['category']);
+                } catch (\InvalidArgumentException $e) {
+                    throw new BadRequestHttpException('Invalid category reference.', $e);
+                }
+                $continuation .= '?' . http_build_query(['category' => $category->coordinate]);
+            }
+        }
         return $request->getScheme() . '://' . $authority . '/login?' . http_build_query([
-            'unfold_return' => $request->getSchemeAndHttpHost() . $request->getPathInfo(),
+            'unfold_return' => $continuation,
         ]);
     }
 
@@ -82,8 +99,9 @@ final readonly class PublicationAdminLogin
         }
         $port = $request->getPort();
         $authority = $this->baseDomain . (in_array($port, [80, 443], true) ? '' : ':' . $port);
+        $query = parse_url($destination, PHP_URL_QUERY);
         return $request->getScheme() . '://' . $authority . '/mag/' . rawurlencode($dtag)
-            . parse_url($destination, PHP_URL_PATH);
+            . parse_url($destination, PHP_URL_PATH) . ($query !== null ? '?' . $query : '');
     }
 
     /** Only an admin destination on this installation can be used after login. */
@@ -91,7 +109,7 @@ final readonly class PublicationAdminLogin
     {
         $parts = parse_url($url);
         if ($parts === false || !isset($parts['scheme'], $parts['host'], $parts['path'])
-            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['fragment'])
             || $parts['scheme'] !== $request->getScheme()
             || ($parts['port'] ?? ($parts['scheme'] === 'https' ? 443 : 80)) !== $request->getPort()
             || preg_match('/[\x00-\x20\\\\]/', $url)) {
@@ -99,11 +117,25 @@ final readonly class PublicationAdminLogin
         }
         $host = $parts['host'];
         $path = $parts['path'];
+        if (isset($parts['query'])) {
+            if (!str_ends_with($path, '/admin/content/category')) {
+                return null;
+            }
+            parse_str($parts['query'], $query);
+            if (count($query) !== 1 || !is_string($query['category'] ?? null)) {
+                return null;
+            }
+            try {
+                CategoryReference::fromInput($query['category']);
+            } catch (\InvalidArgumentException) {
+                return null;
+            }
+        }
         if ($host === $this->baseDomain) {
             if ($path === '/magazine/onboarding') {
                 return $url;
             }
-            if (!preg_match('#^/mag/([^/]+)/admin(?:/settings)?$#D', $path, $matches)
+            if (!preg_match('#^/mag/([^/]+)/admin(?:/(?:settings|content(?:/category)?))?$#D', $path, $matches)
                 || in_array(rawurldecode($matches[1]), ['.', '..'], true)
                 || preg_match('/[\x00-\x20\/\\\\]/', rawurldecode($matches[1]))) {
                 return null;
@@ -111,7 +143,7 @@ final readonly class PublicationAdminLogin
             return $url;
         }
         $suffix = '.' . $this->baseDomain;
-        if (!str_ends_with($host, $suffix) || !preg_match('#^/admin(?:/settings)?$#D', $path)) {
+        if (!str_ends_with($host, $suffix) || !preg_match('#^/admin(?:/(?:settings|content(?:/category)?))?$#D', $path)) {
             return null;
         }
         $subdomain = substr($host, 0, -strlen($suffix));

@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Feature] Added owner-signed category content assignment and hosted reading for articles, chapters, wiki entries, and community-authored NIPs, with author-qualified URLs and retryable relay publication.
 - [Fix] Invalidated and rewarmed Unfold publication caches after owner administration updates, and moved administration progress notifications to global toasts.
 - [Feature] Added owner-scoped Unfold publication administration links to the Newsroom navigation.
 - [Fix] Displayed resolved owner names and linked hosted subdomains from the Unfold publication administration overview.

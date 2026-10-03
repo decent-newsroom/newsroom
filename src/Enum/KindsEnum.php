@@ -48,6 +48,7 @@ enum KindsEnum: int
     case PUBLICATION_INDEX = 30040; // NKBIP-01
     case PUBLICATION_CONTENT = 30041; // NKBIP-01
     case DIRECTORY = 30045; // NKBIP-04, filesystem directory
+    case CUSTOM_NIP = 30817; // Community-authored protocol specifications, documentation/NIP/spec.md
     case WIKI = 30818; // NIP-54 wiki entry
     case APP_DATA = 30078; // NIP-78, Arbitrary custom app data
     case FEED_EXPRESSION = 30880; // NIP-EX, publishable feed expressions

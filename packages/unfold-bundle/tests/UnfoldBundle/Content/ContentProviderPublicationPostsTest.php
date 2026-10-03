@@ -36,8 +36,12 @@ final class ContentProviderPublicationPostsTest extends TestCase
                 }
             );
 
+        $gateway = $this->createMock(EventReadGatewayInterface::class);
+        $gateway->method('findByCoordinate')->willReturnCallback(
+            fn(string $coordinate): NostrEvent => $this->categoryEvent(explode(':', $coordinate, 3)[2]),
+        );
         $provider = new ContentProvider(
-            eventGateway: $this->createMock(EventReadGatewayInterface::class),
+            eventGateway: $gateway,
             swrCache: new StaleWhileRevalidateCache(new ArrayAdapter(), new NullLogger()),
             logger: new NullLogger(),
             treeLookup: $tree,
@@ -64,7 +68,7 @@ final class ContentProviderPublicationPostsTest extends TestCase
             pubkey: 'owner',
             kind: 30040,
             content: '',
-            tags: [['d', $slug], ['title', $slug]],
+            tags: [['d', $slug], ['title', $slug], ['a', '30023:' . str_repeat('a', 64) . ':' . ($slug === 'news' ? 'first' : 'second')]],
             createdAt: 1,
             sig: 'signature',
         );
@@ -74,7 +78,7 @@ final class ContentProviderPublicationPostsTest extends TestCase
     {
         return new NostrEvent(
             id: $slug,
-            pubkey: 'author',
+            pubkey: str_repeat('a', 64),
             kind: 30023,
             content: '',
             tags: [['d', $slug], ['title', $slug], ['published_at', (string) $publishedAt]],

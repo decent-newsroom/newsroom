@@ -104,6 +104,16 @@ final class ContentProviderAboutTest extends TestCase
         ];
         $gateway = $this->createMock(EventReadGatewayInterface::class);
         $gateway->expects(self::never())->method('findByCoordinates');
+        $gateway->method('findByCoordinate')->willReturnCallback(
+            static function (string $coordinate) use ($coords): NostrEvent {
+                $slug = explode(':', $coordinate, 3)[2];
+                $references = $slug === 'one' ? [$coords[0], $coords[1]] : [$coords[0], $coords[2]];
+
+                return new NostrEvent('category-' . $slug, 'owner', 30040, '', [
+                    ['d', $slug], ...array_map(static fn(string $ref): array => ['a', $ref], $references),
+                ], 1, 'sig');
+            },
+        );
         $tree = $this->createMock(PublicationTreeLookupInterface::class);
         $tree->expects(self::exactly(2))->method('findChildren')->willReturnCallback(
             fn(string $coordinate): array => match ($coordinate) {

@@ -72,7 +72,7 @@ final readonly class PublicationTreeLookupAdapter implements PublicationTreeLook
     {
         $tags = $row['tags'] ?? [];
         if (is_string($tags)) {
-            $tags = json_decode($tags, true);
+            $tags = json_decode($tags, true, 512, JSON_THROW_ON_ERROR);
         }
 
         return new NostrEvent(
@@ -80,38 +80,10 @@ final readonly class PublicationTreeLookupAdapter implements PublicationTreeLook
             pubkey: strtolower((string) ($row['pubkey'] ?? '')),
             kind: (int) ($row['kind'] ?? 0),
             content: (string) ($row['content'] ?? ''),
-            tags: $this->normalizeTags($tags),
+            tags: EventTagSnapshot::validate($tags),
             createdAt: (int) ($row['created_at'] ?? 0),
             sig: (string) ($row['sig'] ?? ''),
         );
-    }
-
-    /**
-     * @param mixed $tags
-     * @return list<list<string>>
-     */
-    private function normalizeTags(mixed $tags): array
-    {
-        if (!is_array($tags)) {
-            return [];
-        }
-
-        $normalized = [];
-        foreach ($tags as $tag) {
-            if (!is_array($tag)) {
-                continue;
-            }
-            $values = [];
-            foreach ($tag as $value) {
-                if (!is_scalar($value)) {
-                    continue 2;
-                }
-                $values[] = (string) $value;
-            }
-            $normalized[] = array_values($values);
-        }
-
-        return $normalized;
     }
 
     private function normalizeCoordinate(string $coordinate): string

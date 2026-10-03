@@ -99,10 +99,12 @@ final class DiscoveryController
             throw new NotFoundHttpException('Site not found for this subdomain');
         }
 
-        return [
-            $publicationSite,
-            $this->siteConfigLoader->loadFromCoordinate($publicationSite->coordinate),
-        ];
+        $site = $this->siteConfigLoader->loadFromCoordinate($publicationSite->coordinate);
+        if ($site->isScoped) {
+            throw new NotFoundHttpException('Publication not available publicly');
+        }
+
+        return [$publicationSite, $site];
     }
 
     private function findCategory(SiteConfig $site, string $slug): ?CategoryData

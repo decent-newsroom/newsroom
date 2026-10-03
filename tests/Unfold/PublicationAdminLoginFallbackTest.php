@@ -50,6 +50,16 @@ final class PublicationAdminLoginFallbackTest extends TestCase
             $this->login('example.test', null)->resolveReturnUrl($request->query->get('unfold_return'), $request, $this->owner()));
     }
 
+    public function testCategoryReferenceSurvivesTheOwnerScopedMainDomainFallback(): void
+    {
+        $query = '?' . http_build_query(['category' => '30040:' . str_repeat('a', 64) . ':Category ']);
+        $destination = 'https://soskewed.example.test/admin/content/category' . $query;
+        $request = $this->request('https://example.test/login', $destination);
+
+        self::assertSame('https://example.test/mag/daily/admin/content/category' . $query,
+            $this->login('example.test', null)->resolveReturnUrl($destination, $request, $this->owner()));
+    }
+
     public function testSharedCookieReturnIsTriedOnceBeforeFallback(): void
     {
         $destination = 'https://soskewed.example.test/admin/settings';

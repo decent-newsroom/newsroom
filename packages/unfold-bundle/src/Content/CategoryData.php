@@ -3,6 +3,7 @@
 namespace DecentNewsroom\UnfoldBundle\Content;
 
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
+use DecentNewsroom\UnfoldBundle\Config\ContentReference;
 
 /**
  * Category data derived from category event (kind 30040)
@@ -24,6 +25,7 @@ readonly class CategoryData
         public string $summary = '',
         public array $articleCoordinates = [],
         public array $authorPubkeys = [],
+        public array $referenceCoordinates = [],
     ) {}
 
     /**
@@ -37,6 +39,7 @@ readonly class CategoryData
         $summary = '';
         $articleCoordinates = [];
         $authorPubkeys = [];
+        $referenceCoordinates = [];
 
         foreach ($tags as $tag) {
             if (!is_array($tag) || count($tag) < 2) {
@@ -51,6 +54,16 @@ readonly class CategoryData
                 'p' => self::collectPubkey($tag[1], $authorPubkeys),
                 default => null,
             };
+            if ($tag[0] === 'a' && is_string($tag[1])) {
+                if (preg_match('/^30040:([a-fA-F0-9]{64}):(.+)$/Ds', $tag[1]) === 1) {
+                    $referenceCoordinates[] = self::normalizeCoordinate($tag[1]);
+                } else {
+                    try {
+                        $referenceCoordinates[] = ContentReference::fromInput($tag[1])->coordinate;
+                    } catch (\InvalidArgumentException) {
+                    }
+                }
+            }
         }
 
         // Fallback: try content as JSON for title/summary
@@ -73,14 +86,19 @@ readonly class CategoryData
             summary: $summary,
             articleCoordinates: $articleCoordinates,
             authorPubkeys: $authorPubkeys,
+            referenceCoordinates: array_values(array_unique($referenceCoordinates)),
         );
     }
 
     /** @param list<string> $coordinates */
     private static function collectArticleReference(string $reference, array &$coordinates): void
     {
-        if (str_starts_with($reference, '30023:')) {
-            $coordinates[] = self::normalizeCoordinate($reference);
+        try {
+            $coordinate = ContentReference::fromInput($reference)->coordinate;
+            if (!in_array($coordinate, $coordinates, true)) {
+                $coordinates[] = $coordinate;
+            }
+        } catch (\InvalidArgumentException) {
         }
     }
 

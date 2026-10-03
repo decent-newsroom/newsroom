@@ -1,0 +1,5 @@
+{% extends '@Unfold/admin/base.html.twig' %}
+{% block publication_content %}
+    <a href="{{ publication.adminPathPrefix }}/content">{{ 'unfold_admin.content'|trans }}</a>
+    <p role="alert">{{ error|trans }}</p>
+{% endblock %}

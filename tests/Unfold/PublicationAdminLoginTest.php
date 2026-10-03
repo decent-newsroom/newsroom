@@ -32,9 +32,14 @@ final class PublicationAdminLoginTest extends TestCase
         yield 'onboarding' => ['https://example.test/magazine/onboarding'];
         yield 'coordinate overview' => ['https://example.test/mag/daily/admin'];
         yield 'coordinate settings' => ['https://example.test/mag/daily/admin/settings'];
+        yield 'coordinate content' => ['https://example.test/mag/daily/admin/content'];
         yield 'encoded d-tag' => ['https://example.test/mag/daily%3Aedition/admin'];
         yield 'host overview' => ['https://journal.example.test/admin'];
         yield 'host settings' => ['https://journal.example.test/admin/settings'];
+        yield 'host content' => ['https://journal.example.test/admin/content'];
+        $query = '?' . http_build_query(['category' => '30040:' . str_repeat('a', 64) . ':Category ']);
+        yield 'host category' => ['https://journal.example.test/admin/content/category' . $query];
+        yield 'coordinate category' => ['https://example.test/mag/daily/admin/content/category' . $query];
         yield 'explicit HTTPS port' => ['https://journal.example.test:443/admin'];
     }
 
@@ -65,6 +70,11 @@ final class PublicationAdminLoginTest extends TestCase
             'https://example.test:8443/mag/daily/admin',
             'https://example.test/admin',
             'https://example.test/mag/daily/admin/delete',
+            'https://example.test/mag/daily/admin/content/categories/commit',
+            'https://example.test/mag/daily/admin/content?category=external',
+            'https://example.test/mag/daily/admin/content/category?category=external',
+            'https://example.test/mag/daily/admin/content/category?category[]=external',
+            'https://example.test/mag/daily/admin/content/category?next=https://evil.test',
             'https://example.test/mag/daily/admin/',
             'https://example.test/mag/daily%2fother/admin',
             'https://example.test/mag/daily%5cother/admin',
@@ -99,6 +109,16 @@ final class PublicationAdminLoginTest extends TestCase
         ));
     }
 
+    public function testCategoryContinuationRetainsOnlyTheValidatedReference(): void
+    {
+        $coordinate = '30040:' . str_repeat('a', 64) . ':Category ';
+        $request = Request::create('https://journal.example.test/admin/content/category', 'GET', ['category' => $coordinate, 'tracking' => 'ignored']);
+        $login = new PublicationAdminLogin($this->createMock(SiteRegistryInterface::class), 'example.test');
+        parse_str(parse_url($login->loginUrl($request), PHP_URL_QUERY), $query);
+
+        self::assertSame('https://journal.example.test/admin/content/category?' . http_build_query(['category' => $coordinate]), $query['unfold_return']);
+    }
+
     /** @dataProvider routeMarkers */
     public function testPlatformRoleExemptionRequiresBothMarkerAndRecognizedRoute(?string $route, bool $marked, bool $expected): void
     {
@@ -111,7 +131,13 @@ final class PublicationAdminLoginTest extends TestCase
 
     public static function routeMarkers(): iterable
     {
-        foreach (['unfold_admin_host_overview', 'unfold_admin_host_settings', 'unfold_admin_coordinate_overview', 'unfold_admin_coordinate_settings'] as $route) {
+        foreach ([
+            'unfold_admin_host_overview', 'unfold_admin_host_settings',
+            'unfold_admin_coordinate_overview', 'unfold_admin_coordinate_settings',
+            'unfold_admin_host_category_content', 'unfold_admin_coordinate_category_content',
+            'unfold_admin_host_category_content_prepare', 'unfold_admin_host_category_content_commit',
+            'unfold_admin_coordinate_category_content_prepare', 'unfold_admin_coordinate_category_content_commit',
+        ] as $route) {
             yield $route => [$route, true, true];
             yield $route . ' unmarked' => [$route, false, false];
         }

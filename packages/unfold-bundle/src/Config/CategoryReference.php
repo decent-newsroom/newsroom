@@ -15,7 +15,10 @@ final readonly class CategoryReference
 
     public static function fromInput(string $input): self
     {
-        $input = trim($input);
+        if (strlen($input) > 32768) {
+            throw new \InvalidArgumentException('unfold_admin.invalid_category');
+        }
+        $input = ltrim($input);
         if (str_starts_with(strtolower($input), 'nostr:')) {
             $input = substr($input, 6);
         }
@@ -23,6 +26,7 @@ final readonly class CategoryReference
         if (preg_match('/^30040:([a-fA-F0-9]{64}):(.+)$/Ds', $input, $matches) === 1) {
             return new self(self::coordinate($matches[1], $matches[2]), []);
         }
+        $input = trim($input);
 
         try {
             $decoded = new Bech32(strtolower($input));
@@ -61,6 +65,6 @@ final readonly class CategoryReference
         $parts = parse_url($relay);
         return strlen($relay) <= 2048 && preg_match('/[\x00-\x1F\x7F]/', $relay) !== 1
             && is_array($parts) && in_array(strtolower($parts['scheme'] ?? ''), ['ws', 'wss'], true)
-            && isset($parts['host']) && $parts['host'] !== '' && !isset($parts['user'], $parts['pass']);
+            && isset($parts['host']) && $parts['host'] !== '' && !isset($parts['user']) && !isset($parts['pass']);
     }
 }

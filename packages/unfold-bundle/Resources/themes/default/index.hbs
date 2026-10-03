@@ -56,6 +56,7 @@
                 {{/if}}
                 <div class="post-card-content">
                     <h2><a href="{{url}}">{{title}}</a></h2>
+                    <p>{{content_type_label}}{{#if is_community_specification}} · {{community_specification_label}}{{/if}}</p>
                     <p>{{excerpt}}</p>
                     <div class="post-meta">
                         {{#if primary_author}}
@@ -78,4 +79,3 @@
     <script src="/unfold-themes/default/katex-init.js"></script>
 </body>
 </html>
-

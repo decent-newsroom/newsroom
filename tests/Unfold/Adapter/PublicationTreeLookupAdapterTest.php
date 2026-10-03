@@ -10,6 +10,18 @@ use PHPUnit\Framework\TestCase;
 
 final class PublicationTreeLookupAdapterTest extends TestCase
 {
+    public function testMalformedStoredTagsAreNotDroppedFromTheSnapshot(): void
+    {
+        $graph = $this->createMock(GraphLookupService::class);
+        $graph->method('resolveChildren')->willReturn([['current_event_id' => 'source']]);
+        $graph->method('fetchEventRows')->willReturn([
+            'source' => ['id' => 'source', 'tags' => [['d', 'category'], ['flag', true]]],
+        ]);
+
+        $this->expectException(\UnexpectedValueException::class);
+        (new PublicationTreeLookupAdapter($graph))->findChildren('30040:abcdef:main');
+    }
+
     public function testChildrenPreserveGraphOrderAndReturnDtos(): void
     {
         $graph = $this->createMock(GraphLookupService::class);

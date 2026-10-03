@@ -4,6 +4,10 @@ namespace DecentNewsroom\UnfoldBundle\Http;
 
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Content\CategoryData;
+use DecentNewsroom\UnfoldBundle\Content\ContentKindPolicy;
+use DecentNewsroom\UnfoldBundle\Config\ContentReference;
+use nostriphant\NIP19\Bech32;
+use nostriphant\NIP19\Data\NPub;
 
 /**
  * Matches URL paths to page types for Unfold sites
@@ -39,6 +43,26 @@ class RouteMatcher
             return ['type' => self::PAGE_NOT_FOUND];
         }
 
+        // Content identifiers may contain encoded slashes or look like files.
+        if (preg_match('#^/(npub1[0-9a-z]+)/(a|chapter|wiki|spec)/(.+)$#sD', $path, $matches)) {
+            try {
+                $author = (new Bech32($matches[1]))->data;
+                if (!$author instanceof NPub) {
+                    return ['type' => self::PAGE_NOT_FOUND];
+                }
+                $reference = ContentReference::fromInput(
+                    ContentKindPolicy::kindForSegment($matches[2]) . ':' . $author->data . ':' . rawurldecode($matches[3]),
+                );
+
+                return ['type' => self::PAGE_POST, 'slug' => $reference->identifier, 'coordinate' => $reference->coordinate];
+            } catch (\Exception | \TypeError) {
+                return ['type' => self::PAGE_NOT_FOUND];
+            }
+        }
+        if (preg_match('#^/a/(.+)$#sD', $path, $matches)) {
+            return ['type' => self::PAGE_POST, 'slug' => rawurldecode($matches[1])];
+        }
+
         // Quick reject for static file requests (favicon.ico, robots.txt, etc.)
         if ($this->isStaticFileRequest($path)) {
             return ['type' => self::PAGE_NOT_FOUND];
@@ -54,17 +78,9 @@ class RouteMatcher
             return ['type' => self::PAGE_ABOUT];
         }
 
-        // Post page: /a/{slug}
-        if (preg_match('#^/a/([^/]+)$#', $path, $matches)) {
-            return [
-                'type' => self::PAGE_POST,
-                'slug' => $matches[1],
-            ];
-        }
-
         // Category page: /{slug}
         if (preg_match('#^/([^/]+)/?$#', $path, $matches)) {
-            $slug = $matches[1];
+            $slug = rawurldecode($matches[1]);
 
             // Find category by slug
             foreach ($categories as $category) {

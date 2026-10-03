@@ -88,7 +88,7 @@ final readonly class EventReadGatewayAdapter implements EventReadGatewayInterfac
             pubkey: strtolower($event->getPubkey()),
             kind: $event->getKind(),
             content: $event->getContent(),
-            tags: $this->normalizeTags($event->getTags()),
+            tags: EventTagSnapshot::validate($event->getTags()),
             createdAt: $event->getCreatedAt(),
             sig: $event->getSig(),
         );
@@ -101,7 +101,7 @@ final readonly class EventReadGatewayAdapter implements EventReadGatewayInterfac
             pubkey: strtolower($this->readString($event, 'pubkey')),
             kind: $this->readInt($event, 'kind'),
             content: $this->readString($event, 'content'),
-            tags: $this->normalizeTags($this->readValue($event, 'tags')),
+            tags: EventTagSnapshot::validate($this->readValue($event, 'tags')),
             createdAt: $this->readInt($event, 'created_at'),
             sig: $this->readString($event, 'sig'),
         );
@@ -189,32 +189,4 @@ final readonly class EventReadGatewayAdapter implements EventReadGatewayInterfac
         return is_numeric($value) ? (int) $value : 0;
     }
 
-    /**
-     * @param mixed $tags
-     * @return list<list<string>>
-     */
-    private function normalizeTags(mixed $tags): array
-    {
-        if (!is_array($tags)) {
-            return [];
-        }
-
-        $normalized = [];
-        foreach ($tags as $tag) {
-            if (!is_array($tag)) {
-                continue;
-            }
-
-            $values = [];
-            foreach ($tag as $value) {
-                if (!is_scalar($value)) {
-                    continue 2;
-                }
-                $values[] = (string) $value;
-            }
-            $normalized[] = array_values($values);
-        }
-
-        return $normalized;
-    }
 }

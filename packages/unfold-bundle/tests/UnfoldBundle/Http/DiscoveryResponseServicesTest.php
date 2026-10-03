@@ -53,7 +53,7 @@ final class DiscoveryResponseServicesTest extends TestCase
         self::assertSame('application/rss+xml; charset=UTF-8', $response->headers->get('Content-Type'));
         self::assertSame('max-age=600, public', $response->headers->get('Cache-Control'));
         self::assertStringContainsString('<title>A &amp; &lt;Publication&gt;</title>', $body);
-        self::assertStringContainsString('<link>https://publication.example.test/a/hello-world</link>', $body);
+        self::assertStringContainsString('<link>' . $this->urls->post($post) . '</link>', $body);
         self::assertStringContainsString('<guid isPermaLink="false">30023:', $body);
         self::assertStringContainsString('<author>' . $post->pubkey . '</author>', $body);
         self::assertStringContainsString('https://cdn.example.test/post.png', $body);
@@ -64,7 +64,7 @@ final class DiscoveryResponseServicesTest extends TestCase
     {
         $site = new SiteConfig('30040:owner:publication', 'Publication', '', null, [], 'owner');
         $category = new CategoryData('news', 'News', '30040:owner:news');
-        $post = new PostData('story', 'Story', '', '', null, 1, 'author', '30023:author:story');
+        $post = new PostData('story', 'Story', '', '', null, 1, str_repeat('a', 64), '30023:' . str_repeat('a', 64) . ':story');
 
         $response = (new SitemapService($this->urls))->createResponse(
             $site,
@@ -79,7 +79,7 @@ final class DiscoveryResponseServicesTest extends TestCase
         self::assertStringContainsString('<loc>https://publication.example.test/</loc>', $body);
         self::assertStringContainsString('<loc>https://publication.example.test/about</loc>', $body);
         self::assertStringContainsString('<loc>https://publication.example.test/news</loc>', $body);
-        self::assertStringContainsString('<loc>https://publication.example.test/a/story</loc>', $body);
+        self::assertStringContainsString('<loc>' . $this->urls->post($post) . '</loc>', $body);
     }
 
     public function testRobotsPointsToCurrentHostSitemap(): void

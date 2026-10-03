@@ -14,6 +14,15 @@ abstraction or allow an existing Unfold to be retargeted to another root.
   platform administrator privileges do not bypass publication ownership.
 - Both mounts share settings and validation. Existing sites retain their routes
   and default-theme behavior when no local settings exist.
+- Publication-first onboarding has owner-scoped Redis drafts and signed initial
+  root publishing at `/magazine/onboarding`. This is not the complete
+  getting-started wizard or subdomain-first reservation workflow.
+- Content administration includes signed About selection and root category
+  references. Category content assignment and removal update owner-authored child
+  indexes without changing the root coordinate or local presentation settings.
+- Hosted categories support articles (`30023`), chapters (`30041`), wiki entries
+  (`30818`), and community-authored specifications (`30817`). Public content URLs
+  include the author's npub before `a`, `chapter`, `wiki`, or `spec`.
 
 Index events remain authoritative for publication content and navigation; local
 settings own local choices. Future referenced events will own their own contents,
@@ -22,13 +31,14 @@ are needed in the delivered setup and owner-settings slices.
 
 ## Subsequent Publication Work
 
-- Extend the delivered overview/settings administration with the getting-started
-  wizard, analytics, index/content management, and publication-scoped article editor.
+- Extend the delivered administration with the complete getting-started wizard,
+  analytics, root metadata editing, and publication-scoped article editor.
 - The same administration mounts on the subdomain at `/admin` and on the main
   domain at `/mag/{mag}/admin`, including publications without hosting. Access is
   scoped to the owner in the root coordinate; see `Specs/08-unified-publication-admin.md`.
-- Both publication-first and subdomain-first onboarding remain goals. A reserved
-  subdomain is a hosting draft until attached to a root coordinate.
+- Complete publication-first and subdomain-first onboarding remain goals; the
+  publication-first draft/root foundation is delivered. A reserved subdomain is
+  a hosting draft until attached to a root coordinate.
 - Each publication has predictable RSS and sitemap URLs (already delivered).
   The two-level default footer and locally configured owner links are delivered.
 - Owners can configure payment targets and scope/audience definitions through the

@@ -29,6 +29,27 @@ class SiteConfigCacheWarmer
     }
 
     /**
+     * Call only after a child mutation has committed locally. Shared-category
+     * invalidation must run even when subsequent root refresh/warming fails.
+     */
+    public function warmCategoryMutation(string $publicationCoordinate, string $categoryCoordinate): bool
+    {
+        $invalidated = true;
+        try {
+            $this->contentProvider->invalidateCategoryCache($categoryCoordinate);
+        } catch (\Throwable $e) {
+            $invalidated = false;
+            $this->logger->error('Failed to invalidate shared category cache after commit', [
+                'coordinate' => $categoryCoordinate,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        $warmed = $this->warmPublication($publicationCoordinate);
+
+        return $invalidated && $warmed;
+    }
+
+    /**
      * Invalidate and warm cache for a publication, including publications without hosting.
      */
     public function warmPublication(string $coordinate, ?string $subdomain = null): bool
@@ -52,7 +73,7 @@ class SiteConfigCacheWarmer
             $siteConfig = $this->siteConfigLoader->loadFromCoordinate($coordinate);
 
             // Check if we got a placeholder
-            if ($siteConfig->title === 'Loading...') {
+            if ($siteConfig->title === 'Loading...' || $siteConfig->isScoped) {
                 $this->logger->warning('Got placeholder SiteConfig - fetch may have failed', [
                     'subdomain' => $subdomain,
                     'coordinate' => $coordinate,
@@ -86,6 +107,7 @@ class SiteConfigCacheWarmer
             // Warm home posts cache
             $this->logger->info('Loading home posts...');
             $this->contentProvider->getHomePosts($siteConfig, 3);
+            $this->contentProvider->getPublicationPosts($siteConfig, 50);
 
             $this->logger->info('Cache warmed successfully', [
                 'subdomain' => $subdomain,
@@ -94,7 +116,7 @@ class SiteConfigCacheWarmer
             ]);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error('Failed to warm cache for UnfoldSite', [
                 'subdomain' => $subdomain,
                 'coordinate' => $coordinate,

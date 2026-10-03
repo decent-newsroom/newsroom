@@ -12,7 +12,7 @@ The overview displays publication title, immutable root coordinate, owner pubkey
 saved theme, and hosting status. Hosted publications also link to their public
 site, RSS feed, and sitemap; the public site opens in a new tab.
 
-Settings at `<admin-prefix>/settings` edit only the theme. Both mounts use the
+Settings at `<admin-prefix>/settings` edit the theme and owner footer links. Both mounts use the
 same coordinate-keyed local settings and theme catalogue as operator/subscription
 setup. Saving a theme does not require event signing or relay publication.
 
@@ -104,7 +104,7 @@ This slice adds no database migration or session configuration. Shared session
 cookies enable a return from main-domain login to subdomain administration.
 When cookie sharing is not configured, or on localhost, login instead opens the
 same owner's publication at the main-domain coordinate mount, preserving the
-requested overview/settings page and development port. A repeated cross-host
+requested overview/settings/content page and development port. A repeated cross-host
 return within 60 seconds uses the same fallback, preventing redirect loops when
 a browser does not send the shared cookie. The publication owner is checked
 before either return; another owner's colliding d-tag cannot change the destination.
@@ -120,11 +120,75 @@ session handling. A host-only cookie cannot carry main-domain authentication bac
 to a publication subdomain; main-domain administration remains available through
 the automatic fallback.
 
+## Category content assignment
+
+Content administration at `<admin-prefix>/content` manages About selection,
+root category references, and existing content inside categories. Owners paste
+a coordinate or naddr to assign a published article (`30023`), chapter (`30041`),
+wiki entry (`30818`), or community-authored NIP (`30817`).
+
+Only existing categories directly referenced by the current root and authored
+by its owner are editable. Referenced categories from other authors are
+read-only, even for a platform administrator. Content itself may have another
+author. Assignment changes the child's references, not the root identity,
+local settings, hosting, billing, or source content.
+
+The category inventory preserves reference order and identifies unresolved
+content. Existing references can be removed without fetching their source
+bodies. Writes require coordinate-scoped CSRF and the owner's signature;
+stale revisions conflict instead of overwriting newer work. Relay failures are
+reported separately from local persistence. Retrying reuses the same signed
+event rather than signing another revision.
+
+Category editing requires locally projected current index data. If it is not
+available, refresh/repair it rather than create a replacement category through
+assignment. Operators can use the existing targeted graph rebuild command:
+
+```bash
+docker compose exec php bin/console dn:graph:rebuild-record "30040:<pubkey>:<category-dtag>"
+```
+
+This reparses existing category references with the current kind policy. It is
+an operator action, not an automatic broad database migration.
+
+## Multi-kind public reading
+
+Public links encode the author before the content type:
+
+| Kind | Content | Format | Public path |
+| --- | --- | --- | --- |
+| 30023 | Long-form article | Markdown | `/{npub}/a/{dtag}` |
+| 30041 | Publication chapter | AsciiDoc | `/{npub}/chapter/{dtag}` |
+| 30818 | Wiki entry | AsciiDoc | `/{npub}/wiki/{dtag}` |
+| 30817 | Community-authored NIP | Markdown | `/{npub}/spec/{dtag}` |
+
+The author, kind and d-tag resolve an exact coordinate within this publication.
+An arbitrary external coordinate is not made publicly readable merely by
+requesting its path. Existing unique `/a/{slug}` article URLs remain usable;
+colliding legacy aliases do not silently choose another author.
+
+Community-authored NIPs are distinct from official NIPs and show authorship,
+following [the custom-NIP specification](../NIP/spec.md). Wiki content follows
+[NIP-54](../NIP/54.md). Formats are selected by kind, not inferred from text.
+Home/category lists, both hosted themes, content pages, RSS and sitemap use
+the same canonical URL rules and supported-kind policy.
+
+Scoped content is excluded from the public-only flow, including discovery
+output. Assignment does not grant access, create scopes or enable gated
+publishing. Gated access remains a separate later phase.
+
 ## Limitations and deferred work
 
-Wizard and draft migration, analytics, footer configuration, content editing,
+Publication-first Redis drafts and signed initial root publishing exist at
+`/magazine/onboarding`; complete legacy-wizard consolidation, analytics, root
+metadata editing, article-editor integration, searchable content picking,
 payments, and reader interactions remain pending. This slice does not reassign
 publication roots or hosting, or change billing.
+
+The platform operator's legacy magazine editor remains a separate unsigned
+Event-table write path, not an owner-signed category publisher. Its slug-based
+lookup and writes must not be used as an ownership or current-record guarantee.
+It is not removed or retrofitted in this slice.
 
 Publication-definition events will be respecified only after gated access is
 complete. No definition-event implementation or compatibility workflow belongs

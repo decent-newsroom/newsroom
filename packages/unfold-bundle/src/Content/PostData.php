@@ -5,7 +5,7 @@ namespace DecentNewsroom\UnfoldBundle\Content;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 
 /**
- * Post/article data derived from article event (kind 30023)
+ * Theme-compatible public content derived from a supported addressable event.
  */
 readonly class PostData
 {
@@ -34,6 +34,9 @@ readonly class PostData
         public ?string $lud16 = null,
         public ?string $lud06 = null,
         public array $zapSplits = [],
+        public int $kind = 30023,
+        public array $tags = [],
+        public string $eventId = '',
     ) {}
 
     /**
@@ -74,12 +77,12 @@ readonly class PostData
         }
 
         $kind = $event->kind;
-        $pubkey = $event->pubkey;
+        $pubkey = strtolower($event->pubkey);
         $coordinate = "{$kind}:{$pubkey}:{$slug}";
 
         return new self(
             slug: $slug,
-            title: $title,
+            title: $title !== '' ? $title : $slug,
             summary: $summary,
             content: $event->content,
             image: $image,
@@ -89,7 +92,24 @@ readonly class PostData
             lud16: $lud16,
             lud06: $lud06,
             zapSplits: $zapSplits,
+            kind: $kind,
+            tags: $tags,
+            eventId: $event->id,
         );
+    }
+
+    public function isPublic(): bool
+    {
+        if (!ContentKindPolicy::supports($this->kind)) {
+            return false;
+        }
+        foreach ($this->tags as $tag) {
+            if (($tag[0] ?? null) === 's') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

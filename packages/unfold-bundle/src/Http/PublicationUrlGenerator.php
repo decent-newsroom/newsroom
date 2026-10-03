@@ -6,6 +6,8 @@ namespace DecentNewsroom\UnfoldBundle\Http;
 
 use DecentNewsroom\UnfoldBundle\Content\CategoryData;
 use DecentNewsroom\UnfoldBundle\Content\PostData;
+use DecentNewsroom\UnfoldBundle\Content\ContentKindPolicy;
+use nostriphant\NIP19\Bech32;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -57,9 +59,16 @@ final class PublicationUrlGenerator
 
     public function post(PostData|string $post, ?Request $request = null): string
     {
-        $slug = $post instanceof PostData ? $post->slug : $post;
+        return $this->absolute(
+            $post instanceof PostData ? self::postPath($post) : '/a/' . rawurlencode($post),
+            $request,
+        );
+    }
 
-        return $this->absolute('/a/' . rawurlencode($slug), $request);
+    public static function postPath(PostData $post): string
+    {
+        return '/' . (string) Bech32::npub(strtolower($post->pubkey))
+            . '/' . ContentKindPolicy::segment($post->kind) . '/' . rawurlencode($post->slug);
     }
 
     public function rss(?Request $request = null): string

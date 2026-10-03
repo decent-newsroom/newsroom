@@ -37,6 +37,12 @@ signing, or publishing kind `30078`. Legacy AppData loading is compatibility-onl
 A custom portable definition event remains planned; current owner administration
 uses the bundle's implemented publication context.
 
+Category content assignment supports articles (`30023`), chapters (`30041`),
+wiki entries (`30818`), and community-authored NIPs (`30817`). Hosted reading
+uses author-qualified type paths; see
+[publication administration](publication-admin.md#multi-kind-public-reading)
+for formats, identity rules, and the separation from article authoring.
+
 ## Theming
 
 Themes use Handlebars templates rendered by `HandlebarsRenderer`. Theme assets are served by `ThemeAssetController` from the `publication/` directory.

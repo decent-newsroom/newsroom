@@ -14,13 +14,22 @@ remain scoped to the publication's registered Unfold subdomain. RSS responses
 use the RSS content type and include cache headers suitable for public,
 publication-local feeds.
 
-The publication feed is deterministic: it contains the newest 50 articles,
-ordered newest first and deduplicated by article coordinate. An unknown category
-returns `404 Not Found`.
+The publication feed is deterministic: it contains the newest 50 supported
+content items, ordered newest first and deduplicated by full coordinate.
+Supported kinds are articles (`30023`), chapters (`30041`), wiki entries
+(`30818`), and community-authored NIPs (`30817`). An unknown category returns
+`404 Not Found`.
+
+Content links use `/{npub}/a/{dtag}`, `/{npub}/chapter/{dtag}`,
+`/{npub}/wiki/{dtag}`, or `/{npub}/spec/{dtag}`. All discovery and theme links
+share these author-qualified canonical paths, avoiding collisions between
+authors or kinds. Scoped content is excluded from public discovery output;
+these documents do not grant access or implement gated-content authorization.
 
 The sitemap includes the publication home page, known category pages, and
-article pages. It does not yet include future locally configured about pages
-or audience offer pages. `robots.txt` points crawlers at the publication's `/sitemap.xml`.
+supported public content pages. Audience offer pages remain deferred.
+`robots.txt` points crawlers at the publication's `/sitemap.xml`.
 
-Owner pages, footer behavior, and a future portable definition remain separate Unfold work
-and are not part of these discovery routes.
+See [publication administration](publication-admin.md) for assignment and
+multi-kind rendering. Payment services and a future portable definition remain
+separate work and are not part of these discovery routes.

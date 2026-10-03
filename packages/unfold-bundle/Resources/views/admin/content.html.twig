@@ -54,7 +54,6 @@
             <div class="my-content-header__copy">
                 <p class="eyebrow">{{ 'unfold_admin.title'|trans }}</p>
                 <h1>{{ 'unfold_admin.content'|trans }}</h1>
-                <p>{{ 'unfold_admin.immutable'|trans }}</p>
             </div>
             <div class="my-content-header__actions">
                 {% if activeType != 'articles' %}<a class="btn btn-secondary" href="#add-category">{{ 'unfold_admin.add_category'|trans }}</a>{% endif %}
@@ -87,7 +86,6 @@
                         <span class="my-content-row__icon" aria-hidden="true">{{ ux_icon('iconoir:page-flip', {class: 'icon'}) }}</span>
                         <div>
                             <h2>{{ aboutArticleTitle ?: currentAboutArticle|split(':', 3)[2] }}</h2>
-                            <p>{{ 'unfold_admin.about_article'|trans }}</p>
                         </div>
                     </div>
                     <div class="my-content-row__status"><span class="my-content-status my-content-status--published">{{ 'unfold_admin.articles'|trans }}</span></div>
@@ -104,8 +102,7 @@
                         <div class="my-content-row__main">
                             <span class="my-content-row__icon" aria-hidden="true">{{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}</span>
                             <div>
-                                <h2>{{ category.title ?: category.coordinate|split(':', 3)[2] }}</h2>
-                                <p>{{ 'unfold_admin.categories'|trans }}</p>
+                                <h2><a href="{{ publication.adminPathPrefix }}/content/category?category={{ category.coordinate|url_encode }}">{{ category.title ?: category.coordinate|split(':', 3)[2] }}</a></h2>
                             </div>
                         </div>
                         <div class="my-content-row__status"><span class="my-content-status my-content-status--list">{{ 'unfold_admin.categories'|trans }}</span></div>

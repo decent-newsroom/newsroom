@@ -2,8 +2,10 @@
 
 Status: staged refactor. Internal Composer extraction, discovery routes, shared
 local setup, and persistent theme settings are delivered. Owner administration
-now provides overview/settings on both mounts. Wizard migration, analytics,
-content configuration, and gated access remain planned.
+now provides overview/settings and content administration on both mounts.
+Publication-first drafts and signed root creation are delivered, as are category
+content assignment and multi-kind hosted reading. Complete wizard migration,
+analytics, root metadata editing, and gated access remain planned.
 
 This document sequences the Unfold refactor into shippable phases, records the
 decisions already made, and lists the open questions that block later phases.
@@ -97,8 +99,10 @@ Independent of everything else — ship early.
 ### Phase 3 — Unified publication admin: mounts, shell, wizard, analytics (Spec 08, Spec 04)
 
 **Delivered foundation:** both owner-scoped mounts, publication context, overview,
-theme settings with shared validation, and validated login continuation. Wizard,
-draft migration, and analytics remain pending.
+theme settings with shared validation, and validated login continuation.
+Publication-first Redis drafts and signed initial root publishing are delivered
+at `/magazine/onboarding`. Complete wizard consolidation, subdomain-first
+reservation, and analytics remain pending.
 
 - `PublicationContext` + two resolvers (host, coordinate); every admin
   controller depends on the context only (Spec 08).
@@ -120,8 +124,15 @@ draft migration, and analytics remain pending.
 
 ### Phase 3b — Admin consolidation and editor integration (Spec 08)
 
-- Migrate `MagazineWizardController` and `MagazineEditorController` into the
-  bundle admin, re-scoped from `ROLE_ADMIN`/slug to owner/coordinate.
+**Delivered content slice:** About selection, root category-reference management,
+and signed assignment/removal of existing content inside owner-authored,
+root-referenced category indexes. Hosted reading supports `30023`, `30041`,
+`30818`, and `30817` through author-and-kind-qualified URLs. Foreign-owner
+category contents are read-only; leaf authors may differ from the category owner.
+
+- Complete wizard consolidation and root metadata editing in bundle admin.
+- Preserve the existing operator magazine editor as a separate legacy path
+  during rollout; do not infer owner-write authority from its slug lookup.
 - Keep platform moderation and billing on the main domain under `ROLE_ADMIN`
   (`MagazineAdminController`, `PublicationSubdomainAdminController`,
   `UnfoldSiteController` repair screens).
@@ -129,6 +140,9 @@ draft migration, and analytics remain pending.
   wrapper that injects `PublicationContext`; publish `30023` then append the
   coordinate to a category and publish `30040`, with an append-retry path.
 - `/article-editor/*` stays as-is for context-free single-article authoring.
+- Multi-kind content assignment is not article authoring. `30817` follows the
+  community-authored NIP specification in `documentation/NIP/spec.md`, not
+  draft or wiki semantics.
 
 ### Phase 4 — Payment targets and audiences (Spec 02 structure, Spec 06 kinds)
 

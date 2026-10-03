@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{post.title}} - {{site.title}}</title>
     <meta name="description" content="{{post.excerpt}}">
+    <link rel="canonical" href="{{post.canonical_url}}">
+    <meta property="og:url" content="{{post.canonical_url}}">
     {{#if post.feature_image}}
     <meta property="og:image" content="{{post.feature_image}}">
     {{/if}}
@@ -67,6 +69,10 @@
                 <div class="post-category"><a href="{{post.primary_tag.url}}">{{post.primary_tag.name}}</a></div>
                 {{/if}}
                 <h1>{{post.title}}</h1>
+                <p class="post-content-type">{{post.content_type_label}}</p>
+                {{#if post.is_community_specification}}
+                <p class="post-specification-notice">{{post.community_specification_label}} · {{post.authored_by_label}} {{post.primary_author.name}} ({{post.primary_author.id}})</p>
+                {{/if}}
                 <div class="post-meta">
                     {{#if post.primary_author}}
                     <span class="author">
@@ -150,4 +156,3 @@
     <script src="/unfold-themes/default/katex-init.js"></script>
 </body>
 </html>
-

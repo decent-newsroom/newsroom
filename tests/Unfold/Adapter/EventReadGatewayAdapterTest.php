@@ -90,6 +90,25 @@ final class EventReadGatewayAdapterTest extends TestCase
             ->findByCoordinate('30040:ABCDEF:main', ['wss://hint.example.test']));
     }
 
+    public function testMalformedSourceTagsAreNotSilentlyRepaired(): void
+    {
+        $repository = $this->createMock(EventRepository::class);
+        $repository->method('findByNaddr')->willReturn(null);
+        $client = $this->createMock(NostrClient::class);
+        $client->method('getEventByNaddr')->willReturn((object) [
+            'id' => 'source',
+            'pubkey' => 'abcdef',
+            'kind' => 30040,
+            'content' => '',
+            'tags' => [['d', 'main'], ['unknown', 1]],
+            'created_at' => 456,
+            'sig' => '',
+        ]);
+
+        $this->expectException(\UnexpectedValueException::class);
+        (new EventReadGatewayAdapter($repository, $client))->findByCoordinate('30040:abcdef:main');
+    }
+
     public function testTimedOutLookupPropagatesAsInfrastructureFailure(): void
     {
         $repository = $this->createMock(EventRepository::class);

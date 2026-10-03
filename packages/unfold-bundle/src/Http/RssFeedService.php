@@ -7,6 +7,7 @@ namespace DecentNewsroom\UnfoldBundle\Http;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Content\PostData;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Creates a publication-local RSS 2.0 response.
@@ -29,6 +30,9 @@ final class RssFeedService
         ?string $title = null,
         ?string $description = null,
     ): Response {
+        if ($site->isScoped) {
+            throw new NotFoundHttpException('Publication not available publicly');
+        }
         $channelTitle = $title ?? $site->title;
         $channelDescription = $description ?? $site->description;
         $link = $this->urls->home();
@@ -54,6 +58,9 @@ final class RssFeedService
         }
 
         foreach ($posts as $post) {
+            if (!$post->isPublic()) {
+                continue;
+            }
             $xml[] = '<item>';
             $xml[] = $this->element('title', $post->title);
             $xml[] = $this->element('description', $post->summary);

@@ -5,12 +5,17 @@ namespace DecentNewsroom\UnfoldBundle\Theme;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Content\CategoryData;
 use DecentNewsroom\UnfoldBundle\Content\PostData;
+use DecentNewsroom\UnfoldBundle\Content\ContentKindPolicy;
+use DecentNewsroom\UnfoldBundle\Http\PublicationUrlGenerator;
 use DecentNewsroom\UnfoldBundle\Contract\Comment;
 use DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface;
 use DecentNewsroom\UnfoldBundle\Contract\MarkdownConverterInterface;
 use DecentNewsroom\UnfoldBundle\Contract\ProfileMetadataProviderInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Builds Ghost-compatible context for Handlebars templates
@@ -18,6 +23,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class ContextBuilder
 {
     private const CACHE_TTL = 86400; // 24 hours - content is fixed per event
+    private readonly HtmlSanitizer $sanitizer;
 
     public function __construct(
         private readonly MarkdownConverterInterface $converter,
@@ -26,7 +32,18 @@ class ContextBuilder
         private readonly CommentProviderInterface $comments,
         private readonly ?TranslatorInterface $translator = null,
         private readonly string $platformBaseUrl = 'https://decentnewsroom.com',
-    ) {}
+        private readonly ?PublicationUrlGenerator $urls = null,
+    ) {
+        $this->sanitizer = new HtmlSanitizer((new HtmlSanitizerConfig())
+            ->allowSafeElements()
+            ->allowRelativeLinks()
+            ->allowRelativeMedias()
+            ->allowLinkSchemes(['http', 'https', 'mailto', 'tel', 'nostr'])
+            ->allowMediaSchemes(['http', 'https'])
+            ->allowAttribute('class', '*')
+            ->allowAttribute('id', '*')
+            ->withMaxInputLength(-1));
+    }
 
     /**
      * Build context for home page
@@ -36,6 +53,8 @@ class ContextBuilder
      */
     public function buildHomeContext(SiteConfig $site, array $categories, array $posts): array
     {
+        $this->assertPublicSite($site);
+        $posts = array_values(array_filter($posts, static fn(PostData $post): bool => $post->isPublic()));
         $siteContext = $this->buildSiteContext($site, $categories, '/');
         return [
             '@site' => $siteContext,
@@ -60,7 +79,9 @@ class ContextBuilder
         CategoryData $category,
         array $posts
     ): array {
-        $siteContext = $this->buildSiteContext($site, $categories, '/' . $category->slug);
+        $this->assertPublicSite($site);
+        $posts = array_values(array_filter($posts, static fn(PostData $post): bool => $post->isPublic()));
+        $siteContext = $this->buildSiteContext($site, $categories, '/' . rawurlencode($category->slug));
         return [
             '@site' => $siteContext,
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
@@ -71,7 +92,7 @@ class ContextBuilder
                 'slug' => $category->slug,
                 'title' => $category->title,
                 'summary' => $category->summary,
-                'url' => '/' . $category->slug,
+                'url' => '/' . rawurlencode($category->slug),
             ],
             'posts' => array_map([$this, 'buildPostListItemContext'], $posts),
             'pagination' => $this->buildPaginationContext(count($posts)),
@@ -83,8 +104,12 @@ class ContextBuilder
      *
      * @param CategoryData[] $categories
      */
-    public function buildPostContext(SiteConfig $site, array $categories, PostData $post, ?CategoryData $primaryCategory = null): array
+    public function buildPostContext(SiteConfig $site, array $categories, PostData $post, ?CategoryData $primaryCategory = null, array $publicationPosts = []): array
     {
+        $this->assertPublicSite($site);
+        if (!$post->isPublic()) {
+            throw new NotFoundHttpException('Content not available publicly');
+        }
         $siteContext = $this->buildSiteContext($site, $categories, null);
         return [
             '@site' => $siteContext,
@@ -92,7 +117,7 @@ class ContextBuilder
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'post',
             ...$this->buildFooterContext($site),
-            'post' => $this->buildSinglePostContext($post, $primaryCategory),
+            'post' => $this->buildSinglePostContext($post, $primaryCategory, $publicationPosts),
         ];
     }
 
@@ -105,6 +130,10 @@ class ContextBuilder
      */
     public function buildAboutContext(SiteConfig $site, array $categories, ?PostData $article, array $featuredWriterPubkeys): array
     {
+        $this->assertPublicSite($site);
+        if ($article !== null && !$article->isPublic()) {
+            $article = null;
+        }
         $siteContext = $this->buildSiteContext($site, $categories, '/about');
         $indexAuthors = [$site->pubkey];
         foreach ($categories as $category) {
@@ -136,7 +165,7 @@ class ContextBuilder
                 'has_article' => $article !== null,
                 'article_title' => $article?->title,
                 'article_html' => $article !== null
-                    ? $this->markdownToHtml($article->content, $article->coordinate)
+                    ? $this->contentToHtml($article)
                     : null,
                 'magazine_people_label' => $this->translate('unfold_about.magazine_people'),
                 'featured_writers_label' => $this->translate('unfold_about.featured_writers'),
@@ -202,9 +231,9 @@ class ContextBuilder
     {
         $navigation = array_map(fn(CategoryData $cat) => [
             'label' => $cat->title,
-            'url' => '/' . $cat->slug,
+            'url' => '/' . rawurlencode($cat->slug),
             'slug' => $cat->slug,
-            'current' => $currentUrl === '/' . $cat->slug,
+            'current' => $currentUrl === '/' . rawurlencode($cat->slug),
         ], $categories);
 
         // Get magazine creator's lightning address from metadata
@@ -273,6 +302,13 @@ class ContextBuilder
         return $this->translator?->trans($key) ?? $key;
     }
 
+    private function assertPublicSite(SiteConfig $site): void
+    {
+        if ($site->isScoped) {
+            throw new NotFoundHttpException('Publication not available publicly');
+        }
+    }
+
     /**
      * Build @custom context (theme settings) with defaults
      */
@@ -305,7 +341,9 @@ class ContextBuilder
             'slug' => $post->slug,
             'title' => $post->title,
             'excerpt' => $post->summary,
-            'url' => '/a/' . $post->slug,
+            'url' => PublicationUrlGenerator::postPath($post),
+            'canonical_url' => $this->urls?->post($post) ?? PublicationUrlGenerator::postPath($post),
+            ...$this->contentTypeContext($post),
             'feature_image' => $post->image,
             'published_at' => date('c', $post->publishedAt),
             'published_at_formatted' => $post->getPublishedDate(),
@@ -322,7 +360,7 @@ class ContextBuilder
     /**
      * Build full post context for detail page
      */
-    private function buildSinglePostContext(PostData $post, ?CategoryData $primaryCategory = null): array
+    private function buildSinglePostContext(PostData $post, ?CategoryData $primaryCategory = null, array $publicationPosts = []): array
     {
         // Fetch author metadata from Redis cache
         $authorMetadata = $this->profileMetadata->getMetadata($post->pubkey);
@@ -353,8 +391,10 @@ class ContextBuilder
             'slug' => $post->slug,
             'title' => $post->title,
             'excerpt' => $post->summary,
-            'html' => $this->markdownToHtml($post->content, $post->coordinate),
-            'url' => '/a/' . $post->slug,
+            'html' => $this->contentToHtml($post, $publicationPosts),
+            'url' => PublicationUrlGenerator::postPath($post),
+            'canonical_url' => $this->urls?->post($post) ?? PublicationUrlGenerator::postPath($post),
+            ...$this->contentTypeContext($post),
             'feature_image' => $post->image,
             'published_at' => date('c', $post->publishedAt),
             'published_at_formatted' => $post->getPublishedDate(),
@@ -377,7 +417,7 @@ class ContextBuilder
             'primary_tag' => $primaryCategory !== null ? [
                 'name' => $primaryCategory->title,
                 'slug' => $primaryCategory->slug,
-                'url' => '/' . $primaryCategory->slug,
+                'url' => '/' . rawurlencode($primaryCategory->slug),
             ] : null,
         ];
     }
@@ -414,10 +454,40 @@ class ContextBuilder
      * Convert markdown to HTML using the CommonMark converter with Nostr link support.
      * Results are cached by event coordinate since content is immutable.
      */
-    private function markdownToHtml(string $markdown, string $coordinate): string
+    private function contentTypeContext(PostData $post): array
     {
-        // Addressable articles can be revised under the same coordinate.
-        $cacheKey = 'unfold_html_' . hash('sha256', $coordinate . "\0" . $markdown);
+        $label = match ($post->kind) {
+            30041 => 'chapter',
+            30818 => 'wiki',
+            30817 => 'specification',
+            default => 'article',
+        };
+
+        return [
+            'kind' => $post->kind,
+            'content_type' => $label,
+            'content_type_label' => $this->translate('unfold_public.' . $label),
+            'is_community_specification' => $post->kind === 30817,
+            'community_specification_label' => $this->translate('unfold_public.community_specification'),
+            'authored_by_label' => $this->translate('unfold_public.authored_by'),
+            'referenced_kinds' => array_values(array_map(
+                static fn(array $tag): string => (string) $tag[1],
+                array_filter($post->tags, static fn(array $tag): bool => ($tag[0] ?? null) === 'k' && isset($tag[1])),
+            )),
+        ];
+    }
+
+    private function contentToHtml(PostData $post, array $publicationPosts = []): string
+    {
+        if (!$post->isPublic()) {
+            return '';
+        }
+        $format = ContentKindPolicy::format($post->kind);
+        $identities = array_map(static fn(PostData $item): string => $item->coordinate, $publicationPosts);
+        $cacheKey = 'unfold_html_v3_' . hash('sha256', serialize([
+            $post->coordinate, $post->eventId, $post->content, $post->kind, $post->tags,
+            $format, $post->kind === 30818 ? $identities : [], $this->platformBaseUrl,
+        ]));
 
         try {
             $item = $this->cache->getItem($cacheKey);
@@ -427,7 +497,10 @@ class ContextBuilder
             }
 
             // Convert markdown to HTML
-            $html = $this->converter->convertToHTML($markdown);
+            $html = $post->kind === 30818
+                ? WikiLinkResolver::convert($post, $publicationPosts, $this->converter, $this->platformBaseUrl)
+                : $this->converter->convertToHTML($post->content, $format, $post->kind, $post->tags);
+            $html = $this->sanitizer->sanitize($html);
 
             // Cache the result
             $item->set($html);
@@ -437,7 +510,7 @@ class ContextBuilder
             return $html;
         } catch (\Throwable $e) {
             // Fallback to basic HTML escaping if conversion or caching fails
-            $html = htmlspecialchars($markdown, ENT_QUOTES, 'UTF-8');
+            $html = htmlspecialchars($post->content, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             return nl2br($html);
         }
     }

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{post.title}} - {{site.title}}</title>
     <meta name="description" content="{{post.excerpt}}">
+    <link rel="canonical" href="{{post.canonical_url}}">
+    <meta property="og:url" content="{{post.canonical_url}}">
     {{#if post.feature_image}}<meta property="og:image" content="{{post.feature_image}}">{{/if}}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
@@ -23,6 +25,10 @@
             <header class="docs-article-header">
                 {{#if post.primary_tag}}<a class="docs-section-link" href="{{post.primary_tag.url}}">{{post.primary_tag.name}}</a>{{/if}}
                 <h1>{{post.title}}</h1>
+                <p class="docs-meta">{{post.content_type_label}}</p>
+                {{#if post.is_community_specification}}
+                <p class="docs-specification-notice">{{post.community_specification_label}} · {{post.authored_by_label}} {{post.primary_author.name}} ({{post.primary_author.id}})</p>
+                {{/if}}
                 {{#if post.excerpt}}<p class="docs-lede">{{post.excerpt}}</p>{{/if}}
                 <p class="docs-meta">{{post.published_at_formatted}}{{#if post.primary_author}} · {{post.primary_author.name}}{{/if}} · {{post.reading_time}} min read</p>
             </header>

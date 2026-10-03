@@ -1,8 +1,10 @@
 # Unified Publication Admin And Mounts
 
 Status: both owner-admin mounts, publication context, overview, and local theme
-settings and owner footer links are delivered. Wizard/draft migration, analytics, content management,
-and article-editor integration remain planned.
+settings, owner footer links, and content management are delivered. Publication-first
+Redis drafts and signed initial root creation are also delivered. Full wizard
+consolidation, analytics, root metadata editing, and article-editor integration
+remain planned.
 
 Complements the local setup model in `01-owner-admin.md` and the
 planned pages in `04-owner-dashboard-and-content-management.md`. This spec is
@@ -126,24 +128,45 @@ Extends `01-owner-admin.md`, unified across both mounts:
 - `ROLE_ADMIN` does **not** grant publication ownership on either mount. DN
   operators keep a separate, narrow moderation surface.
 
-## Planned Draft State
+## Draft Foundation And Remaining Wizard Work
 
-The magazine wizard is currently session-backed (`SESSION_KEY = 'mag_wizard'` in
+The legacy magazine wizard remains session-backed (`SESSION_KEY = 'mag_wizard'` in
 `MagazineWizardController`). A single session-scoped draft cannot survive the
 dual mount: a draft started on the apex domain is not readable on the subdomain
 unless the session cookie is widened to `.<base-domain>` (D18 records that
 reader-session decision; durable drafts still require their own store).
 
-Replace it with a Redis-backed draft keyed by
-`unfold:draft:<coordinate>` (or `<pubkey>:<dtag>` before first publish):
+The separate publication-first onboarding flow at `/magazine/onboarding` now
+uses an owner-scoped Redis draft before initial signed root publication, with
+expiry, safe discard, and provisional-to-coordinate identity migration.
+That does not yet replace the entire legacy multi-step wizard.
+
+Complete the wizard around coordinate-keyed draft state:
 
 - Separates wizard persistence from the session; authentication across hosts
   still requires the shared cookie configuration.
 - Lets an owner resume a draft from either mount.
 - Allows more than one publication draft per user, which the current single
   session key forbids.
-- Needs an explicit TTL and an owner-initiated discard, replacing
-  `mag_wizard_cancel`.
+- Reuse the delivered TTL/discard behavior rather than introduce another draft
+  store; migrate the legacy cancel/continuation experience separately.
+
+## Delivered Category Content Assignment
+
+Both mounts manage existing owner-authored categories directly referenced by
+the root. Add/remove operations change only the selected child kind-30040
+index, through verified owner signatures and a base-revision check. Root
+identity, local settings, hosting and billing do not change.
+
+Content references can point to `30023`, `30041`, `30818`, or `30817` from other
+authors. Referencing another author's category does not authorize editing that
+category. Relay retries reuse the committed signed event rather than generate
+another revision.
+
+Public URLs encode author and kind with `/{npub}/a/{dtag}`,
+`/{npub}/chapter/{dtag}`, `/{npub}/wiki/{dtag}`, and `/{npub}/spec/{dtag}`.
+The standalone article editor and later publish-then-append integration below
+remain separate.
 
 ## Planned Consolidation Map
 

@@ -1,8 +1,10 @@
 # Local Setup And Owner Administration
 
 Status: shared local setup, persistent theme settings, and owner administration
-with overview/settings on both mounts are delivered. Additional settings, wizard
-migration, analytics, and content management remain planned.
+with overview/settings and content management on both mounts are delivered.
+Publication-first Redis drafts and initial root publishing are delivered.
+Complete wizard consolidation, analytics, root metadata editing, and payment
+settings remain planned.
 
 ## Goal And Identity
 
@@ -25,7 +27,7 @@ event design is deferred until gated access is complete.
 - Bundle-owned settings objects and persistence contracts keep host storage
   details outside the bundle. Runtime `SiteConfig` resolves the index and local
   settings together.
-- Future audience selections, payment-target references, about links, and access
+- Future audience selections, payment-target references, and access
   service configuration will be added when their actual workflows require them.
   Referenced signed events are authoritative for their own contents; local
   selections are authoritative for which references are selected.
@@ -55,8 +57,10 @@ Spec `08-unified-publication-admin.md` defines both mounts:
 - On the main domain: `/mag/{mag}/admin` and equivalent child pages.
 
 Overview and `/admin/settings` are delivered on both mounts. Settings edit the
-theme and owner footer links, using shared validation and the coordinate-keyed local store. Audiences,
-payment targets, content, analytics, and wizard migration remain planned.
+theme and owner footer links, using shared validation and the coordinate-keyed
+local store. Content administration selects About/category references and assigns
+existing multi-kind content inside owner-authored categories. Audiences, payment
+targets, analytics, and complete wizard migration remain planned.
 
 Access rules:
 
@@ -70,7 +74,8 @@ Access rules:
 - Signing is required for changes to Nostr events, through the owner's browser
   signer, but not for local settings.
 
-Both onboarding orders remain planned: publication-first or subdomain-first.
+The publication-first draft/root foundation is delivered; the complete wizard
+and subdomain-first flow remain planned.
 A subdomain-first reservation is a hosting draft, not an Unfold without an
 identity; attach one root coordinate before activation/public rendering. Do not
 introduce nullable-root public sites in this setup slice.

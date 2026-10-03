@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace DecentNewsroom\UnfoldBundle\Content;
 
 use DecentNewsroom\UnfoldBundle\Cache\StaleWhileRevalidateCache;
+use DecentNewsroom\UnfoldBundle\Config\ContentReference;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
@@ -10,18 +13,15 @@ use DecentNewsroom\UnfoldBundle\Contract\PublicationTreeLookupInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Provides content by traversing the magazine event tree.
- *
- * Primary path: the optional publication-tree lookup (host graph adapter).
- * Fallback path: the event gateway's relay reads (used when graph data is missing).
- *
- * The graph path resolves the entire magazine tree in a single recursive SQL query,
- * eliminating the N+1 relay requests that caused slow cache warming and first-visit failures.
+ * Signed index references determine membership and order. The optional graph
+ * supplies local events, while the gateway fills only missing exact identities.
  */
 class ContentProvider
 {
-    private const FRESH_TTL = 300;   // 5 minutes - serve without revalidation
-    private const STALE_TTL = 3600;  // 1 hour - serve stale while revalidating
+    private const CACHE_VERSION = 'v4_';
+    private const FRESH_TTL = 300;
+    private const STALE_TTL = 3600;
+    private const REVISION_TTL = 31536000;
 
     public function __construct(
         private readonly EventReadGatewayInterface $eventGateway,
@@ -30,390 +30,320 @@ class ContentProvider
         private readonly ?PublicationTreeLookupInterface $treeLookup = null,
     ) {}
 
-    /**
-     * Get all categories for a site
-     *
-     * @return CategoryData[]
-     */
+    /** @return list<CategoryData> */
     public function getCategories(SiteConfig $site): array
     {
-        $cacheKey = 'categories_' . md5($site->naddr);
-
+        if ($site->isScoped) {
+            return [];
+        }
         return $this->swrCache->get(
-            $cacheKey,
-            fn() => $this->fetchAllCategories($site),
+            $this->categoriesKey($site),
+            fn() => $this->fetchCategories($site),
             self::FRESH_TTL,
             self::STALE_TTL,
-            [] // Return empty array on failure
+            [],
         );
     }
 
-    /**
-     * Fetch all categories (internal fetcher for cache)
-     * @return CategoryData[]
-     */
-    private function fetchAllCategories(SiteConfig $site): array
+    /** @return list<CategoryData> */
+    private function fetchCategories(SiteConfig $site): array
     {
-        if (empty($site->categories)) {
-            return [];
-        }
-
-        // Try graph-backed fast path first
-        if ($this->treeLookup !== null) {
-            $result = $this->fetchCategoriesFromGraph($site);
-            if (!empty($result)) {
-                return $result;
-            }
-            $this->logger->warning('Graph path returned empty categories, falling back to relay', [
-                'naddr' => $site->naddr,
-                'expected_categories' => $site->categories,
-            ]);
-        }
-
-        // Fallback: relay round-trips (wrapped to prevent silent hangs)
-        try {
-            return $this->fetchCategoriesFromRelay($site);
-        } catch (\Throwable $e) {
-            $this->logger->error('Relay fallback failed for categories, returning empty', [
-                'naddr' => $site->naddr,
-                'error' => $e->getMessage(),
-            ]);
-            return [];
-        }
-    }
-
-    /**
-     * Fetch categories using the graph layer (local DB).
-     * @return CategoryData[]
-     */
-    private function fetchCategoriesFromGraph(SiteConfig $site): array
-    {
-        $this->logger->debug('Resolving categories from graph', [
-            'naddr' => $site->naddr,
-            'category_count' => count($site->categories),
-        ]);
-
-        $children = $this->treeLookup->findChildren($site->naddr);
-
-        if (empty($children)) {
-            return [];
-        }
-
-        // Build a coord→event map while retaining the configured category order.
-        $childByCoord = [];
-        foreach ($children as $child) {
-            $childByCoord[$this->eventCoordinate($child)] = $child;
-        }
-
-        // Build CategoryData, preserving category order from site config
+        $references = array_values(array_unique(array_map($this->normalizeCoordinate(...), $site->categories)));
+        $events = $this->resolveReferences($references, $site->naddr);
         $categories = [];
-        foreach ($site->categories as $coordinate) {
-            $child = $this->findChildByCoord($childByCoord, $coordinate);
-
-            if ($child === null) {
-                $this->logger->debug('Category not found in graph children', ['coordinate' => $coordinate]);
-                continue;
+        foreach ($references as $coordinate) {
+            $event = $events[$coordinate] ?? null;
+            if ($event !== null && $event->kind === 30040 && !ContentReference::isScoped($event)) {
+                $categories[] = CategoryData::fromEvent($event, $coordinate);
             }
-
-            $categories[] = CategoryData::fromEvent($child, $coordinate);
-        }
-
-        if (!empty($categories)) {
-            $this->logger->debug('Categories resolved from graph', ['count' => count($categories)]);
         }
 
         return $categories;
     }
 
-    /**
-     * Fetch categories via relay round-trips (original fallback).
-     * @return CategoryData[]
-     */
-    private function fetchCategoriesFromRelay(SiteConfig $site): array
-    {
-        $eventsMap = $this->eventGateway->findByCoordinates($site->categories);
-
-        $categories = [];
-        foreach ($site->categories as $coordinate) {
-            $event = $this->findEvent($eventsMap, $coordinate);
-            if ($event === null) {
-                $this->logger->warning('Category event not found (batch)', ['coordinate' => $coordinate]);
-                continue;
-            }
-            $categories[] = CategoryData::fromEvent($event, $coordinate);
-        }
-
-        return $categories;
-    }
-
-    /**
-     * Get posts for a specific category
-     *
-     * @return PostData[]
-     */
+    /** @return list<PostData> */
     public function getCategoryPosts(string $categoryCoordinate): array
     {
-        $cacheKey = 'category_posts_' . md5($categoryCoordinate);
+        $categoryCoordinate = $this->normalizeCoordinate($categoryCoordinate);
+        return $this->readCategoryPosts($categoryCoordinate, []);
+    }
 
-        return $this->swrCache->get(
-            $cacheKey,
-            fn() => $this->fetchCategoryPostsInternal($categoryCoordinate),
+    /** @param list<string> $ancestors @return list<PostData> */
+    private function readCategoryPosts(string $coordinate, array $ancestors): array
+    {
+        if (count($ancestors) >= 3 || in_array($coordinate, $ancestors, true)) {
+            return [];
+        }
+        $entries = $this->swrCache->get(
+            $this->categoryKey($coordinate),
+            fn() => $this->fetchCategoryEntries($coordinate),
             self::FRESH_TTL,
             self::STALE_TTL,
-            [] // Return empty array on failure
+            [],
         );
-    }
-
-    /**
-     * Fetch category posts (internal fetcher for cache)
-     * @return PostData[]
-     */
-    private function fetchCategoryPostsInternal(string $categoryCoordinate): array
-    {
-        // Try graph-backed fast path first
-        if ($this->treeLookup !== null) {
-            $result = $this->fetchCategoryPostsFromGraph($categoryCoordinate);
-            if (!empty($result)) {
-                return $result;
+        $posts = [];
+        foreach ($entries as $entry) {
+            if ($entry instanceof PostData && $entry->isPublic()) {
+                $posts[$entry->coordinate] ??= $entry;
+            } elseif (is_string($entry)) {
+                foreach ($this->readCategoryPosts($entry, [...$ancestors, $coordinate]) as $post) {
+                    $posts[$post->coordinate] ??= $post;
+                }
             }
-            $this->logger->warning('Graph path returned empty posts, falling back to relay', [
-                'coordinate' => $categoryCoordinate,
-            ]);
         }
 
-        // Fallback: relay round-trips (wrapped to prevent silent hangs)
-        try {
-            return $this->fetchCategoryPostsFromRelay($categoryCoordinate);
-        } catch (\Throwable $e) {
-            $this->logger->error('Relay fallback failed for category posts, returning empty', [
-                'coordinate' => $categoryCoordinate,
-                'error' => $e->getMessage(),
-            ]);
-            return [];
-        }
+        return array_values($posts);
     }
 
-    /**
-     * Fetch category posts using the graph layer (local DB).
-     * @return PostData[]
-     */
-    private function fetchCategoryPostsFromGraph(string $categoryCoordinate): array
+    /** @return list<PostData|string> Direct leaves or child-index coordinates in signed order. */
+    private function fetchCategoryEntries(string $coordinate): array
     {
-        $children = $this->treeLookup->findChildren($categoryCoordinate);
-
-        if (empty($children)) {
+        // A graph child collection alone cannot establish the current signed
+        // index's scope or membership, including when projection is incomplete.
+        $event = $this->lookup($coordinate);
+        if ($event === null || $event->kind !== 30040 || ContentReference::isScoped($event)
+            || $this->eventCoordinate($event) !== $coordinate) {
             return [];
         }
-
-        $posts = [];
-        foreach ($children as $child) {
-            $posts[] = PostData::fromEvent($child);
-        }
-
-        if (!empty($posts)) {
-            $this->logger->debug('Category posts resolved from graph', [
-                'coordinate' => $categoryCoordinate,
-                'count' => count($posts),
-            ]);
-        }
-
-        return $posts;
-    }
-
-    /**
-     * Fetch category posts via relay round-trips (original fallback).
-     * @return PostData[]
-     */
-    private function fetchCategoryPostsFromRelay(string $categoryCoordinate): array
-    {
-        $category = $this->fetchCategoryByCoordinate($categoryCoordinate);
-        if ($category === null) {
-            return [];
-        }
-
-        if (empty($category->articleCoordinates)) {
-            return [];
-        }
-
-        $eventsMap = $this->eventGateway->findByCoordinates($category->articleCoordinates);
-
-        $posts = [];
-        foreach ($category->articleCoordinates as $articleCoordinate) {
-            $event = $this->findEvent($eventsMap, $articleCoordinate);
-            if ($event === null) {
-                $this->logger->warning('Post event not found (batch)', ['coordinate' => $articleCoordinate]);
+        $category = CategoryData::fromEvent($event, $coordinate);
+        $events = $this->resolveReferences($category->referenceCoordinates, $coordinate);
+        $entries = [];
+        foreach ($category->referenceCoordinates as $reference) {
+            $child = $events[$reference] ?? null;
+            if ($child === null || ContentReference::isScoped($child)) {
                 continue;
             }
-            $posts[] = PostData::fromEvent($event);
+            if ($child->kind === 30040) {
+                // Cache the reference, not a flattened descendant snapshot:
+                // nested shared-category revisions remain independently live.
+                $entries[] = $reference;
+                continue;
+            }
+            try {
+                $identity = ContentReference::fromInput($reference);
+                if ($identity->matches($child)) {
+                    $entries[] = PostData::fromEvent($child);
+                }
+            } catch (\InvalidArgumentException) {
+            }
         }
 
-        return $posts;
+        return $entries;
     }
 
     /**
-     * Get all posts for the home page (aggregated from all categories)
+     * A present but denied/mismatched event is not a missing event: never retry
+     * its coordinate through a less restrictive fallback.
      *
-     * @return PostData[]
+     * @param list<string> $references
+     * @return array<string, NostrEvent>
      */
+    private function resolveReferences(array $references, string $parent): array
+    {
+        if ($references === []) {
+            return [];
+        }
+        $events = [];
+        try {
+            foreach ($this->treeLookup?->findChildren($parent) ?? [] as $event) {
+                $coordinate = $this->eventCoordinate($event);
+                if (in_array($coordinate, $references, true)) {
+                    $events[$coordinate] ??= $event;
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Publication graph lookup failed', ['coordinate' => $parent, 'error' => $e->getMessage()]);
+        }
+        $missing = array_values(array_diff($references, array_keys($events)));
+        if ($missing !== []) {
+            try {
+                foreach ($this->eventGateway->findByCoordinates($missing) as $key => $event) {
+                    if (!$event instanceof NostrEvent) {
+                        continue;
+                    }
+                    $coordinate = $this->eventCoordinate($event);
+                    // Do not trust either a gateway map key or a slug-only match.
+                    if (in_array($coordinate, $missing, true)
+                        && (!is_string($key) || $this->normalizeCoordinate($key) === $coordinate)) {
+                        $events[$coordinate] ??= $event;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->logger->warning('Publication reference hydration failed', ['coordinate' => $parent, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return $events;
+    }
+
+    /** @return list<PostData> */
     public function getHomePosts(SiteConfig $site, int $limit = 3): array
     {
-        $cacheKey = 'home_posts_' . md5($site->naddr) . '_' . $limit;
-
-        return $this->swrCache->get(
-            $cacheKey,
-            fn() => $this->fetchHomePostsInternal($site, $limit),
-            self::FRESH_TTL,
-            self::STALE_TTL,
-            [] // Return empty array on failure
-        );
+        return $this->publicationInventory($site, max(0, $limit));
     }
 
-    /**
-     * Get the newest posts in a publication, across every category.
-     *
-     * Unlike getHomePosts(), this deliberately fetches the complete category
-     * collections before applying one publication-wide limit. This makes the
-     * result suitable for discovery documents such as RSS and sitemaps.
-     *
-     * @return PostData[]
-     */
+    /** @return list<PostData> */
     public function getPublicationPosts(SiteConfig $site, int $limit = 50): array
     {
-        $limit = max(0, min(50, $limit));
-        $cacheKey = 'publication_posts_' . md5($site->naddr) . '_' . $limit;
+        $posts = $this->publicationInventory($site);
+        // Stable sort retains signed index order for equal timestamps.
+        usort($posts, static fn(PostData $a, PostData $b): int => $b->publishedAt <=> $a->publishedAt);
 
-        return $this->swrCache->get(
-            $cacheKey,
-            fn() => $this->fetchPublicationPostsInternal($site, $limit),
-            self::FRESH_TTL,
-            self::STALE_TTL,
-            []
-        );
+        return array_slice($posts, 0, max(0, min(50, $limit)));
     }
 
-    /**
-     * @return PostData[]
-     */
-    private function fetchPublicationPostsInternal(SiteConfig $site, int $limit): array
+    /** @return list<PostData> All public leaves in signed traversal order, without a discovery cap. */
+    public function getPublicationInventory(SiteConfig $site): array
     {
-        if ($limit === 0) {
+        return $this->publicationInventory($site);
+    }
+
+    /** @return list<PostData> */
+    private function publicationInventory(SiteConfig $site, ?int $perCategoryLimit = null): array
+    {
+        if ($site->isScoped) {
+            return [];
+        }
+        $posts = [];
+        $categories = [];
+        foreach ($this->getCategories($site) as $category) {
+            $categories[$category->coordinate] = $category;
+        }
+        $rootPosts = [];
+        foreach ($this->getRootPosts($site) as $post) {
+            $rootPosts[$post->coordinate] = $post;
+        }
+        $references = $site->rootReferenceCoordinates !== []
+            ? $site->rootReferenceCoordinates
+            : [...array_keys($rootPosts), ...array_keys($categories)];
+        $directCount = 0;
+        foreach ($references as $reference) {
+            $reference = $this->normalizeCoordinate($reference);
+            if (isset($rootPosts[$reference])) {
+                if ($perCategoryLimit === null || $directCount++ < $perCategoryLimit) {
+                    $posts[$reference] ??= $rootPosts[$reference];
+                }
+                continue;
+            }
+            $category = $categories[$reference] ?? null;
+            if ($category === null) {
+                continue;
+            }
+            $categoryPosts = $this->getCategoryPosts($category->coordinate);
+            if ($perCategoryLimit !== null) {
+                $categoryPosts = array_slice($categoryPosts, 0, $perCategoryLimit);
+            }
+            foreach ($categoryPosts as $post) {
+                if ($post->isPublic()) {
+                    $posts[$post->coordinate] ??= $post;
+                }
+            }
+        }
+
+        return array_values($posts);
+    }
+
+    /** @return list<PostData> */
+    private function getRootPosts(SiteConfig $site): array
+    {
+        $references = $site->rootContentCoordinates !== [] ? $site->rootContentCoordinates : $site->rootArticleCoordinates;
+        if ($site->isScoped || $references === []) {
             return [];
         }
 
-        $postsByCoordinate = [];
-        $order = 0;
-
-        foreach ($this->getCategories($site) as $category) {
-            foreach ($this->getCategoryPosts($category->coordinate) as $post) {
-                $coordinate = strtolower($post->coordinate);
-                if (isset($postsByCoordinate[$coordinate])) {
-                    continue;
+        return $this->swrCache->get(
+            $this->rootPostsKey($site),
+            function () use ($site, $references): array {
+                $references = array_values(array_unique(array_map($this->normalizeCoordinate(...), $references)));
+                $events = $this->resolveReferences($references, $site->naddr);
+                $posts = [];
+                foreach ($references as $coordinate) {
+                    $event = $events[$coordinate] ?? null;
+                    if ($event === null || ContentReference::isScoped($event)) {
+                        continue;
+                    }
+                    try {
+                        $reference = ContentReference::fromInput($coordinate);
+                        if ($reference->matches($event)) {
+                            $posts[] = PostData::fromEvent($event);
+                        }
+                    } catch (\InvalidArgumentException) {
+                    }
                 }
 
-                $postsByCoordinate[$coordinate] = [
-                    'post' => $post,
-                    'order' => $order++,
-                ];
-            }
-        }
-
-        uasort(
-            $postsByCoordinate,
-            static function (array $left, array $right): int {
-                $publishedAt = $right['post']->publishedAt <=> $left['post']->publishedAt;
-
-                return $publishedAt !== 0
-                    ? $publishedAt
-                    : $left['order'] <=> $right['order'];
-            }
+                return $posts;
+            },
+            self::FRESH_TTL,
+            self::STALE_TTL,
+            [],
         );
-
-        return array_values(array_map(
-            static fn(array $entry): PostData => $entry['post'],
-            array_slice($postsByCoordinate, 0, $limit)
-        ));
     }
 
-    /**
-     * Fetch home posts (internal fetcher for cache)
-     * @return PostData[]
-     */
-    private function fetchHomePostsInternal(SiteConfig $site, int $limit): array
+    public function getPostByCoordinate(string $coordinate, SiteConfig $site): ?PostData
     {
-        $allPosts = [];
-        $categories = $this->getCategories($site);
-
-        foreach ($categories as $category) {
-            $categoryPosts = $this->getCategoryPosts($category->coordinate);
-            $allPosts = array_merge($allPosts, array_slice($categoryPosts, 0, $limit));
-        }
-
-        return $allPosts;
-    }
-
-    /**
-     * Resolve the introduction article. An explicit owner choice suppresses
-     * root-index auto-selection even when the chosen article is unavailable.
-     */
-    public function getAboutArticle(SiteConfig $site): ?PostData
-    {
-        $coordinate = $site->aboutArticleCoordinate;
-        $relayHints = $site->aboutRelayHints;
-
-        if ($coordinate === null) {
-            $rootArticles = array_values(array_unique($site->rootArticleCoordinates));
-            if (count($rootArticles) !== 1) {
-                return null;
-            }
-
-            $coordinate = $rootArticles[0];
-            $relayHints = [];
-        }
-
         try {
-            $event = $this->eventGateway->findByCoordinate($coordinate, $relayHints);
-        } catch (\Throwable $e) {
-            $this->logger->warning('About article lookup failed', [
-                'coordinate' => $coordinate,
-                'error' => $e->getMessage(),
-            ]);
-
+            $identity = ContentReference::fromInput($coordinate);
+        } catch (\InvalidArgumentException) {
             return null;
         }
+        foreach ($this->publicationInventory($site) as $post) {
+            if ($post->coordinate === $identity->coordinate) {
+                return $post;
+            }
+        }
 
-        return $event !== null && $this->matchesArticleCoordinate($event, $coordinate)
-            ? PostData::fromEvent($event)
-            : null;
+        return null;
     }
 
-    /**
-     * Actual article authors, following category and article-reference order.
-     *
-     * @param CategoryData[] $categories
-     * @return list<string>
-     */
+    /** Legacy articles only: an ambiguous identifier must never select an author. */
+    public function getPost(string $slug, SiteConfig $site): ?PostData
+    {
+        $matches = array_values(array_filter(
+            $this->publicationInventory($site),
+            static fn(PostData $post): bool => $post->kind === 30023 && $post->slug === $slug,
+        ));
+        if (count($matches) > 1) {
+            throw new AmbiguousContentException($matches);
+        }
+
+        return $matches[0] ?? null;
+    }
+
+    public function getAboutArticle(SiteConfig $site): ?PostData
+    {
+        if ($site->isScoped) {
+            return null;
+        }
+        $coordinate = $site->aboutArticleCoordinate;
+        $relayHints = $site->aboutRelayHints;
+        if ($coordinate === null) {
+            $references = array_values(array_unique($site->rootArticleCoordinates));
+            if (count($references) !== 1) {
+                return null;
+            }
+            $coordinate = $references[0];
+            $relayHints = [];
+        }
+        try {
+            $reference = ContentReference::fromInput($coordinate);
+            $event = $this->lookup($coordinate, $relayHints);
+
+            return $reference->kind === 30023 && $event !== null
+                && !ContentReference::isScoped($event) && $reference->matches($event)
+                ? PostData::fromEvent($event) : null;
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    /** @param list<CategoryData> $categories @return list<string> */
     public function getCategoryArticleAuthorPubkeys(array $categories): array
     {
         $authors = [];
-
         foreach ($categories as $category) {
-            // Reuse the graph-backed, SWR-cached collection used by publication pages.
-            $postsByCoordinate = [];
             foreach ($this->getCategoryPosts($category->coordinate) as $post) {
-                if (str_starts_with($post->coordinate, '30023:')) {
-                    $postsByCoordinate[$this->normalizeCoordinate($post->coordinate)] = $post;
-                }
-            }
-
-            foreach ($category->articleCoordinates as $coordinate) {
-                $post = $postsByCoordinate[$this->normalizeCoordinate($coordinate)] ?? null;
-                if ($post === null) {
-                    continue;
-                }
-
-                $pubkey = strtolower($post->pubkey);
-                if (preg_match('/^[a-f0-9]{64}$/D', $pubkey) === 1) {
-                    $authors[$pubkey] = true;
+                if ($post->isPublic()) {
+                    $authors[$post->pubkey] = true;
                 }
             }
         }
@@ -421,209 +351,92 @@ class ContentProvider
         return array_keys($authors);
     }
 
-    private function matchesArticleCoordinate(NostrEvent $event, string $coordinate): bool
+    private function lookup(string $coordinate, array $relayHints = []): ?NostrEvent
     {
-        return $event->kind === 30023
-            && $this->normalizeCoordinate($this->eventCoordinate($event)) === $this->normalizeCoordinate($coordinate);
-    }
-
-    /**
-     * Get a single post by slug
-     */
-    public function getPost(string $slug, SiteConfig $site): ?PostData
-    {
-        // Try graph-backed fast path: search through all descendants
-        if ($this->treeLookup !== null) {
-            $post = $this->fetchPostBySlugFromGraph($slug, $site);
-            if ($post !== null) {
-                return $post;
-            }
-        }
-
-        // Fallback: search through all categories via cache/relay
-        $categories = $this->getCategories($site);
-
-        foreach ($categories as $category) {
-            foreach ($category->articleCoordinates as $coordinate) {
-                if (str_ends_with($coordinate, ':' . $slug)) {
-                    return $this->fetchPostByCoordinate($coordinate);
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Find a post by slug using the graph layer.
-     */
-    private function fetchPostBySlugFromGraph(string $slug, SiteConfig $site): ?PostData
-    {
-        $descendants = $this->treeLookup->findDescendants($site->naddr, 3);
-
-        foreach ($descendants as $desc) {
-            if ($this->eventIdentifier($desc) === $slug) {
-                return PostData::fromEvent($desc);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Fetch a category event by coordinate (relay fallback path)
-     */
-    private function fetchCategoryByCoordinate(string $coordinate): ?CategoryData
-    {
-        $decoded = $this->parseCoordinate($coordinate);
-        if ($decoded === null) {
-            $this->logger->warning('Invalid category coordinate', ['coordinate' => $coordinate]);
-            return null;
-        }
-
         try {
-            $event = $this->eventGateway->findByCoordinate($coordinate);
-            if ($event === null) {
-                $this->logger->warning('Category event not found', ['coordinate' => $coordinate]);
-                return null;
-            }
+            return $this->eventGateway->findByCoordinate($coordinate, $relayHints);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Publication event lookup failed', ['coordinate' => $coordinate, 'error' => $e->getMessage()]);
 
-            return CategoryData::fromEvent($event, $coordinate);
-        } catch (\Exception $e) {
-            $this->logger->error('Error fetching category', [
-                'coordinate' => $coordinate,
-                'error' => $e->getMessage(),
-            ]);
             return null;
         }
-    }
-
-    /**
-     * Fetch a post event by coordinate (relay fallback path)
-     */
-    private function fetchPostByCoordinate(string $coordinate): ?PostData
-    {
-        $decoded = $this->parseCoordinate($coordinate);
-        if ($decoded === null) {
-            $this->logger->warning('Invalid post coordinate', ['coordinate' => $coordinate]);
-            return null;
-        }
-
-        try {
-            $event = $this->eventGateway->findByCoordinate($coordinate);
-            if ($event === null) {
-                $this->logger->warning('Post event not found', ['coordinate' => $coordinate]);
-                return null;
-            }
-
-            return PostData::fromEvent($event);
-        } catch (\Exception $e) {
-            $this->logger->error('Error fetching post', [
-                'coordinate' => $coordinate,
-                'error' => $e->getMessage(),
-            ]);
-            return null;
-        }
-    }
-
-    /**
-     * Find a child record by coordinate, handling case differences in pubkeys.
-     */
-    private function findChildByCoord(array $childByCoord, string $coordinate): ?NostrEvent
-    {
-        // Exact match
-        if (isset($childByCoord[$coordinate])) {
-            return $childByCoord[$coordinate];
-        }
-
-        // Case-insensitive match (pubkey case normalization differences)
-        $lower = strtolower($coordinate);
-        if (isset($childByCoord[$lower])) {
-            return $childByCoord[$lower];
-        }
-
-        foreach ($childByCoord as $k => $v) {
-            if (strcasecmp($k, $coordinate) === 0) {
-                return $v;
-            }
-        }
-
-        return null;
-    }
-
-    private function findEvent(array $events, string $coordinate): ?NostrEvent
-    {
-        $normalized = $this->normalizeCoordinate($coordinate);
-        foreach ($events as $eventCoordinate => $event) {
-            if ($event instanceof NostrEvent
-                && ($eventCoordinate === $normalized || $this->normalizeCoordinate((string) $eventCoordinate) === $normalized)
-            ) {
-                return $event;
-            }
-        }
-
-        return null;
     }
 
     private function eventCoordinate(NostrEvent $event): string
     {
-        return sprintf('%d:%s:%s', $event->kind, strtolower($event->pubkey), $this->eventIdentifier($event));
-    }
-
-    private function eventIdentifier(NostrEvent $event): string
-    {
+        $identifier = null;
         foreach ($event->tags as $tag) {
-            if (($tag[0] ?? null) === 'd' && isset($tag[1])) {
-                return $tag[1];
+            if (($tag[0] ?? null) === 'd') {
+                if ($identifier !== null || !is_string($tag[1] ?? null)) {
+                    return '';
+                }
+                $identifier = $tag[1];
             }
         }
 
-        return '';
+        return $identifier === null ? '' : $event->kind . ':' . strtolower($event->pubkey) . ':' . $identifier;
     }
 
     private function normalizeCoordinate(string $coordinate): string
     {
         $parts = explode(':', $coordinate, 3);
-        if (count($parts) !== 3) {
-            return strtolower($coordinate);
+        if (count($parts) === 3) {
+            $parts[1] = strtolower($parts[1]);
         }
-        $parts[1] = strtolower($parts[1]);
 
         return implode(':', $parts);
     }
 
-    /**
-     * Parse a coordinate string (kind:pubkey:identifier) into naddr-like array
-     */
-    private function parseCoordinate(string $coordinate): ?array
+    private function categoriesKey(SiteConfig $site): string
     {
-        $parts = explode(':', $coordinate, 3);
-        if (count($parts) !== 3) {
-            return null;
+        $dependencies = [];
+        foreach ($site->categories as $coordinate) {
+            $coordinate = $this->normalizeCoordinate($coordinate);
+            $dependencies[$coordinate] = $this->categoryRevision($coordinate);
         }
 
-        return [
-            'kind' => (int) $parts[0],
-            'pubkey' => strtolower($parts[1]),
-            'identifier' => $parts[2],
-            'relays' => [],
-        ];
+        return self::CACHE_VERSION . 'categories_' . hash('sha256', $site->naddr . json_encode($dependencies));
     }
 
-    /**
-     * Invalidate all caches for a site
-     */
+    private function categoryKey(string $coordinate): string
+    {
+        return self::CACHE_VERSION . 'category_posts_' . md5($coordinate) . '_' . $this->categoryRevision($coordinate);
+    }
+
+    private function rootPostsKey(SiteConfig $site): string
+    {
+        return self::CACHE_VERSION . 'root_posts_' . hash('sha256', serialize([
+            $site->naddr, $site->rootContentCoordinates, $site->rootArticleCoordinates,
+        ]));
+    }
+
+    private function categoryRevision(string $coordinate): string
+    {
+        return $this->swrCache->get(
+            self::CACHE_VERSION . 'category_revision_' . md5($coordinate),
+            static fn(): string => bin2hex(random_bytes(16)),
+            self::REVISION_TTL,
+            self::REVISION_TTL,
+        );
+    }
+
+    public function invalidateCategoryCache(string $coordinate): void
+    {
+        $coordinate = $this->normalizeCoordinate($coordinate);
+        $this->swrCache->invalidate($this->categoryKey($coordinate));
+        // Every publication's category inventory key depends on this shared
+        // revision. No registry/database lookup or host-specific coupling.
+        $this->swrCache->invalidate(self::CACHE_VERSION . 'category_revision_' . md5($coordinate));
+    }
+
     public function invalidateSiteCache(SiteConfig $site): void
     {
-        $this->swrCache->invalidate('categories_' . md5($site->naddr));
-        $this->swrCache->invalidate('home_posts_' . md5($site->naddr) . '_10');
-        $this->swrCache->invalidate('home_posts_' . md5($site->naddr) . '_3');
-        $this->swrCache->invalidate('publication_posts_' . md5($site->naddr) . '_50');
-
+        $this->swrCache->invalidate($this->categoriesKey($site));
+        $this->swrCache->invalidate($this->rootPostsKey($site));
         foreach ($site->categories as $coordinate) {
-            $this->swrCache->invalidate('category_posts_' . md5($coordinate));
+            $this->invalidateCategoryCache($coordinate);
         }
-
-        $this->logger->info('Invalidated site content cache', ['naddr' => $site->naddr]);
+        // Aggregate lists are derived from the shared category caches rather
+        // than separately cached, so shared-category updates reach every site.
     }
 }

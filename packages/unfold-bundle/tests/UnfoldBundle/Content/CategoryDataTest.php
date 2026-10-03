@@ -21,7 +21,7 @@ final class CategoryDataTest extends TestCase
                 ['d', 'my-category'],
                 ['title', 'My Category'],
                 ['summary', 'A short summary'],
-                ['a', '30023:pubkey:article-1'],
+                ['a', '30023:' . str_repeat('a', 64) . ':article-1'],
             ],
             createdAt: 1,
             sig: 'signature',
@@ -33,7 +33,7 @@ final class CategoryDataTest extends TestCase
         self::assertSame('My Category', $cat->title);
         self::assertSame('A short summary', $cat->summary);
         self::assertSame('30040:pubkey:my-category', $cat->coordinate);
-        self::assertSame(['30023:pubkey:article-1'], $cat->articleCoordinates);
+        self::assertSame(['30023:' . str_repeat('a', 64) . ':article-1'], $cat->articleCoordinates);
     }
 
     public function testAuthorTagsAreNormalizedAndInvalidTagsIgnored(): void

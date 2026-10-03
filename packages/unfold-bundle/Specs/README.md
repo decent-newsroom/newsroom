@@ -3,9 +3,10 @@
 Status: staged implementation specifications. Internal Composer extraction,
 publication discovery, shared local setup, and persistent theme settings are
 delivered. Owner administration now delivers overview/settings through both
-mounts. The publication footer and owner links are delivered. Wizard migration,
-analytics, content configuration, audience/payment
-workflows, and gated access remain planned.
+mounts, including content management and category content assignment. The
+publication footer, owner links, publication-first draft/root foundation and
+multi-kind hosted reading are delivered. Complete wizard migration, analytics,
+root metadata editing, audience/payment workflows, and gated access remain planned.
 
 An Unfold is permanently identified by exactly one immutable root magazine
 coordinate. Setting it up or changing local settings does not require any
@@ -24,7 +25,7 @@ admin mounts and ownership rules alongside the deferred consolidation work.
 | `01-owner-admin.md` | Delivered local setup, theme settings, and owner administration foundation. |
 | `02-audiences-and-payment-targets.md` | Planned audience and payment events with local reference selections. |
 | `03-feeds-sitemap-footer.md` | Delivered discovery endpoints and two-level publication footer; conditional future links remain planned. |
-| `04-owner-dashboard-and-content-management.md` | Delivered overview/theme settings and planned analytics/content pages. |
+| `04-owner-dashboard-and-content-management.md` | Delivered settings/content management and multi-kind reading; planned analytics and root editing. |
 | `05-tests-and-rollout.md` | Setup coverage, compatibility, migration requirements, and later rollout. |
 | `06-gated-access-and-payments.md` | Gated-access contract for kinds `38133`/`30879`/`8879`/`28877`/`28878`. |
 | `07-reader-interactions.md` | Likes, bookmarks, highlights, and gated interaction rules. |
@@ -36,7 +37,7 @@ admin mounts and ownership rules alongside the deferred consolidation work.
   descendant content; a subdomain is optional hosting, not its identity.
 - Publication owner: the pubkey in that immutable root coordinate.
 - Local publication settings: host-persisted choices keyed by the full coordinate.
-  Only the theme is implemented in the current slice.
+  Theme, footer links, and About selections are implemented.
 - `UnfoldSite`: host subdomain mapping, separate from publication settings and
   subscription billing.
 - Referenced events: authoritative for their own contents, such as root index
@@ -52,7 +53,8 @@ admin mounts and ownership rules alongside the deferred consolidation work.
 
 1. **Delivered:** shared operator/subscription setup and persistent local settings.
 2. **Delivered:** publication context, both owner admin mounts, overview, and theme settings.
-3. Consolidate content management/editor workflows.
+3. **Delivered:** category content assignment and multi-kind hosted reading;
+   continue wizard consolidation, root editing and article-editor integration.
 4. Add audience/payment events and selected references; optionally ship Audience
    Preview as **Gated access coming soon**, without checkout or entitlements.
 5. Establish scope-aware publishing and authorization across all reads/caches,

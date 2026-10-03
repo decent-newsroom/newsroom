@@ -20,6 +20,7 @@
             {{#each posts}}
                 <article class="docs-entry">
                     <h2><a href="{{url}}">{{title}}</a></h2>
+                    <p class="docs-meta">{{content_type_label}}{{#if is_community_specification}} · {{community_specification_label}}{{/if}}</p>
                     {{#if excerpt}}<p>{{excerpt}}</p>{{/if}}
                     <p class="docs-meta">{{published_at_formatted}}{{#if primary_author}} · {{primary_author.name}}{{/if}}</p>
                 </article>

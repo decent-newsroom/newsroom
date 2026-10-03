@@ -7,14 +7,32 @@ services:
         resource: '../../src/'
         exclude:
             - '../../src/DependencyInjection/'
+            - '../../src/Contract/'
             - '../../src/Admin/PublicationContext.php'
             - '../../src/Admin/PublicationMount.php'
+            - '../../src/Admin/PublicationOnboardingContext.php'
+            - '../../src/Admin/AboutIndexMutation.php'
+            - '../../src/Admin/CategoryIndexMutation.php'
+            - '../../src/Admin/CategoryContentMutation.php'
+            - '../../src/Config/AppData.php'
+            - '../../src/Config/AboutArticleReference.php'
+            - '../../src/Config/CategoryReference.php'
+            - '../../src/Config/ContentReference.php'
+            - '../../src/Config/PublicationDraft.php'
+            - '../../src/Config/PublicationSettings.php'
+            - '../../src/Config/SiteConfig.php'
+            - '../../src/Content/AmbiguousContentException.php'
+            - '../../src/Content/CategoryData.php'
+            - '../../src/Content/ContentKindPolicy.php'
+            - '../../src/Content/PostData.php'
 
     DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationAdminController:
         tags: ['controller.service_arguments']
     DecentNewsroom\UnfoldBundle\Controller\Admin\AboutIndexController:
         tags: ['controller.service_arguments']
     DecentNewsroom\UnfoldBundle\Controller\Admin\CategoryIndexController:
+        tags: ['controller.service_arguments']
+    DecentNewsroom\UnfoldBundle\Controller\Admin\CategoryContentController:
         tags: ['controller.service_arguments']
     DecentNewsroom\UnfoldBundle\Controller\Admin\PublicationOnboardingController:
         tags: ['controller.service_arguments']

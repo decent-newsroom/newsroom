@@ -6,9 +6,11 @@
 > subdomain or a `/mag/{mag}/admin` coordinate mount. Paths below are relative
 > to `PublicationContext.adminPathPrefix`.
 
-Status: owner overview, theme settings, and footer links are delivered on both mounts. Analytics,
-content management, audiences, payment targets, and the expanded dashboard remain
-planned. Operator setup remains a separate host administration surface.
+Status: owner overview, theme settings, footer links, About/category references,
+and category content assignment are delivered on both mounts. Hosted reading
+supports articles, chapters, wiki entries, and community-authored specifications.
+Analytics, root metadata editing, audiences, payment targets, and the expanded
+dashboard remain planned. Operator setup stays a separate host surface.
 
 ## Goal
 
@@ -20,10 +22,11 @@ Delivered pages:
 
 - `/admin`: dashboard overview.
 - `/admin/settings`: local publication settings.
+- `/admin/content`: About/category-reference inventory and category content
+  assignment.
 
 Planned pages:
 
-- `/admin/content`: article/category management.
 - `/admin/index`: magazine index editing.
 - `/admin/audiences`: audience tier management.
 - `/admin/payment-targets`: publication payment descriptor management.
@@ -74,11 +77,27 @@ Until the payment bridge and mint integrations are available, cards show a clear
 
 Simple article/category assignment:
 
-- List existing categories from the publication index.
-- List known article coordinates already present in the graph/database.
-- Let owner add article coordinates to a category.
-- Let owner remove article coordinates from a category.
+- List existing categories from the publication index and their ordered contents.
+- Accept pasted coordinates/naddrs for existing content of kinds `30023`,
+  `30041`, `30818`, and `30817`; a searchable picker remains deferred.
+- Let owners add/remove content references in categories they author and that
+  the root directly references. Foreign-owner category contents are read-only.
 - Publish the updated category `kind:30040` event through the owner signer.
+- Preserve the root and local settings. Reject stale category revisions and
+  retry relay publication using the same signed event.
+
+Hosted public reading:
+
+- Author-qualified paths are `/{npub}/a/{dtag}`, `/{npub}/chapter/{dtag}`,
+  `/{npub}/wiki/{dtag}`, and `/{npub}/spec/{dtag}`.
+- Resolve full coordinates within the publication, not a slug alone.
+- Render `30023` and `30817` as Markdown, `30041` and `30818` as AsciiDoc.
+- Community-authored NIPs are distinguished from official NIPs and retain
+  authorship; wiki entries follow NIP-54.
+- Existing unique `/a/{slug}` article URLs remain usable. Multi-kind public
+  pages, lists, RSS, and sitemap share the same canonical URL rules.
+- Scoped content is not enabled by assignment and is excluded from public
+  output; this is not an entitlement or gated-publishing implementation.
 
 Magazine index editing:
 

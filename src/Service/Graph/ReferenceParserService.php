@@ -31,6 +31,8 @@ class ReferenceParserService
         30041, // PUBLICATION_CONTENT (chapters)
         30023, // LONGFORM (articles)
         30024, // LONGFORM_DRAFT
+        30817, // CUSTOM_NIP
+        30818, // WIKI
         30004, // CURATION_SET
         30005, // CURATION_VIDEOS
         30006, // CURATION_PICTURES
@@ -125,7 +127,9 @@ class ReferenceParserService
                 KindsEnum::PUBLICATION_INDEX->value => 'contains',   // category
                 KindsEnum::PUBLICATION_CONTENT->value => 'contains', // chapter
                 KindsEnum::LONGFORM->value,
-                KindsEnum::LONGFORM_DRAFT->value => 'contains',     // article
+                KindsEnum::LONGFORM_DRAFT->value,
+                KindsEnum::CUSTOM_NIP->value,
+                KindsEnum::WIKI->value => 'contains',
                 default => 'references',
             };
         }

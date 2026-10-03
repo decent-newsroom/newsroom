@@ -46,7 +46,7 @@ class SiteConfigLoader
      */
     public function load(string $appDataNaddr): SiteConfig
     {
-        $cacheKey = 'site_config_' . md5($appDataNaddr);
+        $cacheKey = 'v4_site_config_' . md5($appDataNaddr);
 
         // Create a placeholder SiteConfig to use if fetch fails
         $placeholder = $this->createPlaceholderConfig($appDataNaddr, 'default');
@@ -70,10 +70,7 @@ class SiteConfigLoader
 
         // 2. Load magazine event using magazineNaddr from AppData
         $magazineDecoded = $this->decodeNaddr($appData->magazineNaddr);
-        $magazineEvent = $this->eventGateway->findByCoordinate(
-            $this->toCoordinate($magazineDecoded),
-            $magazineDecoded['relays'],
-        );
+        $magazineEvent = $this->loadEvent($magazineDecoded);
 
         if ($magazineEvent === null) {
             throw new \RuntimeException(sprintf(
@@ -115,7 +112,7 @@ class SiteConfigLoader
             $this->logger->warning('Invalid publication settings coordinate', ['coordinate' => $coordinate]);
         }
         $theme ??= $settings?->theme ?? 'default';
-        $cacheKey = 'site_config_coord_' . md5($coordinate);
+        $cacheKey = 'v4_site_config_coord_' . md5($coordinate);
 
         // Create a placeholder SiteConfig to use if fetch fails
         $placeholder = $this->createPlaceholderConfig($coordinate, $theme);
@@ -248,7 +245,7 @@ class SiteConfigLoader
             return $this->loadFromCoordinate($magazineNaddr, $theme);
         }
 
-        $cacheKey = 'site_config_magazine_' . md5($magazineNaddr);
+        $cacheKey = 'v4_site_config_magazine_' . md5($magazineNaddr);
 
         // Create a placeholder SiteConfig to use if fetch fails
         $placeholder = $this->createPlaceholderConfig($magazineNaddr, $theme);
@@ -323,10 +320,22 @@ class SiteConfigLoader
      */
     private function loadEvent(array $decoded): ?NostrEvent
     {
-        return $this->eventGateway->findByCoordinate(
+        $event = $this->eventGateway->findByCoordinate(
             $this->toCoordinate($decoded),
             $decoded['relays'],
         );
+        if ($event === null || $event->kind !== (int) $decoded['kind']
+            || strtolower($event->pubkey) !== strtolower($decoded['pubkey'])) {
+            return null;
+        }
+        $identifiers = [];
+        foreach ($event->tags as $tag) {
+            if (($tag[0] ?? null) === 'd') {
+                $identifiers[] = $tag[1] ?? null;
+            }
+        }
+
+        return $identifiers === [$decoded['identifier']] ? $event : null;
     }
 
     /**
@@ -403,7 +412,7 @@ class SiteConfigLoader
      */
     public function invalidate(string $appDataNaddr): void
     {
-        $cacheKey = 'site_config_' . md5($appDataNaddr);
+        $cacheKey = 'v4_site_config_' . md5($appDataNaddr);
         $this->swrCache->invalidate($cacheKey);
         $this->logger->info('Invalidated SiteConfig cache', ['appDataNaddr' => $appDataNaddr]);
     }
@@ -413,7 +422,7 @@ class SiteConfigLoader
      */
     public function invalidateFromMagazine(string $magazineNaddr): void
     {
-        $cacheKey = 'site_config_magazine_' . md5($magazineNaddr);
+        $cacheKey = 'v4_site_config_magazine_' . md5($magazineNaddr);
         $this->swrCache->invalidate($cacheKey);
         $this->logger->info('Invalidated SiteConfig cache (magazine)', ['magazineNaddr' => $magazineNaddr]);
     }
@@ -424,7 +433,7 @@ class SiteConfigLoader
     public function invalidateFromCoordinate(string $coordinate): void
     {
         $coordinate = $this->normalizeCoordinate($coordinate);
-        $cacheKey = 'site_config_coord_' . md5($coordinate);
+        $cacheKey = 'v4_site_config_coord_' . md5($coordinate);
         $this->swrCache->invalidate($cacheKey);
         $this->logger->info('Invalidated SiteConfig cache (coordinate)', ['coordinate' => $coordinate]);
     }

@@ -6,6 +6,7 @@ use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader;
 use DecentNewsroom\UnfoldBundle\Content\CategoryData;
 use DecentNewsroom\UnfoldBundle\Content\ContentProvider;
+use DecentNewsroom\UnfoldBundle\Content\AmbiguousContentException;
 use DecentNewsroom\UnfoldBundle\Http\HostResolver;
 use DecentNewsroom\UnfoldBundle\Http\RouteMatcher;
 use DecentNewsroom\UnfoldBundle\Theme\ContextBuilder;
@@ -14,6 +15,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * Main controller for Unfold site rendering
@@ -48,6 +50,9 @@ class SiteController
         // 2. Load SiteConfig from magazine coordinate (kind 30040)
         // SiteConfigLoader returns a placeholder config if fetch fails, so no exception handling needed
         $siteConfig = $this->siteConfigLoader->loadFromCoordinate($unfoldSite->coordinate);
+        if ($siteConfig->isScoped) {
+            throw new NotFoundHttpException('Publication not available publicly');
+        }
 
         // Check if we got a placeholder config (content still loading)
         $isPlaceholder = $siteConfig->title === 'Loading...' || empty($siteConfig->pubkey);
@@ -124,7 +129,13 @@ class SiteController
     private function renderPost($siteConfig, array $categories, array $route): Response
     {
         $slug = $route['slug'];
-        $post = $this->contentProvider->getPost($slug, $siteConfig);
+        try {
+            $post = isset($route['coordinate'])
+                ? $this->contentProvider->getPostByCoordinate($route['coordinate'], $siteConfig)
+                : $this->contentProvider->getPost($slug, $siteConfig);
+        } catch (AmbiguousContentException $e) {
+            throw new ConflictHttpException('Article identifier is ambiguous; use an author-qualified URL.', $e);
+        }
 
         if ($post === null) {
             throw new NotFoundHttpException('Article not found');
@@ -133,15 +144,16 @@ class SiteController
         // Find the category this post belongs to
         $primaryCategory = null;
         foreach ($categories as $category) {
-            foreach ($category->articleCoordinates as $coordinate) {
-                if (str_ends_with($coordinate, ':' . $slug)) {
+            foreach ($this->contentProvider->getCategoryPosts($category->coordinate) as $candidate) {
+                if ($candidate->coordinate === $post->coordinate) {
                     $primaryCategory = $category;
                     break 2;
                 }
             }
         }
 
-        $context = $this->contextBuilder->buildPostContext($siteConfig, $categories, $post, $primaryCategory);
+        $inventory = $post->kind === 30818 ? $this->contentProvider->getPublicationInventory($siteConfig) : [];
+        $context = $this->contextBuilder->buildPostContext($siteConfig, $categories, $post, $primaryCategory, $inventory);
 
         $html = $this->renderer->render('post', $context);
 

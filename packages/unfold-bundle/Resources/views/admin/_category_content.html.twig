@@ -1,0 +1,52 @@
+{% set messages = {} %}
+{% for key in ['pending', 'unchanged', 'signing', 'publishing', 'wrong_signer', 'invalid_signature', 'failed', 'invalid', 'stale', 'refresh_required', 'unresolved', 'scoped', 'read_only', 'detached', 'access_denied', 'projection_failed'] %}
+    {% set fullKey = 'unfold_category.' ~ key %}
+    {% set messages = messages|merge({(fullKey): fullKey|trans}) %}
+{% endfor %}
+{% set messages = messages|merge({'unfold_content.invalid_reference': 'unfold_category.invalid'|trans}) %}
+<section class="unfold-category"
+         data-controller="nostr--nostr-unfold-category"
+         data-nostr--nostr-unfold-category-publication-value="{{ publication.coordinate }}"
+         data-nostr--nostr-unfold-category-category-value="{{ categoryCoordinate }}"
+         data-nostr--nostr-unfold-category-owner-value="{{ publication.ownerPubkey }}"
+         data-nostr--nostr-unfold-category-prepare-url-value="{{ publication.adminPathPrefix }}/content/category/prepare"
+         data-nostr--nostr-unfold-category-commit-url-value="{{ publication.adminPathPrefix }}/content/category/commit"
+         data-nostr--nostr-unfold-category-csrf-token-value="{{ csrf_token('unfold_category:' ~ publication.coordinate ~ ':' ~ categoryCoordinate) }}"
+         data-nostr--nostr-unfold-category-messages-value="{{ messages|json_encode|e('html_attr') }}">
+    <a href="{{ publication.adminPathPrefix }}/content">{{ 'unfold_admin.content'|trans }}</a>
+    <h1>{{ categoryTitle }}</h1>
+    <p>{{ 'unfold_category.help'|trans }}</p>
+    {% if readOnly %}
+        <p role="status">{{ 'unfold_category.read_only'|trans }}</p>
+    {% else %}
+        <form data-mutation="add" data-action="submit->nostr--nostr-unfold-category#submit">
+            <label for="category-reference">{{ 'unfold_category.reference'|trans }}</label>
+            <input id="category-reference" required data-nostr--nostr-unfold-category-target="reference">
+            <button type="submit">{{ 'unfold_category.add'|trans }}</button>
+        </form>
+    {% endif %}
+    <ol class="unfold-category__inventory">
+        {% for item in inventory %}
+            <li>
+                <h2>{{ item.title ?? item.reference.identifier }}</h2>
+                <p>{{ 'unfold_category.kind'|trans }} {{ item.reference.kind }}</p>
+                <p>{{ 'unfold_category.author'|trans }} <code>{{ item.reference.pubkey }}</code></p>
+                <code>{{ item.reference.coordinate }}</code>
+                {% if item.title is null %}<p>{{ 'unfold_category.unresolved'|trans }}</p>{% endif %}
+                {% if not readOnly %}
+                    <form data-mutation="remove" data-reference="{{ item.reference.coordinate }}" data-action="submit->nostr--nostr-unfold-category#submit">
+                        <button type="submit">{{ 'unfold_category.remove'|trans }}</button>
+                    </form>
+                {% endif %}
+            </li>
+        {% else %}
+            <li>{{ 'unfold_category.empty'|trans }}</li>
+        {% endfor %}
+    </ol>
+    <p role="status" aria-live="polite" data-nostr--nostr-unfold-category-target="status"></p>
+    {% if not readOnly %}
+        <button type="button" hidden data-nostr--nostr-unfold-category-target="retry" data-action="nostr--nostr-unfold-category#retry">{{ 'unfold_category.retry'|trans }}</button>
+    {% else %}
+        <span hidden data-nostr--nostr-unfold-category-target="retry"></span>
+    {% endif %}
+</section>

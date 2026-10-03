@@ -35,3 +35,18 @@ category_commit:
     controller: DecentNewsroom\UnfoldBundle\Controller\Admin\CategoryIndexController::commit
     methods: [POST]
     defaults: { _unfold_admin: true }
+category_content:
+    path: /content/category
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\CategoryContentController::detail
+    methods: [GET]
+    defaults: { _unfold_admin: true }
+category_content_prepare:
+    path: /content/category/prepare
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\CategoryContentController::prepare
+    methods: [POST]
+    defaults: { _unfold_admin: true }
+category_content_commit:
+    path: /content/category/commit
+    controller: DecentNewsroom\UnfoldBundle\Controller\Admin\CategoryContentController::commit
+    methods: [POST]
+    defaults: { _unfold_admin: true }

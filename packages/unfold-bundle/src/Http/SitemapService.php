@@ -8,6 +8,7 @@ use DecentNewsroom\UnfoldBundle\Config\SiteConfig;
 use DecentNewsroom\UnfoldBundle\Content\CategoryData;
 use DecentNewsroom\UnfoldBundle\Content\PostData;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Creates a publication-local XML sitemap response.
@@ -27,6 +28,9 @@ final class SitemapService
      */
     public function createResponse(SiteConfig $site, array $categories, array $posts): Response
     {
+        if ($site->isScoped) {
+            throw new NotFoundHttpException('Publication not available publicly');
+        }
         $locations = [$this->urls->home(), $this->urls->about()];
 
         foreach ($categories as $category) {
@@ -34,6 +38,9 @@ final class SitemapService
         }
 
         foreach ($posts as $post) {
+            if (!$post->isPublic()) {
+                continue;
+            }
             $locations[] = $this->urls->post($post);
         }
 

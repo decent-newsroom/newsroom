@@ -49,6 +49,36 @@ class ReferenceParserServiceTest extends TestCase
         $this->assertSame(2, $refs[2]->position);
     }
 
+    public function testMixedPublicationContentIsResolvableContainment(): void
+    {
+        $pubkey = str_repeat('ab', 32);
+        $tags = [];
+        foreach ([30023, 30041, 30818, 30817] as $kind) {
+            $tags[] = ['a', "{$kind}:{$pubkey}:Topic", 'wss://relay.example', 'content'];
+        }
+        $references = $this->parser->parseFromTagsArray('category', 30040, $tags);
+
+        $this->assertCount(4, $references);
+        foreach ($references as $position => $reference) {
+            $this->assertTrue($reference->isStructural);
+            $this->assertTrue($reference->isResolvable);
+            $this->assertSame('contains', $reference->relation);
+            $this->assertSame($position, $reference->position);
+            $this->assertSame('Topic', $reference->targetDTag);
+            $this->assertSame('content', $reference->marker);
+        }
+    }
+
+    public function testWikiReferencesAreNotContainmentOutsideAnIndex(): void
+    {
+        $pubkey = str_repeat('ab', 32);
+        $references = $this->parser->parseFromTagsArray('wiki', 30818, [['a', "30818:{$pubkey}:source"]]);
+
+        $this->assertFalse($references[0]->isStructural);
+        $this->assertTrue($references[0]->isResolvable);
+        $this->assertSame('references', $references[0]->relation);
+    }
+
     public function testNonStructuralForArticleSource(): void
     {
         $pk = str_repeat('ab', 32);
@@ -112,4 +142,3 @@ class ReferenceParserServiceTest extends TestCase
         $this->assertNull($refs[0]->marker);
     }
 }
-

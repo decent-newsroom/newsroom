@@ -1872,9 +1872,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/unfold-bundle",
-                "reference": "8a3bc7806d04faf6160cd68409f4d26f087411fd"
+                "reference": "20dcabff7e1e54679325237bbf563491267b6bd6"
             },
             "require": {
+                "ext-dom": "*",
+                "ext-mbstring": "*",
                 "nostriphant/nip-19": "^2.0",
                 "php": "^8.3",
                 "psr/cache": "^3.0",
@@ -1885,6 +1887,7 @@
                 "symfony/dependency-injection": "^7.4",
                 "symfony/event-dispatcher": "^7.4",
                 "symfony/framework-bundle": "^7.4",
+                "symfony/html-sanitizer": "^7.4",
                 "symfony/http-foundation": "^7.4",
                 "symfony/http-kernel": "^7.4",
                 "symfony/mime": "^7.4",
@@ -17577,5 +17580,5 @@
         "ext-simplexml": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
