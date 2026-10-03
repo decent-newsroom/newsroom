@@ -6,10 +6,12 @@ namespace App\Tests\Unfold;
 
 use App\EventListener\VisitTrackingListener;
 use App\Unfold\SignedCategoryIndexPublisher;
+use App\Unfold\EventReadGatewayAdapter;
 use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\ContentReference;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationAdminIdentityInterface;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface;
@@ -100,6 +102,51 @@ final class CategoryContentFunctionalTest extends WebTestCase
         self::assertSame('unfold_category.scoped', json_decode($client->getResponse()->getContent(), true)['error']);
     }
 
+    public function testBothMountsLoadStoredInventoryWithoutRelayRequests(): void
+    {
+        [$client, $state] = $this->client();
+        $state->child = $this->event(self::OWNER, 30040, [
+            ['d', 'child'], ['title', 'Category'], ['a', self::LEAF, 'wss://unavailable.example'],
+        ]);
+        foreach (['https://publication.localhost/admin', 'https://localhost/mag/root/admin'] as $mount) {
+            $client->request('GET', $mount . '/content/category?category=' . rawurlencode(self::CHILD));
+            self::assertResponseIsSuccessful();
+            self::assertSelectorTextContains('.unfold-category__inventory h2', 'Specification');
+            self::assertSelectorExists('form[data-reference="' . self::LEAF . '"]');
+            $state->leaf = null;
+            $client->request('GET', $mount . '/content/category?category=' . rawurlencode(self::CHILD));
+            self::assertResponseIsSuccessful();
+            self::assertSelectorExists('form[data-reference="' . self::LEAF . '"]');
+            $state->leaf = $this->event(str_repeat('b', 64), 30817, [['d', 'Spec'], ['title', 'Specification']]);
+        }
+        self::assertSame([], $state->networkLookups);
+        self::assertSame([[self::LEAF], [self::LEAF], [self::LEAF], [self::LEAF]], $state->localBatches);
+    }
+
+    public function testMissingStoredCategoryDoesNotFallBackToRelays(): void
+    {
+        [$client, $state] = $this->client();
+        $state->child = null;
+        foreach (['https://publication.localhost/admin', 'https://localhost/mag/root/admin'] as $mount) {
+            $client->request('GET', $mount . '/content/category?category=' . rawurlencode(self::CHILD));
+            self::assertResponseStatusCodeSame(422);
+        }
+        self::assertSame([], $state->networkLookups);
+        self::assertSame([], $state->localBatches);
+    }
+
+    public function testMissingStoredRootDoesNotFallBackToRelaysOnEitherMount(): void
+    {
+        [$client, $state] = $this->client();
+        $state->root = null;
+        $client->request('GET', 'https://publication.localhost/admin/content/category?category=' . rawurlencode(self::CHILD));
+        self::assertResponseStatusCodeSame(422);
+        $client->request('GET', 'https://localhost/mag/root/admin/content/category?category=' . rawurlencode(self::CHILD));
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame([], $state->networkLookups);
+        self::assertSame([], $state->localBatches);
+    }
+
     public function testOversizedMutationBodiesAreRejectedBeforePublishing(): void
     {
         [$client, , $publisher] = $this->client();
@@ -175,10 +222,25 @@ final class CategoryContentFunctionalTest extends WebTestCase
             'child' => $this->event(self::OWNER, 30040, [['d', 'child'], ['title', 'Category'], ['x', 'keep']]),
             'leaf' => $this->event(str_repeat('b', 64), 30817, [['d', 'Spec'], ['title', 'Specification']]),
             'coordinate' => self::CHILD,
+            'networkLookups' => [],
+            'localBatches' => [],
         ];
         $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->method('findByCoordinate')->willReturnCallback(static fn ($coordinate) => match ($coordinate) {
+        $events->method('findByCoordinate')->willReturnCallback(static function ($coordinate) use ($state) {
+            $state->networkLookups[] = $coordinate;
+            if ($coordinate !== self::LEAF) {
+                throw new \LogicException('Index loading must use the wizard local lookup.');
+            }
+            return $state->leaf;
+        });
+        $events->expects(self::never())->method('findByCoordinates');
+        $localEvents = $this->createMock(LocalEventReadGatewayInterface::class);
+        $localEvents->method('findLocalByCoordinate')->willReturnCallback(static fn ($coordinate) => match ($coordinate) {
             self::ROOT => $state->root, $state->coordinate => $state->child, self::LEAF => $state->leaf, default => null,
+        });
+        $localEvents->method('findLocalByCoordinates')->willReturnCallback(static function (array $coordinates) use ($state): array {
+            $state->localBatches[] = $coordinates;
+            return $state->leaf !== null && in_array(self::LEAF, $coordinates, true) ? [self::LEAF => $state->leaf] : [];
         });
         $publisher = new class implements SignedCategoryIndexPublisherInterface {
             public array $calls = [];
@@ -191,6 +253,7 @@ final class CategoryContentFunctionalTest extends WebTestCase
         $container->set(PublicationSettingsStoreInterface::class, $store);
         $container->set(SiteRegistryInterface::class, $sites);
         $container->set(EventReadGatewayInterface::class, $events);
+        $container->set(LocalEventReadGatewayInterface::class, $localEvents);
         $container->set(SignedCategoryIndexPublisherInterface::class, $publisher);
         return [$client, $state, $publisher, $store, $identity, $cacheState];
     }
@@ -206,6 +269,9 @@ class CategoryContentTestKernel extends \App\Kernel
         $container->addCompilerPass(new class implements CompilerPassInterface {
             public function process(ContainerBuilder $container): void
             {
+                $container->removeAlias(LocalEventReadGatewayInterface::class);
+                $container->setDefinition(LocalEventReadGatewayInterface::class,
+                    (clone $container->getDefinition(EventReadGatewayAdapter::class))->setPublic(true));
                 $container->setAlias(SignedCategoryIndexPublisherInterface::class, SignedCategoryIndexPublisher::class)->setPublic(true);
                 $container->getDefinition(SiteConfigCacheWarmer::class)->setPublic(true);
             }

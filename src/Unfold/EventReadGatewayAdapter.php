@@ -7,9 +7,10 @@ namespace App\Unfold;
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 
-final readonly class EventReadGatewayAdapter implements EventReadGatewayInterface
+final readonly class EventReadGatewayAdapter implements EventReadGatewayInterface, LocalEventReadGatewayInterface
 {
     public function __construct(
         private EventRepository $eventRepository,
@@ -37,6 +38,16 @@ final readonly class EventReadGatewayAdapter implements EventReadGatewayInterfac
         return $event === null ? null : $this->fromObject($event);
     }
 
+    public function findLocalByCoordinate(string $coordinate): ?NostrEvent
+    {
+        [$kind, $pubkey, $identifier] = $this->parseCoordinate($this->normalizeCoordinate($coordinate));
+        $event = $kind === 30040
+            ? $this->eventRepository->findLatestIndexByIdentifier($pubkey, $identifier)
+            : $this->eventRepository->findByNaddr($kind, $pubkey, $identifier);
+
+        return $event === null ? null : $this->fromEntity($event);
+    }
+
     /**
      * @param list<string> $coordinates
      * @return array<string, NostrEvent>
@@ -57,13 +68,7 @@ final readonly class EventReadGatewayAdapter implements EventReadGatewayInterfac
             return [];
         }
 
-        $result = [];
-        foreach ($this->eventRepository->findByCoordinates(array_keys($normalizedCoordinates)) as $coordinate => $event) {
-            $normalized = $this->coordinateFromEntity($event);
-            if (isset($normalizedCoordinates[$normalized])) {
-                $result[$normalized] = $this->fromEntity($event);
-            }
-        }
+        $result = $this->findLocalByCoordinates(array_keys($normalizedCoordinates));
 
         $missing = array_values(array_diff(array_keys($normalizedCoordinates), array_keys($result)));
         if ($missing === []) {
@@ -75,6 +80,27 @@ final readonly class EventReadGatewayAdapter implements EventReadGatewayInterfac
             $coordinate = $this->coordinateFromDto($dto);
             if (isset($normalizedCoordinates[$coordinate])) {
                 $result[$coordinate] = $dto;
+            }
+        }
+
+        return $result;
+    }
+
+    public function findLocalByCoordinates(array $coordinates): array
+    {
+        $normalizedCoordinates = [];
+        foreach ($coordinates as $coordinate) {
+            $normalizedCoordinates[$this->normalizeCoordinate($coordinate)] = true;
+        }
+        if ($normalizedCoordinates === []) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($this->eventRepository->findByCoordinates(array_keys($normalizedCoordinates)) as $event) {
+            $normalized = $this->coordinateFromEntity($event);
+            if (isset($normalizedCoordinates[$normalized])) {
+                $result[$normalized] = $this->fromEntity($event);
             }
         }
 

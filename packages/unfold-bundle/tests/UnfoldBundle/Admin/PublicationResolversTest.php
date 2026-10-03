@@ -10,7 +10,7 @@ use DecentNewsroom\UnfoldBundle\Admin\PublicationMount;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
 use DecentNewsroom\UnfoldBundle\Config\SiteConfigLoader;
-use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationSite;
@@ -34,8 +34,8 @@ final class PublicationResolversTest extends TestCase
         $settings = $this->createMock(PublicationSettingsManager::class);
         $settings->expects(self::exactly(2))->method('get')->with($coordinate)->willReturn($saved);
         $site = new PublicationSite('edition', $coordinate);
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->expects(self::once())->method('findByCoordinate')->with($coordinate)->willReturn($this->event(dtag: 'edition:2026'));
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->expects(self::once())->method('findLocalByCoordinate')->with($coordinate)->willReturn($this->event(dtag: 'edition:2026'));
         $sites = $this->createMock(SiteRegistryInterface::class);
         $sites->expects(self::once())->method('findByCoordinate')->with($coordinate)->willReturn($site);
 
@@ -101,8 +101,8 @@ final class PublicationResolversTest extends TestCase
             $this->createMock(HandlebarsRenderer::class),
             $this->createMock(SiteConfigLoader::class),
         );
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->expects(self::once())->method('findByCoordinate')->with($coordinate)->willReturn($this->event());
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->expects(self::once())->method('findLocalByCoordinate')->with($coordinate)->willReturn($this->event());
         $sites = $this->createMock(SiteRegistryInterface::class);
         $sites->expects(self::once())->method('findByCoordinate')->with($coordinate)->willReturn(null);
         $request = Request::create('https://example.test/mag/edition/admin');
@@ -122,9 +122,9 @@ final class PublicationResolversTest extends TestCase
         $coordinate = '30040:' . self::OWNER . ':edition';
         $settings = $this->createMock(PublicationSettingsManager::class);
         $settings->expects(self::never())->method('get');
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->expects(self::once())->method('findByCoordinate')->with($coordinate)->willReturn($event);
-        $events->expects(self::never())->method('findByCoordinates');
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->expects(self::once())->method('findLocalByCoordinate')->with($coordinate)->willReturn($event);
+        $events->expects(self::never())->method('findLocalByCoordinates');
         $sites = $this->createMock(SiteRegistryInterface::class);
         $sites->expects(self::never())->method('findByCoordinate');
         $request = Request::create('https://example.test/mag/edition/admin');
@@ -143,12 +143,12 @@ final class PublicationResolversTest extends TestCase
         yield 'no d-tag' => [new NostrEvent('id', self::OWNER, 30040, '', [], 0, '')];
     }
 
-    public function testGatewayFailureIsUnavailableInsteadOfNotFound(): void
+    public function testDatabaseFailureIsUnavailableInsteadOfNotFound(): void
     {
         $settings = $this->createMock(PublicationSettingsManager::class);
         $settings->expects(self::never())->method('get');
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->method('findByCoordinate')->willThrowException(new \RuntimeException('Relay unavailable'));
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->method('findLocalByCoordinate')->willThrowException(new \RuntimeException('Database unavailable'));
         $sites = $this->createMock(SiteRegistryInterface::class);
         $sites->expects(self::never())->method('findByCoordinate');
         $request = Request::create('https://example.test/mag/edition/admin');
@@ -160,8 +160,8 @@ final class PublicationResolversTest extends TestCase
 
     public function testEmptyDtagDoesNotQueryGateway(): void
     {
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->expects(self::never())->method('findByCoordinate');
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->expects(self::never())->method('findLocalByCoordinate');
 
         $this->expectException(NotFoundHttpException::class);
         (new CoordinatePublicationResolver(

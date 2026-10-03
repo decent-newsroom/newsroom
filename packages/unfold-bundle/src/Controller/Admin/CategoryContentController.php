@@ -10,6 +10,7 @@ use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\CategoryReference;
 use DecentNewsroom\UnfoldBundle\Config\ContentReference;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationIndexConflictException;
 use DecentNewsroom\UnfoldBundle\Contract\SignedCategoryIndexPublisherInterface;
@@ -25,6 +26,7 @@ final readonly class CategoryContentController
 {
     public function __construct(
         private EventReadGatewayInterface $events,
+        private LocalEventReadGatewayInterface $localEvents,
         private SignedCategoryIndexPublisherInterface $publisher,
         private CsrfTokenManagerInterface $csrf,
         private Environment $twig,
@@ -38,19 +40,17 @@ final readonly class CategoryContentController
             $categoryReference = CategoryReference::fromInput((string) $request->query->get('category', ''));
             $category = $this->category($publication, $categoryReference);
             $inventory = [];
-            foreach (CategoryContentMutation::references($category) as $entry) {
+            $entries = CategoryContentMutation::references($category);
+            $leaves = $this->localEvents->findLocalByCoordinates(array_map(
+                static fn (array $entry): string => $entry['reference']->coordinate,
+                $entries,
+            ));
+            foreach ($entries as $entry) {
                 $reference = $entry['reference'];
                 $title = null;
-                try {
-                    $leaf = $this->events->findByCoordinate($reference->coordinate, $entry['relayHint'] ? [$entry['relayHint']] : []);
-                    if ($leaf !== null && $reference->matches($leaf) && !ContentReference::isScoped($leaf)) {
-                        $title = self::title($leaf) ?? $reference->identifier;
-                    }
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Category content reference unavailable', [
-                        'coordinate' => $reference->coordinate,
-                        'exception' => $e,
-                    ]);
+                $leaf = $leaves[$reference->coordinate] ?? null;
+                if ($leaf !== null && $reference->matches($leaf) && !ContentReference::isScoped($leaf)) {
+                    $title = self::title($leaf) ?? $reference->identifier;
                 }
                 $inventory[] = ['reference' => $reference, 'title' => $title];
             }
@@ -155,12 +155,12 @@ final readonly class CategoryContentController
 
     private function category(PublicationContext $publication, CategoryReference $reference): NostrEvent
     {
-        $root = $this->events->findByCoordinate($publication->coordinate);
+        $root = $this->localEvents->findLocalByCoordinate($publication->coordinate);
         if ($root === null) {
             throw new \InvalidArgumentException('unfold_category.refresh_required');
         }
         CategoryContentMutation::assertAttached($root, $publication->coordinate, $reference->coordinate);
-        $child = $this->events->findByCoordinate($reference->coordinate, $reference->relayHints);
+        $child = $this->localEvents->findLocalByCoordinate($reference->coordinate);
         if ($child === null || $child->id === '' || !CategoryContentMutation::matchesCategory($child, $reference->coordinate)) {
             throw new \InvalidArgumentException('unfold_category.refresh_required');
         }

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unfold;
 
 use App\EventListener\VisitTrackingListener;
+use App\Unfold\EventReadGatewayAdapter;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationAdminIdentityInterface;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationSettingsStoreInterface;
@@ -14,6 +16,8 @@ use DecentNewsroom\UnfoldBundle\Contract\PublicationSite;
 use DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface;
 use DecentNewsroom\UnfoldBundle\Contract\SignedPublicationIndexPublisherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpFoundation\Request;
 
 final class PublicationAdminFunctionalTest extends WebTestCase
@@ -285,6 +289,10 @@ final class PublicationAdminFunctionalTest extends WebTestCase
             123, ''
         );
         $events = $this->createMock(EventReadGatewayInterface::class);
+        $localEvents = $this->createMock(LocalEventReadGatewayInterface::class);
+        $localEvents->method('findLocalByCoordinate')->willReturnCallback(
+            static fn (string $key): ?NostrEvent => $metadataAvailable && $key === $coordinate ? $rootState->event : null,
+        );
         $events->method('findByCoordinate')->willReturnCallback(static function (string $key) use ($metadataAvailable, $coordinate, $aboutCoordinate, $replacementCoordinate, $rootState): ?NostrEvent {
             if ($key === $aboutCoordinate) {
                 return new NostrEvent(str_repeat('f', 64), str_repeat('c', 64), 30023, 'About article body', [['d', 'about'], ['title', 'About this publication']], 124, '');
@@ -318,6 +326,7 @@ final class PublicationAdminFunctionalTest extends WebTestCase
         $container->set(PublicationSettingsStoreInterface::class, $store);
         $container->set(SiteRegistryInterface::class, $sites);
         $container->set(EventReadGatewayInterface::class, $events);
+        $container->set(LocalEventReadGatewayInterface::class, $localEvents);
         $container->set(SignedPublicationIndexPublisherInterface::class, $publisher);
         return [$client, $identity, $store, $rootState];
     }
@@ -327,4 +336,16 @@ class PublicationAdminTestKernel extends \App\Kernel
 {
     public function getCacheDir(): string { return '/tmp/newsroom-unfold-admin-tests-v2'; }
     public function getBuildDir(): string { return $this->getCacheDir(); }
+
+    protected function build(ContainerBuilder $container): void
+    {
+        $container->addCompilerPass(new class implements CompilerPassInterface {
+            public function process(ContainerBuilder $container): void
+            {
+                $container->removeAlias(LocalEventReadGatewayInterface::class);
+                $container->setDefinition(LocalEventReadGatewayInterface::class,
+                    (clone $container->getDefinition(EventReadGatewayAdapter::class))->setPublic(true));
+            }
+        });
+    }
 }

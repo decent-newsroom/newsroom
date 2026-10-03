@@ -15,6 +15,41 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Read a stored kind-30040 revision using raw tags, including legacy rows
+     * whose extracted d_tag is absent. No relay lookup or projection is needed.
+     */
+    public function findLatestIndexByIdentifier(string $pubkey, string $identifier, bool $excludeMagazineIndexes = false): ?Event
+    {
+        $events = $this->findBy(['kind' => 30040, 'pubkey' => $pubkey], ['created_at' => 'DESC']);
+
+        foreach ($events as $event) {
+            if (!$event instanceof Event) {
+                continue;
+            }
+
+            $eventIdentifier = null;
+            $hasMagazineReferences = false;
+            foreach ($event->getTags() as $tag) {
+                if (!is_array($tag)) {
+                    continue;
+                }
+                if (($tag[0] ?? null) === 'd') {
+                    $eventIdentifier = (string) ($tag[1] ?? '');
+                }
+                if (($tag[0] ?? null) === 'a' && isset($tag[1]) && str_starts_with((string) $tag[1], '30040:')) {
+                    $hasMagazineReferences = true;
+                }
+            }
+
+            if ($eventIdentifier === $identifier && (!$excludeMagazineIndexes || !$hasMagazineReferences)) {
+                return $event;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Build a JSON search condition for PostgreSQL
      * Searches for a value in the second element (index 1) of JSON array elements
      *

@@ -362,6 +362,9 @@ services:
     DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface:
         alias: App\Unfold\EventReadGatewayAdapter
 
+    DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface:
+        alias: App\Unfold\EventReadGatewayAdapter
+
     DecentNewsroom\UnfoldBundle\Contract\PublicationTreeLookupInterface:
         alias: App\Unfold\PublicationTreeLookupAdapter
 

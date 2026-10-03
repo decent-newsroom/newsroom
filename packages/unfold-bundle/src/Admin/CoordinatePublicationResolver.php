@@ -6,7 +6,7 @@ namespace DecentNewsroom\UnfoldBundle\Admin;
 
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
-use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\SiteRegistryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -16,7 +16,7 @@ final readonly class CoordinatePublicationResolver implements PublicationResolve
 {
     public function __construct(
         private PublicationSettingsManager $settings,
-        private EventReadGatewayInterface $events,
+        private LocalEventReadGatewayInterface $events,
         private SiteRegistryInterface $sites,
     ) {}
 
@@ -29,7 +29,7 @@ final readonly class CoordinatePublicationResolver implements PublicationResolve
             throw new NotFoundHttpException(previous: $e);
         }
         try {
-            $event = $this->events->findByCoordinate($coordinate);
+            $event = $this->events->findLocalByCoordinate($coordinate);
         } catch (\Throwable $e) {
             throw new ServiceUnavailableHttpException(null, 'Publication lookup unavailable.', $e);
         }

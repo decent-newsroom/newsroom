@@ -203,67 +203,39 @@ class ReadingListManager
         }
 
         $repo = $this->em->getRepository(Event::class);
-        $events = $repo->findBy(['kind' => 30040, 'pubkey' => $pubkeyHex], ['created_at' => 'DESC']);
-
-        foreach ($events as $ev) {
-            if (!$ev instanceof Event) continue;
-            $tags = $ev->getTags();
-            $eventSlug = null;
-            $hasMagazineReferences = false;
-
-            // First pass: check if this is the right event
-            foreach ($tags as $t) {
-                if (is_array($t)) {
-                    if (($t[0] ?? null) === 'd') {
-                        $eventSlug = (string)$t[1];
-                    }
-                    // Check if this references other 30040 events (magazine index)
-                    if (($t[0] ?? null) === 'a' && isset($t[1]) && str_starts_with((string)$t[1], '30040:')) {
-                        $hasMagazineReferences = true;
-                    }
-                }
-            }
-
-            // Skip magazine indexes (events that reference other 30040 events)
-            if ($hasMagazineReferences) {
-                continue;
-            }
-
-            if ($eventSlug === $slug) {
-                // Found it! Parse into CategoryDraft
-                $draft = new CategoryDraft();
-                $draft->slug = $slug;
-                $eventType = 'reading-list'; // default
-
-                foreach ($tags as $t) {
-                    if (!is_array($t)) continue;
-                    $tagName = $t[0] ?? null;
-                    $tagValue = $t[1] ?? null;
-
-                    match ($tagName) {
-                        'title' => $draft->title = (string)$tagValue,
-                        'summary' => $draft->summary = (string)$tagValue,
-                        'image' => $draft->image = (string)$tagValue,
-                        'author' => $draft->author = (string)$tagValue,
-                        't' => $draft->tags[] = (string)$tagValue,
-                        'a' => $draft->articles[] = (string)$tagValue,
-                        'type' => $eventType = (string)$tagValue,
-                        default => null,
-                    };
-                }
-
-                // Save to session
-                $session = $this->requestStack->getSession();
-                $session->set('read_wizard', $draft);
-                // Preserve the original event type so the review step does not clobber it
-                $session->set('read_wizard_type', $eventType);
-                $this->setSelectedListSlug($slug);
-
-                return $draft;
-            }
+        $event = $repo->findLatestIndexByIdentifier($pubkeyHex, $slug, excludeMagazineIndexes: true);
+        if ($event === null) {
+            return null;
         }
 
-        return null;
+        $draft = new CategoryDraft();
+        $draft->slug = $slug;
+        $eventType = 'reading-list';
+
+        foreach ($event->getTags() as $t) {
+            if (!is_array($t)) continue;
+            $tagName = $t[0] ?? null;
+            $tagValue = $t[1] ?? null;
+
+            match ($tagName) {
+                'title' => $draft->title = (string)$tagValue,
+                'summary' => $draft->summary = (string)$tagValue,
+                'image' => $draft->image = (string)$tagValue,
+                'author' => $draft->author = (string)$tagValue,
+                't' => $draft->tags[] = (string)$tagValue,
+                'a' => $draft->articles[] = (string)$tagValue,
+                'type' => $eventType = (string)$tagValue,
+                default => null,
+            };
+        }
+
+        $session = $this->requestStack->getSession();
+        $session->set('read_wizard', $draft);
+        // Preserve the original event type so the review step does not clobber it
+        $session->set('read_wizard_type', $eventType);
+        $this->setSelectedListSlug($slug);
+
+        return $draft;
     }
 
     /**

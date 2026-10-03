@@ -56,12 +56,21 @@ publication metadata. Non-owners receive 403, including platform administrators.
 Malformed hosting coordinates produce an unavailable/repair state without an
 editable shell.
 
-Main-domain resolution requests the exact coordinate formed from the signed-in
-pubkey and route d-tag, then validates the returned event identity. It never uses
+Main-domain resolution reads only local data for the exact coordinate formed from
+the signed-in pubkey and route d-tag, then validates the returned event identity.
+It does not automatically fall back to relays and never uses
 slug-only lookup or its magazine projection. Missing or mismatched events return
 404; infrastructure failures produce an unavailable response. Another owner's
 colliding d-tag cannot affect resolution. When multiple hosting mappings exist,
 the coordinate mount selects the oldest deterministically for public links.
+
+Editing roots and categories reuses the reading-list wizard's database-only
+kind-30040 lookup, shared through `EventRepository::findLatestIndexByIdentifier`.
+It selects the newest stored event for the exact author and raw `d` tag, preserving
+significant whitespace and supporting legacy rows without an extracted `d_tag`.
+The wizard additionally excludes indexes referencing other kind-30040 indexes;
+publication editing can read both roots and categories. Missing roots or
+categories produce an error without automatic relay fallback.
 
 ### Request and save flow
 
@@ -133,14 +142,16 @@ read-only, even for a platform administrator. Content itself may have another
 author. Assignment changes the child's references, not the root identity,
 local settings, hosting, billing, or source content.
 
-The category inventory preserves reference order and identifies unresolved
-content. Existing references can be removed without fetching their source
-bodies. Writes require coordinate-scoped CSRF and the owner's signature;
+The category inventory preserves reference order and uses only locally stored
+title metadata, identifying unresolved content without fetching source bodies
+or falling back to relays. Missing inventory references remain removable.
+Explicit content additions and publishing can still use relays. Writes require
+coordinate-scoped CSRF and the owner's signature;
 stale revisions conflict instead of overwriting newer work. Relay failures are
 reported separately from local persistence. Retrying reuses the same signed
 event rather than signing another revision.
 
-Category editing requires locally projected current index data. If it is not
+Category editing requires locally stored current index events. If an event is not
 available, refresh/repair it rather than create a replacement category through
 assignment. Operators can use the existing targeted graph rebuild command:
 

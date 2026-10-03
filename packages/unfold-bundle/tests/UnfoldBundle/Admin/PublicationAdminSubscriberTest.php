@@ -11,7 +11,7 @@ use DecentNewsroom\UnfoldBundle\Admin\PublicationContext;
 use DecentNewsroom\UnfoldBundle\Admin\PublicationMount;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettings;
 use DecentNewsroom\UnfoldBundle\Config\PublicationSettingsManager;
-use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationAdminIdentityInterface;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationSite;
@@ -37,8 +37,8 @@ final class PublicationAdminSubscriberTest extends TestCase
         $identity->expects(self::once())->method('loginUrl')->with($request)->willReturn('https://example.test/login?continue=edition');
         $settings = $this->createMock(PublicationSettingsManager::class);
         $settings->expects(self::never())->method('get');
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->expects(self::never())->method('findByCoordinate');
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->expects(self::never())->method('findLocalByCoordinate');
         $subscriber = $this->subscriber($identity, $settings, $events);
         $event = $this->controllerEvent($request);
 
@@ -61,8 +61,8 @@ final class PublicationAdminSubscriberTest extends TestCase
         $settings->expects(self::exactly(2))->method('get')->willReturnCallback(
             static fn (string $coordinate): PublicationSettings => new PublicationSettings($coordinate),
         );
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->expects(self::never())->method('findByCoordinate');
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->expects(self::never())->method('findLocalByCoordinate');
         $subscriber = $this->subscriber($identity, $settings, $events);
         $first = $this->hostRequest(self::OWNER, 'edition');
         $second = $this->hostRequest(self::OTHER, 'another');
@@ -91,8 +91,8 @@ final class PublicationAdminSubscriberTest extends TestCase
         $identity->method('pubkey')->willReturn(self::OWNER);
         $settings = $this->createMock(PublicationSettingsManager::class);
         $settings->method('get')->with($coordinate)->willReturn(new PublicationSettings($coordinate));
-        $events = $this->createMock(EventReadGatewayInterface::class);
-        $events->expects(self::once())->method('findByCoordinate')->with($coordinate)->willReturn(
+        $events = $this->createMock(LocalEventReadGatewayInterface::class);
+        $events->expects(self::once())->method('findLocalByCoordinate')->with($coordinate)->willReturn(
             new NostrEvent('id', self::OWNER, 30040, '', [['d', 'edition']], 0, ''),
         );
         $request = Request::create('https://example.test/mag/edition/admin');
@@ -117,7 +117,7 @@ final class PublicationAdminSubscriberTest extends TestCase
         $request = Request::create('https://example.test/admin');
         $event = $this->controllerEvent($request);
         $originalController = $event->getController();
-        $subscriber = $this->subscriber($identity, $settings, $this->createMock(EventReadGatewayInterface::class));
+        $subscriber = $this->subscriber($identity, $settings, $this->createMock(LocalEventReadGatewayInterface::class));
         $response = new Response();
         $response->setPublic()->setMaxAge(300);
         $cacheControl = $response->headers->get('Cache-Control');
@@ -136,7 +136,7 @@ final class PublicationAdminSubscriberTest extends TestCase
         $subscriber = $this->subscriber(
             $this->createMock(PublicationAdminIdentityInterface::class),
             $this->createMock(PublicationSettingsManager::class),
-            $this->createMock(EventReadGatewayInterface::class),
+            $this->createMock(LocalEventReadGatewayInterface::class),
         );
         $request = $this->hostRequest(self::OWNER, 'edition');
         $response = new Response('', $status);
@@ -160,7 +160,7 @@ final class PublicationAdminSubscriberTest extends TestCase
     private function subscriber(
         PublicationAdminIdentityInterface $identity,
         PublicationSettingsManager $settings,
-        EventReadGatewayInterface $events,
+        LocalEventReadGatewayInterface $events,
     ): PublicationAdminSubscriber {
         return new PublicationAdminSubscriber(
             $identity,
