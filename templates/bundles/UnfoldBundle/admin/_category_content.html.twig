@@ -1,0 +1,43 @@
+{% extends '@!Unfold/admin/_category_content.html.twig' %}
+
+{% block category_inventory %}
+    {% for item in inventory %}
+        {% set previewSlot %}
+            <h2>{{ item.title ?: (item.identifier ?: (item.coordinate ?: 'unfold_category.reference'|trans)) }}</h2>
+            <span>{{ item.author ?: 'reading_list_editor.article.unknown_author'|trans }}</span>
+        {% endset %}
+        {% set coordinateSlot %}
+            <label class="visually-hidden" for="category-coordinate-{{ loop.index }}">
+                {{ 'reading_list_editor.article.coordinate_label'|trans }}
+            </label>
+            <input
+                id="category-coordinate-{{ loop.index }}"
+                class="reading-list-article__coordinate"
+                value="{{ item.coordinate }}"
+                readonly
+            >
+        {% endset %}
+        {% set actionsSlot %}
+            {% if not readOnly and item.reference is not null %}
+                <form class="unfold-category__remove"
+                      data-mutation="remove"
+                      data-reference="{{ item.reference.coordinate }}"
+                      data-action="submit->nostr--nostr-unfold-category#submit">
+                    <button type="submit" class="reading-list-article__remove" title="{{ 'reading_list_editor.article.remove'|trans }}">
+                        {{ ux_icon('iconoir:trash', {class: 'icon'}) }}
+                        <span class="visually-hidden">{{ 'reading_list_editor.article.remove'|trans }}</span>
+                    </button>
+                </form>
+            {% endif %}
+        {% endset %}
+        <li class="reading-list-article">
+            {% include 'reading_list/_article_row.html.twig' with {
+                previewSlot: previewSlot,
+                coordinateSlot: coordinateSlot,
+                actionsSlot: actionsSlot
+            } only %}
+        </li>
+    {% else %}
+        <li class="unfold-category__empty">{{ 'unfold_category.empty'|trans }}</li>
+    {% endfor %}
+{% endblock %}

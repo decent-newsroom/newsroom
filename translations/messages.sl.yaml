@@ -6,7 +6,7 @@ unfold_category:
     remove: 'Odstrani referenco'
     kind: 'Vrsta'
     author: 'Avtor'
-    empty: 'Kategorija nima podprtih referenc vsebine.'
+    empty: 'Kategorija nima referenc vsebine.'
     retry: 'Znova pošlji isti podpisani dogodek'
     pending: 'Podpisani dogodek je shranjen. Poskusite znova, da potrdite lokalno shranjevanje in dokončate objavo na relejih.'
     unchanged: 'Brez spremembe: referenca je že dodana ali že odstranjena.'

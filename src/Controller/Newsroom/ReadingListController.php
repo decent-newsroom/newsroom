@@ -520,22 +520,25 @@ class ReadingListController extends AbstractController
     #[Route('/api/reading-list/article-preview', name: 'api_article_preview', methods: ['POST'])]
     public function articlePreview(
         Request $request,
-        EntityManagerInterface $em,
-        RedisCacheService $redisCacheService
+        \DecentNewsroom\UnfoldBundle\Contract\ContentPreviewProviderInterface $contentPreviewProvider
     ): Response
     {
         $data = json_decode($request->getContent(), true);
-        $input = trim($data['coordinate'] ?? '');
+        if (!is_array($data) || !is_string($data['coordinate'] ?? null)) {
+            return $this->json(['error' => 'No coordinate provided']);
+        }
+        $input = $data['coordinate'];
 
-        if (empty($input)) {
+        if (trim($input) === '') {
             return $this->json(['error' => 'No coordinate provided']);
         }
 
         // Parse naddr if provided
         $coordinate = $input;
-        if (str_starts_with($input, 'naddr1') || str_starts_with($input, 'nostr:naddr1')) {
+        $transportInput = trim($input);
+        if (str_starts_with($transportInput, 'naddr1') || str_starts_with($transportInput, 'nostr:naddr1')) {
             // Strip nostr: prefix if present
-            $naddr = preg_replace('/^nostr:/', '', $input);
+            $naddr = preg_replace('/^nostr:/', '', $transportInput);
             $coordinate = $this->parseNaddr($naddr);
             if (!$coordinate) {
                 return $this->json(['error' => 'Invalid naddr format']);
@@ -543,45 +546,19 @@ class ReadingListController extends AbstractController
         }
 
         // Parse coordinate
-        $parsed = $this->parseCoordinate($coordinate);
-        if (!$parsed) {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3 || !ctype_digit($parts[0])
+            || strlen($parts[0]) > 5 || (int) $parts[0] > 65535
+            || preg_match('/^[a-fA-F0-9]{64}$/D', $parts[1]) !== 1) {
             return $this->json(['error' => 'Invalid coordinate format']);
         }
 
-        // Look up the article
-        $article = $em->getRepository(\App\Entity\Article::class)->findOneBy([
-            'pubkey' => $parsed['pubkey'],
-            'slug' => $parsed['slug'],
-        ]);
-
-        if (!$article) {
+        $preview = $contentPreviewProvider->findByCoordinates([$coordinate])[$coordinate] ?? null;
+        if ($preview === null) {
             return $this->json(['title' => null, 'author' => null, 'error' => 'Article not found locally']);
         }
 
-        // Get author name from Redis cache
-        $authorName = null;
-        try {
-            $metadata = $redisCacheService->getMetadata($parsed['pubkey']);
-            $authorName = $metadata->displayName ?: $metadata->name;
-        } catch (\Throwable) {
-            // Metadata not available
-        }
-
-        // Fallback to shortened npub if no name
-        if (!$authorName) {
-            try {
-                $key = new NostrKeyService();
-                $npub = $key->convertPublicKeyToBech32($parsed['pubkey']);
-                $authorName = substr($npub, 0, 8) . '...' . substr($npub, -4);
-            } catch (\Throwable) {
-                $authorName = 'Unknown';
-            }
-        }
-
-        return $this->json([
-            'title' => $article->getTitle(),
-            'author' => $authorName,
-        ]);
+        return $this->json($preview);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -604,12 +581,11 @@ class ReadingListController extends AbstractController
             $helper = new NostrNip19Service();
             $decoded = $helper->decode($naddr);
 
-            // The library returns 'author' (not 'pubkey') for naddr
-            if (!isset($decoded['kind'], $decoded['author'], $decoded['identifier'])) {
+            if (!isset($decoded['kind'], $decoded['pubkey'], $decoded['identifier'])) {
                 return null;
             }
 
-            return sprintf('%d:%s:%s', $decoded['kind'], $decoded['author'], $decoded['identifier']);
+            return sprintf('%d:%s:%s', $decoded['kind'], $decoded['pubkey'], $decoded['identifier']);
         } catch (\Throwable $e) {
             return null;
         }

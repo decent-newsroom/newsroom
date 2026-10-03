@@ -374,6 +374,9 @@ services:
     DecentNewsroom\UnfoldBundle\Contract\ProfileMetadataProviderInterface:
         alias: App\Unfold\ProfileMetadataAdapter
 
+    DecentNewsroom\UnfoldBundle\Contract\ContentPreviewProviderInterface:
+        alias: App\Service\ReadingListContentPreviewProvider
+
     DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface:
         alias: App\Unfold\CommentProviderAdapter
 

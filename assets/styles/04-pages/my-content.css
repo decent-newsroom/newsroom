@@ -283,7 +283,7 @@
     min-width: 0;
     display: grid;
     grid-template-columns: 2.25rem minmax(0, 1fr);
-    align-items: start;
+    align-items: center;
     gap: var(--spacing-3);
     padding: var(--spacing-3);
 }

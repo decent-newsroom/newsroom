@@ -10,6 +10,7 @@ use DecentNewsroom\UnfoldBundle\Cache\SiteConfigCacheWarmer;
 use DecentNewsroom\UnfoldBundle\Config\CategoryReference;
 use DecentNewsroom\UnfoldBundle\Config\ContentReference;
 use DecentNewsroom\UnfoldBundle\Contract\EventReadGatewayInterface;
+use DecentNewsroom\UnfoldBundle\Contract\ContentPreviewProviderInterface;
 use DecentNewsroom\UnfoldBundle\Contract\LocalEventReadGatewayInterface;
 use DecentNewsroom\UnfoldBundle\Contract\NostrEvent;
 use DecentNewsroom\UnfoldBundle\Contract\PublicationIndexConflictException;
@@ -27,6 +28,7 @@ final readonly class CategoryContentController
     public function __construct(
         private EventReadGatewayInterface $events,
         private LocalEventReadGatewayInterface $localEvents,
+        private ContentPreviewProviderInterface $previews,
         private SignedCategoryIndexPublisherInterface $publisher,
         private CsrfTokenManagerInterface $csrf,
         private Environment $twig,
@@ -40,24 +42,18 @@ final readonly class CategoryContentController
             $categoryReference = CategoryReference::fromInput((string) $request->query->get('category', ''));
             $category = $this->category($publication, $categoryReference);
             $inventory = [];
-            $entries = CategoryContentMutation::references($category);
-            $leaves = $this->localEvents->findLocalByCoordinates(array_map(
-                static fn (array $entry): string => $entry['reference']->coordinate,
-                $entries,
-            ));
+            $entries = CategoryContentMutation::inventoryReferences($category);
+            $previews = $this->previews->findByCoordinates(array_column($entries, 'coordinate'));
             foreach ($entries as $entry) {
-                $reference = $entry['reference'];
-                $title = null;
-                $leaf = $leaves[$reference->coordinate] ?? null;
-                if ($leaf !== null && $reference->matches($leaf) && !ContentReference::isScoped($leaf)) {
-                    $title = self::title($leaf) ?? $reference->identifier;
-                }
-                $inventory[] = ['reference' => $reference, 'title' => $title];
+                $preview = $previews[$entry['coordinate']] ?? null;
+                $inventory[] = [...$entry, 'title' => $preview['title'] ?? null, 'author' => $preview['author'] ?? null];
             }
             return new Response($this->twig->render('@Unfold/admin/category.html.twig', [
                 'publication' => $publication,
                 'categoryCoordinate' => $categoryReference->coordinate,
                 'categoryTitle' => self::title($category) ?? $categoryReference->coordinate,
+                'categorySummary' => self::tagValue($category, 'summary'),
+                'categoryIdentifier' => explode(':', $categoryReference->coordinate, 3)[2],
                 'readOnly' => strtolower($category->pubkey) !== $publication->ownerPubkey,
                 'inventory' => $inventory,
             ]));
@@ -174,8 +170,13 @@ final readonly class CategoryContentController
 
     private static function title(NostrEvent $event): ?string
     {
+        return self::tagValue($event, 'title');
+    }
+
+    private static function tagValue(NostrEvent $event, string $name): ?string
+    {
         foreach ($event->tags as $tag) {
-            if (($tag[0] ?? null) === 'title' && is_string($tag[1] ?? null)) {
+            if (($tag[0] ?? null) === $name && is_string($tag[1] ?? null)) {
                 return $tag[1];
             }
         }

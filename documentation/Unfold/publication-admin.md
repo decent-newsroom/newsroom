@@ -142,9 +142,20 @@ read-only, even for a platform administrator. Content itself may have another
 author. Assignment changes the child's references, not the root identity,
 local settings, hosting, billing, or source content.
 
-The category inventory preserves reference order and uses only locally stored
-title metadata, identifying unresolved content without fetching source bodies
-or falling back to relays. Missing inventory references remain removable.
+The hosted category editor shares the reading-list wizard's article-row markup
+and layout, including title/author previews, coordinate inputs, and compact
+removal actions. A shared local preview provider reads the same `Article`
+projection as the wizard, with an `Event` fallback for other stored content.
+Matching always uses the full kind, author, and raw identifier; an article can
+resolve even when no corresponding `Event` row exists.
+
+The inventory displays every signed `a` tag in its original order, including
+duplicates, legacy kinds, malformed references, and unresolved content. Legacy
+references outside the four supported mutation kinds remain visible but read-only.
+Supported missing references remain removable. Content previews use local data
+only and never fetch source bodies or fall back to relays during page loading.
+Cached or locally stored author names are reused; missing profiles may be queued
+for asynchronous refresh without delaying the editor.
 Explicit content additions and publishing can still use relays. Writes require
 coordinate-scoped CSRF and the owner's signature;
 stale revisions conflict instead of overwriting newer work. Relay failures are

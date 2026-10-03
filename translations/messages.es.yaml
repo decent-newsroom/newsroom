@@ -6,7 +6,7 @@ unfold_category:
     remove: 'Eliminar referencia'
     kind: 'Tipo'
     author: 'Autor'
-    empty: 'Esta categoría no tiene referencias de contenido compatibles.'
+    empty: 'Esta categoría no tiene referencias de contenido.'
     retry: 'Reintentar el mismo evento firmado'
     pending: 'El evento firmado se conserva. Reintenta para confirmar el guardado local y completar la publicación en relays.'
     unchanged: 'Sin cambios: la referencia ya está presente o ya está ausente.'

@@ -58,6 +58,26 @@ final class CategoryContentMutationTest extends TestCase
         self::assertSame($category->tags, CategoryContentMutation::tags($category, $reference, 'remove'));
     }
 
+    public function testInventoryIncludesEveryRawAddressReferenceInSignedOrder(): void
+    {
+        $supported = '30817:' . str_repeat('B', 64) . ':Spec ';
+        $legacy = '30024:' . str_repeat('c', 64) . ':draft';
+        $entries = CategoryContentMutation::inventoryReferences($this->event([
+            ['d', 'category'], ['a', $supported, 'wss://hint.example'],
+            ['a', $legacy], ['a', 'malformed reference'], ['a', $supported], ['a'],
+            ['e', str_repeat('f', 64)],
+        ]));
+
+        self::assertSame([$supported, $legacy, 'malformed reference', $supported, ''], array_column($entries, 'coordinate'));
+        self::assertSame('Spec ', $entries[0]['identifier']);
+        self::assertSame('30817:' . str_repeat('b', 64) . ':Spec ', $entries[0]['reference']->coordinate);
+        self::assertSame(30024, $entries[1]['kind']);
+        self::assertNull($entries[1]['reference']);
+        self::assertNull($entries[2]['reference']);
+        self::assertSame('malformed reference', $entries[2]['identifier']);
+        self::assertNull($entries[4]['kind']);
+    }
+
     private function event(array $tags): NostrEvent
     {
         return new NostrEvent(str_repeat('e', 64), str_repeat('a', 64), 30040, 'opaque body', $tags, 123, '');

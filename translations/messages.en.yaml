@@ -6,7 +6,7 @@ unfold_category:
     remove: 'Remove reference'
     kind: 'Kind'
     author: 'Author'
-    empty: 'This category has no supported content references.'
+    empty: 'This category has no content references.'
     retry: 'Retry the same signed event'
     pending: 'The signed event is retained. Retry to confirm the local commit and complete relay publication.'
     unchanged: 'No change: this reference is already present or already absent.'

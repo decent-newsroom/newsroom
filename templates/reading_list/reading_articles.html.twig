@@ -1,27 +1,21 @@
 {% extends 'newsroom-layout.html.twig' %}
 
-{% set articlePrototype %}
-    <div class="reading-list-article__body">
-        <span class="reading-list-article__icon" aria-hidden="true">
-            {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
-        </span>
-        <div class="reading-list-article__content">
-            <div class="article-preview-container">
-                <span class="reading-list-article__loading">{{ 'reading_list_editor.article.loading'|trans }}</span>
-            </div>
-            <label class="visually-hidden" for="{{ form.articles.vars.prototype.vars.id }}">
-                {{ 'reading_list_editor.article.coordinate_label'|trans }}
-            </label>
-            {{ form_widget(form.articles.vars.prototype, {
-                attr: {
-                    class: 'reading-list-article__coordinate',
-                    placeholder: 'reading_list_editor.article.placeholder'|trans,
-                    'data-ui--article-preview-input-target': 'input',
-                    'data-publishing--reading-list-workspace-target': 'articleInput',
-                    'data-action': 'input->publishing--reading-list-workspace#sync change->ui--article-preview-input#onInputChange blur->ui--article-preview-input#onInputChange'
-                }
-            }) }}
-        </div>
+{% macro articleRow(articleForm) %}
+    {% set coordinateSlot %}
+        <label class="visually-hidden" for="{{ articleForm.vars.id }}">
+            {{ 'reading_list_editor.article.coordinate_label'|trans }}
+        </label>
+        {{ form_widget(articleForm, {
+            attr: {
+                class: 'reading-list-article__coordinate',
+                placeholder: 'reading_list_editor.article.placeholder'|trans,
+                'data-ui--article-preview-input-target': 'input',
+                'data-publishing--reading-list-workspace-target': 'articleInput',
+                'data-action': 'input->publishing--reading-list-workspace#sync change->ui--article-preview-input#onInputChange blur->ui--article-preview-input#onInputChange'
+            }
+        }) }}
+    {% endset %}
+    {% set actionsSlot %}
         <button
             type="button"
             class="reading-list-article__remove"
@@ -31,7 +25,12 @@
             {{ ux_icon('iconoir:trash', {class: 'icon'}) }}
             <span class="visually-hidden">{{ 'reading_list_editor.article.remove'|trans }}</span>
         </button>
-    </div>
+    {% endset %}
+    {% include 'reading_list/_article_row.html.twig' with {coordinateSlot: coordinateSlot, actionsSlot: actionsSlot} only %}
+{% endmacro %}
+
+{% set articlePrototype %}
+    {{ _self.articleRow(form.articles.vars.prototype) }}
 {% endset %}
 
 {% block body %}
@@ -106,37 +105,7 @@
             >
                 {% for item in form.articles %}
                     <li class="reading-list-article">
-                        <div class="reading-list-article__body">
-                            <span class="reading-list-article__icon" aria-hidden="true">
-                                {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
-                            </span>
-                            <div class="reading-list-article__content">
-                                <div class="article-preview-container">
-                                    <span class="reading-list-article__loading">{{ 'reading_list_editor.article.loading'|trans }}</span>
-                                </div>
-                                <label class="visually-hidden" for="{{ item.vars.id }}">
-                                    {{ 'reading_list_editor.article.coordinate_label'|trans }}
-                                </label>
-                                {{ form_widget(item, {
-                                    attr: {
-                                        class: 'reading-list-article__coordinate',
-                                        placeholder: 'reading_list_editor.article.placeholder'|trans,
-                                        'data-ui--article-preview-input-target': 'input',
-                                        'data-publishing--reading-list-workspace-target': 'articleInput',
-                                        'data-action': 'input->publishing--reading-list-workspace#sync change->ui--article-preview-input#onInputChange blur->ui--article-preview-input#onInputChange'
-                                    }
-                                }) }}
-                            </div>
-                            <button
-                                type="button"
-                                class="reading-list-article__remove"
-                                data-action="ui--form-collection#removeCollectionElement"
-                                title="{{ 'reading_list_editor.article.remove'|trans }}"
-                            >
-                                {{ ux_icon('iconoir:trash', {class: 'icon'}) }}
-                                <span class="visually-hidden">{{ 'reading_list_editor.article.remove'|trans }}</span>
-                            </button>
-                        </div>
+                        {{ _self.articleRow(item) }}
                     </li>
                 {% endfor %}
             </ul>

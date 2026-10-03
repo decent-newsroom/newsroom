@@ -6,7 +6,7 @@ unfold_category:
     remove: 'Referenz entfernen'
     kind: 'Art'
     author: 'Autor'
-    empty: 'Diese Kategorie enthält keine unterstützten Inhaltsreferenzen.'
+    empty: 'Diese Kategorie enthält keine Inhaltsreferenzen.'
     retry: 'Dasselbe signierte Ereignis erneut senden'
     pending: 'Das signierte Ereignis bleibt gespeichert. Erneut senden, um die lokale Speicherung zu bestätigen und die Relay-Veröffentlichung abzuschließen.'
     unchanged: 'Keine Änderung: Diese Referenz ist bereits vorhanden oder bereits entfernt.'

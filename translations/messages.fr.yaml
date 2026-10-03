@@ -6,7 +6,7 @@ unfold_category:
     remove: 'Retirer la référence'
     kind: 'Type'
     author: 'Auteur'
-    empty: 'Cette catégorie ne contient aucune référence de contenu prise en charge.'
+    empty: 'Cette catégorie ne contient aucune référence de contenu.'
     retry: 'Réessayer avec le même événement signé'
     pending: 'L’événement signé est conservé. Réessayez pour confirmer l’enregistrement local et terminer la publication sur les relais.'
     unchanged: 'Aucun changement : cette référence est déjà présente ou déjà absente.'

@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Fix] Reused the reading-list wizard's row layout and local Article/Event previews in Unfold category editing, restoring coordinate/naddr previews and displaying all signed content references without relay waits.
 - [Fix] Reused the reading-list wizard's exact-author database-only index lookup for Unfold editing, avoiding automatic relay fallback for roots, categories, and inventory titles while keeping unresolved references removable.
 - [Feature] Added owner-signed category content assignment and hosted reading for articles, chapters, wiki entries, and community-authored NIPs, with author-qualified URLs and retryable relay publication.
 - [Fix] Invalidated and rewarmed Unfold publication caches after owner administration updates, and moved administration progress notifications to global toasts.

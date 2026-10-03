@@ -59,6 +59,37 @@ final class CategoryContentMutation
         return array_values($references);
     }
 
+    /** @return list<array{coordinate: string, reference: ?ContentReference, kind: ?int, pubkey: ?string, identifier: string}> */
+    public static function inventoryReferences(NostrEvent $event): array
+    {
+        self::assertTags($event->tags);
+        $entries = [];
+        foreach ($event->tags as $tag) {
+            if (($tag[0] ?? null) !== 'a') {
+                continue;
+            }
+            $coordinate = $tag[1] ?? '';
+            $reference = null;
+            try {
+                $reference = self::signedReference($coordinate);
+            } catch (\InvalidArgumentException) {
+                // Legacy references still belong in the editor even when they
+                // are outside the supported signed-mutation kind policy.
+            }
+            $parts = [];
+            $parsed = preg_match('/^([0-9]+):([a-fA-F0-9]{64}):(.*)$/Ds', $coordinate, $parts) === 1;
+            $entries[] = [
+                'coordinate' => $coordinate,
+                'reference' => $reference,
+                'kind' => $parsed ? (int) $parts[1] : null,
+                'pubkey' => $parsed ? strtolower($parts[2]) : null,
+                'identifier' => $parsed ? $parts[3] : $coordinate,
+            ];
+        }
+
+        return $entries;
+    }
+
     /** @return list<list<string>> */
     public static function tags(NostrEvent $category, ContentReference $reference, string $action): array
     {

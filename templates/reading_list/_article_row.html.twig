@@ -1,0 +1,16 @@
+<div class="reading-list-article__body">
+    <span class="reading-list-article__icon" aria-hidden="true">
+        {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
+    </span>
+    <div class="reading-list-article__content">
+        <div class="article-preview-container">
+            {% if previewSlot is defined %}
+                {{ previewSlot }}
+            {% else %}
+                <span class="reading-list-article__loading">{{ 'reading_list_editor.article.loading'|trans }}</span>
+            {% endif %}
+        </div>
+        {{ coordinateSlot }}
+    </div>
+    <div class="reading-list-article__actions">{{ actionsSlot }}</div>
+</div>

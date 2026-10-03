@@ -70,10 +70,10 @@ export default class extends Controller {
   }
 
   async fetchPreview(input) {
-    const value = input.value.trim();
+    const value = input.value;
     const previewEl = this.getPreviewElement(input);
 
-    if (!value) {
+    if (value.trim() === '') {
       if (previewEl) {
         previewEl.innerHTML = '';
       }
