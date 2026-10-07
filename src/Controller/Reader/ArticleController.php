@@ -7,6 +7,8 @@ use App\Enum\KindsEnum;
 use App\Service\ArticlePublicationIndexer;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ArticlePageLoader;
+use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Nostr\NostrNip19Service;
 use App\Service\HighlightService;
 use App\Service\ReadingListNavigationService;
 use App\Service\VanityNameService;
@@ -21,6 +23,7 @@ class ArticleController  extends AbstractController
 {
     public function __construct(
         private readonly VanityNameService $vanityNameService,
+        private readonly ContentAuthorAccessPolicy $authorAccess,
     ) {}
 
     /**
@@ -38,6 +41,7 @@ class ArticleController  extends AbstractController
                     'searchQuery' => $vanity
                 ]);
             }
+            $this->authorAccess->assertReadable($vanityObj->getNpub());
             return [
                 'npub' => $vanityObj->getNpub(),
                 'vanity' => $vanity,
@@ -46,6 +50,7 @@ class ArticleController  extends AbstractController
         }
 
         if ($npub !== null) {
+            $this->authorAccess->assertReadable($npub);
             // Npub provided, check if it has a vanity name and redirect
             $vanityObj = $this->vanityNameService->getActiveByNpub($npub);
             if ($vanityObj !== null) {
@@ -72,8 +77,10 @@ class ArticleController  extends AbstractController
      * projections) and the loading template already reloads to /e/… anyway.
      */
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
-    public function naddr($naddr): Response
+    public function naddr($naddr, NostrNip19Service $nip19): Response
     {
+        $address = $nip19->decode($naddr);
+        $this->authorAccess->assertReadable($address['pubkey']);
         return $this->redirectToRoute('nevent', ['nevent' => $naddr]);
     }
 
@@ -95,6 +102,7 @@ class ArticleController  extends AbstractController
             throw $this->createAccessDeniedException('Invalid user identifier.');
         }
 
+        $this->authorAccess->assertReadable($currentPubkey);
         // Only find drafts belonging to the current user
         $repository = $entityManager->getRepository(Article::class);
         $draft = $repository->findOneBy([
@@ -139,6 +147,14 @@ class ArticleController  extends AbstractController
                 'message' => 'No articles found for this slug. Try searching or pasting a Nostr address (naddr) below.',
                 'searchQuery' => $slug
             ]);
+        }
+
+        $articles = array_values(array_filter(
+            $articles,
+            fn (Article $article): bool => !$this->authorAccess->isSuppressed($article->getPubkey()),
+        ));
+        if ($articles === []) {
+            throw $this->createNotFoundException('Content not found.');
         }
 
         // Group articles by author (pubkey)
@@ -225,6 +241,7 @@ class ArticleController  extends AbstractController
         ArticlePublicationIndexer $publicationIndexer,
         string $npub,
     ): Response {
+        $this->authorAccess->assertReadable($npub);
         $slug = urldecode($slug);
         $publications = [];
         try {
@@ -244,6 +261,7 @@ class ArticleController  extends AbstractController
         ReadingListNavigationService $readingListNavigation,
         string $npub,
     ): Response {
+        $this->authorAccess->assertReadable($npub);
         $slug = urldecode($slug);
         $listNav = null;
         try {
@@ -262,6 +280,7 @@ class ArticleController  extends AbstractController
         string $slug,
         string $npub,
     ): Response {
+        $this->authorAccess->assertReadable($npub);
         $slug = urldecode($slug);
 
         try {
@@ -284,6 +303,7 @@ class ArticleController  extends AbstractController
         string $npub,
         HighlightService $highlightService,
     ): Response {
+        $this->authorAccess->assertReadable($npub);
         $slug = urldecode($slug);
         $highlights = [];
 
@@ -308,6 +328,7 @@ class ArticleController  extends AbstractController
         EntityManagerInterface $entityManager,
         ArticleAccessService $articleAccess,
     ): Response {
+        $this->authorAccess->assertReadable($npub);
         $slug = urldecode($slug);
         $article = null;
 

@@ -6,6 +6,7 @@ use App\Enum\KindsEnum;
 use App\Service\ArticleEventProjector;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,6 +21,7 @@ class ArticleFetchController extends AbstractController
         private readonly NostrClient $nostrClient,
         private readonly ArticleEventProjector $articleProjector,
         private readonly GenericEventProjector $genericEventProjector,
+        private readonly ContentAuthorAccessPolicy $authorAccess,
     ) {}
 
     /**
@@ -63,6 +65,10 @@ class ArticleFetchController extends AbstractController
                 ], 400);
             }
 
+            if (is_string($pubkey) && $pubkey !== '' && $this->authorAccess->isSuppressed($pubkey)) {
+                return $this->notFound();
+            }
+
             return $this->fetchByEventId($id, $relays);
         }
 
@@ -74,6 +80,14 @@ class ArticleFetchController extends AbstractController
      */
     private function fetchByCoordinate(string $coordinate): JsonResponse
     {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3 || preg_match('/^[a-f0-9]{64}$/i', $parts[1]) !== 1) {
+            return new JsonResponse(['success' => false, 'error' => 'Invalid coordinate'], 400);
+        }
+        if ($this->authorAccess->isSuppressed($parts[1])) {
+            return $this->notFound();
+        }
+
         try {
             $articlesMap = $this->nostrClient->getArticlesByCoordinates([$coordinate]);
 
@@ -95,6 +109,9 @@ class ArticleFetchController extends AbstractController
                 ], 404);
             }
 
+            if ($this->authorAccess->isSuppressed($event->pubkey)) {
+                return $this->notFound();
+            }
             $this->projectEvent($event);
 
             return new JsonResponse([
@@ -130,6 +147,9 @@ class ArticleFetchController extends AbstractController
                 ], 404);
             }
 
+            if ($this->authorAccess->isSuppressed($event->pubkey)) {
+                return $this->notFound();
+            }
             $this->projectEvent($event);
 
             return new JsonResponse([
@@ -159,5 +179,10 @@ class ArticleFetchController extends AbstractController
         } else {
             $this->genericEventProjector->projectEventFromNostrEvent($event, 'api-fetch');
         }
+    }
+
+    private function notFound(): JsonResponse
+    {
+        return new JsonResponse(['success' => false, 'error' => 'Event not found'], 404);
     }
 }

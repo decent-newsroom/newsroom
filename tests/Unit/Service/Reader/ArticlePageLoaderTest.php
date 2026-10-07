@@ -16,6 +16,7 @@ use App\Service\Nostr\NostrEventParser;
 use App\Service\Nostr\NostrIdentityService;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ArticlePageLoader;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Util\CommonMark\Converter;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
@@ -27,10 +28,46 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class ArticlePageLoaderTest extends TestCase
 {
     private const HEX = '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2';
+
+    /** @dataProvider suppressedArticleTypes */
+    public function testSuppressedAuthorIsRejectedBeforeArticleLookupOrRelayDispatch(bool $draft): void
+    {
+        $repository = $this->createMock(ArticleRepository::class);
+        $repository->expects(self::never())->method('findOneBy');
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::never())->method('dispatch');
+        $redis = $this->createMock(RedisCacheService::class);
+        $redis->expects(self::never())->method('getMetadata');
+        $access = $this->createMock(ContentAuthorAccessPolicy::class);
+        $access->expects(self::once())->method('assertReadable')->with(self::HEX)
+            ->willThrowException(new NotFoundHttpException('Content not found.'));
+
+        $loader = $this->loader(
+            $repository,
+            $bus,
+            $this->createMock(UrlGeneratorInterface::class),
+            $redis,
+            authorAccess: $access,
+        );
+
+        $this->expectException(NotFoundHttpException::class);
+        if ($draft) {
+            $loader->loadDraftArticle(self::HEX, 'missing', $this->viewer(self::HEX));
+        } else {
+            $loader->loadPublicArticle(self::HEX, 'missing', null);
+        }
+    }
+
+    public static function suppressedArticleTypes(): iterable
+    {
+        yield 'public article' => [false];
+        yield 'own draft' => [true];
+    }
 
     public function testMissingArticleQueuesRelayFetchAndReturnsLoadingResult(): void
     {
@@ -248,6 +285,7 @@ final class ArticlePageLoaderTest extends TestCase
         ?RedisCacheService $redis = null,
         ?Converter $converter = null,
         ?HighlightService $highlightService = null,
+        ?ContentAuthorAccessPolicy $authorAccess = null,
     ): ArticlePageLoader {
         $identityService = new NostrIdentityService(
             $this->createMock(Nip19DecoderInterface::class),
@@ -266,6 +304,7 @@ final class ArticlePageLoaderTest extends TestCase
             $urlGenerator,
             new ArticleAccessService($identityService),
             $highlightService ?? $this->createMock(HighlightService::class),
+            $authorAccess ?? $this->createMock(ContentAuthorAccessPolicy::class),
         );
     }
 

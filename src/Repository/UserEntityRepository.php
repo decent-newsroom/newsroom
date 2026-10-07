@@ -13,6 +13,14 @@ use Doctrine\Persistence\ManagerRegistry;
 
 class UserEntityRepository extends ServiceEntityRepository
 {
+    public function isAdminMuted(string $npub): bool
+    {
+        return $this->entityManager->getConnection()->fetchOne(
+            'SELECT 1 FROM app_user WHERE npub = :npub AND CAST(roles AS JSONB) @> CAST(:roles AS JSONB)',
+            ['npub' => $npub, 'roles' => json_encode([RolesEnum::MUTED->value], JSON_THROW_ON_ERROR)],
+        ) !== false;
+    }
+
     /**
      * Paginated: Find users with any roles beyond the default ROLE_USER
      * @param int $limit

@@ -38,6 +38,14 @@ Core event/article/media/comment ingestion and graph projection check the ban ta
 
 Cleanup also deletes the authors' outgoing parsed references and current-record pointers. Article, profile/event, and hosted-publication cache pools, Redis `view:*` payloads, and the current environment's media discovery cache are invalidated before and after local deletion. Content caches are cleared instance-wide because other authors' reading lists and publications can embed the deleted items; sessions and unrelated Redis keys are not cleared.
 
+## Content URL access
+
+Public author/profile pages, article URLs (including draft URLs and lazy article frames), event addresses, chapter pages and parent frames, follow-pack pages, and `/api/fetch-article` reject instance-wide admin-muted or permanently banned authors with an ordinary HTTP **404**. No moderation reason is exposed. Personal NIP-51 mute lists do not affect these instance-wide decisions, and administration tools remain accessible.
+
+When a URL or fetch request identifies the author (hex pubkey, npub, nprofile, naddr, nevent with an author hint, or an article coordinate), the check runs before content queries, metadata loading, relay-list discovery, relay requests, and asynchronous fetch dispatch. Vanity URLs require resolving the vanity name to its author first, then stop before content loading. Ban and admin-mute membership use fresh indexed database lookups, not the existing fail-open mute-list cache. Database lookup failures do not allow content access. Removing an admin mute does not make a banned author readable again.
+
+An event-ID-only `note` or author-less `nevent` cannot identify its author without a lookup. These links are checked immediately after the event is found, before metadata loading, projection, or rendering. The fetch API also checks the actual author of fetched events, even when no author was supplied by the caller. Slug-only article disambiguation similarly requires a local lookup and excludes suppressed authors from its results.
+
 ## Operational boundaries
 
 Back up production data before confirmation. Pause ingestion workers and indexing/population jobs during cleanup, and restart workers on the deployed code afterward. This prevents in-flight search writes from racing the purge; PostgreSQL triggers also protect direct database writes by older workers once the ban is visible. Bans affect all future event kinds from the author, including metadata, articles, and new revisions.

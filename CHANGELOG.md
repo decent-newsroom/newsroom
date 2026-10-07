@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Fix] Return early 404s for content URLs and article fetch requests targeting admin-muted or permanently banned authors, without content lookups, relay discovery, or background fetches when the author is known.
 - [Feature] Added confirmed, dry-run-capable author bans from Elasticsearch hit exports, with persistent ingestion suppression and author-wide local/search cleanup that can be retried safely.
 - [Fix] Rejected articles linking to or embedding images from y5.pics, go.cbrop.com, and i.postimg.cc during QA and indexing, automatically admin-muted their authors, and excluded their existing articles from search.
 - [Fix] Completed docs-theme zap dialog styling for amount and split-payment controls, invoice/QR presentation, wallet and copy actions, status states, focus, and narrow viewports without changing payment behavior.

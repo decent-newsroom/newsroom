@@ -10,6 +10,7 @@ use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\BooksChapterLookup;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Nostr\EventLookupKey;
 use App\Util\CommonMark\Converter;
 use nostriphant\NIP19\Bech32;
@@ -165,7 +166,7 @@ final class ChapterControllerTest extends TestCase
 
     private function makeController(): ChapterController
     {
-        return new class extends ChapterController {
+        return new class($this->createMock(ContentAuthorAccessPolicy::class)) extends ChapterController {
             public array $renderedParameters = [];
 
             public function render(string $view, array $parameters = [], ?Response $response = null): Response

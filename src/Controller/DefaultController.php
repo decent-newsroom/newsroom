@@ -34,6 +34,7 @@ use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\Nostr\NostrNip19Service;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -590,6 +591,7 @@ class DefaultController extends AbstractController
         RedisCacheService $redisCacheService,
         ArticleRepository $articleRepository,
         MessageBusInterface $messageBus,
+        ContentAuthorAccessPolicy $authorAccess,
     ): Response
     {
         try {
@@ -598,6 +600,7 @@ class DefaultController extends AbstractController
             throw $this->createNotFoundException('Invalid npub.');
         }
 
+        $authorAccess->assertReadable($pubkey);
         $eventRepo = $em->getRepository(Event::class);
         $packEvent = $eventRepo->findByNaddr(KindsEnum::FOLLOW_PACK->value, $pubkey, $dtag);
 

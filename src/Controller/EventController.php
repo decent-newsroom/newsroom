@@ -13,6 +13,7 @@ use App\Service\GenericEventProjector;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Util\Nip10TagParser;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
@@ -30,6 +31,7 @@ class EventController extends AbstractController
 {
     public function __construct(
         private readonly \App\Service\ArticleEventProjector $articleEventProjector,
+        private readonly ContentAuthorAccessPolicy $authorAccess,
     ) {}
 
     /**
@@ -278,6 +280,7 @@ class EventController extends AbstractController
         NostrClient $nostrClient,
         GenericEventProjector $genericEventProjector,
     ): Response {
+        $this->authorAccess->assertReadable($event->pubkey);
         $publicationRedirect = $this->redirectPublicationIndexIfNeeded($event, $logger);
         if ($publicationRedirect instanceof Response) {
             return $publicationRedirect;
@@ -357,6 +360,11 @@ class EventController extends AbstractController
             $data = $decoded->data;
             $logger->info('Event data', ['data' => json_encode($data)]);
 
+            $authorPubkey = $data->pubkey ?? $data->author ?? null;
+            if (is_string($authorPubkey) && $authorPubkey !== '') {
+                $this->authorAccess->assertReadable($authorPubkey);
+            }
+
             // Sort which event type this is using $data->type
             switch ($decoded->type) {
                 case 'note':
@@ -383,6 +391,7 @@ class EventController extends AbstractController
                         }
 
                         if ($rawEvent !== null) {
+                            $this->authorAccess->assertReadable($rawEvent->pubkey);
                             try {
                                 $persisted = $genericEventProjector->projectEventFromNostrEvent(
                                     $rawEvent,
@@ -482,6 +491,7 @@ class EventController extends AbstractController
                         }
 
                         if ($rawEvent !== null) {
+                            $this->authorAccess->assertReadable($rawEvent->pubkey);
                             try {
                                 $persisted = $genericEventProjector->projectEventFromNostrEvent(
                                     $rawEvent,
@@ -658,6 +668,7 @@ class EventController extends AbstractController
                     }
 
                     if ($rawEvent !== null) {
+                        $this->authorAccess->assertReadable($rawEvent->pubkey);
                         $relaySource = $relays[0] ?? 'sync-naddr-fetch';
                         try {
                             $persisted = $genericEventProjector->projectEventFromNostrEvent(

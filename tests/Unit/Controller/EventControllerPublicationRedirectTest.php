@@ -16,6 +16,7 @@ use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\UserRelayListService;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use PHPUnit\Framework\TestCase;
@@ -223,7 +224,7 @@ class EventControllerPublicationRedirectTest extends TestCase
     {
         $projector = $this->createMock(ArticleEventProjector::class);
 
-        return new class($projector) extends EventController {
+        return new class($projector, $this->createMock(ContentAuthorAccessPolicy::class)) extends EventController {
             public function redirectToRoute(string $route, array $parameters = [], int $status = 302): RedirectResponse
             {
                 $query = http_build_query($parameters);

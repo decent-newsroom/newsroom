@@ -11,6 +11,7 @@ use App\Repository\EventRepository;
 use App\Service\ChapterParentPublicationResolver;
 use App\Service\BooksChapterLookup;
 use App\Service\Nostr\EventLookupKey;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Util\CommonMark\Converter;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
@@ -23,6 +24,10 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class ChapterController extends AbstractController
 {
+    public function __construct(private readonly ContentAuthorAccessPolicy $authorAccess)
+    {
+    }
+
     #[Route('/chapter/{naddr}', name: 'chapter', requirements: ['naddr' => '^naddr1.*'])]
     public function show(
         string $naddr,
@@ -41,6 +46,8 @@ class ChapterController extends AbstractController
         $pubkey = $data['pubkey'];
         $identifier = $data['identifier'];
         $relays = $data['relays'];
+
+        $this->authorAccess->assertReadable($pubkey);
 
         if ($kind !== KindsEnum::PUBLICATION_CONTENT->value) {
             return $this->redirectToRoute('nevent', ['nevent' => $naddr]);
@@ -99,6 +106,9 @@ class ChapterController extends AbstractController
     public function parentFrame(string $naddr, ChapterParentPublicationResolver $parentResolver): Response
     {
         $data = $this->decodeAddress($naddr);
+        if ($data !== null) {
+            $this->authorAccess->assertReadable($data['pubkey']);
+        }
         $parentPublication = null;
         if (
             $data !== null

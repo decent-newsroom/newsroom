@@ -20,6 +20,7 @@ use App\Repository\ArticleRepository;
 // NOTE: This controller uses ArticleRepository directly (bypasses search service)
 // to ensure article tabs are accurate regardless of Elasticsearch index lag.
 use App\Service\VanityNameService;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -46,6 +47,7 @@ class AuthorController extends AbstractController
         private readonly VanityNameService $vanityNameService,
         private readonly CacheItemPoolInterface $cache,
         private readonly ArticleRepository $articleRepository,
+        private readonly ContentAuthorAccessPolicy $authorAccess,
     ) {}
 
     /**
@@ -60,6 +62,7 @@ class AuthorController extends AbstractController
             if ($vanityObj === null) {
                 throw $this->createNotFoundException('Profile not found.');
             }
+            $this->authorAccess->assertReadable($vanityObj->getNpub());
             return [
                 'npub' => $vanityObj->getNpub(),
                 'vanity' => $vanity,
@@ -68,6 +71,7 @@ class AuthorController extends AbstractController
         }
 
         if ($npub !== null) {
+            $this->authorAccess->assertReadable($npub);
             // Npub provided, check if it has a vanity name and redirect
             $vanityObj = $this->vanityNameService->getActiveByNpub($npub);
             if ($vanityObj !== null) {
@@ -2279,6 +2283,7 @@ class AuthorController extends AbstractController
     #[Route('/p/{pubkey}', name: 'author-redirect', requirements: ['pubkey' => '^(?!npub1)[0-9a-f]{64}$'])]
     public function authorRedirect($pubkey): Response
     {
+        $this->authorAccess->assertReadable($pubkey);
         $keys = new NostrKeyService();
         $npub = $keys->convertPublicKeyToBech32($pubkey);
         return $this->redirectToRoute('author-profile', ['npub' => $npub]);

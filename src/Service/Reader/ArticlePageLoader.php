@@ -35,6 +35,7 @@ final readonly class ArticlePageLoader
         private UrlGeneratorInterface $urlGenerator,
         private ArticleAccessService $articleAccess,
         private HighlightService $highlightService,
+        private ContentAuthorAccessPolicy $authorAccess,
     ) {
     }
 
@@ -42,6 +43,7 @@ final readonly class ArticlePageLoader
     {
         $slug = urldecode($slug);
         $pubkey = $this->resolvePubkey($npub, 'Invalid author identifier.');
+        $this->authorAccess->assertReadable($pubkey);
 
         /** @var Article|null $article */
         $article = $this->articleRepository->findOneBy([
@@ -88,6 +90,7 @@ final readonly class ArticlePageLoader
 
         $slug = urldecode($slug);
         $pubkey = $this->resolvePubkey($npub, 'Invalid author identifier.');
+        $this->authorAccess->assertReadable($pubkey);
         $viewerPubkey = $this->resolveViewerPubkey($viewer);
 
         if (!hash_equals($pubkey, $viewerPubkey)) {
