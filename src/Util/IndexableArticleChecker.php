@@ -9,8 +9,10 @@ use App\Service\MutedPubkeysService;
 
 class IndexableArticleChecker
 {
-    public function __construct(private readonly MutedPubkeysService $mutedPubkeysService)
-    {
+    public function __construct(
+        private readonly MutedPubkeysService $mutedPubkeysService,
+        private readonly BlockedArticleDomainPolicy $blockedDomainPolicy,
+    ) {
     }
 
     public function isIndexable(Article $article): bool
@@ -24,7 +26,12 @@ class IndexableArticleChecker
             return false;
         }
 
-        return !$this->isMutedAuthor($article);
+        return !$this->isMutedAuthor($article) && !$this->hasBlockedDomain($article);
+    }
+
+    public function hasBlockedDomain(Article $article): bool
+    {
+        return $this->blockedDomainPolicy->findBlockedDomain($article) !== null;
     }
 
     public function isMutedAuthor(Article $article): bool

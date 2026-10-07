@@ -56,7 +56,8 @@ class IndexArticlesCommand extends Command
             $mutedIds = [];
 
             foreach ($articles as $article) {
-                if ($this->indexableArticleChecker->isMutedAuthor($article)) {
+                if ($this->indexableArticleChecker->isMutedAuthor($article)
+                    || $this->indexableArticleChecker->hasBlockedDomain($article)) {
                     $mutedIds[] = (string) $article->getId();
                     $article->setIndexStatus(IndexStatusEnum::DO_NOT_INDEX);
                     continue;
@@ -84,7 +85,7 @@ class IndexArticlesCommand extends Command
         } while ($batchCount === self::BATCH_SIZE);
 
         $output->writeln(sprintf(
-            '%d items indexed in Elasticsearch; %d muted-author articles excluded.',
+            '%d items indexed in Elasticsearch; %d muted-author or blocked-domain articles excluded.',
             $indexedCount,
             $mutedCount,
         ));

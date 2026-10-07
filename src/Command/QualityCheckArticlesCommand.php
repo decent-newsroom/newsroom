@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\Article;
+use App\Entity\User;
 use App\Enum\IndexStatusEnum;
+use App\Enum\KindsEnum;
+use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
+use App\Service\MutedPubkeysService;
+use App\Util\BlockedArticleDomainPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Index;
 use Elastica\Query\Terms;
+use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,6 +32,8 @@ class QualityCheckArticlesCommand extends Command
         private readonly UserEntityRepository $userRepository,
         private readonly Index $articleIndex,
         private readonly bool $elasticsearchEnabled,
+        private readonly BlockedArticleDomainPolicy $blockedDomainPolicy,
+        private readonly MutedPubkeysService $mutedPubkeysService,
     )
     {
         parent::__construct();
@@ -38,9 +46,10 @@ class QualityCheckArticlesCommand extends Command
                 array_map(strtolower(...), $this->userRepository->getMutedPubkeys()),
                 true,
             );
+            $this->muteBlockedDomainAuthors($output);
             $output->writeln(sprintf('Found %d muted users to exclude', count($this->mutedPubkeys)));
         } catch (\Exception $e) {
-            $output->writeln('<error>Error fetching muted users: ' . $e->getMessage() . '</error>');
+            $output->writeln('<error>Error checking blocked domains or fetching muted users: ' . $e->getMessage() . '</error>');
             return Command::FAILURE;
         }
 
@@ -112,8 +121,64 @@ class QualityCheckArticlesCommand extends Command
         return Command::SUCCESS;
     }
 
+    private function muteBlockedDomainAuthors(OutputInterface $output): void
+    {
+        $lastId = 0;
+        $conditions = [];
+        $parameters = ['draft' => KindsEnum::LONGFORM_DRAFT->value];
+        foreach (BlockedArticleDomainPolicy::DOMAINS as $i => $domain) {
+            $conditions[] = "LOWER(CONCAT_WS(' ', content, image, title, summary, raw::text)) LIKE :domain$i";
+            $parameters['domain' . $i] = '%' . $domain . '%';
+        }
+
+        // Revisit matching articles regardless of QA status, including already indexed rows.
+        $sql = 'SELECT id FROM article WHERE id > :lastId AND (kind IS NULL OR kind != :draft) AND ('
+            . implode(' OR ', $conditions) . ') ORDER BY id ASC LIMIT 100';
+        do {
+            $ids = $this->entityManager->getConnection()
+                ->executeQuery($sql, $parameters + ['lastId' => $lastId])
+                ->fetchFirstColumn();
+            if ($ids === []) {
+                break;
+            }
+            $lastId = (int) end($ids);
+            $articles = $this->entityManager->getRepository(Article::class)->findBy(['id' => $ids]);
+            $changed = false;
+
+            foreach ($articles as $article) {
+                $domain = $this->blockedDomainPolicy->findBlockedDomain($article);
+                $hex = strtolower(trim($article->getPubkey() ?? ''));
+                if ($domain === null || isset($this->mutedPubkeys[$hex])) {
+                    continue;
+                }
+                $npub = PublicKey::fromHex($hex)?->toBech32()
+                    ?? throw new \InvalidArgumentException(sprintf('Invalid pubkey on blocked-domain article %d', $article->getId()));
+                $user = $this->userRepository->findOneBy(['npub' => $npub]);
+                if ($user === null) {
+                    $user = new User();
+                    $user->setNpub($npub);
+                    $this->entityManager->persist($user);
+                }
+                $user->addRole(RolesEnum::MUTED->value);
+                $this->mutedPubkeys[$hex] = true;
+                $changed = true;
+                $output->writeln(sprintf('Admin-muting %s: article %d contains blocked domain %s', $hex, $article->getId(), $domain));
+            }
+
+            $this->entityManager->flush();
+            if ($changed) {
+                $this->mutedPubkeysService->invalidateCache();
+            }
+            $this->entityManager->clear();
+        } while (count($ids) === 100);
+    }
+
     private function meetsCriteria(Article $article): bool
     {
+        if ($this->blockedDomainPolicy->findBlockedDomain($article) !== null) {
+            return false;
+        }
+
         // Exclude admin-muted authors using the same hex pubkey as Article.
         if (isset($this->mutedPubkeys[strtolower(trim($article->getPubkey()))])) {
             return false;
