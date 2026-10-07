@@ -33,6 +33,7 @@ class ArticleFetchService
         private readonly LoggerInterface       $logger,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly Converter             $converter,
+        private readonly AuthorIngestionGate   $authorIngestionGate,
         private readonly ?string               $nostrDefaultRelay = null,
     ) {}
 
@@ -346,6 +347,7 @@ class ArticleFetchService
      */
     public function save(Article $article): void
     {
+        $this->authorIngestionGate->assertAllowed($article->getPubkey() ?? '');
         $saved = $this->entityManager->getRepository(Article::class)
             ->findOneBy(['eventId' => $article->getEventId()]);
 
@@ -409,4 +411,3 @@ class ArticleFetchService
         }
     }
 }
-

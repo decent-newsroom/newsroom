@@ -6,6 +6,7 @@ use App\Entity\Event;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\ReplaceableEventCleanupService;
+use App\Service\Nostr\AuthorIngestionGate;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -23,6 +24,7 @@ class MediaEventProjector
         private readonly LoggerInterface $logger,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly ReplaceableEventCleanupService $cleanupService,
+        private readonly AuthorIngestionGate $authorIngestionGate,
     ) {
     }
 
@@ -51,6 +53,7 @@ class MediaEventProjector
             throw new \InvalidArgumentException('Media event missing required fields (id, pubkey)');
         }
 
+        $this->authorIngestionGate->assertAllowed((string) $event->pubkey);
         try {
             // Check if event already exists in the database
             $existingEvent = $this->eventRepository->findById($event->id);

@@ -6,6 +6,7 @@ use App\Entity\Article;
 use App\Factory\ArticleFactory;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\Nostr\AuthorIngestionGate;
 use App\Util\CommonMark\Converter;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
@@ -30,6 +31,7 @@ class ArticleEventProjector
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly ReplaceableEventCleanupService $cleanupService,
         private readonly RedisViewStore $viewStore,
+        private readonly AuthorIngestionGate $authorIngestionGate,
     ) {
     }
 
@@ -65,6 +67,7 @@ class ArticleEventProjector
      */
     public function projectArticleFromEvent(object $event, string $relayUrl, bool $markEssayistExclusive = false): void
     {
+        $this->authorIngestionGate->assertAllowed((string) ($event->pubkey ?? ''));
         try {
             $em = $this->em();
 
@@ -326,4 +329,3 @@ class ArticleEventProjector
         }
     }
 }
-

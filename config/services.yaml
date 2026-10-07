@@ -181,6 +181,11 @@ services:
             $articleIndex: '@fos_elastica.index.articles'
             $elasticsearchEnabled: '%elasticsearch_enabled%'
 
+    App\Service\Admin\PubkeyContentPurger:
+        arguments:
+            $articleIndex: '@fos_elastica.index.articles'
+            $elasticsearchEnabled: '%elasticsearch_enabled%'
+
     App\Command\IndexArticlesCommand:
         arguments:
             $itemPersister: '@fos_elastica.object_persister.articles'

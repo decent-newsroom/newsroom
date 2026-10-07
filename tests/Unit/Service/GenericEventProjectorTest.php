@@ -15,6 +15,8 @@ use App\Service\ReplaceableEventCleanupService;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrEventIngressGuard;
+use App\Service\Nostr\AuthorIngestionGate;
+use App\Exception\BannedAuthorEvent;
 use App\Service\Nostr\Projector\RelayDiscoveryEventProjector;
 use App\Service\UserRolePromoter;
 use DecentNewsroom\NostrKernelBundle\Contract\Event\EventNormalizerInterface;
@@ -34,6 +36,7 @@ class GenericEventProjectorTest extends TestCase
     private EventRepository $eventRepository;
     private LoggerInterface $logger;
     private GenericEventProjector $projector;
+    private AuthorIngestionGate $authorGate;
 
     protected function setUp(): void
     {
@@ -45,6 +48,7 @@ class GenericEventProjectorTest extends TestCase
 
         $this->eventRepository = $this->createMock(EventRepository::class);
         $this->logger = $this->createMock(LoggerInterface::class);
+        $this->authorGate = $this->createMock(AuthorIngestionGate::class);
 
         $this->projector = new GenericEventProjector(
             $managerRegistry,
@@ -61,7 +65,21 @@ class GenericEventProjectorTest extends TestCase
             $this->createMock(ArticlePublicationIndexer::class),
             $this->createMock(HighlightProjector::class),
             new NostrEventIngressGuard($this->normalizer()),
+            $this->authorGate,
         );
+    }
+
+    public function testBannedAuthorDoesNotReachPersistenceOrReturnAnExistingEvent(): void
+    {
+        $this->authorGate->method('assertAllowed')->willThrowException(new BannedAuthorEvent('Banned author'));
+        $this->eventRepository->expects(self::never())->method('find');
+        $this->em->expects(self::never())->method('persist');
+        $this->em->expects(self::never())->method('flush');
+        $this->expectException(BannedAuthorEvent::class);
+
+        $this->projector->projectEventFromNostrEvent((object) [
+            'id' => str_repeat('1', 64), 'kind' => 1, 'pubkey' => str_repeat('a', 64),
+        ], 'wss://relay.example');
     }
 
     private function normalizer(): EventNormalizerInterface

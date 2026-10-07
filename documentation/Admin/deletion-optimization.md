@@ -4,6 +4,10 @@ Use this page when removing a large amount of already-ingested content. It is fo
 
 ## Commands
 
+### Permanently Ban Authors From an Elasticsearch Export
+
+Use `admin:ban-es-authors <file> --dry-run`, then confirm the import when you want every author in an ES hits export permanently blocked and **all** their content removed. Unlike the deletion-only commands below, this preserves separate ingestion bans so relay fetches cannot bring their content back. See [Permanent author suppression](global-suppression.md).
+
 ### Delete One Pubkey
 
 ```bash

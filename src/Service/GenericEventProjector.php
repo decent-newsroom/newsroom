@@ -11,6 +11,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrEventIngressGuard;
+use App\Service\Nostr\AuthorIngestionGate;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\ArticlePublicationIndexer;
 use App\Service\Nostr\Projector\RelayDiscoveryEventProjector;
@@ -46,6 +47,7 @@ class GenericEventProjector
         private readonly ArticlePublicationIndexer $publicationIndexer,
         private readonly HighlightProjector $highlightProjector,
         private readonly NostrEventIngressGuard $eventIngressGuard,
+        private readonly AuthorIngestionGate $authorIngestionGate,
     ) {
     }
 
@@ -80,6 +82,7 @@ class GenericEventProjector
         }
 
         $this->eventIngressGuard->normalizeObject($event);
+        $this->authorIngestionGate->assertAllowed((string) ($event->pubkey ?? ''));
 
         // Check if event already exists
         $existing = $this->eventRepository->find($event->id);

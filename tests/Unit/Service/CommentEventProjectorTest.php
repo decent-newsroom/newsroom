@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service;
 use App\Entity\Event;
 use App\Repository\EventRepository;
 use App\Service\CommentEventProjector;
+use App\Service\Nostr\AuthorIngestionGate;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -34,7 +35,7 @@ final class CommentEventProjectorTest extends TestCase
         $entityManager->expects($this->once())
             ->method('flush');
 
-        $projector = new CommentEventProjector($repository, $entityManager, $logger);
+        $projector = new CommentEventProjector($repository, $entityManager, $logger, $this->createMock(AuthorIngestionGate::class));
 
         $count = $projector->projectEvents([
             (object) [

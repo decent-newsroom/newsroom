@@ -9,6 +9,7 @@ use App\Service\Graph\CurrentVersionResolver;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\ParsedReferenceDto;
 use App\Service\Graph\ReferenceParserService;
+use App\Service\Nostr\AuthorIngestionGate;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -33,6 +34,7 @@ class EventIngestionListenerTest extends TestCase
             $this->referenceParser,
             $this->currentVersionResolver,
             $this->logger,
+            $this->createMock(AuthorIngestionGate::class),
         );
     }
 
@@ -171,4 +173,3 @@ class EventIngestionListenerTest extends TestCase
         $this->listener->processRawEvent($raw);
     }
 }
-

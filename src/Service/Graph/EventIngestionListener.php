@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Graph;
 
 use App\Entity\Event;
+use App\Service\Nostr\AuthorIngestionGate;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Psr\Log\LoggerInterface;
@@ -22,6 +23,7 @@ class EventIngestionListener
         private readonly ReferenceParserService $referenceParser,
         private readonly CurrentVersionResolver $currentVersionResolver,
         private readonly LoggerInterface $logger,
+        private readonly AuthorIngestionGate $authorIngestionGate,
     ) {}
 
     /**
@@ -31,6 +33,7 @@ class EventIngestionListener
      */
     public function processEvent(Event $event): void
     {
+        $this->authorIngestionGate->assertAllowed($event->getPubkey());
         $this->updateReferences($event);
         $this->updateCurrentRecord($event);
     }
@@ -40,6 +43,7 @@ class EventIngestionListener
      */
     public function processRawEvent(object $raw): void
     {
+        $this->authorIngestionGate->assertAllowed((string) ($raw->pubkey ?? ''));
         $tags = is_array($raw->tags ?? null) ? $raw->tags : [];
         $kind = (int) ($raw->kind ?? 0);
         $eventId = $raw->id ?? '';
@@ -141,4 +145,3 @@ class EventIngestionListener
         }
     }
 }
-

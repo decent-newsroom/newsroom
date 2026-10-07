@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Event;
 use App\Repository\EventRepository;
+use App\Service\Nostr\AuthorIngestionGate;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -17,6 +18,7 @@ class CommentEventProjector
         private readonly EventRepository $eventRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly AuthorIngestionGate $authorIngestionGate,
     ) {
     }
 
@@ -120,6 +122,7 @@ class CommentEventProjector
             ));
         }
 
+        $this->authorIngestionGate->assertAllowed((string) $event->pubkey);
         try {
             // Check if event already exists in the database
             $existingEvent = $this->eventRepository->findById($event->id);
