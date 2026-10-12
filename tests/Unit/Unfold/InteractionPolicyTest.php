@@ -50,7 +50,9 @@ final class InteractionPolicyTest extends TestCase
         self::assertContains(['k', (string) $kind], $like['tags']);
         $repost = $policy->prepare($target, str_repeat('c', 64), 'repost');
         self::assertSame(16, $repost['kind']);
-        self::assertSame($target->post->eventId, json_decode($repost['content'], true)['id']);
+        self::assertSame('', $repost['content']);
+        self::assertContains(['a', $target->post->coordinate, $target->relayHint], $repost['tags']);
+        self::assertContains(['e', $target->post->eventId, $target->relayHint], $repost['tags']);
         $policy->assertSignedIntent([...$repost, 'id' => str_repeat('d', 64), 'sig' => str_repeat('e', 128)], $target, str_repeat('c', 64), 'repost');
     }
 

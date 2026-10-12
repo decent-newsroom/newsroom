@@ -25,8 +25,8 @@ The signer account must match the authenticated account.
 Comments are plaintext. A reply previews its parent and retains the original
 content as the thread root. Cancelling reply mode preserves the draft.
 Likes are positive-only; an active `Liked` button does not undo an event.
-Reposting asks for confirmation before publicly sharing the original event.
-`Reposted` is likewise an active state, not a deletion toggle.
+Reposts publish directly and `Reposted` is likewise an active state, not a
+deletion toggle.
 
 Signed payloads are saved before the HTTP publish request. A transport retry
 reuses the same event ID and signature, rather than signing a duplicate event.
@@ -55,9 +55,9 @@ empty notice area.
 | Generic repost | `16` | NIP-18 original event ID, coordinate, author, and source kind |
 
 Kind `6` is reserved for reposting kind-1 notes and is not used for these content
-types. Reposts normally embed the actual original signed event JSON; rendered
-HTML and reconstructed unsigned metadata are not valid substitutes.
-NIP-70-protected originals are referenced without embedding their content.
+types. Generic reposts reference the signed original through their `e`, `a`,
+`p`, and `k` tags and keep their content empty. Interaction reference tags use
+the configured public project relay URL, never an internal Docker relay address.
 
 Every read and write checks the current signed publication tree. A coordinate
 must identify a supported public leaf of the current host's publication.

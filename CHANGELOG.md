@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Fix] Made Unfold reposts publish without a browser confirmation, use the public project relay in reference tags, and keep kind-16 content empty when `a` tags identify the original.
 - [Improvement] Reworked hosted Unfold discussions into a flat editorial layout and scoped visible interaction feedback to its thread, composer, or action while clearing stale loading messages.
 - [Fix] Return early 404s for content URLs and article fetch requests targeting admin-muted or permanently banned authors, without content lookups, relay discovery, or background fetches when the author is known.
 - [Feature] Added confirmed, dry-run-capable author bans from Elasticsearch hit exports, with persistent ingestion suppression and author-wide local/search cleanup that can be retried safely.

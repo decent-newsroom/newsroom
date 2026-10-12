@@ -145,17 +145,17 @@ No new event kinds are needed.
 
 - All four target kinds are non-kind-1 content, so use **generic repost kind 16**,
   not note-only kind 6.
-- Include `e` for the original revision with a usable relay hint, `p` for the
-  author, `k` for the original kind, and `a` for the full addressable coordinate.
-- Normally embed the original signed event JSON in `content`, preserving its
-  ID/signature and verifying it against the resolved public target. Never embed
-  the rendered article or an invented unsigned event.
-- For NIP-70-protected originals, keep repost content empty as specified by
-  NIP-18; still retain the reference and relay hint.
-- Show a confirmation explaining that reposts are public. Read own state and
-  distinct-reposter counts locally; do not count kind-16 events as comments.
-- Unknown original relay hints must not be fabricated. Missing valid source
-  identity/hints produce an explicit unavailable state.
+- Include `e` for the original revision, `p` for the author, `k` for the
+  original kind, and `a` for the full addressable coordinate.
+- Keep repost `content` empty. Verify the original signature against the
+  resolved public target, but do not embed its serialized JSON.
+- Use the configured public project relay URL as the relay hint for the `e` and
+  `a` tags; do not copy internal Docker or content-discovery relay addresses
+  into browser-signed events.
+- Publish directly. Read own state and distinct-reposter counts locally; do
+  not count kind-16 events as comments.
+- A missing valid source identity or configured public project relay produces an
+  explicit unavailable state.
 
 ## Package Contracts, Routes, And Signing
 
@@ -260,7 +260,7 @@ distinguishable unavailable state.
    actually shared. Deliver positive creation, distinct-reader count, own state,
    reload behavior, and duplicate prevention across all four kinds.
 4. **Reposts:** add the kind-16 service and source-event validation, then
-   confirmation, own state, delivery/retry behavior, and both-theme presentation.
+   direct publishing, own state, delivery/retry behavior, and both-theme presentation.
 5. **Integrated handoff:** verify the same identity/target/delivery behavior in
    both themes and the main DN reader; update the existing feature documentation
    and add one changelog item per delivered feature/fix, not for this plan.
@@ -281,7 +281,8 @@ checks; do not let each agent invent a signer or publication identity model.
 - Top-level/reply fixtures assert exact NIP-22 root/parent tags. Foreign parents,
   conflicting roots, cycles, missing parents, and duplicate events are covered.
 - Like/repost fixtures assert kind/coordinate/revision/author tags, unique-reader
-  state/counts, proper original JSON, protected repost behavior, and replay safety.
+  state/counts, empty repost content, the public project relay hint, and replay
+  safety.
 - Hosted routes are not swallowed by the catch-all. Anonymous reads work;
   anonymous writes, signer/session mismatch, CSRF failures, unregistered hosts,
   foreign publication targets, and scoped/removed content writes are denied.
@@ -324,7 +325,7 @@ generated dialog state while preserving zap and split-payment behavior.
 - Gated highlights must carry source `s` tags and go through Spec 06's central
   home-relay-only publishing guard. Authorization applies to every DB/relay/cache
   read, not just initial page access.
-- Gated comments and especially embedded reposts can leak protected text.
+- Gated comments and repost references can leak protected-content interest.
   Public coordinate references also reveal interest. Their disclosure/routing
   policy requires a separate decision with Spec 06; this slice must reject them,
   not silently choose public fan-out. The previous draft's permissive gated-like

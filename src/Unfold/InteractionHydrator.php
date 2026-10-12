@@ -64,7 +64,9 @@ final readonly class InteractionHydrator
                 ? $this->originalFromArticle($selected['article'], $reference->coordinate)
                 : $this->verifiedOriginal($selected['event']);
 
-            $relayHint = $reference->relayHints[0] ?? $this->relayRegistry->getContentRelays()[0] ?? null;
+            // Reader events are signed by external clients. Never embed the
+            // internal Docker relay address from content discovery in them.
+            $relayHint = $this->relayRegistry->getProjectRelay();
 
             return new InteractionTarget($publicationCoordinate, $post, $original, $relayHint);
         } catch (\InvalidArgumentException $e) {

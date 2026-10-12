@@ -663,10 +663,6 @@ export class UnfoldReaderInteractions {
       return;
     }
 
-    if (!window.confirm(this.labels.confirm_repost || '')) {
-      return;
-    }
-
     await this.publishNonComment('repost');
   }
 

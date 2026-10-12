@@ -68,17 +68,7 @@ final class InteractionPolicy
                     || preg_match('/^[a-f0-9]{128}$/D', $original->sig) !== 1) {
                     throw new \InvalidArgumentException('unfold_interactions.repost_unavailable');
                 }
-                $protected = false;
-                foreach ($original->tags as $tag) {
-                    if (($tag[0] ?? null) === '-') {
-                        $protected = true;
-                    }
-                }
-                $content = $protected ? '' : json_encode([
-                    'id' => $original->id, 'pubkey' => $original->pubkey,
-                    'created_at' => $original->createdAt, 'kind' => $original->kind,
-                    'tags' => $original->tags, 'content' => $original->content, 'sig' => $original->sig,
-                ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                $content = '';
             }
         }
         return ['pubkey' => $readerPubkey, 'kind' => $kind, 'created_at' => $timestamp ?? time(), 'tags' => $tags, 'content' => $content];

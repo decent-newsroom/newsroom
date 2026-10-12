@@ -74,7 +74,7 @@ final class InteractionHydrationTest extends TestCase
         self::assertSame(str_repeat('1', 64), $target->post->eventId);
         self::assertSame('Story title', $target->post->title);
         self::assertNull($target->original, 'Fake signatures cannot become repost originals');
-        self::assertSame('wss://relay.example', $target->relayHint);
+        self::assertSame('wss://relay.decentnewsroom.com', $target->relayHint);
     }
 
     public function testTargetResolvesWhenOnlyArticleProjectionExists(): void
@@ -635,7 +635,7 @@ final class InteractionHydrationTest extends TestCase
      * @param list<Comment> $comments
      * @param list<NostrEvent> $descendants
      */
-    private function hydrator(array $articles = [], array $events = [], array $comments = [], array $descendants = [], array $contentRelays = ['wss://relay.example'], ?array $indexes = null, ?\App\Service\Nostr\NostrEventVerifier $verifier = null): InteractionHydrator
+    private function hydrator(array $articles = [], array $events = [], array $comments = [], array $descendants = [], ?array $indexes = null, ?\App\Service\Nostr\NostrEventVerifier $verifier = null): InteractionHydrator
     {
         $articleRepo = $this->createMock(ArticleRepository::class);
         $articleRepo->method('findByCoordinates')->willReturnCallback(function (array $coordinates) use ($articles): array {
@@ -684,7 +684,8 @@ final class InteractionHydrationTest extends TestCase
         $treeLookup->expects(self::never())->method('findDescendants');
 
         $relayRegistry = $this->createMock(RelayRegistry::class);
-        $relayRegistry->method('getContentRelays')->willReturn($contentRelays);
+        $relayRegistry->expects(self::never())->method('getContentRelays');
+        $relayRegistry->method('getProjectRelay')->willReturn('wss://relay.decentnewsroom.com');
         $connection = $this->createMock(Connection::class);
         $connection->method('fetchAllAssociative')->willReturnCallback(static function (string $sql, array $parameters) use ($events, $comments): array {
             self::assertStringContainsString('tags @> CAST', $sql);
