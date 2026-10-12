@@ -119,6 +119,8 @@ final class MultiKindRenderingTest extends TestCase
             self::assertStringContainsString('<p>Specification body</p>', $html);
             self::assertStringContainsString('class="unfold-interactions"', $html);
             self::assertStringContainsString('data-unfold-interactions', $html);
+            self::assertStringContainsString('data-unfold-action-notice', $html);
+            self::assertStringContainsString('data-unfold-thread-notice', $html);
             self::assertStringContainsString('/unfold-themes/default/interactions.css', $html);
             if ($theme === 'docs') {
                 self::assertStringContainsString('/unfold-themes/docs/interactions.css', $html);

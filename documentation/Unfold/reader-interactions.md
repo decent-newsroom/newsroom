@@ -32,6 +32,20 @@ Signed payloads are saved before the HTTP publish request. A transport retry
 reuses the same event ID and signature, rather than signing a duplicate event.
 Locally accepted interactions remain visible while relay delivery is pending.
 
+## Discussion Feedback And Layout
+
+Discussion feedback is contextual: initial and additional-page loading messages
+appear with the thread, comment signing and delivery messages appear with the
+composer, and like/repost feedback appears with those actions. Interaction-wide
+failures remain visible below the discussion header. Every status uses a polite
+live region, and successful requests clear their loading message.
+
+Both bundled themes use a flat editorial discussion layout. Comments are
+separated by rules and replies use a restrained leading guide rather than
+framed cards. Controls are text actions with visible keyboard focus; no
+interaction state relies on shading, shadows, rounded corners, or a persistent
+empty notice area.
+
 ## Protocol And Access
 
 | Action | Kind | Identity |

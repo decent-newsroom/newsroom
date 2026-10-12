@@ -18,19 +18,22 @@
             <h2 id="unfold-interactions-title" class="unfold-interactions__title">{{post.interactions.labels.comments}}</h2>
             <p class="unfold-interactions__meta" data-unfold-count>{{post.comments_count}}</p>
         </div>
-        <div class="unfold-interactions__toolbar" aria-label="{{post.interactions.labels.comments}}">
-            <button type="button" class="unfold-interactions__button" data-unfold-like-action aria-pressed="false">
-                <span data-unfold-like-label>{{post.interactions.labels.like}}</span>
-                <span data-unfold-like-count hidden></span>
-            </button>
-            <button type="button" class="unfold-interactions__button" data-unfold-repost-action aria-pressed="false">
-                <span data-unfold-repost-label>{{post.interactions.labels.repost}}</span>
-                <span data-unfold-repost-count hidden></span>
-            </button>
+        <div class="unfold-interactions__toolbar-wrap">
+            <div class="unfold-interactions__toolbar" aria-label="{{post.interactions.labels.comments}}">
+                <button type="button" class="unfold-interactions__button" data-unfold-like-action aria-pressed="false">
+                    <span data-unfold-like-label>{{post.interactions.labels.like}}</span>
+                    <span data-unfold-like-count hidden></span>
+                </button>
+                <button type="button" class="unfold-interactions__button" data-unfold-repost-action aria-pressed="false">
+                    <span data-unfold-repost-label>{{post.interactions.labels.repost}}</span>
+                    <span data-unfold-repost-count hidden></span>
+                </button>
+            </div>
+            <p class="unfold-interactions__notice unfold-interactions__notice--action" data-unfold-action-notice aria-live="polite" hidden></p>
         </div>
     </header>
 
-    <p class="unfold-interactions__notice" data-unfold-global-notice aria-live="polite"></p>
+    <p class="unfold-interactions__notice unfold-interactions__notice--global" data-unfold-global-notice aria-live="polite" hidden></p>
 
     <form class="unfold-interactions__composer" data-unfold-composer-form>
         <div class="unfold-interactions__reply-preview" data-unfold-reply-preview hidden>
@@ -56,10 +59,11 @@
             <a class="unfold-interactions__button" data-unfold-login-button hidden href="#">{{post.interactions.labels.login}}</a>
         </div>
 
-        <p class="unfold-interactions__notice" data-unfold-composer-notice aria-live="polite"></p>
+        <p class="unfold-interactions__notice" data-unfold-composer-notice aria-live="polite" hidden></p>
     </form>
 
     <section class="unfold-interactions__thread" aria-labelledby="unfold-interactions-title">
+        <p class="unfold-interactions__notice unfold-interactions__notice--thread" data-unfold-thread-notice aria-live="polite" hidden></p>
         <div class="unfold-interactions__thread-live" data-unfold-thread-live hidden></div>
 
         <div class="unfold-interactions__fallback" data-unfold-fallback>
@@ -93,9 +97,8 @@
                 <p class="unfold-interactions__empty">{{post.interactions.labels.empty}}</p>
             {{/if}}
         </div>
-
         <button type="button" class="unfold-interactions__button unfold-interactions__load-more" data-unfold-load-more hidden>{{post.interactions.labels.load_more}}</button>
-        <p class="unfold-interactions__notice" data-unfold-thread-notice aria-live="polite"></p>
+        <button type="button" class="unfold-interactions__button unfold-interactions__load-more" data-unfold-load-more hidden>{{post.interactions.labels.load_more}}</button>
     </section>
 
     <div class="unfold-interactions__bootstrap">{{{post.interactions.bootstrap_html}}}</div>

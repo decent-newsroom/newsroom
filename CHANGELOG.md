@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Improvement] Reworked hosted Unfold discussions into a flat editorial layout and scoped visible interaction feedback to its thread, composer, or action while clearing stale loading messages.
 - [Fix] Return early 404s for content URLs and article fetch requests targeting admin-muted or permanently banned authors, without content lookups, relay discovery, or background fetches when the author is known.
 - [Feature] Added confirmed, dry-run-capable author bans from Elasticsearch hit exports, with persistent ingestion suppression and author-wide local/search cleanup that can be retried safely.
 - [Fix] Rejected articles linking to or embedding images from y5.pics, go.cbrop.com, and i.postimg.cc during QA and indexing, automatically admin-muted their authors, and excluded their existing articles from search.

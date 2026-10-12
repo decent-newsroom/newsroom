@@ -13,6 +13,13 @@
     margin-bottom: 1.25rem;
 }
 
+.unfold-interactions__toolbar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+
 .unfold-interactions__title {
     font-size: 1.5rem;
     line-height: 1.2;
@@ -27,6 +34,24 @@
     margin: 0;
     color: #666;
     font-size: 0.95rem;
+}
+
+.unfold-interactions__notice {
+    margin-top: 0.5rem;
+}
+
+.unfold-interactions__notice--global {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.unfold-interactions__notice--thread {
+    margin: 0 0 1rem;
+}
+
+.unfold-interactions__notice--action {
+    margin: 0;
+    text-align: right;
 }
 
 .unfold-interactions__toolbar,
@@ -48,9 +73,10 @@
     align-items: center;
     gap: 0.35rem;
     background: transparent;
-    border: 1px solid #333;
+    border: 0;
+    border-bottom: 1px solid currentColor;
     color: inherit;
-    padding: 0.45rem 0.75rem;
+    padding: 0.2rem 0;
     cursor: pointer;
     border-radius: 0;
     box-shadow: none;
@@ -67,10 +93,16 @@
     font-weight: 600;
 }
 
+.unfold-interactions__button:focus-visible,
+.unfold-interactions__textarea:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+}
+
 .unfold-interactions__composer {
     margin-top: 1.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #ddd;
 }
 
 .unfold-interactions__label {
@@ -95,19 +127,16 @@
 .unfold-interactions__textarea {
     width: 100%;
     min-height: 8rem;
-    padding: 0.75rem;
-    border: 1px solid #ccc;
+    padding: 0.75rem 0;
+    border: 0;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #333;
     background: transparent;
     color: inherit;
     font: inherit;
     resize: vertical;
     border-radius: 0;
     box-shadow: none;
-}
-
-.unfold-interactions__notice {
-    min-height: 1.25rem;
-    margin-top: 0.5rem;
 }
 
 .unfold-interactions__thread {
@@ -143,26 +172,59 @@
 }
 
 .unfold-interactions__comment {
-    margin-top: 1rem;
-    padding: 1rem;
-    border: 1px solid #ddd;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #ddd;
 }
 
 .unfold-interactions__comment--pending {
     border-style: dashed;
 }
 
-.unfold-interactions__comment--depth-1 { margin-left: 1rem; }
-.unfold-interactions__comment--depth-2 { margin-left: 2rem; }
-.unfold-interactions__comment--depth-3 { margin-left: 3rem; }
-.unfold-interactions__comment--depth-4 { margin-left: 4rem; }
-.unfold-interactions__comment--depth-5 { margin-left: 5rem; }
+.unfold-interactions__comment--depth-1,
+.unfold-interactions__comment--depth-2,
+.unfold-interactions__comment--depth-3,
+.unfold-interactions__comment--depth-4,
+.unfold-interactions__comment--depth-5 {
+    margin-left: 1.25rem;
+    padding-left: 1rem;
+    border-left: 1px solid #ddd;
+}
 
 .unfold-interactions__comment-meta {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
     margin-bottom: 0.75rem;
+}
+
+.unfold-interactions__comment-actions {
+    margin-top: 0.75rem;
+}
+
+.unfold-interactions__comment-state {
+    margin: 0.75rem 0 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+    .unfold-interactions__toolbar-wrap {
+        align-items: flex-start;
+    }
+
+    .unfold-interactions__notice--action {
+        text-align: left;
+    }
+
+    .unfold-interactions__comment--depth-1,
+    .unfold-interactions__comment--depth-2,
+    .unfold-interactions__comment--depth-3,
+    .unfold-interactions__comment--depth-4,
+    .unfold-interactions__comment--depth-5 {
+        margin-left: 0.75rem;
+        padding-left: 0.75rem;
+    }
 }
 
 .unfold-interactions__avatar {

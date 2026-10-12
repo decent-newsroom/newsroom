@@ -5,9 +5,7 @@
 }
 
 .unfold-interactions__comment,
-.unfold-interactions__textarea,
-.unfold-interactions__button,
-.unfold-reader-signer > button {
+.unfold-interactions__textarea {
     border-color: #bfbfbf;
 }
 

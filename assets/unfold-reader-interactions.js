@@ -119,6 +119,7 @@ export class UnfoldReaderInteractions {
     this.globalNotice = root.querySelector('[data-unfold-global-notice]');
     this.composerNotice = root.querySelector('[data-unfold-composer-notice]');
     this.threadNotice = root.querySelector('[data-unfold-thread-notice]');
+    this.actionNotice = root.querySelector('[data-unfold-action-notice]');
     this.likeButton = root.querySelector('[data-unfold-like-action]');
     this.likeLabel = root.querySelector('[data-unfold-like-label]');
     this.likeCount = root.querySelector('[data-unfold-like-count]');
@@ -161,7 +162,7 @@ export class UnfoldReaderInteractions {
       });
     }
 
-    this.setGlobalNotice(this.labels.loading || '');
+    this.setThreadNotice(this.labels.loading || '');
     this.renderComposerState();
     this.updateActionState();
     this.updateCountState();
@@ -191,6 +192,9 @@ export class UnfoldReaderInteractions {
     }
 
     this.identityResolved = meResult.status === 'fulfilled';
+    if (threadResult.status === 'fulfilled' && meResult.status === 'fulfilled') {
+      this.setGlobalNotice('');
+    }
     this.restoreDraft();
     this.restorePendingRecords();
     this.reconcileStoredRecords();
@@ -1865,11 +1869,12 @@ export class UnfoldReaderInteractions {
   }
 
   setActionNotice(message) {
-    if (!this.globalNotice) {
+    const notice = this.actionNotice || this.globalNotice;
+    if (!notice) {
       return;
     }
-    this.globalNotice.textContent = message || '';
-    this.globalNotice.hidden = !message;
+    notice.textContent = message || '';
+    notice.hidden = !message;
   }
 }
 

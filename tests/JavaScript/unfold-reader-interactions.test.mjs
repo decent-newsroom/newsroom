@@ -46,7 +46,7 @@ async function fixture(signer = { getPublicKey: async () => account, signEvent: 
   await module.evaluate();
   const root = {
     dataset: { coordinate: `30023:${revision}:story` },
-    querySelector: () => null, classList: { add() {} },
+    querySelector: () => null, addEventListener() {}, classList: { add() {} },
   };
   const reader = new module.namespace.UnfoldReaderInteractions(root);
   Object.assign(reader, {
@@ -79,6 +79,25 @@ test('malformed account state is rejected rather than restoring another account 
     pubkey: account, login_url: '/login', csrf_token: 'token',
     liked: 'false', reposted: false, repost_available: true, likes: 0, reposts: 0,
   }));
+});
+
+test('initial discussion loading status is cleared after both initial requests succeed', async () => {
+  const { reader } = await fixture();
+  reader.labels = { loading: 'Loading discussion', unavailable: 'Unavailable' };
+  reader.threadNotice = {};
+  reader.globalNotice = {};
+  reader.fetchThread = async () => ({ comments: [], comments_count: 0, next_cursor: '', refresh_status: '' });
+  reader.fetchIdentity = async () => ({
+    pubkey: null, login_url: '/login', csrf_token: '', liked: false, reposted: false,
+    repost_available: true, likes: 0, reposts: 0,
+  });
+
+  await reader.init();
+
+  assert.equal(reader.threadNotice.textContent, '');
+  assert.equal(reader.threadNotice.hidden, true);
+  assert.equal(reader.globalNotice.textContent, '');
+  assert.equal(reader.globalNotice.hidden, true);
 });
 
 test('delivery reads never inflate an already active like', async () => {
