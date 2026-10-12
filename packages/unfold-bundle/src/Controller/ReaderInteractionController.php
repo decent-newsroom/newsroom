@@ -88,7 +88,7 @@ final readonly class ReaderInteractionController
             }
             $content = $data['content'] ?? '';
             if (!is_string($content)) {
-                throw new \InvalidArgumentException('unfold_interactions.invalid_comment');
+                throw new \InvalidArgumentException('unfold_interactions.invalid');
             }
             return [
                 'event' => $this->policy->prepare($target, $pubkey, $action, $content, $this->parent($data, $target, $action)),

@@ -1,7 +1,13 @@
 .unfold-interactions {
+    --unfold-comment-background: #f4f4f4;
+    --unfold-reply-background: #fff;
     margin-top: 3rem;
-    padding-top: 2rem;
-    border-top: 1px solid #ddd;
+    padding-top: 0;
+    border: 0;
+}
+
+.unfold-interactions [hidden] {
+    display: none !important;
 }
 
 .unfold-interactions__header {
@@ -11,6 +17,12 @@
     gap: 1rem;
     flex-wrap: wrap;
     margin-bottom: 1.25rem;
+}
+
+.unfold-interactions .unfold-interactions__header,
+.unfold-interactions .unfold-interactions__comment-meta {
+    border: 0;
+    padding: 0;
 }
 
 .unfold-interactions__toolbar-wrap {
@@ -42,7 +54,6 @@
 
 .unfold-interactions__notice--global {
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid #ddd;
 }
 
 .unfold-interactions__notice--thread {
@@ -68,19 +79,31 @@
 }
 
 .unfold-reader-signer > button,
-.unfold-interactions__button {
+.unfold-interactions__button,
+.unfold-interactions__toolbar .zap-button {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    background: transparent;
+    background: #eee;
     border: 0;
-    border-bottom: 1px solid currentColor;
     color: inherit;
-    padding: 0.2rem 0;
+    padding: 0.5rem 0.85rem;
+    margin: 0;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 400;
+    line-height: 1.3;
     cursor: pointer;
     border-radius: 0;
     box-shadow: none;
     text-decoration: none;
+}
+
+.unfold-reader-signer > button:hover,
+.unfold-interactions__button:hover,
+.unfold-interactions__toolbar .zap-button:hover {
+    background: #e2e2e2;
+    transform: none;
 }
 
 .unfold-interactions__button[disabled],
@@ -90,7 +113,8 @@
 }
 
 .unfold-interactions__button.is-active {
-    font-weight: 600;
+    background: #d7d7d7;
+    font-weight: 400;
 }
 
 .unfold-interactions__button:focus-visible,
@@ -101,14 +125,14 @@
 
 .unfold-interactions__composer {
     margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #ddd;
+    padding-top: 0;
+    border: 0;
 }
 
 .unfold-interactions__label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .unfold-interactions__reply-preview {
@@ -172,13 +196,11 @@
 }
 
 .unfold-interactions__comment {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #ddd;
-}
-
-.unfold-interactions__comment--pending {
-    border-style: dashed;
+    margin: 1.75rem 0 0;
+    padding: 1rem;
+    border: 0;
+    background: var(--unfold-comment-background);
+    border-radius: 0;
 }
 
 .unfold-interactions__comment--depth-1,
@@ -187,8 +209,12 @@
 .unfold-interactions__comment--depth-4,
 .unfold-interactions__comment--depth-5 {
     margin-left: 1.25rem;
-    padding-left: 1rem;
-    border-left: 1px solid #ddd;
+}
+
+.unfold-interactions__comment--depth-1,
+.unfold-interactions__comment--depth-3,
+.unfold-interactions__comment--depth-5 {
+    background: var(--unfold-reply-background);
 }
 
 .unfold-interactions__comment-meta {
@@ -196,6 +222,10 @@
     align-items: flex-start;
     gap: 0.75rem;
     margin-bottom: 0.75rem;
+}
+
+.unfold-interactions__actions {
+    margin-top: 0.75rem;
 }
 
 .unfold-interactions__comment-actions {
@@ -223,7 +253,10 @@
     .unfold-interactions__comment--depth-4,
     .unfold-interactions__comment--depth-5 {
         margin-left: 0.75rem;
-        padding-left: 0.75rem;
+    }
+
+    .unfold-interactions__comment {
+        padding: 0.75rem;
     }
 }
 
@@ -231,7 +264,8 @@
     width: 32px;
     height: 32px;
     object-fit: cover;
-    border-radius: 0;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .unfold-interactions__comment-author-wrap {
@@ -243,7 +277,7 @@
 .unfold-interactions__comment-author {
     color: inherit;
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .unfold-interactions__comment-content {

@@ -22,8 +22,14 @@ Readers log in before writing and approve a Nostr signer for the publication's
 origin. They do not need to own the publication or have administrator privileges.
 The signer account must match the authenticated account.
 
-Comments are plaintext. A reply previews its parent and retains the original
-content as the thread root. Cancelling reply mode preserves the draft.
+Comments are plaintext. Reply moves the existing composer directly below the
+selected comment, before its child replies, and focuses the input. It scrolls
+into view only when necessary. A reply previews its parent and retains the
+original content as the thread root. Cancelling returns the composer above the
+thread without discarding the draft. Switching parents and refreshing or loading
+more comments preserve the same input and draft; background refreshes do not
+steal focus or scroll the page. A missing reply parent blocks submission with an
+explanation until the reader cancels or selects another parent.
 Likes are positive-only; an active `Liked` button does not undo an event.
 Reposts publish directly and `Reposted` is likewise an active state, not a
 deletion toggle.
@@ -40,11 +46,17 @@ composer, and like/repost feedback appears with those actions. Interaction-wide
 failures remain visible below the discussion header. Every status uses a polite
 live region, and successful requests clear their loading message.
 
-Both bundled themes use a flat editorial discussion layout. Comments are
-separated by rules and replies use a restrained leading guide rather than
-framed cards. Controls are text actions with visible keyboard focus; no
-interaction state relies on shading, shadows, rounded corners, or a persistent
-empty notice area.
+Both bundled themes use compact, neutral, flat buttons with light typography
+and visible keyboard focus. Article Zap sits beside Like and Repost, retaining
+its recipient and split-payment behavior; publication footer support remains
+separate. Comments and Zap entries use padded, neutral background cards without
+borders. Replies retain indentation and alternate light surfaces instead of
+divider lines. Author avatars are circular; cards and controls keep square
+corners and no shadows, and empty notices do not reserve space.
+
+Empty input reports "Write something before posting." Only oversized input
+shows the separate length error. Both client and server enforce the same
+4,000 UTF-8 byte limit, including multibyte characters, for comments and replies.
 
 ## Protocol And Access
 

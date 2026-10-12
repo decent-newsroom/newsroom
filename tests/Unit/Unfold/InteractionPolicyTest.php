@@ -72,10 +72,46 @@ final class InteractionPolicyTest extends TestCase
         $policy->assertSignedIntent([...$event, 'id' => str_repeat('d', 64), 'sig' => str_repeat('e', 128)], $target, str_repeat('c', 64), 'comment');
     }
 
-    public function testCommentByteLimitIncludesMultibyteText(): void
+    /** @dataProvider commentActions */
+    public function testCommentByteLimitAcceptsExactly4000Utf8Bytes(string $action): void
+    {
+        $target = $this->target(30023);
+        $parent = new Comment(str_repeat('d', 64), 1111, str_repeat('e', 64), 'Parent', time());
+        $content = str_repeat("\xC3\xA9", 2000);
+        $policy = new InteractionPolicy();
+        $event = $policy->prepare($target, str_repeat('c', 64), $action, $content, $parent);
+        self::assertSame(4000, strlen($event['content']));
+        self::assertSame($content, $event['content']);
+        $policy->assertSignedIntent([...$event, 'id' => str_repeat('d', 64), 'sig' => str_repeat('e', 128)], $target, str_repeat('c', 64), $action, $parent);
+    }
+
+    /** @dataProvider commentActions */
+    public function testCommentByteLimitRejects4001Utf8Bytes(string $action): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        (new InteractionPolicy())->prepare($this->target(30023), str_repeat('c', 64), 'comment', str_repeat("\xC3\xA9", 2001));
+        $this->expectExceptionMessage('unfold_interactions.comment_too_long');
+        (new InteractionPolicy())->prepare($this->target(30023), str_repeat('c', 64), $action, str_repeat("\xC3\xA9", 2000) . 'a');
+    }
+
+    /** @dataProvider commentActions */
+    public function testEmptyCommentAndReplyUseEmptyError(string $action): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unfold_interactions.invalid_comment');
+        (new InteractionPolicy())->prepare($this->target(30023), str_repeat('c', 64), $action, " \t\n\r");
+    }
+
+    public function testInvalidUtf8StillCannotBePrepared(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('unfold_interactions.invalid');
+        (new InteractionPolicy())->prepare($this->target(30023), str_repeat('c', 64), 'comment', "\xC3");
+    }
+
+    public static function commentActions(): iterable
+    {
+        yield 'comment' => ['comment'];
+        yield 'reply' => ['reply'];
     }
 
     public function testMissingSignedSourceCannotBeReposted(): void

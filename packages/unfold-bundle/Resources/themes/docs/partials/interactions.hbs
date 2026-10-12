@@ -28,6 +28,23 @@
                     <span data-unfold-repost-label>{{post.interactions.labels.repost}}</span>
                     <span data-unfold-repost-count hidden></span>
                 </button>
+                {{#if article_zap.lud16}}
+                    <button
+                        type="button"
+                        class="zap-button unfold-interactions__button"
+                        data-zap-button
+                        data-zap-pubkey="{{article_zap.pubkey}}"
+                        data-zap-lud16="{{article_zap.lud16}}"
+                        {{#if article_zap.lud06}}data-zap-lud06="{{article_zap.lud06}}"{{/if}}
+                        {{#if article_zap.splits}}data-zap-splits='{{json article_zap.splits}}'{{/if}}
+                        data-zap-recipient="{{post.primary_author.name}}"
+                    >
+                        <span class="zap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg></span>
+                        {{post.interactions.labels.zap}}{{#if article_zap.splits}} ({{article_zap.splits.length}} split){{/if}}
+                    </button>
+                {{/if}}
             </div>
             <p class="unfold-interactions__notice unfold-interactions__notice--action" data-unfold-action-notice aria-live="polite" hidden></p>
         </div>
@@ -35,6 +52,7 @@
 
     <p class="unfold-interactions__notice unfold-interactions__notice--global" data-unfold-global-notice aria-live="polite" hidden></p>
 
+    <div data-unfold-composer-home>
     <form class="unfold-interactions__composer" data-unfold-composer-form>
         <div class="unfold-interactions__reply-preview" data-unfold-reply-preview hidden>
             <div>
@@ -61,6 +79,7 @@
 
         <p class="unfold-interactions__notice" data-unfold-composer-notice aria-live="polite" hidden></p>
     </form>
+    </div>
 
     <section class="unfold-interactions__thread" aria-labelledby="unfold-interactions-title">
         <p class="unfold-interactions__notice unfold-interactions__notice--thread" data-unfold-thread-notice aria-live="polite" hidden></p>
@@ -91,13 +110,13 @@
                                 <button type="button" class="unfold-interactions__button" data-unfold-reply-target="{{id}}" data-unfold-reply-author="{{author.name}}" data-unfold-reply-time="{{created_at_formatted}}">{{../post.interactions.labels.reply}}</button>
                             {{/unless}}
                         </div>
+                        <div data-unfold-reply-slot="{{id}}"></div>
                     </article>
                 {{/each}}
             {{else}}
                 <p class="unfold-interactions__empty">{{post.interactions.labels.empty}}</p>
             {{/if}}
         </div>
-        <button type="button" class="unfold-interactions__button unfold-interactions__load-more" data-unfold-load-more hidden>{{post.interactions.labels.load_more}}</button>
         <button type="button" class="unfold-interactions__button unfold-interactions__load-more" data-unfold-load-more hidden>{{post.interactions.labels.load_more}}</button>
     </section>
 

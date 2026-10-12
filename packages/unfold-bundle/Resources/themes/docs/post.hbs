@@ -38,12 +38,7 @@
             <div class="docs-content" data-docs-content>
                 {{{post.html}}}
             </div>
-            {{#if post.zap.lud16}}
-                <div class="docs-support">
-                    <button class="zap-button" data-zap-button data-zap-pubkey="{{post.zap.pubkey}}" data-zap-lud16="{{post.zap.lud16}}" {{#if post.zap.lud06}}data-zap-lud06="{{post.zap.lud06}}"{{/if}} {{#if post.zap.splits}}data-zap-splits='{{json post.zap.splits}}'{{/if}} data-zap-recipient="{{post.primary_author.name}}">Support this article</button>
-                </div>
-            {{/if}}
-            {{> interactions}}
+            {{> interactions article_zap=post.zap}}
             {{> footer}}
         </article>
         <aside class="docs-toc" data-docs-toc hidden aria-label="On this page"></aside>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Unfold;
 
 use DecentNewsroom\UnfoldBundle\Content\PostData;
+use DecentNewsroom\UnfoldBundle\Contract\Comment;
 use DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface;
 use DecentNewsroom\UnfoldBundle\Contract\InteractionDelivery;
 use DecentNewsroom\UnfoldBundle\Contract\InteractionPage;
@@ -28,6 +29,7 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\Component\Translation\Loader\YamlFileLoader;
 use Symfony\Component\Translation\Translator;
 
 final class ReaderInteractionControllerTest extends TestCase
@@ -65,7 +67,10 @@ final class ReaderInteractionControllerTest extends TestCase
         $profiles = $this->createMock(ProfileMetadataProviderInterface::class);
         $profiles->method('getMultipleMetadata')->willReturn([]);
         $context = new ContextBuilder($this->createMock(MarkdownConverterInterface::class), new ArrayAdapter(), $profiles, $this->createMock(CommentProviderInterface::class));
-        $this->controller = new ReaderInteractionController($this->reader, $this->publisher, $identity, $limiter, new InteractionPolicy(), new InteractionView($profiles, $context), $csrf, new Translator('en'), new NullLogger());
+        $translator = new Translator('en');
+        $translator->addLoader('yaml', new YamlFileLoader());
+        $translator->addResource('yaml', dirname(__DIR__, 3) . '/translations/messages.en.yaml', 'en');
+        $this->controller = new ReaderInteractionController($this->reader, $this->publisher, $identity, $limiter, new InteractionPolicy(), new InteractionView($profiles, $context), $csrf, $translator, new NullLogger());
     }
 
     public function testAnonymousPublicReadHasNoOwnStateAndQueuesRefresh(): void
@@ -132,6 +137,57 @@ final class ReaderInteractionControllerTest extends TestCase
         $this->reader->method('parent')->willReturn(null);
         $this->publisher->expects(self::never())->method('publish');
         self::assertSame(422, $this->controller->prepare($this->request('POST', ['action' => 'reply', 'parent_id' => str_repeat('d', 64), 'content' => 'Hello']))->getStatusCode());
+    }
+
+    /** @dataProvider commentActions */
+    public function testPrepareAcceptsExactly4000Utf8Bytes(string $action): void
+    {
+        $this->reader->method('parent')->willReturn(new Comment(str_repeat('d', 64), 1111, str_repeat('e', 64), 'Parent', time()));
+        $content = str_repeat("\xC3\xA9", 2000);
+        $response = $this->controller->prepare($this->request('POST', ['action' => $action, 'parent_id' => str_repeat('d', 64), 'content' => $content]));
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame($content, json_decode($response->getContent(), true)['event']['content']);
+    }
+
+    /** @dataProvider invalidComments */
+    public function testPrepareAndPublishDistinguishCommentErrors(string $action, string $content, string $key, string $message): void
+    {
+        $parent = new Comment(str_repeat('d', 64), 1111, str_repeat('e', 64), 'Parent', time());
+        $this->reader->method('parent')->willReturn($parent);
+        $this->publisher->expects(self::never())->method('publish');
+        $data = ['action' => $action, 'parent_id' => $parent->id, 'content' => $content];
+        $prepared = (new InteractionPolicy())->prepare($this->target, $this->pubkey, $action, 'Valid', $parent);
+        $event = [...$prepared, 'content' => $content, 'id' => str_repeat('d', 64), 'sig' => str_repeat('e', 128)];
+
+        foreach ([
+            $this->controller->prepare($this->request('POST', $data)),
+            $this->controller->publish($this->request('POST', [...$data, 'event' => $event])),
+        ] as $response) {
+            self::assertSame(422, $response->getStatusCode());
+            self::assertSame(['error' => $message, 'error_key' => $key], json_decode($response->getContent(), true));
+        }
+    }
+
+    public function testNonStringCommentStillCannotBePrepared(): void
+    {
+        $response = $this->controller->prepare($this->request('POST', ['action' => 'comment', 'content' => ['Invalid']]));
+        self::assertSame(422, $response->getStatusCode());
+        self::assertSame('unfold_interactions.invalid', json_decode($response->getContent(), true)['error_key']);
+    }
+
+    public static function invalidComments(): iterable
+    {
+        foreach (['comment', 'reply'] as $action) {
+            yield $action . ' empty' => [$action, '', 'unfold_interactions.invalid_comment', 'Write something before posting.'];
+            yield $action . ' whitespace' => [$action, " \t\n\r", 'unfold_interactions.invalid_comment', 'Write something before posting.'];
+            yield $action . ' 4001 UTF-8 bytes' => [$action, str_repeat("\xC3\xA9", 2000) . 'a', 'unfold_interactions.comment_too_long', 'This comment is a little too long. Please shorten it before posting.'];
+        }
+    }
+
+    public static function commentActions(): iterable
+    {
+        yield 'comment' => ['comment'];
+        yield 'reply' => ['reply'];
     }
 
     public function testUnavailableReadIsNotSuccessfulEmptyDiscussion(): void

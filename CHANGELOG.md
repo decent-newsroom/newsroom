@@ -2,6 +2,8 @@
 
 ## v0.0.55
 
+- [Improvement] Gave Unfold comment and Zap entries neutral background cards instead of thread borders, with circular author avatars in both themes.
+- [Improvement] Simplified Unfold interactions in both themes with neutral buttons, fewer divider lines, article Zap beside Like/Repost, inline reply composers that retain drafts, and friendlier comment validation messages.
 - [Fix] Made Unfold reposts publish without a browser confirmation, use the public project relay in reference tags, and keep kind-16 content empty when `a` tags identify the original.
 - [Improvement] Reworked hosted Unfold discussions into a flat editorial layout and scoped visible interaction feedback to its thread, composer, or action while clearing stale loading messages.
 - [Fix] Return early 404s for content URLs and article fetch requests targeting admin-muted or permanently banned authors, without content lookups, relay discovery, or background fetches when the author is known.

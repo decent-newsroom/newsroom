@@ -636,7 +636,7 @@ class ContextBuilder
             'publish_comment', 'like', 'liked', 'repost', 'reposted', 'confirm_repost',
             'load_more', 'empty', 'login_required', 'connect_signer', 'signer_required',
             'signer_approval', 'signer_mismatch', 'signing', 'queued', 'published', 'partial',
-            'failed', 'retry', 'unavailable', 'invalid', 'invalid_comment', 'invalid_parent',
+            'failed', 'retry', 'unavailable', 'invalid', 'invalid_comment', 'comment_too_long', 'invalid_parent',
             'stale_target', 'target_unavailable', 'repost_unavailable', 'delivery_unavailable',
             'access_denied', 'rate_limited', 'parent_unavailable', 'zap', 'sats', 'loading',
             'storage_unavailable', 'signing_cancelled', 'saved', 'login', 'pending',

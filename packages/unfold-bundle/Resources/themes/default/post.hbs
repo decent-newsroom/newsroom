@@ -99,28 +99,7 @@
                 {{{post.html}}}
             </div>
 
-            {{#if post.zap}}
-            {{#if post.zap.lud16}}
-            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
-                <button
-                    class="zap-button"
-                    data-zap-button
-                    data-zap-pubkey="{{post.zap.pubkey}}"
-                    data-zap-lud16="{{post.zap.lud16}}"
-                    {{#if post.zap.lud06}}data-zap-lud06="{{post.zap.lud06}}"{{/if}}
-                    {{#if post.zap.splits}}data-zap-splits='{{json post.zap.splits}}'{{/if}}
-                    data-zap-recipient="{{post.primary_author.name}}"
-                >
-                    <span class="zap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                    </svg></span>
-                    Zap{{#if post.zap.splits}} ({{post.zap.splits.length}} split){{/if}}
-                </button>
-            </div>
-            {{/if}}
-            {{/if}}
-
-            {{> interactions}}
+            {{> interactions article_zap=post.zap}}
 
         </article>
     </main>

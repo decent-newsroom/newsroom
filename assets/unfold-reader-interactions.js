@@ -109,6 +109,7 @@ export class UnfoldReaderInteractions {
     this.statusRefreshLimit = STATUS_REFRESH_LIMIT;
 
     this.composerForm = root.querySelector('[data-unfold-composer-form]');
+    this.composerHome = root.querySelector('[data-unfold-composer-home]');
     this.draftField = root.querySelector('[data-unfold-draft]');
     this.submitButton = root.querySelector('[data-unfold-submit]');
     this.loginButton = root.querySelector('[data-unfold-login-button]');
@@ -559,8 +560,16 @@ export class UnfoldReaderInteractions {
     }
 
     const content = this.getDraftValue();
-    if (action === 'comment' && !content.trim()) {
+    if (!content.trim()) {
       this.setComposerNotice(this.labels.invalid_comment || '');
+      return;
+    }
+    if (new TextEncoder().encode(content).byteLength > 4000) {
+      this.setComposerNotice(this.labels.comment_too_long || '');
+      return;
+    }
+    if (action === 'reply' && !this.placeComposer()) {
+      this.setComposerNotice(this.labels.parent_unavailable || '');
       return;
     }
     if (action === 'reply' && !this.replyTarget?.id) {
@@ -925,6 +934,11 @@ export class UnfoldReaderInteractions {
     }
 
     const comments = this.visibleComments();
+    const focused = document.activeElement === this.draftField;
+    const selection = focused ? [this.draftField.selectionStart, this.draftField.selectionEnd] : null;
+    if (this.composerForm && this.composerHome) {
+      this.composerHome.appendChild(this.composerForm);
+    }
     this.threadLive.replaceChildren();
 
     if (comments.length === 0) {
@@ -937,6 +951,11 @@ export class UnfoldReaderInteractions {
         const empty = createElement('p', 'unfold-interactions__empty', this.labels.empty || '');
         this.threadLive.appendChild(empty);
       }
+      this.placeComposer();
+      if (focused) {
+        this.draftField.focus({ preventScroll: true });
+        this.draftField.setSelectionRange(...selection);
+      }
       return;
     }
 
@@ -945,6 +964,11 @@ export class UnfoldReaderInteractions {
     this.threadLive.appendChild(list);
     this.threadLive.hidden = false;
     this.threadFallback.hidden = true;
+    this.placeComposer();
+    if (focused) {
+      this.draftField.focus({ preventScroll: true });
+      this.draftField.setSelectionRange(...selection);
+    }
 
     if (this.threadCursor) {
       this.loadMoreButton.hidden = false;
@@ -1104,6 +1128,10 @@ export class UnfoldReaderInteractions {
       article.appendChild(badge);
     }
 
+    const replySlot = createElement('div');
+    replySlot.dataset.unfoldReplySlot = comment.id;
+    article.appendChild(replySlot);
+
     if (Array.isArray(comment.children) && comment.children.length > 0) {
       article.appendChild(this.renderCommentList(comment.children, depth + 1));
     }
@@ -1145,11 +1173,13 @@ export class UnfoldReaderInteractions {
     const action = this.replyTarget?.id ? 'reply' : 'comment';
     const record = this.getLatestRecord(action);
     const blocking = this.hasBlockingComposerRecord(action);
+    const parentAvailable = this.placeComposer();
+    this.renderReplyPreview();
 
     this.draftField.disabled = false;
     if (this.submitButton) {
       this.submitButton.hidden = !this.accountPubkey;
-      this.submitButton.disabled = !this.accountPubkey || blocking || !this.canPublishCurrentDraft(action, record);
+      this.submitButton.disabled = !this.accountPubkey || blocking || !parentAvailable || !this.canPublishCurrentDraft(action, record);
       this.submitButton.textContent = action === 'reply'
         ? (this.labels.reply || 'Reply')
         : (this.labels.publish_comment || 'Post comment');
@@ -1162,6 +1192,14 @@ export class UnfoldReaderInteractions {
       }
     }
 
+    if (!parentAvailable) {
+      this.setComposerNotice(this.labels.parent_unavailable || '');
+      return;
+    }
+    if (this.composerNotice?.textContent === this.labels.parent_unavailable) {
+      this.setComposerNotice('');
+    }
+
     if (!this.accountPubkey) {
       this.setComposerNotice(this.labels.login_required || '');
       return;
@@ -1171,8 +1209,6 @@ export class UnfoldReaderInteractions {
       this.setComposerNotice(this.commentStatusLabel(this.recordToComment(record)) || this.labels.pending || '');
       return;
     }
-
-    this.renderReplyPreview();
   }
 
   renderReplyPreview() {
@@ -1315,6 +1351,7 @@ export class UnfoldReaderInteractions {
     this.replyTarget = null;
     this.saveDraft();
     this.renderReplyPreview();
+    this.placeComposer();
   }
 
   hasRefreshableRecords() {
@@ -1639,13 +1676,43 @@ export class UnfoldReaderInteractions {
       time: safeString(reply.time, '') || null,
     };
     this.saveDraft();
+    this.setComposerNotice('');
     this.renderComposerState();
+    this.placeComposer(true);
   }
 
   clearReplyTarget() {
     this.replyTarget = null;
     this.saveDraft();
+    this.setComposerNotice('');
     this.renderComposerState();
+    this.placeComposer(true);
+  }
+
+  placeComposer(focus = false) {
+    if (!this.composerForm || !this.composerHome) {
+      return true;
+    }
+
+    const thread = this.threadLive?.hidden === false ? this.threadLive : this.threadFallback;
+    const slot = this.replyTarget?.id
+      ? [...thread.querySelectorAll('[data-unfold-reply-slot]')]
+        .find((element) => element.dataset.unfoldReplySlot === this.replyTarget.id)
+      : this.composerHome;
+    const destination = slot || this.composerHome;
+    if (this.composerForm.parentNode !== destination) {
+      destination.appendChild(this.composerForm);
+    }
+
+    if (focus && this.draftField) {
+      this.draftField.focus({ preventScroll: true });
+      const bounds = this.composerForm.getBoundingClientRect();
+      if (bounds.top < 0 || bounds.bottom > window.innerHeight) {
+        this.composerForm.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    return Boolean(slot);
   }
 
   async acquireSigner() {

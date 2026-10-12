@@ -37,8 +37,14 @@ final class InteractionPolicy
             default => throw new \InvalidArgumentException('unfold_interactions.invalid'),
         };
         if ($kind === 1111) {
-            if (trim($content) === '' || strlen($content) > 4000 || preg_match('//u', $content) !== 1) {
+            if (trim($content) === '') {
                 throw new \InvalidArgumentException('unfold_interactions.invalid_comment');
+            }
+            if (strlen($content) > 4000) {
+                throw new \InvalidArgumentException('unfold_interactions.comment_too_long');
+            }
+            if (preg_match('//u', $content) !== 1) {
+                throw new \InvalidArgumentException('unfold_interactions.invalid');
             }
             $tags = [$ref('A', $post->coordinate), ['K', (string) $post->kind], ['P', $post->pubkey]];
             if ($action === 'reply') {

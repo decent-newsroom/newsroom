@@ -14,6 +14,36 @@ const delivery = (status = 'queued', retryable = true) => ({
   published: status === 'published', relay_complete: status === 'published', relay_results: {}, error: null,
 });
 
+class Element {
+  constructor() {
+    this.dataset = {};
+    this.childNodes = [];
+    this.parentNode = null;
+    this.classList = { add() {} };
+  }
+
+  appendChild(child) {
+    if (child.parentNode) {
+      child.parentNode.childNodes.splice(child.parentNode.childNodes.indexOf(child), 1);
+    }
+    child.parentNode = this;
+    this.childNodes.push(child);
+    return child;
+  }
+
+  replaceChildren() {
+    this.childNodes.forEach((child) => { child.parentNode = null; });
+    this.childNodes = [];
+  }
+
+  querySelectorAll() {
+    return this.childNodes.flatMap((child) => [
+      ...(child.dataset.unfoldReplySlot ? [child] : []),
+      ...child.querySelectorAll(),
+    ]);
+  }
+}
+
 async function fixture(signer = { getPublicKey: async () => account, signEvent: async () => event }) {
   const values = new Map();
   const storage = {
@@ -23,15 +53,21 @@ async function fixture(signer = { getPublicKey: async () => account, signEvent: 
   };
   let scheduled = 0;
   let navigated = 0;
+  const document = {
+    readyState: 'loading', addEventListener() {}, querySelectorAll: () => [], querySelector: () => null,
+    createElement: () => new Element(), activeElement: null,
+  };
   const context = createContext({
-    document: { readyState: 'loading', addEventListener() {}, querySelectorAll: () => [], querySelector: () => null },
+    document,
     window: {
       location: { origin: 'https://journal.example', assign() { navigated++; } }, sessionStorage: storage,
+      innerHeight: 800,
       setTimeout: () => ++scheduled, clearTimeout() {}, addEventListener() {},
     },
     fetch: async () => { throw new Error('Unexpected request'); },
     signer,
     URL,
+    TextEncoder,
     HTMLElement: class {},
   });
   const module = new SourceTextModule(source, { context });
@@ -56,7 +92,194 @@ async function fixture(signer = { getPublicKey: async () => account, signEvent: 
     renderReplyPreview() {}, renderPlainText: (value) => value,
     fetchThread: async () => ({ comments: [], comments_count: 1 }),
   });
-  return { reader, values, scheduled: () => scheduled, navigated: () => navigated };
+  return { reader, document, values, scheduled: () => scheduled, navigated: () => navigated };
+}
+
+async function inlineFixture() {
+  const result = await fixture();
+  const { reader, document } = result;
+  reader.root = new Element();
+  reader.composerHome = reader.root.appendChild(new Element());
+  reader.composerForm = reader.composerHome.appendChild(new Element());
+  reader.threadLive = reader.root.appendChild(new Element());
+  reader.threadFallback = reader.root.appendChild(new Element());
+  reader.loadMoreButton = {};
+  reader.draftField = {
+    value: 'Draft', selectionStart: 2, selectionEnd: 4,
+    focus(options) { document.activeElement = this; this.focusOptions = options; },
+    setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; },
+  };
+  reader.composerForm.getBoundingClientRect = () => ({ top: 20, bottom: 200 });
+  reader.composerForm.scrollIntoView = () => { result.scrolled = true; };
+  reader.submitButton = {};
+  reader.loginButton = {};
+  reader.composerNotice = {};
+  reader.replyPreview = {};
+  reader.replyAuthor = {};
+  reader.replyMeta = {};
+  reader.labels.parent_unavailable = 'Parent unavailable';
+  reader.labels.login_required = 'Log in to reply';
+  reader.threadLoaded = true;
+  reader.serverComments = [
+    { id: eventId, kind: 1111, created_at: 100, pubkey: account },
+    { id: revision, parent_id: eventId, kind: 1111, created_at: 101, pubkey: account },
+  ];
+  delete reader.renderThread;
+  delete reader.renderComposerState;
+  delete reader.renderReplyPreview;
+  reader.renderThread();
+  return result;
+}
+
+test('reply moves the same composer before descendants, focuses it, and cancel retains draft', async () => {
+  const { reader, document } = await inlineFixture();
+  const form = reader.composerForm;
+  reader.setReplyTarget({ id: eventId, author: 'Parent' });
+  assert.equal(form.parentNode.dataset.unfoldReplySlot, eventId);
+  const article = form.parentNode.parentNode;
+  assert.equal(article.childNodes.at(-2), form.parentNode);
+  assert.equal(document.activeElement, reader.draftField);
+  assert.equal(reader.replyPreview.hidden, false);
+  reader.clearReplyTarget();
+  assert.equal(form.parentNode, reader.composerHome);
+  assert.equal(reader.draftField.value, 'Draft');
+  assert.equal(reader.replyPreview.hidden, true);
+});
+
+test('switching reply targets preserves the composer and draft', async () => {
+  const { reader } = await inlineFixture();
+  const form = reader.composerForm;
+  reader.setReplyTarget({ id: eventId });
+  reader.setReplyTarget({ id: revision });
+  assert.equal(reader.composerForm, form);
+  assert.equal(form.parentNode.dataset.unfoldReplySlot, revision);
+  assert.equal(reader.draftField.value, 'Draft');
+});
+
+test('explicit reply scrolls only when its composer is outside the viewport', async () => {
+  const result = await inlineFixture();
+  const { reader } = result;
+  reader.setReplyTarget({ id: eventId });
+  assert.equal(result.scrolled, undefined);
+  reader.composerForm.getBoundingClientRect = () => ({ top: 700, bottom: 1000 });
+  reader.setReplyTarget({ id: revision });
+  assert.equal(result.scrolled, true);
+  result.scrolled = false;
+  reader.renderThread();
+  assert.equal(result.scrolled, false);
+});
+
+test('thread replacement rehomes the composer and preserves textarea focus and selection', async () => {
+  const { reader, document } = await inlineFixture();
+  reader.setReplyTarget({ id: revision });
+  const oldSlot = reader.composerForm.parentNode;
+  reader.threadCursor = 'next-page';
+  reader.renderThread();
+  assert.notEqual(reader.composerForm.parentNode, oldSlot);
+  assert.equal(reader.composerForm.parentNode.dataset.unfoldReplySlot, revision);
+  assert.equal(document.activeElement, reader.draftField);
+  assert.equal(reader.draftField.selectionStart, 2);
+  assert.equal(reader.draftField.selectionEnd, 4);
+  assert.equal(reader.draftField.focusOptions.preventScroll, true);
+  assert.equal(reader.loadMoreButton.hidden, false);
+});
+
+test('background thread rendering does not focus an inactive composer', async () => {
+  const { reader, document } = await inlineFixture();
+  reader.setReplyTarget({ id: eventId });
+  document.activeElement = null;
+  reader.renderThread();
+  assert.equal(document.activeElement, null);
+});
+
+test('missing reply target preserves draft and blocks publishing with an explicit notice', async () => {
+  const { reader } = await inlineFixture();
+  const staleFallbackSlot = reader.threadFallback.appendChild(new Element());
+  staleFallbackSlot.dataset.unfoldReplySlot = eventId;
+  reader.setReplyTarget({ id: eventId });
+  reader.serverComments = [];
+  reader.renderThread();
+  reader.renderComposerState();
+  assert.equal(reader.composerForm.parentNode, reader.composerHome);
+  assert.equal(reader.draftField.value, 'Draft');
+  assert.equal(reader.replyTarget.id, eventId);
+  assert.equal(reader.submitButton.disabled, true);
+  let published = false;
+  reader.publishInteraction = async () => { published = true; };
+  await reader.onSubmit({ preventDefault() {} });
+  assert.equal(published, false);
+  assert.equal(reader.composerNotice.textContent, 'Parent unavailable');
+  reader.serverComments = [{ id: eventId, kind: 1111, created_at: 100, pubkey: account }];
+  reader.renderThread();
+  reader.renderComposerState();
+  assert.equal(reader.composerForm.parentNode.dataset.unfoldReplySlot, eventId);
+  assert.equal(reader.submitButton.disabled, false);
+  assert.equal(reader.composerNotice.hidden, true);
+});
+
+test('anonymous reply shows the local login prompt and parent preview', async () => {
+  const { reader } = await inlineFixture();
+  reader.accountPubkey = null;
+  reader.setReplyTarget({ id: eventId, author: 'Parent' });
+  assert.equal(reader.composerForm.parentNode.dataset.unfoldReplySlot, eventId);
+  assert.equal(reader.loginButton.hidden, false);
+  assert.equal(reader.submitButton.hidden, true);
+  assert.equal(reader.replyPreview.hidden, false);
+  assert.equal(reader.composerNotice.textContent, 'Log in to reply');
+});
+
+test('restored account reply remounts inline without stealing focus', async () => {
+  const { reader, document, values } = await inlineFixture();
+  reader.draftField.value = '';
+  values.set(reader.draftStorageKey(), JSON.stringify({
+    content: 'Saved reply', reply: { id: revision, author: 'Parent' },
+  }));
+  reader.restoreDraft();
+  reader.renderThread();
+  reader.renderComposerState();
+  assert.equal(reader.composerForm.parentNode.dataset.unfoldReplySlot, revision);
+  assert.equal(reader.draftField.value, 'Saved reply');
+  assert.equal(document.activeElement, null);
+});
+
+test('accepted matching reply clears the draft and restores composer home', async () => {
+  const { reader } = await inlineFixture();
+  reader.setReplyTarget({ id: eventId });
+  reader.maybeClearSubmittedDraft({ action: 'reply', content: 'Draft', parentId: eventId });
+  assert.equal(reader.composerForm.parentNode, reader.composerHome);
+  assert.equal(reader.draftField.value, '');
+  assert.equal(reader.replyTarget, null);
+});
+
+test('pending status for a different draft does not discard current inline reply', async () => {
+  const { reader } = await inlineFixture();
+  reader.setReplyTarget({ id: eventId });
+  reader.maybeClearSubmittedDraft({ action: 'reply', content: 'Older draft', parentId: eventId });
+  assert.equal(reader.composerForm.parentNode.dataset.unfoldReplySlot, eventId);
+  assert.equal(reader.draftField.value, 'Draft');
+});
+
+for (const action of ['comment', 'reply']) {
+  test(`${action} uses distinct empty and UTF-8 overflow messages at the exact byte boundary`, async () => {
+    const { reader } = await fixture();
+    reader.replyTarget = action === 'reply' ? { id: eventId } : null;
+    reader.composerNotice = {};
+    reader.labels.invalid_comment = 'Write something before posting.';
+    reader.labels.comment_too_long = 'Too long';
+    reader.draftField = { value: ' \n\t' };
+    const published = [];
+    reader.publishInteraction = async (type, content) => { published.push([type, content]); };
+    await reader.onSubmit({ preventDefault() {} });
+    assert.equal(reader.composerNotice.textContent, reader.labels.invalid_comment);
+    reader.draftField.value = 'é'.repeat(2000);
+    await reader.onSubmit({ preventDefault() {} });
+    assert.equal(published.length, 1);
+    assert.equal(published[0][0], action);
+    reader.draftField.value += 'a';
+    await reader.onSubmit({ preventDefault() {} });
+    assert.equal(published.length, 1);
+    assert.equal(reader.composerNotice.textContent, 'Too long');
+  });
 }
 
 test('prepare accepts an unsigned event without id or signature', async () => {
