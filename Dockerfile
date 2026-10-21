@@ -1,6 +1,6 @@
 # Versions
 # Pin the digest once upstream publishes an image containing PHP 8.5.12 or later.
-FROM dunglas/frankenphp:1.12.7-php8.5 AS frankenphp_upstream
+FROM dunglas/frankenphp:1.13.1-php8.5 AS frankenphp_upstream
 
 # The different stages of this Dockerfile are meant to be built into separate images
 # https://docs.docker.com/develop/develop-images/multistage-build/#stop-at-a-specific-build-stage
