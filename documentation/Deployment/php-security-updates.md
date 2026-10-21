@@ -33,6 +33,17 @@ application workers share the root application's PHP image.
 
 ## Rebuild and deploy
 
+`session.upload_progress.enabled = off` is set in the shared
+`frankenphp/conf.d/10-app.ini`, inherited by development, production, cron and
+application workers. The separate MCP image loads the same setting from
+`docker/mcp/conf.d/10-security.ini`. Neither environment-specific application
+INI file overrides it. This disables session upload-progress tracking, not file
+uploads, and applies before request parsing rather than through `ini_set()`.
+It mitigates confirmed session-related paths for CVE-2026-109619 but does not
+replace the PHP update. Recreate affected containers after deploying the
+configuration and verify that `ini_get('session.upload_progress.enabled')`
+returns an empty string or `0` in each PHP service.
+
 Use the same production environment file, Compose project name, secrets and
 profiles as the existing deployment for every command below. The examples assume
 the production environment is already loaded. Build both PHP images before

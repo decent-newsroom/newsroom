@@ -2,6 +2,7 @@
 
 ## v0.0.55
 
+- [Fix] Disabled PHP session upload progress before request parsing in shared development/production configuration and the standalone MCP image.
 - [Fix] Pinned MCP to security-patched PHP 8.3.36 and blocked application builds below PHP 8.5.12; the app rollout awaits a patched FrankenPHP image.
 - [Improvement] Gave Unfold comment and Zap entries neutral background cards instead of thread borders, with circular author avatars in both themes.
 - [Improvement] Simplified Unfold interactions in both themes with neutral buttons, fewer divider lines, article Zap beside Like/Repost, inline reply composers that retain drafts, and friendlier comment validation messages.
