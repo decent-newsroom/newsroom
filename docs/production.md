@@ -144,7 +144,7 @@ Go to `https://your-domain-name.example.com` and enjoy!
 > The worker mode of FrankenPHP is enabled by default in prod. To disable it, add the env var FRANKENPHP_CONFIG as empty to the compose.prod.yaml file.
 
 > [!CAUTION]
-> Docker can have a cache layer, make sure you have the right build for each deployment or rebuild your project with --no-cache option to avoid cache issue.
+> Runtime security updates require refreshed base images, rebuilt application images, and recreated containers. `--no-cache` alone does not refresh a cached base image. Follow the [PHP runtime security update procedure](../documentation/Deployment/php-security-updates.md) before deploying a PHP update.
 
 ## Disabling HTTPS
 

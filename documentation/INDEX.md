@@ -218,6 +218,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 ### Runtime and deployment
 
 - [Runtime Resource Configuration](Deployment/runtime-tuning.md)
+- [PHP runtime security updates](Deployment/php-security-updates.md)
 
 ### Notification proposal
 

@@ -1,6 +1,6 @@
 # Versions
-# Pin to a specific digest
-FROM dunglas/frankenphp:1.12.3-php8 AS frankenphp_upstream
+# Pin the digest once upstream publishes an image containing PHP 8.5.12 or later.
+FROM dunglas/frankenphp:1.12.7-php8.5 AS frankenphp_upstream
 
 # The different stages of this Dockerfile are meant to be built into separate images
 # https://docs.docker.com/develop/develop-images/multistage-build/#stop-at-a-specific-build-stage
@@ -9,6 +9,8 @@ FROM dunglas/frankenphp:1.12.3-php8 AS frankenphp_upstream
 
 # Base FrankenPHP image
 FROM frankenphp_upstream AS frankenphp_base
+
+RUN php -r 'if (PHP_VERSION_ID < 80512 || PHP_VERSION_ID >= 80600) { fwrite(STDERR, "PHP 8.5.12 or later on the 8.5 branch is required; found ".PHP_VERSION.". Refresh the FrankenPHP base image before building.\n"); exit(1); }'
 
 WORKDIR /app
 
