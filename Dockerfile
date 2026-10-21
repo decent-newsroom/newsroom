@@ -10,8 +10,6 @@ FROM dunglas/frankenphp:1.13.1-php8.5 AS frankenphp_upstream
 # Base FrankenPHP image
 FROM frankenphp_upstream AS frankenphp_base
 
-RUN php -r 'if (PHP_VERSION_ID < 80512 || PHP_VERSION_ID >= 80600) { fwrite(STDERR, "PHP 8.5.12 or later on the 8.5 branch is required; found ".PHP_VERSION.". Refresh the FrankenPHP base image before building.\n"); exit(1); }'
-
 WORKDIR /app
 
 # persistent / runtime deps
