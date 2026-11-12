@@ -10,11 +10,12 @@ namespace App\Dto\EventWorkspace;
  */
 final readonly class EventWorkspaceSourceRecord
 {
-    /** @var array<array-key, mixed> */
-    private array $rawTags;
+    /** @var array<array-key, mixed>|null */
+    private ?array $rawTags;
 
     /**
-     * @param array<array-key, mixed> $rawTags
+     * @param array<array-key, mixed>|null $rawTags Null means the projection did
+     *        not carry signed tags; an empty list means the event has no tags.
      */
     public function __construct(
         public EventWorkspaceSource $source,
@@ -24,22 +25,30 @@ final readonly class EventWorkspaceSourceRecord
         public ?string $eventId,
         public ?int $kind,
         public ?string $authorPubkey,
-        array $rawTags,
+        ?array $rawTags,
     ) {
         if ($sourceRecordId === '' || $ownerScope === '') {
             throw new \InvalidArgumentException('A source record needs stable source and owner scope identifiers.');
         }
 
         if ($source === EventWorkspaceSource::LocalSubscription
-            && ($eventId !== null || $kind !== null || $authorPubkey !== null || $rawTags !== [])) {
+            && ($eventId !== null || $kind !== null || $authorPubkey !== null || $rawTags !== null)) {
             throw new \InvalidArgumentException('Local subscriptions must not be represented as signed events.');
         }
 
-        if ($source !== EventWorkspaceSource::LocalSubscription && $eventId === null
-            && ($source !== EventWorkspaceSource::AuthoredArticle
-                || $identity->type !== EventWorkspaceIdentityType::Address
-                || $identity->versionEventId !== null)) {
-            throw new \InvalidArgumentException('Event-backed source records must retain an exact event identity.');
+        if ($source !== EventWorkspaceSource::LocalSubscription) {
+            if ($kind === null || $authorPubkey === null) {
+                throw new \InvalidArgumentException('Event-backed source records must retain kind and author identity.');
+            }
+            if ($source !== EventWorkspaceSource::AuthoredArticle && $rawTags === null) {
+                throw new \InvalidArgumentException('Signed event source records must retain their raw tags.');
+            }
+            if ($eventId === null
+                && ($source !== EventWorkspaceSource::AuthoredArticle
+                    || $identity->type !== EventWorkspaceIdentityType::Address
+                    || $identity->versionEventId !== null)) {
+                throw new \InvalidArgumentException('Event-backed source records must retain an exact event identity.');
+            }
         }
 
         if ($eventId !== null && (strlen($eventId) !== 64 || !ctype_xdigit($eventId))) {
@@ -56,15 +65,15 @@ final readonly class EventWorkspaceSourceRecord
             throw new \InvalidArgumentException('Exact event identities must match the source event ID.');
         }
 
-        $this->rawTags = self::copyJsonValue($rawTags);
+        $this->rawTags = $rawTags === null ? null : self::copyJsonValue($rawTags);
     }
 
     /**
-     * @return array<array-key, mixed>
+     * @return array<array-key, mixed>|null
      */
-    public function getRawTags(): array
+    public function getRawTags(): ?array
     {
-        return self::copyJsonValue($this->rawTags);
+        return $this->rawTags === null ? null : self::copyJsonValue($this->rawTags);
     }
 
     private static function copyJsonValue(mixed $value): mixed

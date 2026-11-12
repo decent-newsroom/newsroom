@@ -49,13 +49,13 @@ final class EventWorkspaceSourceAdapterTest extends TestCase
             ->setKind(KindsEnum::LONGFORM)
             ->setEventId(str_repeat('2', 64))
             ->setPubkey(str_repeat('c', 64))
-            ->setSlug('essay');
-        $article->setRaw(['tags' => [['d', 'essay'], ['e', str_repeat('d', 64)]]]);
+            ->setSlug('stale-projection-slug');
+        $article->setRaw(['tags' => [['d', 'essay:with:colons'], ['e', str_repeat('d', 64)]]]);
         $record = $this->adapter->fromAuthoredArticle($article);
 
         self::assertSame(EventWorkspaceSource::AuthoredArticle, $record->source);
         self::assertSame(EventWorkspaceIdentityType::Address, $record->identity->type);
-        self::assertSame('30023:' . str_repeat('c', 64) . ':essay', $record->identity->value);
+        self::assertSame('30023:' . str_repeat('c', 64) . ':essay:with:colons', $record->identity->value);
         self::assertSame(str_repeat('2', 64), $record->identity->versionEventId);
         self::assertSame($article->getRaw()['tags'], $record->getRawTags());
     }
@@ -80,6 +80,7 @@ final class EventWorkspaceSourceAdapterTest extends TestCase
     public function testLocalSubscriptionTargetsAnIdentityWithoutInventingAnEvent(): void
     {
         $user = new User();
+        $user->setId(123);
         $user->setNpub('owner');
         $subscription = new UpdateSubscription(
             $user,
@@ -89,12 +90,41 @@ final class EventWorkspaceSourceAdapterTest extends TestCase
         $record = $this->adapter->fromLocalSubscription($subscription);
 
         self::assertSame(EventWorkspaceSource::LocalSubscription, $record->source);
-        self::assertSame('owner', $record->ownerScope);
+        self::assertSame('123', $record->ownerScope);
         self::assertSame(EventWorkspaceIdentityType::Profile, $record->identity->type);
         self::assertSame(str_repeat('e', 64), $record->identity->value);
         self::assertNull($record->eventId);
         self::assertNull($record->kind);
-        self::assertSame([], $record->getRawTags());
+        self::assertNull($record->getRawTags());
+    }
+
+    public function testArticleWithoutProjectionTagsMarksThemUnavailableRatherThanEmpty(): void
+    {
+        $article = (new Article())
+            ->setKind(KindsEnum::LONGFORM)
+            ->setPubkey(str_repeat('c', 64))
+            ->setSlug('essay');
+        $record = $this->adapter->fromAuthoredArticle($article);
+
+        self::assertNull($record->eventId);
+        self::assertNull($record->getRawTags());
+        self::assertNull($record->identity->versionEventId);
+    }
+
+    public function testMalformedSignedIdentifierDoesNotUseProjectionSlugAsCoordinate(): void
+    {
+        $article = (new Article())
+            ->setKind(KindsEnum::LONGFORM)
+            ->setEventId(str_repeat('2', 64))
+            ->setPubkey(str_repeat('c', 64))
+            ->setSlug('projection-slug');
+        $article->setRaw(['tags' => [['d']]]);
+
+        $record = $this->adapter->fromAuthoredArticle($article);
+
+        self::assertSame(EventWorkspaceIdentityType::EventId, $record->identity->type);
+        self::assertSame(str_repeat('2', 64), $record->identity->value);
+        self::assertSame([['d']], $record->getRawTags());
     }
 
     public function testLocalPublicationSubscriptionUsesCanonicalAddress(): void

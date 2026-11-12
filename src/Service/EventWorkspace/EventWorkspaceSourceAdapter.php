@@ -50,9 +50,26 @@ final readonly class EventWorkspaceSourceAdapter
         }
 
         $raw = $article->getRaw();
-        $rawTags = is_array($raw['tags'] ?? null) ? $raw['tags'] : [];
+        $rawTags = is_array($raw['tags'] ?? null) ? $raw['tags'] : null;
         $identifier = $article->getSlug();
-        $coordinate = $this->identities->deriveCoordinate($kind, $pubkey, $identifier);
+        $invalidIdentifierTag = false;
+        if ($rawTags !== null) {
+            $identifier = null;
+            foreach ($rawTags as $tag) {
+                if (!is_array($tag) || ($tag[0] ?? null) !== 'd') {
+                    continue;
+                }
+                if (!is_string($tag[1] ?? null)) {
+                    $invalidIdentifierTag = true;
+                } else {
+                    $identifier = $tag[1];
+                }
+                break;
+            }
+        }
+        $coordinate = $invalidIdentifierTag
+            ? null
+            : $this->identities->deriveCoordinate($kind, $pubkey, $identifier);
         if ($coordinate === null && $eventId === null) {
             throw new \InvalidArgumentException('Authored source records need an address or exact event ID.');
         }
@@ -92,11 +109,13 @@ final readonly class EventWorkspaceSourceAdapter
             source: EventWorkspaceSource::LocalSubscription,
             sourceRecordId: $sourceRecordId,
             identity: $identity,
-            ownerScope: $subscription->getUser()->getUserIdentifier(),
+            ownerScope: $subscription->getUser()->getId() === null
+                ? $subscription->getUser()->getUserIdentifier()
+                : $subscription->getUser()->getIdentityOwnerId(),
             eventId: null,
             kind: null,
             authorPubkey: null,
-            rawTags: [],
+            rawTags: null,
         );
     }
 

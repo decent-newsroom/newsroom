@@ -1,9 +1,9 @@
 # Event Workspace and Composable Previews
 
-Status: the first presentation and reference foundation is implemented. The
-typed source and resolution boundaries are now implemented but not yet wired to
-either inventory route. The expandable workspaces, shared resolver, and
-selectable viewers remain proposed.
+Status: the signed-event presentation and reference snapshot is implemented.
+Typed source-record and resolution-result contracts are also implemented but
+are not wired to either inventory route. The shared lookup service, expandable
+workspaces, and selectable viewers remain proposed.
 
 ## Implemented foundation
 
@@ -40,10 +40,13 @@ embeds, or their access rules:
 - `EventWorkspaceSourceAdapter` maps owned collection events, authored Article
   projections, local update subscriptions, and Bookshelf directories to typed
   source records. Event-backed records retain exact event IDs and raw ordered
-  tags; replaceable identities retain their coordinate and pin the displayed
-  event revision. Local subscriptions carry their target identity and owner
-  scope without being represented as signed events. The adapter assumes its
-  caller has already enforced access and performs no lookup or persistence.
+  tags when those fields exist; Article projections that omit the ID or raw
+  event tags report those fields as unavailable rather than inventing them.
+  Replaceable identities retain their coordinate and pin the displayed event
+  revision when its ID is known. Local subscriptions carry their target identity
+  and stable owner scope without being represented as signed events. The
+  adapter assumes its caller has already enforced access and performs no lookup
+  or persistence.
 - `EventWorkspaceResolutionResult` distinguishes available, missing, loading,
   unavailable, restricted, invalid, and failed states. An available result
   must match the requested exact event, coordinate/version, or profile identity.
@@ -59,10 +62,10 @@ component is a building block, not yet connected to an existing user-facing
 route. Metadata and body text are untrusted, not sanitized HTML; escape them on
 output and validate relay or media URLs before using them.
 
-The inventory controllers do not yet consume the source records, and an
-authorized target resolver, expandable nodes, and viewer registry are still
-needed. The workflow preflight must continue to block migrations or viewers
-until their prerequisites are actually present.
+The inventory controllers do not yet consume the source records. A shared
+source-adapter interface, authorized target resolver, expandable nodes, and
+viewer registry are still needed. The workflow preflight must continue to block
+migrations or viewers until their prerequisites are actually present.
 
 For an event that the caller has already authorized:
 
@@ -341,9 +344,10 @@ a failed specialist must leave the generic view usable.
 
 ## Shared architecture
 
-The overall flow below is still proposed; the presentation and reference
-snapshot are the first implemented pieces. These boxes are not a requirement
-to create a class for each step.
+The overall flow below is still proposed; the presentation/reference snapshot,
+typed inventory source records, and resolution-result contract are implemented
+pieces. Shared source adaptation and lookup are not implemented yet. These
+boxes are not a requirement to create a class for each step.
 
 ```text
 Nostr identifier / raw event / existing projection
