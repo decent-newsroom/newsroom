@@ -124,6 +124,14 @@ event:
     client: 'Client'
     contentWarning: 'Inhaltswarnung'
 event_workspace:
+    target:
+        kind: "Art %kind%"
+        untitled: "Ereignis ohne Titel"
+        sensitive: "Sensibler Titel ausgeblendet"
+        missing: "Ziel nicht lokal gespeichert"
+        restricted: "Zielvorschau eingeschränkt"
+        unavailable: "Ziel stimmt nicht mit der Referenz überein"
+        invalid: "Ungültige Zielreferenz"
     preview:
         untitled: 'Unbenanntes Ereignis'
         sensitive: 'Sensible Inhalte'

@@ -57,8 +57,42 @@ Each GET to `/reading-nook/bookmarks/{eventId}/references?page=1` requires
 `ROLE_USER` and reads the exact source event only when it belongs to the current
 user and has kind `10003` or `30003`. Author suppression and NIP-09 deletion are
 checked before rendering; responses use `Cache-Control: private, no-store`.
-The view does not resolve or fetch target events or profiles, expose the source
-event body, or add contact-list (kind `3`) previews.
+The view resolves visible event/address targets through the shared DB-only
+preview path below. It does not fetch events or profiles, expose the source
+event body, or add contact-list (kind `3`) previews. Bookmark fourth slots are
+never treated as version pins.
+
+### Shared local target previews
+
+Bookmark fragments and the Bookshelf directory fragment both use
+`TargetPreviewResolver` and the escaped `event_workspace/_target_preview.html.twig`
+partial. Only the visible page (at most 50 occurrences, including duplicate and
+invalid rows) is eligible for target resolution. One batch query selects
+metadata, not bodies/signatures: exact `e` IDs stay exact, unpinned `a` identities
+use the latest local revision with lowest-ID tie-break, and directory `a[3]`
+pins require a matching exact event and coordinate. Missing/mismatched pins
+never fall back to latest.
+
+Public kinds `30040`, `30041`, `1`, `20`, `21`, and `22` can show kind and a
+bounded tag-derived title without Article rows or processed HTML. Every request
+batch-checks target author suppression, NIP-09 deletion, hidden coordinates, and
+the current reader's strict mutes. Policy failures propagate rather than
+returning unfiltered metadata. Drafts/private/unknown kinds are restricted.
+Article kind `30023` remains restricted until safe Article/member entitlement
+can be established, including for Event-only targets; even owners/members get
+no exception in this deliberately conservative slice.
+
+Missing local targets, restricted previews, and mismatched/invalid pins have
+explicit localized states with no target metadata. Sensitive titles are hidden;
+no raw tags, outgoing references, descriptions, body text, or media URLs cross
+the target-preview boundary. Titles are escaped, never rendered as HTML. Rows
+have no target links or image elements. Profile/topic references remain unchanged.
+
+Source occurrence order, identities, duplicates, invalid labels, pagination,
+actions, routes, owner policies, private/no-store caching and the existing
+rollback flag remain unchanged. No target network fetch, persistence, async
+dispatch, body conversion, or recursive expansion is added. Normal Bookshelf
+page refresh and book resolution remain separate and unchanged.
 
 ### Follow-pack members
 

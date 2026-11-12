@@ -39,6 +39,14 @@ event:
     client: 'Client'
     contentWarning: 'Avviso sul contenuto'
 event_workspace:
+    target:
+        kind: "Tipo %kind%"
+        untitled: "Evento senza titolo"
+        sensitive: "Titolo sensibile nascosto"
+        missing: "Destinazione non archiviata localmente"
+        restricted: "Anteprima della destinazione limitata"
+        unavailable: "La destinazione non corrisponde al riferimento"
+        invalid: "Riferimento alla destinazione non valido"
     preview:
         untitled: 'Evento senza titolo'
         sensitive: 'Contenuto sensibile'

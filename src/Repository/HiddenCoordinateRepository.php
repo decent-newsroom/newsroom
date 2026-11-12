@@ -49,7 +49,7 @@ class HiddenCoordinateRepository extends ServiceEntityRepository
         $coordinates = array_values(array_unique(array_filter(
             $coordinates,
             static fn (string $coordinate): bool => preg_match(
-                '/^30040:[0-9a-f]{64}:/',
+                '/^3[0-9]{4}:[0-9a-f]{64}:/',
                 $coordinate,
             ) === 1,
         )));

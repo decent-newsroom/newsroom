@@ -124,6 +124,14 @@ event:
     client: 'Odjemalec'
     contentWarning: 'Opozorilo o vsebini'
 event_workspace:
+    target:
+        kind: "Vrsta %kind%"
+        untitled: "Dogodek brez naslova"
+        sensitive: "Občutljiv naslov je skrit"
+        missing: "Cilj ni shranjen lokalno"
+        restricted: "Predogled cilja je omejen"
+        unavailable: "Cilj se ne ujema s sklicem"
+        invalid: "Neveljaven sklic na cilj"
     preview:
         untitled: 'Dogodek brez naslova'
         sensitive: 'Občutljiva vsebina'

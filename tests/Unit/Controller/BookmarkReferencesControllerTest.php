@@ -34,6 +34,7 @@ use Twig\Environment;
 
 final class BookmarkReferencesControllerTest extends TestCase
 {
+    use \App\Tests\Unit\Service\EventWorkspace\TargetPreviewResolverTestTrait;
     private const OWNER = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const OTHER = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     private const ID = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
@@ -75,6 +76,8 @@ final class BookmarkReferencesControllerTest extends TestCase
             self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
             self::assertSame(self::ID, $captured['bookmarkPage']['eventId']);
             self::assertSame((new NostrNip19Service())->encodeNote(self::OTHER), $captured['bookmarkPage']['entries'][0]['value']);
+            self::assertSame('restricted', $captured['bookmarkPage']['entries'][0]['targetResolution']->status->value);
+            self::assertNull($captured['bookmarkPage']['entries'][0]['targetResolution']->presentation);
         } finally {
             $database->close();
         }
@@ -183,6 +186,7 @@ final class BookmarkReferencesControllerTest extends TestCase
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, $nip19),
             $nip19,
+            $this->targetResolver(),
         );
     }
 

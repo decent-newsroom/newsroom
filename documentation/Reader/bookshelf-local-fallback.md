@@ -80,10 +80,25 @@ the disclosure shows an empty state; no synthetic event is created.
 
 This view uses `BookshelfReferencePage`, `EventWorkspaceSourceAdapter`, and the
 shared presentation factory. It never uses the bundle's normalized/deduplicated
-editable tags as the ordered source. Targets remain explicitly unchecked: no
-Books API, Mercury, relay, body conversion, or persistence is triggered by the
-fragment. The Load link also works without JavaScript. Nested-directory or
-book-content previews are not part of this slice.
+editable tags as the ordered source. Visible targets now use the same
+`TargetPreviewResolver` and escaped, non-clickable metadata partial as
+[Reading Nook bookmarks](reading-nook.md#shared-local-target-previews).
+The DB-only target query is bounded to this page, preserves exact `e` IDs and
+directory `a[3]` pins, and selects latest unpinned `a` revisions with a lowest-ID
+tie-break. Missing or mismatched pins never fall back to latest.
+
+Target author suppression, NIP-09 deletion, hidden coordinates, and strict
+reader mutes are batch-checked. Only public kinds `30040`, `30041`, `1`, `20`,
+`21`, and `22` may expose kind and a bounded title; sensitive titles are hidden.
+Drafts, private kinds, and kind `30023` articles without safely established
+Article/member authorization stay restricted, with no target metadata.
+Missing and restricted states are explicit. No Article projection is required
+for supported kinds, and no body/signature columns or media are loaded.
+
+No Books API, Mercury, relay, body conversion, persistence, or async work is
+triggered by the fragment. The Load link also works without JavaScript.
+Nested-directory traversal and book-content rendering remain out of scope.
+The normal book cards and their existing resolution pipeline are unchanged.
 
 ## Configuration
 

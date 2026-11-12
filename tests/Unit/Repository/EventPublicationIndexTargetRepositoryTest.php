@@ -75,7 +75,32 @@ final class EventPublicationIndexTargetRepositoryTest extends TestCase
         self::assertSame(str_repeat('b', 64), $resolved['eventIds'][str_repeat('b', 64)]->getId());
         self::assertSame(30041, $resolved['eventIds'][str_repeat('e', 64)]->getKind());
 
+        $queries = [];
+        $workspace = $repository->findWorkspacePreviewTargets(
+            ['30040:' . $author . ':index', '30041:' . $author . ':chapter', '30041:' . $author . ':missing'],
+            [str_repeat('b', 64), str_repeat('b', 64)],
+        );
+        self::assertCount(1, $queries);
+        self::assertCount(2, $workspace['coordinates']);
+        self::assertSame(str_repeat('c', 64), $workspace['coordinates']['30040:' . $author . ':index']->getId());
+        self::assertSame(str_repeat('e', 64), $workspace['coordinates']['30041:' . $author . ':chapter']->getId());
+        self::assertSame(str_repeat('b', 64), $workspace['eventIds'][str_repeat('b', 64)]->getId());
+        self::assertStringNotContainsString('article', strtolower($queries[0]), 'No Article projection is queried or required.');
+        self::assertStringNotContainsString('e.content', $queries[0]);
+        self::assertStringNotContainsString('e.*', $queries[0]);
+        self::assertSame('', $workspace['eventIds'][str_repeat('b', 64)]->getContent());
+        $queries = [];
+        self::assertSame(['coordinates' => [], 'eventIds' => []], $repository->findWorkspacePreviewTargets([], []));
+        self::assertCount(0, $queries);
+
         $entityManager->close();
+    }
+
+    public function testWorkspaceLookupRejectsMoreThanOnePageBeforeQuerying(): void
+    {
+        $repository = new EventRepository($this->createMock(ManagerRegistry::class));
+        $this->expectException(\InvalidArgumentException::class);
+        $repository->findWorkspacePreviewTargets([], array_fill(0, 51, str_repeat('a', 64)));
     }
 
     private function event(string $id, string $pubkey, string $dTag, int $createdAt, int $kind = 30040): Event

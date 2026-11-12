@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Feature] Added shared, bounded DB-only target metadata previews to Reading Nook bookmarks and Bookshelf directory fragments, preserving ordered references and exact pins while enforcing target policy, explicit missing/restricted states, and sensitive-title gating without bodies, media, or network fetching.
 - [Fix] Prefer recent containing-index candidates before the bounded Bookshelf parent lookup, retaining existing graph traversal ordering for other callers.
 - [Feature] Shared the native lazy disclosure shell across Reading Nook, My Content, and Bookshelf, exposed the owner-only directory disclosure in Reading Nook, and added default-enabled `EVENT_WORKSPACE_EXPANSION_ENABLED` rollback for expansion controls and fragment endpoints.
 - [Feature] Added lazy, owner-only My Content event previews and ordered reference pages for published articles and drafts, preserving existing authoring actions.

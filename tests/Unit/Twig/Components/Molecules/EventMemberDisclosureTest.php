@@ -38,6 +38,7 @@ use Twig\TwigFunction;
 
 final class EventMemberDisclosureTest extends KernelTestCase
 {
+    use \App\Tests\Unit\Service\EventWorkspace\TargetPreviewResolverTestTrait;
     use InteractsWithTwigComponents;
 
     private const ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -281,6 +282,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $pages = new \App\Service\EventWorkspace\BookshelfReferencePage(
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, new NostrNip19Service()),
+            $this->targetResolver(),
         );
         $page = $pages->fromAuthorizedEvent($event);
         $page['hasNext'] = true;
@@ -375,6 +377,61 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertStringContainsString('page=1', $crawler->filter('a[rel="prev"]')->attr('href'));
         self::assertStringContainsString('page=3', $crawler->filter('a[rel="next"]')->attr('href'));
         self::assertSame('Bookmark pages', $crawler->filter('nav')->attr('aria-label'));
+    }
+
+    public function testBothFragmentsRenderSharedEscapedMetadataAndExplicitTargetStatesWithoutMediaOrLinks(): void
+    {
+        self::bootKernel();
+        $identity = \App\Dto\EventWorkspace\EventWorkspaceIdentity::eventId(self::ID);
+        $factory = new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service());
+        $target = new Event();
+        $target->setId(self::ID);
+        $target->setPubkey(str_repeat('b', 64));
+        $target->setKind(20);
+        $target->setCreatedAt(123);
+        $target->setContent('never render target body');
+        $target->setTags([['title', '<script>untrusted title</script>'], ['image', 'https://never-load.test/image']]);
+        $available = \App\Dto\EventWorkspace\EventWorkspaceResolutionResult::available(
+            $identity, $factory->fromAuthorizedTargetMetadata($target),
+        );
+        $target->setTags([['title', 'hidden sensitive title'], ['content-warning', 'hidden warning']]);
+        $sensitive = \App\Dto\EventWorkspace\EventWorkspaceResolutionResult::available(
+            $identity, $factory->fromAuthorizedTargetMetadata($target),
+        );
+        $resolutions = [
+            $available, $sensitive,
+            \App\Dto\EventWorkspace\EventWorkspaceResolutionResult::missing($identity),
+            \App\Dto\EventWorkspace\EventWorkspaceResolutionResult::restricted($identity),
+        ];
+        foreach ([10003, 30045] as $kind) {
+            $source = new Event();
+            $source->setId(self::ID);
+            $source->setPubkey(str_repeat('b', 64));
+            $source->setKind($kind);
+            $source->setTags(array_fill(0, 4, ['e', self::ID]));
+            $adapter = new EventWorkspaceSourceAdapter(new RecordIdentityService());
+            $page = $kind === 30045
+                ? (new \App\Service\EventWorkspace\BookshelfReferencePage($adapter, $factory, $this->targetResolver()))->fromAuthorizedEvent($source)
+                : (new \App\Service\EventWorkspace\BookmarkReferencePage($adapter, $factory, new NostrNip19Service(), $this->targetResolver()))->fromAuthorizedEvent($source);
+            foreach ($resolutions as $index => $resolution) {
+                $page['entries'][$index]['targetResolution'] = $resolution;
+            }
+            $html = self::getContainer()->get('twig')->render(
+                $kind === 30045 ? 'bookshelf/_directory_references.html.twig' : 'reader/reading_nook/_bookmark_references.html.twig',
+                [$kind === 30045 ? 'directoryPage' : 'bookmarkPage' => $page],
+            );
+            $crawler = new Crawler($html);
+            self::assertSame(['available', 'available', 'missing', 'restricted'], $crawler->filter('.event-target-preview')->extract(['data-target-status']));
+            self::assertStringContainsString('&lt;script&gt;untrusted title&lt;/script&gt;', $html);
+            self::assertStringContainsString('Sensitive title hidden', $crawler->text());
+            self::assertStringContainsString('Target not stored locally', $crawler->text());
+            self::assertStringContainsString('Target preview restricted', $crawler->text());
+            self::assertStringNotContainsString('hidden sensitive title', $html);
+            self::assertStringNotContainsString('hidden warning', $html);
+            self::assertStringNotContainsString('never render target body', $html);
+            self::assertStringNotContainsString('never-load.test', $html);
+            self::assertSame(0, $crawler->filter('script, img, iframe, video, audio, li a')->count());
+        }
     }
 
     public function testTocFragmentRendersOrderedUnresolvedNestedAndInvalidReferencesNotBodiesOrActions(): void

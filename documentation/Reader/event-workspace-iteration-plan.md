@@ -6,9 +6,39 @@ slices add Reading Nook kind `39089` member expansion, kind `30040` nested
 index expansion, kind `10003`/`30003` bookmark reference expansion, and Bookshelf
 kind `30045` My Books directory reference expansion, plus My Content article
 and draft previews with ordered references. The
-proposed contact-list (kind `3`) preview is intentionally skipped. A shared
-lookup service, other expandable sources, and selectable
-viewers remain proposed.
+proposed contact-list (kind `3`) preview is intentionally skipped. A bounded
+shared DB-only target preview resolver is shipped for bookmarks and the
+Bookshelf directory. General resolution, other expandable sources, and
+selectable viewers remain proposed.
+
+### Shipped bounded shared target preview slice
+
+- Both bookmark (`10003`/`30003`) and directory (`30045`) reference pages now use
+  `TargetPreviewResolver` and `event_workspace/_target_preview.html.twig`.
+  Only the visible 50 source occurrences enter resolution. Source ordering,
+  duplicates, malformed rows, labels, identities, pagination, actions, owner
+  policy, and the existing expansion rollback flag are unchanged.
+- One bounded Event query resolves exact `e` IDs, latest unpinned `a` coordinates
+  (newest timestamp, lowest event ID on ties), and exact directory `a[3]` pins.
+  A mismatched or absent pin never falls back to latest. Bookmark fourth slots
+  are not pins. No current-record graph row or Article projection is required.
+- Target metadata is allowed only for public kinds `30040`, `30041`, `1`, `20`,
+  `21`, and `22`. Author suppression, NIP-09 tombstones, hidden coordinates, and
+  authenticated viewer strict mutes are batch-checked on every fragment.
+  Drafts/private/unknown kinds are restricted. Kind `30023` is deliberately
+  restricted too: Event-only records do not safely establish Article/member
+  entitlement. Broader article authorization is pending, not bypassed.
+- Existing identities use `EventWorkspaceResolutionResult`. Missing, restricted,
+  invalid-pin, and mismatched-pin states expose no target presentation.
+  Malformed raw references retain their existing invalid labels; `p`/`t`
+  references remain reference-only without profile lookup.
+- Returned available snapshots contain only identity/kind/time and a bounded
+  tag-derived title; sensitive titles are withheld. No target body or signature
+  column is selected, and snapshots expose no raw tags, outgoing references,
+  descriptions, images, or body text. The escaped shared partial is non-clickable
+  and never loads media. Strict mute or DB failures fail the request closed.
+- No recursive expansion, network/relay/API lookup, persistence, async work,
+  body conversion, or changes to the normal Bookshelf resolution pipeline.
 
 ### Shared Step 2 disclosure shell and rollback
 
@@ -29,7 +59,7 @@ viewers remain proposed.
   `bookshelf-directory-references` frame ID. It adds no inventory copy, count,
   eager query, network call, or resolver. My Books also mounts it once on its
   separate page, so IDs remain unique within each page.
-- Step 3+ shared resolution, selectable Book/Magazine/profile viewers, generic
+- Step 3+ general shared resolution, selectable Book/Magazine/profile viewers, generic
   recursive `a`/`e` expansion, browser concurrency controls, and broader
   Event-only inventories remain intentionally deferred. Existing bounded local
   TOC traversal is unchanged; this shell does not implement a general browser.
@@ -68,8 +98,9 @@ viewers remain proposed.
   identifier, author suppression, hidden coordinate, and NIP-09 deletion;
   responses are private and `no-store`. No local directory means an empty state,
   not a fabricated event.
-- No target lookup, API/relay call, body rendering, persistence, or recursive
-  expansion is performed by this disclosure.
+- Visible targets now receive the bounded DB-only metadata previews described
+  above; no API/relay call, body rendering, persistence, or recursive expansion
+  is performed by this disclosure.
 
 ### Shipped Step 2 subset: Reading Nook bookmarks
 
@@ -80,12 +111,14 @@ viewers remain proposed.
   Source positions, order, duplicates, and malformed occurrences are retained.
 - Exact event IDs and profiles are shown as `note`/`npub`; parameterized
   addressable-event references use `naddr` when supported. Topics remain
-  hashtags. No target event or profile is looked up or fetched.
+  hashtags. Visible `a`/`e` targets now receive bounded DB-only metadata previews;
+  profiles are not looked up and no targets are fetched from the network.
 - Every fragment requires `ROLE_USER`, re-reads the exact source event for the
   current owner's pubkey, accepts only kinds `10003` and `30003`, and checks
   author suppression and NIP-09 deletion. Responses are private and `no-store`.
-- This is a reference list, not a target preview. It does not expose bookmark
-  event bodies or add kind `3` follow-list previews.
+- The reference list now includes the shared non-clickable target metadata
+  preview where authorized. It does not expose bookmark event bodies or add
+  kind `3` follow-list previews.
 
 ### Shipped Step 2 subset: Reading Nook publication-index TOC references
 
@@ -703,7 +736,7 @@ media should not autoplay or load merely because a folder was expanded.
 | Step | Scope | Exit criterion |
 |---|---|---|
 | 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | One readable raw event can produce a generic presentation without Article storage, body HTML, or network access; both inventory routes retain their behavior. |
-| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing collection rows and the Bookshelf directory; kind `3` follow-list previews are intentionally skipped. | Partially shipped: Reading Nook follow-pack members, bookmarks, bounded kind `30040` local nested-index expansion, and reference-only Bookshelf My Books expansion. Mounting Bookshelf in Reading Nook, shared previews, and My Content integration remain pending. |
+| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing collection rows and the Bookshelf directory; kind `3` follow-list previews are intentionally skipped. | Partially shipped: follow-pack members, bookmarks, bounded kind `30040` local nested indexes, Bookshelf directory disclosures on both inventories, My Content previews, and bounded shared DB-only bookmark/directory target metadata behind the existing rollback flag. General recursion, article target entitlement, and broader viewers remain pending. |
 | 3. Make discovery resilient | Shared bounded fetch coordination, per-fragment updates, retry/status fallback, and preserved browser state. Adapt Books/profile sources without render-time discovery. | Cold references progressively resolve without full-page reload, losing siblings, or unbounded fan-out. |
 | 4. Extend the graph | Add typed `p`/`e` relationships and version-binding fields, migrations/indexes, rebuild/backfill, and audit coverage. Add directories and mixed bookmark/curation expansion. | Indexed and raw-tag expansion give equivalent ordered results, including missing targets. Existing publication/Unfold queries retain their behavior. |
 | 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | A supported event has consistent identity, metadata, relationships, and status across all migrated contexts. Remove superseded dispatch paths only after parity. |

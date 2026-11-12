@@ -124,6 +124,14 @@ event:
     client: 'Client'
     contentWarning: 'Avertissement de contenu'
 event_workspace:
+    target:
+        kind: "Type %kind%"
+        untitled: "Événement sans titre"
+        sensitive: "Titre sensible masqué"
+        missing: "Cible non stockée localement"
+        restricted: "Aperçu de la cible restreint"
+        unavailable: "La cible ne correspond pas à la référence"
+        invalid: "Référence de cible invalide"
     preview:
         untitled: 'Événement sans titre'
         sensitive: 'Contenu sensible'

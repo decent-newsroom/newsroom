@@ -14,8 +14,8 @@ use App\Service\Nostr\NostrNip19Service;
 /**
  * Paginated, read-only view of the ordered references in a bookmark list.
  *
- * The caller authorizes the source event. This service does not resolve or
- * fetch targets and never exposes the source event body.
+ * The caller authorizes the source event. Targets are resolved only for the
+ * visible page, without fetching or exposing the source event body.
  */
 final readonly class BookmarkReferencePage
 {
@@ -25,13 +25,14 @@ final readonly class BookmarkReferencePage
         private EventWorkspaceSourceAdapter $sources,
         private EventPresentationFactory $presentations,
         private NostrNip19Service $nip19,
+        private TargetPreviewResolver $targets,
     ) {}
 
     /**
      * @return array{
      *     eventId: string,
      *     page: int,
-     *     entries: list<array{position: int, type: string, value: ?string, rawValue: ?string, invalid: bool}>,
+     *     entries: list<array<string, mixed>>,
      *     hasNext: bool,
      *     hasPrevious: bool
      * }
@@ -89,6 +90,18 @@ final readonly class BookmarkReferencePage
                 $referencesByPosition[$sourcePosition] ?? null,
             );
         }
+
+        $visibleReferences = [];
+        foreach ($result['entries'] as $entry) {
+            if (isset($referencesByPosition[$entry['position']])) {
+                $visibleReferences[] = $referencesByPosition[$entry['position']];
+            }
+        }
+        $resolutions = $this->targets->resolvePage($visibleReferences);
+        foreach ($result['entries'] as &$entry) {
+            $entry['targetResolution'] = $resolutions[$entry['position']] ?? null;
+        }
+        unset($entry);
 
         return $result;
     }

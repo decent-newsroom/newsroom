@@ -35,6 +35,7 @@ use Twig\Environment;
 
 final class BookshelfReferencesControllerTest extends TestCase
 {
+    use \App\Tests\Unit\Service\EventWorkspace\TargetPreviewResolverTestTrait;
     private const OWNER = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
@@ -76,6 +77,10 @@ final class BookshelfReferencesControllerTest extends TestCase
             self::assertSame(self::ID, $captured['directoryPage']['eventId']);
             self::assertSame($query === [] ? 1 : 2, $captured['directoryPage']['page']);
             self::assertStringNotContainsString('private body', serialize($captured));
+            if ($query === []) {
+                self::assertSame('restricted', $captured['directoryPage']['entries'][0]['targetResolution']->status->value);
+                self::assertNull($captured['directoryPage']['entries'][0]['targetResolution']->presentation);
+            }
         }
     }
 
@@ -269,6 +274,7 @@ final class BookshelfReferencesControllerTest extends TestCase
         return new BookshelfReferencePage(
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, new NostrNip19Service()),
+            $this->targetResolver(),
         );
     }
 

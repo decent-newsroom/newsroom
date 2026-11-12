@@ -583,13 +583,43 @@ class EventRepository extends ServiceEntityRepository
      */
     public function findPublicationIndexTargets(array $coordinates, array $eventIds): array
     {
+        return $this->findBoundedReferenceTargets($coordinates, $eventIds, [30040]);
+    }
+
+    /**
+     * DB-only target lookup for one workspace page. Exact IDs may return
+     * non-public kinds; callers must authorize before exposing any metadata.
+     * Returned Events are detached metadata-only read objects, not complete
+     * signed events or persistence inputs.
+     *
+     * @param list<string> $coordinates
+     * @param list<string> $eventIds
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    public function findWorkspacePreviewTargets(array $coordinates, array $eventIds): array
+    {
+        if (count($coordinates) + count($eventIds) > 50) {
+            throw new \InvalidArgumentException('Workspace target lookup is limited to one page.');
+        }
+
+        return $this->findBoundedReferenceTargets($coordinates, $eventIds, [30040, 30041], metadataOnly: true);
+    }
+
+    /**
+     * @param list<string> $coordinates
+     * @param list<string> $eventIds
+     * @param list<int> $kinds
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    private function findBoundedReferenceTargets(array $coordinates, array $eventIds, array $kinds, bool $metadataOnly = false): array
+    {
         $coordinates = array_values(array_unique(array_filter(
             $coordinates,
-            static function (string $coordinate): bool {
+            static function (string $coordinate) use ($kinds): bool {
                 $parts = explode(':', $coordinate, 3);
 
                 return count($parts) === 3
-                    && $parts[0] === '30040'
+                    && in_array($parts[0], array_map('strval', $kinds), true)
                     && preg_match('/^[0-9a-f]{64}$/', $parts[1]) === 1;
             },
         )));
@@ -628,13 +658,15 @@ class EventRepository extends ServiceEntityRepository
         $params = [];
         $coordinateSql = [];
         foreach ($coordinates as $index => $coordinate) {
-            [, $pubkey, $identifier] = explode(':', $coordinate, 3);
+            [$kind, $pubkey, $identifier] = explode(':', $coordinate, 3);
             $coordinateSql[] = sprintf(
-                "(e.kind = 30040 AND lower(e.pubkey) = :pubkey_%d AND %s = :d_tag_%d)",
+                "(e.kind = :kind_%d AND lower(e.pubkey) = :pubkey_%d AND %s = :d_tag_%d)",
+                $index,
                 $index,
                 $dTagExpression,
                 $index,
             );
+            $params['kind_' . $index] = (int) $kind;
             $params['pubkey_' . $index] = $pubkey;
             $params['d_tag_' . $index] = $identifier;
         }
@@ -645,11 +677,11 @@ class EventRepository extends ServiceEntityRepository
                 "SELECT id FROM (
                     SELECT e.id,
                            ROW_NUMBER() OVER (
-                               PARTITION BY lower(e.pubkey), %s
+                               PARTITION BY e.kind, lower(e.pubkey), %s
                                ORDER BY e.created_at DESC, lower(e.id) ASC
                            ) AS revision_rank
                     FROM event e
-                    WHERE e.kind = 30040 AND (%s)
+                    WHERE (%s)
                 ) current_revisions
                 WHERE revision_rank = 1",
                 $dTagExpression,
@@ -671,7 +703,12 @@ class EventRepository extends ServiceEntityRepository
                 . implode(', ', $idPlaceholders) . ')';
         }
 
-        $sql = 'SELECT e.* FROM event e INNER JOIN ('
+        // Workspace reads never select body or signature data. These detached
+        // read objects are not complete signed events and must not be persisted.
+        $columns = $metadataOnly
+            ? "e.id, e.kind, e.pubkey, e.created_at, e.tags, e.d_tag, '' AS content, '' AS sig"
+            : 'e.*';
+        $sql = 'SELECT ' . $columns . ' FROM event e INNER JOIN ('
             . implode(' UNION ', $selected)
             . ') requested_targets ON lower(e.id) = lower(requested_targets.id)'
             . ' ORDER BY e.created_at DESC, lower(e.id) ASC';
@@ -685,9 +722,9 @@ class EventRepository extends ServiceEntityRepository
 
         $byCoordinate = [];
         foreach ($coordinates as $coordinate) {
-            [, $pubkey, $identifier] = explode(':', $coordinate, 3);
+            [$kind, $pubkey, $identifier] = explode(':', $coordinate, 3);
             foreach ($byId as $event) {
-                if ($event->getKind() !== 30040
+                if ($event->getKind() !== (int) $kind
                     || strtolower($event->getPubkey()) !== $pubkey
                     || $this->dTagFromEvent($event) !== $identifier) {
                     continue;

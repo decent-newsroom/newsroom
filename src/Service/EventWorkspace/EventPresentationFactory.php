@@ -48,6 +48,41 @@ final readonly class EventPresentationFactory
     }
 
     /**
+     * Metadata-only snapshot for an authorized target. No body, media, outgoing
+     * relationships, or signed raw tags cross the fragment boundary.
+     */
+    public function fromAuthorizedTargetMetadata(Event $event): EventPresentation
+    {
+        $metadata = $this->fromAuthorizedFields(
+            $event->getId(), $event->getKind(), $event->getPubkey(),
+            $event->getCreatedAt(), $event->getTags(), '',
+        );
+
+        return new EventPresentation(
+            eventId: $metadata->eventId,
+            kind: $metadata->kind,
+            authorPubkey: $metadata->authorPubkey,
+            authorNpub: $metadata->authorNpub,
+            coordinate: $metadata->coordinate,
+            recordUid: $metadata->recordUid,
+            createdAt: $metadata->createdAt,
+            publishedAt: null,
+            title: $metadata->isSensitive ? null : ($metadata->title === null ? null : mb_substr($metadata->title, 0, 220)),
+            description: null,
+            descriptionOnReveal: null,
+            imageUrl: null,
+            hasContentWarning: $metadata->hasContentWarning,
+            contentWarningReason: null,
+            isSensitive: $metadata->isSensitive,
+            bodyFormat: $metadata->bodyFormat,
+            textContent: null,
+            autoUpdate: null,
+            references: [],
+            rawTags: [],
+        );
+    }
+
+    /**
      * Accepts fields from a validated, authorized raw signed event, including
      * a relay result that has not been persisted. This is not a validation API.
      *

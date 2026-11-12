@@ -14,6 +14,7 @@ final readonly class BookshelfReferencePage
     public function __construct(
         private EventWorkspaceSourceAdapter $sources,
         private EventPresentationFactory $presentations,
+        private TargetPreviewResolver $targets,
     ) {}
 
     /** @return array<string, mixed> */
@@ -61,6 +62,18 @@ final readonly class BookshelfReferencePage
                 'invalidVersionPin' => $hasPin && $reference->versionEventId === null,
             ];
         }
+
+        $resolutions = $this->targets->resolvePage(
+            array_column($result['entries'], 'reference'),
+            array_values(array_map(
+                static fn (array $entry): int => $entry['reference']->position,
+                array_filter($result['entries'], static fn (array $entry): bool => $entry['invalidVersionPin']),
+            )),
+        );
+        foreach ($result['entries'] as &$entry) {
+            $entry['targetResolution'] = $resolutions[$entry['reference']->position] ?? null;
+        }
+        unset($entry);
 
         return $result;
     }
