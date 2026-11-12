@@ -1,0 +1,6 @@
+<details {{ attributes.defaults({class: 'event-member-disclosure'}) }}>
+    <summary>{{ 'reading_nook.members.disclosure'|trans({'%title%': title}) }}</summary>
+    <turbo-frame id="nook-members-{{ eventId }}" src="{{ url }}" loading="lazy">
+        <a href="{{ url }}">{{ 'reading_nook.members.load'|trans }}</a>
+    </turbo-frame>
+</details>

@@ -1202,6 +1202,15 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
+    members:
+        disclosure: 'Membres de %title% (npubs)'
+        load: 'Charger les membres'
+        invalid: 'Référence de membre non valide'
+        empty: 'Aucun membre sur cette page.'
+        pagination: 'Pages des membres'
+        page: 'Page %page%'
+        previous: '50 précédents'
+        next: '50 suivants'
     nav:
         overview: 'Vue d''ensemble'
         all_items: 'Tous les éléments'

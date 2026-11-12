@@ -11,8 +11,11 @@ use App\Enum\KindsEnum;
 use App\Enum\UpdateSourceTypeEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Repository\EventRepository;
+use App\Repository\DeletedEventRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\EventWorkspace\FollowPackMemberPage;
+use App\Service\Reader\ContentAuthorAccessPolicy;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -77,7 +80,7 @@ final class ReadingNookController extends AbstractController
 
         /** @var User $user */
 
-        $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
+        $pubkeyHex = $this->userPubkeyHex($user);
         $events = $this->loadOwnedEvents($em, $pubkeyHex);
 
         $items = [
@@ -108,6 +111,66 @@ final class ReadingNookController extends AbstractController
             'totalCount' => count($items),
             'filteredCount' => count($filteredItems),
         ]);
+    }
+
+    #[Route('/reading-nook/follow-packs/{eventId}/members', name: 'reading_nook_follow_pack_members', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function followPackMembers(
+        string $eventId,
+        Request $request,
+        EntityManagerInterface $em,
+        FollowPackMemberPage $members,
+        DeletedEventRepository $deletions,
+        ContentAuthorAccessPolicy $authorAccess,
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $page = filter_var($request->query->get('page', '1'), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+        if ($page === false) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid page.');
+        }
+
+        // Never accept owner or kind from the browser. Pin paging to this exact
+        // signed revision, not the latest event for a mutable coordinate.
+        $pubkey = $this->userPubkeyHex($user);
+        $authorAccess->assertReadable($pubkey);
+        $event = $em->getRepository(Event::class)->findOneBy([
+            'id' => $eventId,
+            'pubkey' => $pubkey,
+            'kind' => KindsEnum::FOLLOW_PACK->value,
+        ]);
+        if (!$event instanceof Event || $deletions->isSuppressed(
+            $event->getId(),
+            $event->getKind(),
+            $event->getPubkey(),
+            $event->getSlug(),
+            $event->getCreatedAt(),
+        )) {
+            throw $this->createNotFoundException();
+        }
+
+        $response = $this->render('reader/reading_nook/_follow_pack_members.html.twig', [
+            'memberPage' => $members->fromAuthorizedEvent($event, $page),
+        ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+
+        return $response;
+    }
+
+    private function userPubkeyHex(User $user): string
+    {
+        $npub = strtolower(trim($user->getUserIdentifier()));
+        if (str_starts_with($npub, 'nostr:')) {
+            $npub = substr($npub, 6);
+        }
+
+        return PublicKey::fromBech32($npub)?->toHex()
+            ?? throw new \InvalidArgumentException('Not a valid npub');
     }
 
     /**
@@ -163,6 +226,7 @@ final class ReadingNookController extends AbstractController
             $topicTags = $this->extractTagValues($tags, 't');
 
             $entries[] = [
+                'eventId' => $event->getId(),
                 'section' => $section,
                 'kind' => $kind,
                 'title' => $title,

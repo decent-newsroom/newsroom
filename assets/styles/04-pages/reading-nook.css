@@ -179,6 +179,37 @@
     border-top: 1px solid var(--color-border-strong);
 }
 
+.reading-nook-row > .event-member-disclosure {
+    grid-column: 1 / -1;
+    padding: var(--spacing-3);
+    min-width: 0;
+}
+
+.event-member-disclosure > summary {
+    cursor: pointer;
+    color: var(--color-primary-link);
+}
+
+.event-member-disclosure > summary:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+}
+
+.event-member-disclosure turbo-frame {
+    display: block;
+    margin-top: var(--spacing-3);
+}
+
+.event-member-list code {
+    overflow-wrap: anywhere;
+}
+
+.event-member-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
 .reading-nook-row {
     position: relative;
     display: grid;

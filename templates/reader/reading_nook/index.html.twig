@@ -215,6 +215,13 @@
                         {% else %}
                             <span class="reading-nook-row__no-actions" aria-hidden="true">&nbsp;</span>
                         {% endif %}
+                        {% if item.kind == 39089 and item.eventId is defined %}
+                            <twig:Molecules:EventMemberDisclosure
+                                :eventId="item.eventId"
+                                :title="title"
+                                :url="path('reading_nook_follow_pack_members', {eventId: item.eventId})"
+                            />
+                        {% endif %}
                     </article>
                 {% else %}
                     <div class="reading-nook-empty">

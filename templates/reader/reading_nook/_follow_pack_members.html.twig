@@ -1,0 +1,29 @@
+<turbo-frame id="nook-members-{{ memberPage.eventId }}">
+    {% if memberPage.members is not empty %}
+        <ol class="event-member-list" start="{{ (memberPage.page - 1) * 50 + 1 }}">
+            {% for member in memberPage.members %}
+                <li data-source-tag-position="{{ member.position }}">
+                    {% if member.npub %}
+                        <code>{{ member.npub }}</code>
+                    {% else %}
+                        <span>{{ 'reading_nook.members.invalid'|trans }}</span>
+                        {% if member.rawValue is not null %}
+                            <code>{{ member.rawValue }}</code>
+                        {% endif %}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    {% else %}
+        <p>{{ 'reading_nook.members.empty'|trans }}</p>
+    {% endif %}
+    <nav class="event-member-pagination" aria-label="{{ 'reading_nook.members.pagination'|trans }}">
+        {% if memberPage.hasPrevious %}
+            <a rel="prev" href="{{ path('reading_nook_follow_pack_members', {eventId: memberPage.eventId, page: memberPage.page - 1}) }}">{{ 'reading_nook.members.previous'|trans }}</a>
+        {% endif %}
+        <span>{{ 'reading_nook.members.page'|trans({'%page%': memberPage.page}) }}</span>
+        {% if memberPage.hasNext %}
+            <a rel="next" href="{{ path('reading_nook_follow_pack_members', {eventId: memberPage.eventId, page: memberPage.page + 1}) }}">{{ 'reading_nook.members.next'|trans }}</a>
+        {% endif %}
+    </nav>
+</turbo-frame>

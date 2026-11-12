@@ -47,7 +47,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 - [Chapter previews (kind 30041)](Reader/chapter-previews.md)
 - [Web Preview for NIP-22 Comment External References](Reader/comment-web-preview.md)
 - [Deferred Nostr Embeds](Reader/deferred-nostr-embeds.md)
-- [Event workspace and composable previews (foundation in progress)](Reader/event-workspace-iteration-plan.md)
+- [Event workspace and composable previews (foundation and follow-pack npub slice)](Reader/event-workspace-iteration-plan.md)
 - [Discover Page](Reader/discover-page.md)
 - [Featured Unfold Sites](Reader/featured-unfold-sites.md)
 - [Follow Packs Page](Reader/follow-packs-page.md)

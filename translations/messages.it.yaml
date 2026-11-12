@@ -835,6 +835,15 @@ newsroom:
         media_manager: 'Gestore media'
 
 reading_nook:
+    members:
+        disclosure: 'Membri di %title% (npub)'
+        load: 'Carica membri'
+        invalid: 'Riferimento al membro non valido'
+        empty: 'Nessun membro in questa pagina.'
+        pagination: 'Pagine dei membri'
+        page: 'Pagina %page%'
+        previous: '50 precedenti'
+        next: '50 successivi'
     nav:
         overview: 'Panoramica'
         all_items: 'Tutti gli elementi'

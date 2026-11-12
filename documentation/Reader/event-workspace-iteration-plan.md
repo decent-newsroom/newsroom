@@ -1,9 +1,28 @@
 # Event Workspace and Composable Previews
 
-Status: the signed-event presentation and reference snapshot is implemented.
-Typed source-record and resolution-result contracts are also implemented but
-are not wired to either inventory route. The shared lookup service, expandable
-workspaces, and selectable viewers remain proposed.
+Status: the signed-event presentation and reference snapshot, typed source
+records, and resolution-result contracts are implemented. The first bounded
+Step 2 slice wires Reading Nook kind `39089` member expansion to the source
+adapter and ordered presentation references. My Content integration, a shared
+lookup service, other expandable sources, and selectable viewers remain proposed.
+
+### Shipped Step 2 subset: Reading Nook follow-pack npubs
+
+- Owned kind `39089` rows have a separate native disclosure, not a replacement
+  for the title link, Open/Manage links, or existing action menu.
+- A lazy Turbo Frame loads up to 50 `FollowPackMember` occurrences per page.
+  Pages are pinned to an exact event ID and retain signed tag order, positions,
+  duplicates, and invalid references. No profile resolution, relay fetch,
+  persistence, or source mutation takes place.
+- Each GET rechecks `ROLE_USER`, the signed-in owner's pubkey, and stored kind
+  `39089`; source author suppression and NIP-09 tombstones are checked before
+  returning members. Responses are private and non-cacheable.
+- The source adapter remains a concrete authorized-input adapter; this slice
+  does not add a shared lookup or general-purpose source-adapter interface.
+- The shared factory still scans the selected source event's tags in memory;
+  pagination bounds output/npub encoding, not loading the source event's JSON.
+- No kind `3`, Bookshelf, My Content, profile cards, or `a`/`e` expansion is
+  included. The rest of Step 2 and its broader rollout remain pending.
 
 ## Implemented foundation
 
@@ -608,7 +627,8 @@ component reuse alone.
 
 All implementation checks run in Docker. Add one changelog item per delivered
 feature/fix and update this document as decisions become implemented. The
-standalone foundation does not yet change the user-facing workspace.
+standalone foundation now supports the bounded follow-pack slice above,
+not yet a general-purpose expandable workspace.
 
 ## Recommended first workspace slice
 

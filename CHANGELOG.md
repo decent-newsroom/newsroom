@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Feature] Added a separate Reading Nook follow-pack member disclosure with ordered npub-only pages of 50, preserving duplicate and invalid references and existing row actions without profile lookups or fetching.
 - [Feature] Added typed Event Workspace source records and explicit resolution states for event, Article, subscription, and Bookshelf inventory inputs without changing existing routes.
 - [Feature] Began the event workspace with tag-based, nestable preview and ordered-reference foundations, local protocol specifications, and characterization of the existing personal inventories.
 - [Fix] Recognized mixed-case WebSocket schemes in NIP-10 thread relay hints.

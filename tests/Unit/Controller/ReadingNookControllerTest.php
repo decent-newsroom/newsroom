@@ -257,6 +257,7 @@ final class ReadingNookControllerTest extends TestCase
         self::assertSame(2, $items['Topics']['meta']['topicCount']);
         self::assertSame(2, $items['Colleagues']['meta']['memberCount']);
         self::assertSame('/follow_pack_setup', $items['Colleagues']['manageUrl']);
+        self::assertSame(sprintf('%064x', 4), $items['Colleagues']['eventId']);
         self::assertSame(2, $items['Reading queue']['meta']['itemCount']);
         self::assertSame(
             '/reading-list?' . http_build_query(['npub' => $user->getUserIdentifier(), 'slug' => 'reading']),

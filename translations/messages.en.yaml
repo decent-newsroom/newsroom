@@ -1578,6 +1578,15 @@ relay_feed:
         submit: 'Send suggestion'
 
 reading_nook:
+    members:
+        disclosure: 'Members of %title% (npubs)'
+        load: 'Load members'
+        invalid: 'Invalid member reference'
+        empty: 'No members on this page.'
+        pagination: 'Member pages'
+        page: 'Page %page%'
+        previous: 'Previous 50'
+        next: 'Next 50'
     nav:
         overview: 'Overview'
         all_items: 'All items'

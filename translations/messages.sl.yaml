@@ -1204,6 +1204,15 @@ updates:
         alreadySubscribed: 'Že prijavljen.'
 
 reading_nook:
+    members:
+        disclosure: 'Člani paketa %title% (npub)'
+        load: 'Naloži člane'
+        invalid: 'Neveljaven sklic na člana'
+        empty: 'Na tej strani ni članov.'
+        pagination: 'Strani članov'
+        page: 'Stran %page%'
+        previous: 'Prejšnjih 50'
+        next: 'Naslednjih 50'
     nav:
         overview: 'Pregled'
         all_items: 'Vsi elementi'
