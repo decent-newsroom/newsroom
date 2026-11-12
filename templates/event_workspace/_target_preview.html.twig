@@ -1,0 +1,18 @@
+{# Presentation only: never load media, convert bodies, or link to a focused reader. #}
+{% if resolution is not null %}
+    <span class="event-target-preview" data-target-status="{{ resolution.status.value }}">
+        {% if resolution.status.value == 'available' %}
+            {% set preview = resolution.presentation %}
+            <span>{{ 'event_workspace.target.kind'|trans({'%kind%': preview.kind}) }}</span>
+            {% if preview.isSensitive %}
+                <span>{{ 'event_workspace.target.sensitive'|trans }}</span>
+            {% elseif preview.title is not null %}
+                <span>{{ preview.title }}</span>
+            {% else %}
+                <span>{{ 'event_workspace.target.untitled'|trans }}</span>
+            {% endif %}
+        {% else %}
+            <span>{{ ('event_workspace.target.' ~ resolution.status.value)|trans }}</span>
+        {% endif %}
+    </span>
+{% endif %}
