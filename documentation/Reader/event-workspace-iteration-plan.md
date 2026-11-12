@@ -1,7 +1,9 @@
 # Event Workspace and Composable Previews
 
 Status: the first presentation and reference foundation is implemented. The
-expandable workspaces, shared resolver, and selectable viewers remain proposed.
+typed source and resolution boundaries are now implemented but not yet wired to
+either inventory route. The expandable workspaces, shared resolver, and
+selectable viewers remain proposed.
 
 ## Implemented foundation
 
@@ -35,6 +37,17 @@ embeds, or their access rules:
   `tests/NIPs/LOCAL-EVENT-WORKSPACE.feature` records local tag semantics;
   executable coverage is in PHPUnit because the feature specs are not part of
   the PHPUnit suite.
+- `EventWorkspaceSourceAdapter` maps owned collection events, authored Article
+  projections, local update subscriptions, and Bookshelf directories to typed
+  source records. Event-backed records retain exact event IDs and raw ordered
+  tags; replaceable identities retain their coordinate and pin the displayed
+  event revision. Local subscriptions carry their target identity and owner
+  scope without being represented as signed events. The adapter assumes its
+  caller has already enforced access and performs no lookup or persistence.
+- `EventWorkspaceResolutionResult` distinguishes available, missing, loading,
+  unavailable, restricted, invalid, and failed states. An available result
+  must match the requested exact event, coordinate/version, or profile identity.
+  This is a result contract, not yet a shared lookup service.
 
 The factory **does not authorize or resolve** either the source or its
 references. Callers must enforce existing suppression, viewer, draft, and
@@ -46,10 +59,10 @@ component is a building block, not yet connected to an existing user-facing
 route. Metadata and body text are untrusted, not sanitized HTML; escape them on
 output and validate relay or media URLs before using them.
 
-A shared source-adapter interface, authorized target resolver and result states,
-expandable nodes, and viewer registry are still needed. The workflow preflight
-must continue to block migrations or viewers until their prerequisites are
-actually present.
+The inventory controllers do not yet consume the source records, and an
+authorized target resolver, expandable nodes, and viewer registry are still
+needed. The workflow preflight must continue to block migrations or viewers
+until their prerequisites are actually present.
 
 For an event that the caller has already authorized:
 
