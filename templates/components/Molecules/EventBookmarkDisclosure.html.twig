@@ -1,0 +1,6 @@
+{% include 'components/Molecules/LazyDisclosure.html.twig' with {
+    disclosureClass: 'event-bookmark-disclosure',
+    frameId: 'nook-bookmarks-' ~ eventId,
+    summary: 'reading_nook.bookmarks.disclosure'|trans({'%title%': title}),
+    loadLabel: 'reading_nook.bookmarks.load'|trans
+} %}

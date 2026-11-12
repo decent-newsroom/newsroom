@@ -190,6 +190,15 @@
                         {% endif %}
                     </div>
                 </details>
+                {% if item.article.eventId %}
+                    <twig:Molecules:LazyDisclosure
+                        disclosureClass="my-content-row__preview"
+                        :frameId="'my-content-preview-' ~ item.article.eventId"
+                        :url="path('my_content_preview', {eventId: item.article.eventId})"
+                        :summary="'my_content.preview.label'|trans"
+                        :loadLabel="'my_content.preview.load'|trans"
+                    />
+                {% endif %}
             </article>
         {% else %}
             <div class="my-content-empty">

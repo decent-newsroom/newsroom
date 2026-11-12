@@ -2,6 +2,13 @@
 
 ## v0.1.0
 
+- [Fix] Prefer recent containing-index candidates before the bounded Bookshelf parent lookup, retaining existing graph traversal ordering for other callers.
+- [Feature] Shared the native lazy disclosure shell across Reading Nook, My Content, and Bookshelf, exposed the owner-only directory disclosure in Reading Nook, and added default-enabled `EVENT_WORKSPACE_EXPANSION_ENABLED` rollback for expansion controls and fragment endpoints.
+- [Feature] Added lazy, owner-only My Content event previews and ordered reference pages for published articles and drafts, preserving existing authoring actions.
+- [Fix] Refresh unpinned My Books indexes against local and author relays even when the Books API already has a copy; retain newer revisions and respect exact version pins.
+- [Feature] Added a continuous "Read this book" action and locally known containing-index links to Bookshelf book detail pages, retaining chapter links.
+- [Feature] Added an owner-authorized, lazy Bookshelf My Books directory disclosure with ordered pages of 50 references, preserving duplicates, malformed entries, and exact version pins without target fetching.
+- [Feature] Added bounded Reading Nook expansion for kind `10003` bookmarks and kind `30003` bookmark sets, preserving ordered event/address/profile/topic references without fetching targets.
 - [Feature] Included nested kind-30040 indexes in Reading Nook and added bounded lazy local expansion with batched public-read policy checks, exact version pins, and cycle/depth-safe fragments.
 - [Fix] Filtered hidden coordinates and each reader's NIP-51 mutes before nested index metadata or source fragments, and signed nested traversal/pagination state to prevent path resets.
 - [Feature] Added an owner-authorized Reading Nook kind `30040` table-of-contents disclosure with paginated ordered references and localized status labels.

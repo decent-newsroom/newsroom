@@ -1,0 +1,28 @@
+<turbo-frame id="nook-bookmarks-{{ bookmarkPage.eventId }}">
+    {% if bookmarkPage.entries is not empty %}
+        <ol class="event-member-list" start="{{ (bookmarkPage.page - 1) * 50 + 1 }}">
+            {% for entry in bookmarkPage.entries %}
+                <li data-source-tag-position="{{ entry.position }}">
+                    <span>{{ ('reading_nook.bookmarks.type.' ~ entry.type)|trans }}</span>
+                    {% if entry.value is not null %}
+                        <code>{{ entry.value }}</code>
+                    {% endif %}
+                    {% if entry.invalid and entry.rawValue is not null and entry.rawValue != entry.value %}
+                        <code>{{ entry.rawValue }}</code>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    {% else %}
+        <p>{{ 'reading_nook.bookmarks.empty'|trans }}</p>
+    {% endif %}
+    <nav class="event-member-pagination" aria-label="{{ 'reading_nook.bookmarks.pagination'|trans }}">
+        {% if bookmarkPage.hasPrevious %}
+            <a rel="prev" href="{{ path('reading_nook_bookmark_references', {eventId: bookmarkPage.eventId, page: bookmarkPage.page - 1}) }}">{{ 'reading_nook.bookmarks.previous'|trans }}</a>
+        {% endif %}
+        <span>{{ 'reading_nook.bookmarks.page'|trans({'%page%': bookmarkPage.page}) }}</span>
+        {% if bookmarkPage.hasNext %}
+            <a rel="next" href="{{ path('reading_nook_bookmark_references', {eventId: bookmarkPage.eventId, page: bookmarkPage.page + 1}) }}">{{ 'reading_nook.bookmarks.next'|trans }}</a>
+        {% endif %}
+    </nav>
+</turbo-frame>

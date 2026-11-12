@@ -1,0 +1,38 @@
+<turbo-frame id="bookshelf-directory-references">
+    {% if directoryPage is not null and directoryPage.entries is not empty %}
+        <ol class="event-member-list" start="{{ directoryPage.start }}">
+            {% for entry in directoryPage.entries %}
+                {% set reference = entry.reference %}
+                <li data-source-tag-position="{{ reference.position }}">
+                    <span>{{ (reference.tagName == 'a' ? 'reading_nook.bookmarks.type.address' : 'reading_nook.bookmarks.type.event')|trans }}</span>
+                    {% if reference.rawValue is not null %}
+                        <code>{{ reference.rawValue }}</code>
+                    {% endif %}
+                    {% if reference.status.value == 'invalid' %}
+                        <span>{{ 'bookshelf.references.invalid'|trans }}</span>
+                    {% else %}
+                        <span>{{ 'bookshelf.references.unresolved'|trans }}</span>
+                    {% endif %}
+                    {% if reference.versionEventId %}
+                        <span>{{ 'reading_nook.toc.pinned_version'|trans }}: <code>{{ reference.versionEventId }}</code></span>
+                    {% elseif entry.invalidVersionPin %}
+                        <span>{{ 'reading_nook.toc.invalid_pin'|trans }}{% if entry.rawVersionPin is not null %}: <code>{{ entry.rawVersionPin }}</code>{% endif %}</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    {% else %}
+        <p>{{ 'bookshelf.references.empty'|trans }}</p>
+    {% endif %}
+    {% if directoryPage is not null %}
+        <nav class="event-member-pagination" aria-label="{{ 'bookshelf.references.pagination'|trans }}">
+            {% if directoryPage.hasPrevious %}
+                <a rel="prev" href="{{ path('bookshelf_directory_references', {eventId: directoryPage.eventId, page: directoryPage.page - 1}) }}">{{ 'reading_nook.toc.previous'|trans }}</a>
+            {% endif %}
+            <span>{{ 'reading_nook.toc.page'|trans({'%page%': directoryPage.page}) }}</span>
+            {% if directoryPage.hasNext %}
+                <a rel="next" href="{{ path('bookshelf_directory_references', {eventId: directoryPage.eventId, page: directoryPage.page + 1}) }}">{{ 'reading_nook.toc.next'|trans }}</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+</turbo-frame>

@@ -33,6 +33,25 @@ Only those read endpoints are exposed. Publish, delete, and wiki routes are deli
 
 `POST /events/filter` requires `limit` and accepts `ids`, `authors`, `kinds`, `since`, `until`, and case-sensitive tag filters formed as `#` plus one ASCII letter. Limits are 1-100 and `since` cannot exceed `until`.
 
+### Revision freshness
+
+Coordinate lookups through `/events/filter` should supply `kinds: [30040]`,
+the exact publisher in `authors`, and the identifier in `#d`. Results are sorted
+by `created_at` descending, then Nostr `id` ascending, so `limit: 1` selects
+the latest indexed revision for that coordinate, including NIP-01 timestamp
+tie-breaking. A lookup with `ids`, or `/events/{eventId}`, remains an exact
+revision lookup and must not be upgraded to a replacement.
+
+Filters spanning multiple coordinates return a globally sorted event list,
+not one current event per coordinate. Publication search ranks by relevance
+before timestamp and is not a latest-coordinate lookup.
+
+Freshness is limited to the configured Elasticsearch alias. This application
+provides the read API, not the external Books index ingestion pipeline: a
+replacement published to a relay but not ingested into that alias cannot be
+returned by this API. The Bookshelf relay refresh is a separate client-side
+resolution path and does not update the Books Elasticsearch index.
+
 ## Publication searches
 
 `POST /publications/search` accepts optional `q`, `title`, `author`, `language`, `subject`, `d`, `identifier`, and `limit` (default 25, maximum 100). Structured metadata uses these canonical mappings:

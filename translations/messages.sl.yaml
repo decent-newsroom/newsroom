@@ -429,6 +429,15 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    read_this_book: 'Beri to knjigo'
+    contained_in_index: 'Vključeno v kazalo'
+    references:
+        disclosure: 'Shranjeni sklici imenika'
+        load: 'Naloži sklice imenika'
+        empty: 'Na tej strani ni sklicev imenika.'
+        pagination: 'Strani sklicev imenika'
+        invalid: 'Neveljaven sklic imenika'
+        unresolved: 'Nerazrešen sklic (cilj ni preverjen)'
     published_by: 'Objavil'
     stash:
         eyebrow: 'Iz te redakcije'
@@ -835,6 +844,14 @@ feedback:
 
 # ── Moja vsebina ──────────────────────────────────────────────────
 my_content:
+    preview:
+        label: 'Predogled dogodka in sklici'
+        load: 'Naloži predogled dogodka'
+        unavailable: 'Izvirni dogodek ni na voljo lokalno. Urejanje in druga dejanja ostajajo na voljo.'
+        references: 'Sklici dogodka'
+        unchecked: 'Podpisani sklici v izvirnem vrstnem redu; cilji niso preverjeni.'
+        invalid: 'Neveljaven sklic'
+        empty: 'Ni sklicev dogodka.'
     eyebrow: 'Uredništvo'
     title: 'Moja vsebina'
     description: 'Pišite, objavljajte in urejajte svoje delo na enem preglednem uredniškem mestu.'
@@ -1204,6 +1221,20 @@ updates:
         alreadySubscribed: 'Že prijavljen.'
 
 reading_nook:
+    bookmarks:
+        disclosure: 'Zaznamki: %title%'
+        load: 'Naloži zaznamke'
+        empty: 'Na tej strani ni zaznamkov.'
+        pagination: 'Strani zaznamkov'
+        page: 'Stran %page%'
+        previous: 'Prejšnjih 50'
+        next: 'Naslednjih 50'
+        type:
+            address: 'Naslov'
+            event: 'Dogodek'
+            profile: 'Profil'
+            topic: 'Tema'
+            invalid: 'Neveljaven sklic na zaznamek'
     members:
         disclosure: 'Člani paketa %title% (npub)'
         load: 'Naloži člane'

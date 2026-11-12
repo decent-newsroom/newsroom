@@ -497,9 +497,10 @@ class NostrClient
      *
      * @param string[] $coordinates
      * @param string[] $extraRelays  Additional relay URLs (e.g. relay hints from a-tags)
+     * @param bool $refresh Check author relays even when the local relay has a revision.
      * @return array<string, object>  keyed by coordinate string
      */
-    public function getEventsByCoordinates(array $coordinates, array $extraRelays = []): array
+    public function getEventsByCoordinates(array $coordinates, array $extraRelays = [], bool $refresh = false): array
     {
         if (empty($coordinates)) {
             return [];
@@ -555,13 +556,13 @@ class NostrClient
                 }
             }
             $missingIdentifiers = array_values(array_diff($identifiers, array_keys($resolvedIdentifiers)));
-            if ($missingIdentifiers !== [] && $this->nostrDefaultRelay) {
+            if (($refresh || $missingIdentifiers !== []) && $this->nostrDefaultRelay) {
                 $fallbackRelays = array_values(array_unique(array_merge(
                     $this->userRelayListService->getTopRelaysForAuthor($pubkey),
                     $extraRelays
                 )));
                 if ($fallbackRelays !== []) {
-                    $fallbackFilters = ['authors' => [$pubkey], 'tag' => ['#d', $missingIdentifiers]];
+                    $fallbackFilters = ['authors' => [$pubkey], 'tag' => ['#d', $refresh ? $identifiers : $missingIdentifiers]];
                     $events = array_merge($events, $this->executor->fetch(
                         [$kind],
                         $fallbackFilters,
@@ -569,7 +570,7 @@ class NostrClient
                     ));
                 }
             }
-            if (empty($events) && $this->nostrDefaultRelay) {
+            if (!$refresh && empty($events) && $this->nostrDefaultRelay) {
                 $fallbackRelays = array_values(array_unique(array_merge(
                     $this->userRelayListService->getTopRelaysForAuthor($pubkey),
                     $extraRelays
@@ -592,7 +593,9 @@ class NostrClient
                 }
                 $coordKey = $kind . ':' . $pubkey . ':' . $dTag;
                 if (!isset($results[$coordKey]) ||
-                    ($event->created_at ?? 0) > ($results[$coordKey]->created_at ?? 0)) {
+                    ($event->created_at ?? 0) > ($results[$coordKey]->created_at ?? 0)
+                    || (($event->created_at ?? 0) === ($results[$coordKey]->created_at ?? 0)
+                        && strcmp((string) ($event->id ?? ''), (string) ($results[$coordKey]->id ?? '')) < 0)) {
                     $results[$coordKey] = $event;
                 }
             }

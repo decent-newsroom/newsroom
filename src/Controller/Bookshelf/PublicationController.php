@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Bookshelf;
 
+use App\Bookshelf\BookContainingIndexes;
+use App\Service\UserMuteListService;
 use App\Service\Magazine\MagazineStructureService;
 use App\Service\Magazine\PublicationIndexClassifier;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
@@ -23,6 +25,8 @@ final class PublicationController extends AbstractController
         MagazineStructureService $magazineStructure,
         PublicationIndexClassifier $publicationIndexClassifier,
         BookshelfDirectoryService $directoryService,
+        BookContainingIndexes $containingIndexes,
+        UserMuteListService $muteList,
     ): Response {
         $publication = $magazineStructure->findLatestIndexBySlug($book);
         if ($publication === null) {
@@ -38,6 +42,11 @@ final class PublicationController extends AbstractController
             $structure->chapterCoordinates,
             $structure->chapterRelayHints,
         );
+        $user = $this->getUser();
+        $mutedPubkeys = $user === null ? [] : $muteList->getMutedPubkeysStrict(
+            PublicKey::fromBech32($user->getUserIdentifier())?->toHex()
+                ?? throw $this->createAccessDeniedException(),
+        );
 
         return $this->render('bookshelf/publication.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
@@ -47,6 +56,7 @@ final class PublicationController extends AbstractController
             'publicationType' => $this->firstTagValue($publication->getTags(), 'type') ?? 'book',
             'metadata' => $this->metadataTags($publication->getTags()),
             'chapters' => $chapters,
+            'containingIndexes' => $containingIndexes->forBook($publication, $mutedPubkeys),
             'rawEvent' => [
                 'id' => $publication->getId(),
                 'pubkey' => $publication->getPubkey(),
@@ -56,7 +66,7 @@ final class PublicationController extends AbstractController
                 'content' => $publication->getContent(),
                 'sig' => $publication->getSig(),
             ],
-        ]);
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
     /**

@@ -408,6 +408,10 @@ final readonly class EventPresentationFactory
         if ($kind === KindsEnum::FOLLOWS->value && $name === 'p') {
             return EventReferenceRole::Follow;
         }
+        if (in_array($kind, [KindsEnum::BOOKMARKS->value, KindsEnum::BOOKMARK_SETS->value], true)
+            && in_array($name, ['a', 'e', 'p'], true)) {
+            return EventReferenceRole::Bookmark;
+        }
         if ($kind === KindsEnum::FOLLOW_PACK->value && $name === 'p') {
             return EventReferenceRole::FollowPackMember;
         }

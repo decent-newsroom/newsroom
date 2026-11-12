@@ -11,7 +11,7 @@ use Psr\Log\LoggerInterface;
 
 final class BookshelfRelayBookLoaderTest extends TestCase
 {
-    public function testItFillsOnlyTheDirectoryReferencesMissingFromTheBooksIndex(): void
+    public function testItRefreshesIndexedCoordinatesAsWellAsMissingBooks(): void
     {
         $pubkey = str_repeat('a', 64);
         $indexedCoordinate = '30040:' . $pubkey . ':indexed-book';
@@ -20,7 +20,7 @@ final class BookshelfRelayBookLoaderTest extends TestCase
         $nostrClient = $this->createMock(NostrClient::class);
         $nostrClient->expects(self::once())
             ->method('getEventsByCoordinates')
-            ->with([$nativeCoordinate], [$relay])
+            ->with([$indexedCoordinate, $nativeCoordinate], [$relay], true)
             ->willReturn([$nativeCoordinate => $this->publicationEvent($pubkey, 'nostr-original', 'Nostr original')]);
         $nostrClient->expects(self::never())->method('getEventsByIds');
 
@@ -38,6 +38,97 @@ final class BookshelfRelayBookLoaderTest extends TestCase
 
         self::assertSame(['Indexed book', 'Nostr original'], array_column($books, 'title'));
         self::assertSame($relay, $books[1]['relay']);
+    }
+
+    /** @dataProvider revisionCases */
+    public function testItKeepsTheNewestRevision(int $timestamp, string $eventId, bool $replace): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $coordinate = '30040:' . $pubkey . ':book';
+        $replacement = $this->publicationEvent($pubkey, 'book', 'Replacement');
+        $replacement->created_at = $timestamp;
+        $replacement->id = $eventId;
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::once())->method('getEventsByCoordinates')
+            ->with([$coordinate], [], true)->willReturn([$coordinate => $replacement]);
+        $client->expects(self::never())->method('getEventsByIds');
+        $books = (new BookshelfRelayBookLoader($client, $this->createStub(LoggerInterface::class)))
+            ->fillMissingBooks([$this->reference($coordinate)], [[
+                'id' => str_repeat('b', 64), 'coordinate' => $coordinate,
+                'title' => 'Indexed', 'createdAt' => 20,
+            ]]);
+        self::assertSame($replace ? 'Replacement' : 'Indexed', $books[0]['title']);
+        self::assertSame($replace ? $eventId : str_repeat('b', 64), $books[0]['id']);
+    }
+
+    public static function revisionCases(): iterable
+    {
+        yield 'newer relay revision' => [21, str_repeat('c', 64), true];
+        yield 'older relay revision' => [19, str_repeat('c', 64), false];
+        yield 'tie prefers lower id' => [20, str_repeat('a', 64), true];
+        yield 'tie rejects higher id' => [20, str_repeat('c', 64), false];
+        yield 'same revision retains indexed metadata' => [20, str_repeat('b', 64), false];
+    }
+
+    public function testRefreshFailurePreservesIndexedBookAndLogsWarning(): void
+    {
+        $coordinate = '30040:' . str_repeat('a', 64) . ':book';
+        $client = $this->createMock(NostrClient::class);
+        $client->method('getEventsByCoordinates')->willThrowException(new \RuntimeException('Offline'));
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            'Could not fetch Nostr-native bookshelf books by coordinate.', self::isType('array'),
+        );
+        $indexed = ['id' => str_repeat('b', 64), 'coordinate' => $coordinate, 'title' => 'Indexed', 'createdAt' => 20];
+        $books = (new BookshelfRelayBookLoader($client, $logger))->fillMissingBooks(
+            [$this->reference($coordinate)], [$indexed],
+        );
+        self::assertSame([$indexed], $books);
+    }
+
+    /** @dataProvider pinnedCases */
+    public function testPinsNeverFallBackToAnotherRevision(bool $resolved, bool $wrongCoordinate): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $coordinate = '30040:' . $pubkey . ':book';
+        $reference = $this->reference($coordinate);
+        $reference['eventId'] = str_repeat('c', 64);
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::never())->method('getEventsByCoordinates');
+        $client->expects($resolved && !$wrongCoordinate ? self::never() : self::once())->method('getEventsByIds')
+            ->willReturn([]);
+        $indexed = [
+            'id' => $resolved ? str_repeat('c', 64) : str_repeat('b', 64),
+            'coordinate' => $wrongCoordinate ? $coordinate . '-other' : $coordinate,
+            'title' => 'Pinned', 'createdAt' => 20,
+        ];
+        $books = (new BookshelfRelayBookLoader($client, $this->createStub(LoggerInterface::class)))
+            ->fillMissingBooks([$reference], [$indexed]);
+        self::assertSame($resolved && !$wrongCoordinate ? [$indexed] : [], $books);
+    }
+
+    public static function pinnedCases(): iterable
+    {
+        yield 'resolved pin' => [true, false];
+        yield 'missing pin with different revision available' => [false, false];
+        yield 'wrong coordinate for matching event id' => [true, true];
+    }
+
+    public function testResolvedExactEventReferenceDoesNotRefreshItsCoordinate(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $id = str_repeat('b', 64);
+        $indexed = [
+            'id' => $id, 'coordinate' => '30040:' . $pubkey . ':book', 'title' => 'Exact', 'createdAt' => 20,
+        ];
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::never())->method('getEventsByCoordinates');
+        $client->expects(self::never())->method('getEventsByIds');
+        $books = (new BookshelfRelayBookLoader($client, $this->createStub(LoggerInterface::class)))
+            ->fillMissingBooks([[
+                'type' => 'e', 'coordinate' => null, 'relay' => null, 'eventId' => $id, 'pubkey' => $pubkey,
+            ]], [$indexed]);
+        self::assertSame([$indexed], $books);
     }
 
     public function testItFetchesAnEventIdReferenceFromTheRegularRelayPath(): void

@@ -8,7 +8,7 @@ use App\Service\Nostr\NostrClient;
 use Psr\Log\LoggerInterface;
 
 /**
- * Resolves Nostr-native book publications that are not present in the Books index.
+ * Resolves directory references and refreshes unpinned book publications.
  */
 final class BookshelfRelayBookLoader
 {
@@ -39,26 +39,32 @@ final class BookshelfRelayBookLoader
                 $booksById[$book['id']] = $book;
             }
             if (is_string($book['coordinate'] ?? null) && $book['coordinate'] !== '') {
-                $booksByCoordinate[$book['coordinate']] = $book;
+                if ($this->isNewerBook($book, $booksByCoordinate[$book['coordinate']] ?? null)) {
+                    $booksByCoordinate[$book['coordinate']] = $book;
+                }
             }
         }
 
-        [$eventIds, $coordinates, $relayHints] = $this->missingReferences($references, $booksById, $booksByCoordinate);
+        [$eventIds, $coordinates, $relayHints] = $this->referencesToFetch($references, $booksById);
         $eventsById = $this->fetchById($eventIds, $relayHints);
-        $eventsByCoordinate = $this->fetchByCoordinate($coordinates, $relayHints);
+        $eventsByCoordinate = $this->fetchByCoordinate($coordinates, $relayHints, true);
 
         foreach ($eventsById as $event) {
             $book = $this->mapBook($event, null);
             if ($book !== null) {
                 $booksById[$book['id']] = $book;
-                $booksByCoordinate[$book['coordinate']] = $book;
+                if ($this->isNewerBook($book, $booksByCoordinate[$book['coordinate']] ?? null)) {
+                    $booksByCoordinate[$book['coordinate']] = $book;
+                }
             }
         }
         foreach ($eventsByCoordinate as $event) {
             $book = $this->mapBook($event, null);
             if ($book !== null) {
                 $booksById[$book['id']] = $book;
-                $booksByCoordinate[$book['coordinate']] = $book;
+                if ($this->isNewerBook($book, $booksByCoordinate[$book['coordinate']] ?? null)) {
+                    $booksByCoordinate[$book['coordinate']] = $book;
+                }
             }
         }
 
@@ -154,10 +160,9 @@ final class BookshelfRelayBookLoader
     /**
      * @param array<int, array{type: 'a'|'e', coordinate: ?string, relay: ?string, eventId: ?string, pubkey: ?string}> $references
      * @param array<string, array<string, mixed>> $booksById
-     * @param array<string, array<string, mixed>> $booksByCoordinate
      * @return array{string[], string[], string[]}
      */
-    private function missingReferences(array $references, array $booksById, array $booksByCoordinate): array
+    private function referencesToFetch(array $references, array $booksById): array
     {
         $eventIds = [];
         $coordinates = [];
@@ -165,8 +170,8 @@ final class BookshelfRelayBookLoader
         foreach ($references as $reference) {
             $eventId = $reference['eventId'];
             $coordinate = $reference['coordinate'];
-            $isResolved = ($eventId !== null && isset($booksById[$eventId]))
-                || ($coordinate !== null && isset($booksByCoordinate[$coordinate]));
+            $isResolved = $eventId !== null && isset($booksById[$eventId])
+                && ($coordinate === null || ($booksById[$eventId]['coordinate'] ?? null) === $coordinate);
             if ($isResolved) {
                 continue;
             }
@@ -174,7 +179,7 @@ final class BookshelfRelayBookLoader
             if (is_string($eventId) && $eventId !== '') {
                 $eventIds[$eventId] = true;
             }
-            if (is_string($coordinate) && $this->isPublicationCoordinate($coordinate)) {
+            if ($eventId === null && is_string($coordinate) && $this->isPublicationCoordinate($coordinate)) {
                 $coordinates[$coordinate] = true;
             }
             if (is_string($reference['relay']) && $this->isRelayUrl($reference['relay'])) {
@@ -211,14 +216,16 @@ final class BookshelfRelayBookLoader
      *  @param string[] $relayHints
      *  @return array<string, object>
      */
-    private function fetchByCoordinate(array $coordinates, array $relayHints): array
+    private function fetchByCoordinate(array $coordinates, array $relayHints, bool $refresh = false): array
     {
         if ($coordinates === []) {
             return [];
         }
 
         try {
-            return $this->nostrClient->getEventsByCoordinates($coordinates, $relayHints);
+            return $refresh
+                ? $this->nostrClient->getEventsByCoordinates($coordinates, $relayHints, true)
+                : $this->nostrClient->getEventsByCoordinates($coordinates, $relayHints);
         } catch (\Throwable $exception) {
             $this->logger->warning('Could not fetch Nostr-native bookshelf books by coordinate.', [
                 'coordinate_count' => count($coordinates),
@@ -241,7 +248,11 @@ final class BookshelfRelayBookLoader
         $seen = [];
         foreach ($references as $reference) {
             $book = $reference['eventId'] !== null ? ($booksById[$reference['eventId']] ?? null) : null;
-            $book ??= $reference['coordinate'] !== null ? ($booksByCoordinate[$reference['coordinate']] ?? null) : null;
+            if ($reference['eventId'] === null) {
+                $book = $reference['coordinate'] !== null ? ($booksByCoordinate[$reference['coordinate']] ?? null) : null;
+            } elseif ($reference['coordinate'] !== null && ($book['coordinate'] ?? null) !== $reference['coordinate']) {
+                $book = null;
+            }
             if ($book === null) {
                 continue;
             }
@@ -260,6 +271,22 @@ final class BookshelfRelayBookLoader
         }
 
         return $books;
+    }
+
+    /**
+     * @param array<string, mixed> $candidate
+     * @param array<string, mixed>|null $current
+     */
+    private function isNewerBook(array $candidate, ?array $current): bool
+    {
+        if ($current === null) {
+            return true;
+        }
+        $timestamp = (int) ($candidate['createdAt'] ?? 0);
+        $currentTimestamp = (int) ($current['createdAt'] ?? 0);
+
+        return $timestamp > $currentTimestamp
+            || ($timestamp === $currentTimestamp && strcmp((string) $candidate['id'], (string) $current['id']) < 0);
     }
 
     /** @return array<string, mixed>|null */

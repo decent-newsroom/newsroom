@@ -19,6 +19,8 @@
     <div class="reading-nook-shell">
 
         <div class="reading-nook-content">
+            <twig:Molecules:BookshelfDirectoryDisclosure :url="path('bookshelf_directory_references')" />
+
             <nav class="reading-nook-tabs" aria-label="{{ 'reading_nook.filters.section'|trans }}">
                 <a
                     href="{{ path('reading_nook', filterQuery|merge({section: 'all'})) }}"
@@ -220,6 +222,13 @@
                                 :eventId="item.eventId"
                                 :title="title"
                                 :url="path('reading_nook_follow_pack_members', {eventId: item.eventId})"
+                            />
+                        {% endif %}
+                        {% if item.kind in [10003, 30003] and item.eventId is defined and item.section == 'bookmarks' %}
+                            <twig:Molecules:EventBookmarkDisclosure
+                                :eventId="item.eventId"
+                                :title="title"
+                                :url="path('reading_nook_bookmark_references', {eventId: item.eventId})"
                             />
                         {% endif %}
                         {% if item.kind == 30040 and item.eventId is defined and item.section == 'reading_lists' %}

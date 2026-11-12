@@ -15,6 +15,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\EventWorkspace\BookmarkReferencePage;
 use App\Service\EventWorkspace\FollowPackMemberPage;
 use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
@@ -27,6 +28,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class ReadingNookController extends AbstractController
@@ -35,6 +37,8 @@ final class ReadingNookController extends AbstractController
 
     public function __construct(
         private readonly RedisCacheService $redisCacheService,
+        #[Autowire('%event_workspace_expansion_enabled%')]
+        private readonly bool $expansionEnabled = true,
     ) {}
 
     private const SECTION_BOOKMARKS = 'bookmarks';
@@ -117,6 +121,57 @@ final class ReadingNookController extends AbstractController
         ]);
     }
 
+    #[Route('/reading-nook/bookmarks/{eventId}/references', name: 'reading_nook_bookmark_references', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function bookmarkReferences(
+        string $eventId,
+        Request $request,
+        EntityManagerInterface $em,
+        BookmarkReferencePage $references,
+        DeletedEventRepository $deletions,
+        ContentAuthorAccessPolicy $authorAccess,
+    ): Response {
+        if (!$this->expansionEnabled) {
+            throw $this->createNotFoundException();
+        }
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $page = filter_var($request->query->get('page', '1'), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+        if ($page === false) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid page.');
+        }
+
+        $pubkey = $this->userPubkeyHex($user);
+        $authorAccess->assertReadable($pubkey);
+        $event = $em->getRepository(Event::class)->findOneBy([
+            'id' => $eventId,
+            'pubkey' => $pubkey,
+        ]);
+        if (!$event instanceof Event
+            || !in_array($event->getKind(), [KindsEnum::BOOKMARKS->value, KindsEnum::BOOKMARK_SETS->value], true)
+            || $deletions->isSuppressed(
+                $event->getId(),
+                $event->getKind(),
+                $event->getPubkey(),
+                $event->getSlug(),
+                $event->getCreatedAt(),
+            )) {
+            throw $this->createNotFoundException();
+        }
+
+        $response = $this->render('reader/reading_nook/_bookmark_references.html.twig', [
+            'bookmarkPage' => $references->fromAuthorizedEvent($event, $page),
+        ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+
+        return $response;
+    }
+
     #[Route('/reading-nook/follow-packs/{eventId}/members', name: 'reading_nook_follow_pack_members', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
     public function followPackMembers(
@@ -127,6 +182,9 @@ final class ReadingNookController extends AbstractController
         DeletedEventRepository $deletions,
         ContentAuthorAccessPolicy $authorAccess,
     ): Response {
+        if (!$this->expansionEnabled) {
+            throw $this->createNotFoundException();
+        }
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
@@ -177,6 +235,9 @@ final class ReadingNookController extends AbstractController
         ContentAuthorAccessPolicy $authorAccess,
         UserMuteListService $userMuteList,
     ): Response {
+        if (!$this->expansionEnabled) {
+            throw $this->createNotFoundException();
+        }
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
@@ -236,6 +297,9 @@ final class ReadingNookController extends AbstractController
         UserMuteListService $userMuteList,
         PublicationTocTraversalSigner $traversalSigner,
     ): Response {
+        if (!$this->expansionEnabled) {
+            throw $this->createNotFoundException();
+        }
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException();

@@ -1,0 +1,8 @@
+{% if event_workspace_expansion_enabled %}
+    <details {{ attributes.defaults({class: disclosureClass}) }}>
+        <summary>{{ summary }}</summary>
+        <turbo-frame id="{{ frameId }}" src="{{ url }}" loading="lazy">
+            <a href="{{ url }}">{{ loadLabel }}</a>
+        </turbo-frame>
+    </details>
+{% endif %}

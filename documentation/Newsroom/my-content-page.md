@@ -2,6 +2,13 @@
 
 ## Summary
 
+Event previews use the shared native lazy disclosure shell. The rollback flag
+`EVENT_WORKSPACE_EXPANSION_ENABLED` defaults to `true`; setting it to `false`
+hides previews and makes `/my-content/preview/{eventId}` return 404, without
+disabling inventory, editor, public reader, or authoring actions. See the
+[workspace iteration plan](../Reader/event-workspace-iteration-plan.md#shared-step-2-disclosure-shell-and-rollback)
+for the shared rollout boundary and deferred Step 3+ work.
+
 `/my-content` is the authenticated author's publishing workspace. It brings
 published articles and drafts into one compact inventory. Reading lists and
 magazines have separate Newsroom navigation entries; reader-owned bookmarks
@@ -29,7 +36,31 @@ The inventory uses a consistent row model:
 
 Article and draft titles open the editor. Published articles also offer a public
 view, while protocol coordinates are available from the overflow menu. The
-menu does not currently expand event references.
+menu remains distinct from the event preview disclosure.
+
+## Event preview disclosure
+
+Rows with an exact event ID now offer a separate **Event preview and references**
+disclosure, independent of the action menu. It lazily loads the owner-only
+`GET /my-content/preview/{eventId}` fragment; its Load link also works without
+JavaScript. Published articles and drafts use the same shared escaped
+`EventPreview` presentation, without loading images, converting Markdown, or
+requiring generated HTML.
+
+The fragment rechecks the authenticated owner, article kind, author suppression,
+hidden coordinate, and NIP-09 tombstones on every request. It returns
+`Cache-Control: private, no-store`. The exact locally stored Event is preferred;
+otherwise a complete Article raw event with matching ID, author, kind, and
+coordinate can supply the signed fields. Missing or inconsistent originals show
+an explicit unavailable notice, never a fabricated event from projection fields.
+Rows without an event ID retain their existing actions without a disclosure.
+
+References are listed in signed tag order, at most 50 per page, retaining
+duplicates, malformed occurrences, and source positions. Targets remain
+unchecked; no target data, network fetch, persistence, full body rendering, or
+recursive expansion is introduced. Sensitive event text and references stay
+hidden. The existing inventory filters, counts, 25-row pagination, editor links,
+coordinate copy, and signed deletion are unchanged.
 
 The controller displays 25 filtered items per page. Article revision
 deduplication is performed in PostgreSQL with `DISTINCT ON (slug)` through

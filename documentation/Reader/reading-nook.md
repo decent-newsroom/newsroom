@@ -1,5 +1,13 @@
 # Reading Nook
 
+The shared lazy disclosure shell also exposes the existing owner-only Bookshelf
+directory references once per Reading Nook page, without adding them to inventory
+filters/counts or querying them until opened. `EVENT_WORKSPACE_EXPANSION_ENABLED`
+defaults to `true`; setting it to `false` hides workspace disclosures and returns
+404 from their fragment endpoints, including nested TOCs. Ordinary inventory and
+Open/Manage routes remain available. See the [iteration plan](event-workspace-iteration-plan.md#shared-step-2-disclosure-shell-and-rollback)
+for rollback and intentional Step 3+ deferrals.
+
 Reading Nook is a personalized workspace for navigating a user's own read-side Nostr collections from a single page. It merges bookmarks, topic lists, follow packs, reading lists, and update subscriptions into one searchable and filterable pool.
 
 Author update subscriptions resolve their stored hex pubkey or npub through
@@ -27,13 +35,30 @@ to use the main `/my-interests` editor.
 - **Section tabs** show counts for all items and each collection type.
 - **Filters** provide search, timespan, and tag controls.
 - **Inventory rows** show the section, kind, date, and available counts, with an
-  action menu for opening or managing the item. Kind `39089` follow packs also
-  have a separate keyboard-accessible member disclosure; title links and the
-  Open/Manage menu retain their existing behavior.
+  action menu for opening or managing the item. Kind `39089` follow packs have
+  a separate member disclosure, and kinds `10003`/`30003` have a bookmark
+  disclosure; title links and the Open/Manage menu retain their existing
+  behavior.
 - **Contextual aside** shows totals, section links, and popular tags.
 
 Together with [My Content](../Newsroom/my-content-page.md), this inventory is
 the starting point for the [expandable event workspace](event-workspace-iteration-plan.md).
+
+### Bookmark references
+
+Owned kind `10003` bookmark lists and kind `30003` bookmark sets have a separate
+lazy disclosure that displays up to 50 `e`, `a`, `p`, and `t` tag occurrences
+per page. Source tag positions, order, and duplicates are retained. Valid event
+IDs, profiles, and addressable-event coordinates are displayed as NIP-19
+identifiers when supported; topics are shown as hashtags. Malformed references
+remain visible with an invalid-reference label.
+
+Each GET to `/reading-nook/bookmarks/{eventId}/references?page=1` requires
+`ROLE_USER` and reads the exact source event only when it belongs to the current
+user and has kind `10003` or `30003`. Author suppression and NIP-09 deletion are
+checked before rendering; responses use `Cache-Control: private, no-store`.
+The view does not resolve or fetch target events or profiles, expose the source
+event body, or add contact-list (kind `3`) previews.
 
 ### Follow-pack members
 
@@ -124,6 +149,9 @@ Reading Nook does not introduce new tables. It composes existing data sources:
 | `src/Service/EventWorkspace/FollowPackMemberPage.php` | Pure ordered member pagination and npub conversion |
 | `src/Twig/Components/Molecules/EventMemberDisclosure.php` | Static disclosure; no data lookup |
 | `templates/reader/reading_nook/_follow_pack_members.html.twig` | Authorized, paginated member fragment |
+| `src/Service/EventWorkspace/BookmarkReferencePage.php` | Ordered bookmark reference pagination and NIP-19 display identifiers |
+| `src/Twig/Components/Molecules/EventBookmarkDisclosure.php` | Static bookmark disclosure |
+| `templates/reader/reading_nook/_bookmark_references.html.twig` | Authorized, paginated bookmark fragment |
 | `src/Service/EventWorkspace/PublicationTocPage.php` | Ordered TOC pages and batched local nested-index resolution |
 | `src/Service/EventWorkspace/PublicationTocTraversalSigner.php` | Integrity-protects nested occurrence and pagination state |
 | `src/Repository/EventRepository.php` | Batch local target lookup by coordinate or exact event ID |
@@ -145,6 +173,7 @@ No new environment variables or Symfony parameters are required.
 - The event query takes the latest 400 rows before revision deduplication and filtering, so older collections may be omitted and counts may be incomplete.
 - Member and TOC pagination bound rendered occurrences and npub encoding, but the selected event's JSON tags are still loaded and scanned in memory by the shared presentation factory.
 - Nested resolution supports locally stored kind `30040` targets only; it does not resolve chapters or other kinds, fetch remote events, or render child bodies.
+- Bookmark expansion displays tag-derived identifiers only; local target lookup, event/profile previews, and contact-list previews are not included.
 - Kind `3` follows and kind `30045` directories are not included in this inventory.
 - Locale files still contain placeholder translations for other non-English Reading Nook strings; the TOC disclosure labels are translated in all six enabled locales.
 

@@ -429,6 +429,15 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    read_this_book: 'Lire ce livre'
+    contained_in_index: 'Inclus dans l’index'
+    references:
+        disclosure: 'Références du répertoire enregistré'
+        load: 'Charger les références du répertoire'
+        empty: 'Aucune référence du répertoire sur cette page.'
+        pagination: 'Pages des références du répertoire'
+        invalid: 'Référence de répertoire non valide'
+        unresolved: 'Référence non résolue (cible non vérifiée)'
     published_by: 'Publié par'
     stash:
         eyebrow: 'Depuis cette rédaction'
@@ -835,6 +844,14 @@ feedback:
 
 # ── Mon contenu ──────────────────────────────────────────────────────
 my_content:
+    preview:
+        label: 'Aperçu de l’événement et références'
+        load: 'Charger l’aperçu de l’événement'
+        unavailable: 'L’événement original n’est pas disponible localement. La modification et les autres actions restent disponibles.'
+        references: 'Références de l’événement'
+        unchecked: 'Références signées dans l’ordre ; les cibles n’ont pas été vérifiées.'
+        invalid: 'Référence non valide'
+        empty: 'Aucune référence d’événement.'
     eyebrow: 'Rédaction'
     title: 'Mon contenu'
     description: 'Rédigez, publiez et organisez votre travail depuis un espace éditorial unique.'
@@ -1202,6 +1219,20 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
+    bookmarks:
+        disclosure: 'Signets de %title%'
+        load: 'Charger les signets'
+        empty: 'Aucun signet sur cette page.'
+        pagination: 'Pages des signets'
+        page: 'Page %page%'
+        previous: '50 précédents'
+        next: '50 suivants'
+        type:
+            address: 'Adresse'
+            event: 'Événement'
+            profile: 'Profil'
+            topic: 'Sujet'
+            invalid: 'Référence de signet non valide'
     members:
         disclosure: 'Membres de %title% (npubs)'
         load: 'Charger les membres'

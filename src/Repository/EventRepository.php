@@ -1214,9 +1214,10 @@ class EventRepository extends ServiceEntityRepository
      * @param string $tagValue The second element of the tag to match (event id or coordinate)
      * @param int[] $kinds Event kinds to restrict the search to; empty means any kind
      * @param int $limit Maximum number of events to return
+     * @param bool $newestFirst Prefer recent candidates before applying the limit.
      * @return Event[]
      */
-    public function findReferencingEvents(string $tagName, string $tagValue, array $kinds = [], int $limit = 200): array
+    public function findReferencingEvents(string $tagName, string $tagValue, array $kinds = [], int $limit = 200, bool $newestFirst = false): array
     {
         $conn = $this->getEntityManager()->getConnection();
 
@@ -1238,7 +1239,9 @@ class EventRepository extends ServiceEntityRepository
             $sql .= ' AND e.kind IN (' . implode(', ', $placeholders) . ')';
         }
 
-        $sql .= ' ORDER BY e.created_at ASC LIMIT :limit';
+        $sql .= $newestFirst
+            ? ' ORDER BY e.created_at DESC, e.id ASC LIMIT :limit'
+            : ' ORDER BY e.created_at ASC LIMIT :limit';
         $params['limit'] = max(1, $limit);
 
         $results = $conn->executeQuery($sql, $params)->fetchAllAssociative();

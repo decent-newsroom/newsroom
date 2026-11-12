@@ -429,6 +429,15 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    read_this_book: 'Dieses Buch lesen'
+    contained_in_index: 'Enthalten im Index'
+    references:
+        disclosure: 'Gespeicherte Verzeichnisverweise'
+        load: 'Verzeichnisverweise laden'
+        empty: 'Keine Verzeichnisverweise auf dieser Seite.'
+        pagination: 'Seiten der Verzeichnisverweise'
+        invalid: 'Ungültiger Verzeichnisverweis'
+        unresolved: 'Nicht aufgelöster Verweis (Ziel nicht geprüft)'
     published_by: 'Veröffentlicht von'
     stash:
         eyebrow: 'Aus diesem Newsroom'
@@ -846,6 +855,14 @@ feedback:
 
 # ── Meine Inhalte ────────────────────────────────────────────────────────
 my_content:
+    preview:
+        label: 'Ereignisvorschau und Verweise'
+        load: 'Ereignisvorschau laden'
+        unavailable: 'Das ursprüngliche Ereignis ist lokal nicht verfügbar. Bearbeitung und andere Aktionen bleiben verfügbar.'
+        references: 'Ereignisverweise'
+        unchecked: 'Geordnete signierte Verweise; Ziele wurden nicht geprüft.'
+        invalid: 'Ungültiger Verweis'
+        empty: 'Keine Ereignisverweise.'
     eyebrow: 'Newsroom'
     title: 'Meine Inhalte'
     description: 'Entwirf, veröffentliche und organisiere deine Arbeit an einem übersichtlichen Redaktionsplatz.'
@@ -1215,6 +1232,20 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
+    bookmarks:
+        disclosure: 'Lesezeichen in %title%'
+        load: 'Lesezeichen laden'
+        empty: 'Auf dieser Seite gibt es keine Lesezeichen.'
+        pagination: 'Lesezeichenseiten'
+        page: 'Seite %page%'
+        previous: 'Vorherige 50'
+        next: 'Nächste 50'
+        type:
+            address: 'Adresse'
+            event: 'Ereignis'
+            profile: 'Profil'
+            topic: 'Thema'
+            invalid: 'Ungültiger Lesezeichenverweis'
     members:
         disclosure: 'Mitglieder von %title% (npubs)'
         load: 'Mitglieder laden'

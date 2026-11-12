@@ -429,6 +429,15 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    read_this_book: 'Leer este libro'
+    contained_in_index: 'Incluido en el índice'
+    references:
+        disclosure: 'Referencias del directorio guardado'
+        load: 'Cargar referencias del directorio'
+        empty: 'No hay referencias del directorio en esta página.'
+        pagination: 'Páginas de referencias del directorio'
+        invalid: 'Referencia de directorio no válida'
+        unresolved: 'Referencia no resuelta (destino no comprobado)'
     published_by: 'Publicado por'
     stash:
         eyebrow: 'De esta redacción'
@@ -835,6 +844,14 @@ feedback:
 
 # ── Mi contenido ────────────────────────────────────────────────────────────
 my_content:
+    preview:
+        label: 'Vista previa del evento y referencias'
+        load: 'Cargar vista previa del evento'
+        unavailable: 'El evento original no está disponible localmente. La edición y las demás acciones siguen disponibles.'
+        references: 'Referencias del evento'
+        unchecked: 'Referencias firmadas en orden; los destinos no se han comprobado.'
+        invalid: 'Referencia no válida'
+        empty: 'No hay referencias del evento.'
     eyebrow: 'Redacción'
     title: 'Mi contenido'
     description: 'Redacta, publica y organiza tu trabajo desde un único espacio editorial.'
@@ -1205,6 +1222,20 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
+    bookmarks:
+        disclosure: 'Marcadores de %title%'
+        load: 'Cargar marcadores'
+        empty: 'No hay marcadores en esta página.'
+        pagination: 'Páginas de marcadores'
+        page: 'Página %page%'
+        previous: '50 anteriores'
+        next: '50 siguientes'
+        type:
+            address: 'Dirección'
+            event: 'Evento'
+            profile: 'Perfil'
+            topic: 'Tema'
+            invalid: 'Referencia de marcador no válida'
     members:
         disclosure: 'Miembros de %title% (npubs)'
         load: 'Cargar miembros'

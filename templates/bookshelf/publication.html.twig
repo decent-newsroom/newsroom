@@ -54,6 +54,10 @@
                 <twig:Molecules:UserFromNpub ident="{{ publication.pubkey }}" />
             </p>
 
+            <a class="btn btn-secondary btn-sm" href="{{ path('bookshelf_read_native_fallback', {id: publication.id}) }}">
+                {{ 'bookshelf.read_this_book'|trans }}
+            </a>
+
             {% if app.user %}
                 <button
                     type="button"
@@ -76,6 +80,17 @@
             {% endif %}
         </div>
     </header>
+
+    {% if containingIndexes is not empty %}
+        <section class="bookshelf-publication__details" aria-labelledby="publication-containing-indexes">
+            <h2 id="publication-containing-indexes">{{ 'bookshelf.contained_in_index'|trans }}</h2>
+            <ul>
+                {% for index in containingIndexes %}
+                    <li><a href="{{ path('nevent', {nevent: index.naddr}) }}">{{ index.title }}</a></li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
 
     {% if metadata is not empty %}
         <section class="bookshelf-publication__details" aria-labelledby="publication-details">

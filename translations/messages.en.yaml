@@ -462,6 +462,15 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    read_this_book: 'Read this book'
+    contained_in_index: 'Contained in index'
+    references:
+        disclosure: 'Saved directory references'
+        load: 'Load directory references'
+        empty: 'No directory references on this page.'
+        pagination: 'Directory reference pages'
+        invalid: 'Invalid directory reference'
+        unresolved: 'Unresolved reference (target not checked)'
     published_by: 'Published by'
     stash:
         eyebrow: 'From this newsroom'
@@ -1030,6 +1039,14 @@ feedback:
 
 # ── My Content ───────────────────────────────────────────────────
 my_content:
+    preview:
+        label: 'Event preview and references'
+        load: 'Load event preview'
+        unavailable: 'The original event is unavailable locally. Editing and other actions remain available.'
+        references: 'Event references'
+        unchecked: 'Ordered signed references; targets have not been checked.'
+        invalid: 'Invalid reference'
+        empty: 'No event references.'
     eyebrow: 'Newsroom'
     title: 'My Content'
     description: 'Draft, publish, and organize your work from one focused publishing desk.'
@@ -1578,6 +1595,20 @@ relay_feed:
         submit: 'Send suggestion'
 
 reading_nook:
+    bookmarks:
+        disclosure: 'Bookmarks in %title%'
+        load: 'Load bookmarks'
+        empty: 'No bookmarks on this page.'
+        pagination: 'Bookmark pages'
+        page: 'Page %page%'
+        previous: 'Previous 50'
+        next: 'Next 50'
+        type:
+            address: 'Address'
+            event: 'Event'
+            profile: 'Profile'
+            topic: 'Topic'
+            invalid: 'Invalid bookmark reference'
     members:
         disclosure: 'Members of %title% (npubs)'
         load: 'Load members'

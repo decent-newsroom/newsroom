@@ -1,0 +1,6 @@
+{% extends '@!Bookshelf/bookshelf/my_books.html.twig' %}
+
+{% block body %}
+    {{ parent() }}
+    <twig:Molecules:BookshelfDirectoryDisclosure :url="path('bookshelf_directory_references')" />
+{% endblock %}

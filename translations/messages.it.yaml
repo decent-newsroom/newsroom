@@ -345,6 +345,15 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    read_this_book: 'Leggi questo libro'
+    contained_in_index: 'Contenuto nell’indice'
+    references:
+        disclosure: 'Riferimenti della directory salvata'
+        load: 'Carica i riferimenti della directory'
+        empty: 'Nessun riferimento della directory in questa pagina.'
+        pagination: 'Pagine dei riferimenti della directory'
+        invalid: 'Riferimento alla directory non valido'
+        unresolved: 'Riferimento non risolto (destinazione non verificata)'
     published_by: 'Pubblicato da'
     stash:
         eyebrow: 'Da questa redazione'
@@ -834,7 +843,31 @@ newsroom:
         media: 'Media'
         media_manager: 'Gestore media'
 
+my_content:
+    preview:
+        label: 'Anteprima evento e riferimenti'
+        load: 'Carica anteprima evento'
+        unavailable: 'L’evento originale non è disponibile localmente. La modifica e le altre azioni restano disponibili.'
+        references: 'Riferimenti dell’evento'
+        unchecked: 'Riferimenti firmati in ordine; le destinazioni non sono state verificate.'
+        invalid: 'Riferimento non valido'
+        empty: 'Nessun riferimento evento.'
+
 reading_nook:
+    bookmarks:
+        disclosure: 'Segnalibri di %title%'
+        load: 'Carica i segnalibri'
+        empty: 'Nessun segnalibro in questa pagina.'
+        pagination: 'Pagine dei segnalibri'
+        page: 'Pagina %page%'
+        previous: '50 precedenti'
+        next: '50 successivi'
+        type:
+            address: 'Indirizzo'
+            event: 'Evento'
+            profile: 'Profilo'
+            topic: 'Argomento'
+            invalid: 'Riferimento al segnalibro non valido'
     members:
         disclosure: 'Membri di %title% (npub)'
         load: 'Carica membri'

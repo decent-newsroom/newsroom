@@ -22,6 +22,55 @@ use Psr\Log\NullLogger;
 
 final class NostrClientLookupTest extends TestCase
 {
+    /** @dataProvider coordinateRefreshCases */
+    public function testCoordinateRefreshChecksAuthorRelaysDespiteLocalHit(bool $refresh, int $timestamp, string $id, bool $replacementWins): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $coordinate = '30040:' . $pubkey . ':book';
+        $local = (object) [
+            'id' => str_repeat('b', 64), 'pubkey' => $pubkey, 'kind' => 30040,
+            'created_at' => 20, 'tags' => [['d', 'book']],
+        ];
+        $remote = clone $local;
+        $remote->id = $id;
+        $remote->created_at = $timestamp;
+        $relays = $this->createMock(UserRelayListService::class);
+        $relays->expects($refresh ? self::once() : self::never())->method('getTopRelaysForAuthor')
+            ->with($pubkey)->willReturn(['wss://author.example']);
+        $factory = $this->createMock(RelaySetFactory::class);
+        $sets = [];
+        $factory->method('fromUrls')->willReturnCallback(static function (array $urls) use (&$sets): RelaySet {
+            $sets[] = $urls;
+            return new RelaySet();
+        });
+        $executor = $this->createMock(NostrRequestExecutor::class);
+        $responses = [[$local], [$remote]];
+        $executor->expects(self::exactly($refresh ? 2 : 1))->method('fetch')
+            ->with([30040], ['authors' => [$pubkey], 'tag' => ['#d', ['book']]], self::isInstanceOf(RelaySet::class))
+            ->willReturnCallback(static function () use (&$responses): array {
+                return array_shift($responses);
+            });
+        $client = new NostrClient(
+            new NullLogger(), $this->createMock(RelayRegistry::class), $relays, $factory, $executor,
+            $this->createMock(ArticleFetchService::class), $this->createMock(MediaEventService::class),
+            $this->createMock(SocialEventService::class), $this->createMock(UserProfileService::class),
+            'ws://strfry:7777',
+        );
+        self::assertSame([$coordinate => $replacementWins ? $remote : $local], $client->getEventsByCoordinates([$coordinate], [], $refresh));
+        self::assertSame($refresh
+            ? [['ws://strfry:7777'], ['wss://author.example']]
+            : [['ws://strfry:7777']], $sets);
+    }
+
+    public static function coordinateRefreshCases(): iterable
+    {
+        yield 'default still uses local hit' => [false, 21, str_repeat('c', 64), false];
+        yield 'refresh finds replacement' => [true, 21, str_repeat('c', 64), true];
+        yield 'refresh retains newer local' => [true, 19, str_repeat('c', 64), false];
+        yield 'tie prefers lower id' => [true, 20, str_repeat('a', 64), true];
+        yield 'tie rejects higher id' => [true, 20, str_repeat('c', 64), false];
+    }
+
     /** @dataProvider timedOutLookups */
     public function testStrictLookupThrowsWhenNoEventWasFoundAndAnyQueryTimedOut(array $outcomes, bool $hintOnly): void
     {

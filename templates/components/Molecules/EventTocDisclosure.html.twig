@@ -1,6 +1,6 @@
-<details {{ attributes.defaults({class: 'event-toc-disclosure'}) }}>
-    <summary>{{ 'reading_nook.toc.disclosure'|trans({'%title%': title}) }}</summary>
-    <turbo-frame id="nook-toc-{{ eventId }}" src="{{ url }}" loading="lazy">
-        <a href="{{ url }}">{{ 'reading_nook.toc.load'|trans }}</a>
-    </turbo-frame>
-</details>
+{% include 'components/Molecules/LazyDisclosure.html.twig' with {
+    disclosureClass: 'event-toc-disclosure',
+    frameId: 'nook-toc-' ~ eventId,
+    summary: 'reading_nook.toc.disclosure'|trans({'%title%': title}),
+    loadLabel: 'reading_nook.toc.load'|trans
+} %}

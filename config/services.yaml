@@ -12,6 +12,9 @@ parameters:
     books.elasticsearch_index_default: 'gutenberg-books'
     relay_gateway_default: 'false'
     relay_gateway_enabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+    # Roll back lazy workspace controls AND fragments, not inventory/read/edit routes.
+    event_workspace_expansion_default: 'true'
+    event_workspace_expansion_enabled: '%env(bool:default:event_workspace_expansion_default:EVENT_WORKSPACE_EXPANSION_ENABLED)%'
     # Essayist gateway membership cache (see documentation/essayist-gateway.md).
     essayist.membership.key_prefix: 'essayist_member:'
     essayist.membership.positive_ttl_seconds: 600

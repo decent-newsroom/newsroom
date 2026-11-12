@@ -5,6 +5,15 @@
     gap: var(--spacing-4);
 }
 
+.my-content-row__preview {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.my-content-row__preview > summary {
+    cursor: pointer;
+}
+
 .my-content-header {
     display: flex;
     align-items: end;

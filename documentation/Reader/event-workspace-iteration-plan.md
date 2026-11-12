@@ -1,11 +1,91 @@
 # Event Workspace and Composable Previews
 
 Status: the signed-event presentation and reference snapshot, typed source
-records, and resolution-result contracts are implemented. Two bounded Step 2
-slices add Reading Nook kind `39089` member expansion and kind `30040` nested
-index expansion over locally stored, authorized Event rows. My Content
-integration, a shared lookup service, other expandable sources, and selectable
+records, and resolution-result contracts are implemented. Five bounded Step 2
+slices add Reading Nook kind `39089` member expansion, kind `30040` nested
+index expansion, kind `10003`/`30003` bookmark reference expansion, and Bookshelf
+kind `30045` My Books directory reference expansion, plus My Content article
+and draft previews with ordered references. The
+proposed contact-list (kind `3`) preview is intentionally skipped. A shared
+lookup service, other expandable sources, and selectable
 viewers remain proposed.
+
+### Shared Step 2 disclosure shell and rollback
+
+- `Molecules:LazyDisclosure` provides the native closed `details`/`summary`,
+  lazy Turbo Frame, and exact-URL fallback link. Existing wrappers retain their
+  labels, CSS classes, attributes, and frame IDs; My Content and nested TOCs use
+  the same shell. Expansion stays separate from Open/Manage/Edit/delete actions.
+- `EVENT_WORKSPACE_EXPANSION_ENABLED` defaults to **true**, preserving shipped
+  behavior. Symfony's `event_workspace_expansion_enabled` parameter supplies both
+  the Twig gate and fragment controllers. Set it to `false` and rebuild/clear the
+  deployed Symfony cache as usual to roll back: all workspace expansion controls
+  disappear and all six fragment actions (including signed nested TOCs and every
+  pagination request) return 404 before lookup, validation, or rendering.
+  Existing authentication requirements remain in place. Ordinary inventory,
+  read, edit, publish, and removal routes are not gated.
+- Reading Nook mounts the existing Bookshelf directory disclosure once, outside
+  inventory rows and action menus, using the unchanged owner-only endpoint and
+  `bookshelf-directory-references` frame ID. It adds no inventory copy, count,
+  eager query, network call, or resolver. My Books also mounts it once on its
+  separate page, so IDs remain unique within each page.
+- Step 3+ shared resolution, selectable Book/Magazine/profile viewers, generic
+  recursive `a`/`e` expansion, browser concurrency controls, and broader
+  Event-only inventories remain intentionally deferred. Existing bounded local
+  TOC traversal is unchanged; this shell does not implement a general browser.
+  Bookshelf freshness and containing-index lookup are unchanged.
+
+### Shipped Step 2 subset: My Content article previews
+
+- Article and draft rows retain their existing title/editor, public view,
+  coordinate-copy, and signed-delete actions, with a separate native lazy
+  preview disclosure for rows with an exact event ID.
+- Each fragment queries the Article by exact event ID and authenticated owner,
+  rechecks article kind, author suppression, hidden coordinate, and NIP-09
+  deletion, and returns private/no-store content. Drafts never become public.
+- A matching local Event supplies the presentation; a complete matching raw
+  Article event is the fallback. Without either, the disclosure explicitly
+  reports the original as unavailable, without fabricating tags from projections.
+- Shared tag-based previews do not depend on processed HTML. Outgoing references
+  retain signed order, duplicates, invalid occurrences, and source positions,
+  in 50-reference pages pinned to the same event. Sensitive text and references
+  remain gated. Targets are not looked up, fetched, or recursively expanded.
+- Inventory querying, filtering, counts, sorting, and 25-row pagination remain
+  unchanged. Broader Event-only inventory and database-bounded filtering are
+  separate follow-up work.
+
+### Shipped Step 2 subset: Bookshelf directory references
+
+- My Books retains the bundle's cards, opening/removal actions, and existing
+  resolution pipeline, with a separate lazy, reference-only directory disclosure.
+- The initial fragment selects the latest local owned kind `30045` revision for
+  `my-book-collection`; later pages are pinned to its exact event ID.
+- Up to 50 `Content`-role `a`/`e` occurrences are displayed from shared
+  presentations over original signed tags, not normalized editable tags or
+  deduplicated Books API results. Order, positions, duplicates, malformed entries,
+  coordinates, exact IDs, and NKBIP-04 version pins are retained.
+- Every fragment checks authenticated ownership, kind, signed directory
+  identifier, author suppression, hidden coordinate, and NIP-09 deletion;
+  responses are private and `no-store`. No local directory means an empty state,
+  not a fabricated event.
+- No target lookup, API/relay call, body rendering, persistence, or recursive
+  expansion is performed by this disclosure.
+
+### Shipped Step 2 subset: Reading Nook bookmarks
+
+- Owned kind `10003` bookmark lists and kind `30003` bookmark sets have a
+  separate lazy disclosure, paginated at 50 occurrences.
+- `e`, `a`, and `p` references are interpreted using the shared event
+  presentation contract; `t` topics are read from their original ordered tags.
+  Source positions, order, duplicates, and malformed occurrences are retained.
+- Exact event IDs and profiles are shown as `note`/`npub`; parameterized
+  addressable-event references use `naddr` when supported. Topics remain
+  hashtags. No target event or profile is looked up or fetched.
+- Every fragment requires `ROLE_USER`, re-reads the exact source event for the
+  current owner's pubkey, accepts only kinds `10003` and `30003`, and checks
+  author suppression and NIP-09 deletion. Responses are private and `no-store`.
+- This is a reference list, not a target preview. It does not expose bookmark
+  event bodies or add kind `3` follow-list previews.
 
 ### Shipped Step 2 subset: Reading Nook publication-index TOC references
 
@@ -95,8 +175,8 @@ embeds, or their access rules:
 - Recognized references are retained as ordered occurrences with source-tag
   positions, original values, target types, roles, relay hints, and invalid or
   unresolved states. Exact event IDs remain distinct from coordinates; kind
-  `30040` and `30045` version fields are preserved separately. Follow-list and
-  follow-pack profile occurrences have distinct roles. Kind `1` thread tags
+  `30040` and `30045` version fields are preserved separately. Bookmark,
+  follow-list, and follow-pack profile occurrences have distinct roles. Kind `1` thread tags
   retain root/reply markers in either supported slot; kind `1984` report types
   are not relay hints, while supporting references can retain relay hints.
   Original tags, including malformed entries, remain available on the snapshot.
@@ -110,8 +190,10 @@ embeds, or their access rules:
   used as a human-readable description.
 - Characterization tests cover the existing inventories and representative
   preview paths, including their current limits and route-level role checks.
-  My Content's repository and both Twig renders are mocked; Reading Nook's
-  query uses SQLite. Full firewall and PostgreSQL coverage remains future work.
+  My Content's inventory repository remains mocked; additional fragment tests
+  exercise owner-scoped queries and real Twig rendering of disclosures,
+  previews, and existing actions. Reading Nook's query uses SQLite. Full
+  firewall and PostgreSQL coverage remains future work.
   `tests/NIPs/LOCAL-EVENT-WORKSPACE.feature` records local tag semantics;
   executable coverage is in PHPUnit because the feature specs are not part of
   the PHPUnit suite.
@@ -136,8 +218,8 @@ private-content rules on the source before creating or displaying a
 presentation. Authorize each target before exposing its data, counts, or
 actions; the snapshot itself performs no target lookups. Callers must also gate
 sensitive text, media, titles, and raw tags outside the default component. The
-component is a building block, not yet connected to an existing user-facing
-route. Metadata and body text are untrusted, not sanitized HTML; escape them on
+component is now used by My Content's owner-only preview fragments; a general
+surface migration remains pending. Metadata and body text are untrusted, not sanitized HTML; escape them on
 output and validate relay or media URLs before using them.
 
 The inventory controllers do not yet consume the source records. A shared
@@ -621,7 +703,7 @@ media should not autoplay or load merely because a folder was expanded.
 | Step | Scope | Exit criterion |
 |---|---|---|
 | 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | One readable raw event can produce a generic presentation without Article storage, body HTML, or network access; both inventory routes retain their behavior. |
-| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing follow-pack/list rows, and add explicit kind `3` follows and Bookshelf sources. | Partially shipped: Reading Nook follow-pack members and bounded kind `30040` local nested-index expansion. Follow-list previews, kind `3`, Bookshelf, and My Content integration remain pending. |
+| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing collection rows and the Bookshelf directory; kind `3` follow-list previews are intentionally skipped. | Partially shipped: Reading Nook follow-pack members, bookmarks, bounded kind `30040` local nested-index expansion, and reference-only Bookshelf My Books expansion. Mounting Bookshelf in Reading Nook, shared previews, and My Content integration remain pending. |
 | 3. Make discovery resilient | Shared bounded fetch coordination, per-fragment updates, retry/status fallback, and preserved browser state. Adapt Books/profile sources without render-time discovery. | Cold references progressively resolve without full-page reload, losing siblings, or unbounded fan-out. |
 | 4. Extend the graph | Add typed `p`/`e` relationships and version-binding fields, migrations/indexes, rebuild/backfill, and audit coverage. Add directories and mixed bookmark/curation expansion. | Indexed and raw-tag expansion give equivalent ordered results, including missing targets. Existing publication/Unfold queries retain their behavior. |
 | 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | A supported event has consistent identity, metadata, relationships, and status across all migrated contexts. Remove superseded dispatch paths only after parity. |
@@ -694,20 +776,23 @@ component reuse alone.
 
 All implementation checks run in Docker. Add one changelog item per delivered
 feature/fix and update this document as decisions become implemented. The
-standalone foundation now supports the bounded follow-pack and nested
-publication-index slices above, not yet a general-purpose expandable workspace.
+standalone foundation now supports the bounded follow-pack, bookmark, nested
+publication-index, and Bookshelf directory slices above, not yet a
+general-purpose expandable workspace.
 
 ## Recommended first workspace slice
 
 Build out the narrow Reading Nook demonstration: expand an existing reading
-list, expose the user's kind `3` follow list and Bookshelf book directory
-through the same node, preview a profile and a chapter, expand a nested index,
+list, expose the user's Bookshelf book directory through the same node,
+preview a chapter, expand a nested index,
 and resolve a missing child asynchronously without disturbing the rest of the
 outline. Nested index expansion is now a bounded local-only slice; unresolved
 children of other kinds still need asynchronous discovery. Reuse the row/preview
 in My Content and inside an ordinary event page without changing their existing
 actions. The shipped TOC disclosure remains a narrower step toward this broader
-behavior.
+behavior. Kind `3` follow-list previews are intentionally skipped. Bookshelf
+currently exposes its ordered directory references on My Books rather than
+mounting them in Reading Nook.
 
 That demonstrates the two main goals together: reusable components that really
 nest, and a foreground explorer driven by event structure rather than by whether

@@ -1,0 +1,35 @@
+<turbo-frame id="my-content-preview-{{ eventId }}">
+    {% if presentation is null %}
+        <p>{{ 'my_content.preview.unavailable'|trans }}</p>
+    {% else %}
+        {% include 'components/Molecules/EventPreview.html.twig' with {presentation: presentation} only %}
+        {% if not presentation.isSensitive %}
+            <h3>{{ 'my_content.preview.references'|trans }}</h3>
+            <p>{{ 'my_content.preview.unchecked'|trans }}</p>
+            <ol start="{{ (page - 1) * 50 + 1 }}">
+                {% for reference in references %}
+                    <li class="break-word" data-source-tag-position="{{ reference.position }}">
+                        <code>{{ reference.tagName }}</code>
+                        <span>{{ reference.rawValue ?? 'text.unknown'|trans }}</span>
+                        {% if reference.status.value != 'unresolved' %}
+                            <span>{{ 'my_content.preview.invalid'|trans }}</span>
+                        {% endif %}
+                    </li>
+                {% else %}
+                    <li>{{ 'my_content.preview.empty'|trans }}</li>
+                {% endfor %}
+            </ol>
+            {% if totalPages > 1 %}
+                <nav aria-label="{{ 'my_content.pagination.label'|trans }}">
+                    {% if page > 1 %}
+                        <a rel="prev" href="{{ path('my_content_preview', {eventId: eventId, page: page - 1}) }}">{{ 'my_content.pagination.previous'|trans }}</a>
+                    {% endif %}
+                    <span>{{ 'my_content.pagination.page'|trans({'%current%': page, '%total%': totalPages}) }}</span>
+                    {% if page < totalPages %}
+                        <a rel="next" href="{{ path('my_content_preview', {eventId: eventId, page: page + 1}) }}">{{ 'my_content.pagination.next'|trans }}</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+</turbo-frame>
