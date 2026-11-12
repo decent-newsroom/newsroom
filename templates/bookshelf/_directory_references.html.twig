@@ -10,9 +10,10 @@
                     {% endif %}
                     {% if reference.status.value == 'invalid' %}
                         <span>{{ 'bookshelf.references.invalid'|trans }}</span>
-                    {% else %}
+                    {% elseif entry.targetResolution|default(null) is null %}
                         <span>{{ 'bookshelf.references.unresolved'|trans }}</span>
                     {% endif %}
+                    {% include 'event_workspace/_target_preview.html.twig' with {resolution: entry.targetResolution|default(null)} only %}
                     {% if reference.versionEventId %}
                         <span>{{ 'reading_nook.toc.pinned_version'|trans }}: <code>{{ reference.versionEventId }}</code></span>
                     {% elseif entry.invalidVersionPin %}

@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 final class BookshelfReferencePageTest extends TestCase
 {
+    use TargetPreviewResolverTestTrait;
     public function testOrderedRawDirectoryOccurrencesRetainPinsAndNeverExposeBodies(): void
     {
         $id = str_repeat('b', 64);
@@ -84,6 +85,7 @@ final class BookshelfReferencePageTest extends TestCase
         return new BookshelfReferencePage(
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, new NostrNip19Service()),
+            $this->targetResolver(),
         );
     }
 

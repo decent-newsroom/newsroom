@@ -10,6 +10,7 @@
                     {% if entry.invalid and entry.rawValue is not null and entry.rawValue != entry.value %}
                         <code>{{ entry.rawValue }}</code>
                     {% endif %}
+                    {% include 'event_workspace/_target_preview.html.twig' with {resolution: entry.targetResolution|default(null)} only %}
                 </li>
             {% endfor %}
         </ol>

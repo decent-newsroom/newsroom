@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 final class BookmarkReferencePageTest extends TestCase
 {
+    use TargetPreviewResolverTestTrait;
     private const SOURCE_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const EVENT_ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     private const PUBKEY = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
@@ -29,6 +30,7 @@ final class BookmarkReferencePageTest extends TestCase
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, $this->nip19),
             $this->nip19,
+            $this->targetResolver(),
         );
     }
 
@@ -51,6 +53,11 @@ final class BookmarkReferencePageTest extends TestCase
         $event->setSig('unchanged-signature');
         $before = serialize($event);
 
+        $page = $this->pages->fromAuthorizedEvent($event);
+        foreach ($page['entries'] as &$entry) {
+            unset($entry['targetResolution']);
+        }
+        unset($entry);
         self::assertSame([
             'eventId' => self::SOURCE_ID,
             'page' => 1,
@@ -81,7 +88,7 @@ final class BookmarkReferencePageTest extends TestCase
             ],
             'hasNext' => false,
             'hasPrevious' => false,
-        ], $this->pages->fromAuthorizedEvent($event));
+        ], $page);
         self::assertSame($before, serialize($event));
     }
 
