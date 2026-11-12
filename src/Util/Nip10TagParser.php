@@ -26,36 +26,51 @@ final class Nip10TagParser
                 continue;
             }
 
-            $marker = null;
-            $relayHints = [];
-
-            foreach ([2, 3] as $index) {
-                $value = $tag[$index] ?? null;
-                if (!is_string($value) || $value === '') {
-                    continue;
-                }
-
-                if (self::isMarker($value)) {
-                    $marker = strtolower($value);
-                    continue;
-                }
-
-                if (self::isRelayUrl($value)) {
-                    $relayHints[] = $value;
-                }
-            }
-
-            if ($marker !== 'root') {
+            $auxiliaries = self::parseReferenceAuxiliaries($tag);
+            if ($auxiliaries['marker'] !== 'root') {
                 continue;
             }
 
             return [
                 'eventId' => $eventId,
-                'relays' => array_values(array_unique($relayHints)),
+                'relays' => $auxiliaries['relays'],
             ];
         }
 
         return null;
+    }
+
+    /**
+     * Parse the compatibility marker and relay slots of an e tag without
+     * interpreting its target or resolving either reference.
+     *
+     * @param array<array-key, mixed> $tag
+     * @return array{marker: ?string, relays: list<string>}
+     */
+    public static function parseReferenceAuxiliaries(array $tag): array
+    {
+        $marker = null;
+        $relayHints = [];
+        foreach ([2, 3] as $index) {
+            $value = $tag[$index] ?? null;
+            if (!is_string($value) || $value === '') {
+                continue;
+            }
+
+            if (self::isMarker($value)) {
+                $marker = strtolower($value);
+                continue;
+            }
+
+            if (self::isWebSocketSchemeCandidate($value)) {
+                $relayHints[] = $value;
+            }
+        }
+
+        return [
+            'marker' => $marker,
+            'relays' => array_values(array_unique($relayHints)),
+        ];
     }
 
     private static function isMarker(string $value): bool
@@ -65,9 +80,13 @@ final class Nip10TagParser
         return in_array($normalized, ['root', 'reply', 'mention'], true);
     }
 
-    private static function isRelayUrl(string $value): bool
+    /**
+     * Recognize a scheme prefix only, not a validated or safe relay URL.
+     * Callers must preserve the original value and apply their own URL and
+     * network policy before using it.
+     */
+    public static function isWebSocketSchemeCandidate(string $value): bool
     {
-        return str_starts_with($value, 'ws://') || str_starts_with($value, 'wss://');
+        return strncasecmp($value, 'ws://', 5) === 0 || strncasecmp($value, 'wss://', 6) === 0;
     }
 }
-

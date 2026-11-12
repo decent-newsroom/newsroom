@@ -17,13 +17,13 @@ Use the [setup guide](../../docs/SETUP.md) to configure and start the Docker env
 | `packages/unfold-bundle/` | Locally developed Unfold Composer package |
 | `config/bundles.php`, `composer.json`, `composer.lock` | Registered bundles and packaged dependencies |
 | `documentation/` | User guides, feature behavior, and protocol references |
-| `skills/` | Task-specific implementation guides |
+| `.agents/skills/` | Agent skills: task-specific implementation guides (`<name>/SKILL.md`) |
 
 Read the [architecture guide](architecture.md) for application/package boundaries. Check Composer to locate extracted bundle code.
 
 ## Working conventions
 
-Read [AGENTS.md](../../AGENTS.md), any applicable controller-level `AGENT.md`, and the relevant guide in [skills/README.md](../../skills/README.md) before making changes.
+Read [AGENTS.md](../../AGENTS.md), any applicable controller-level `AGENT.md`, and the relevant skill listed in [AGENTS.md](../../AGENTS.md#skills) before making changes.
 
 - Run application commands inside Docker.
 - Put JavaScript and CSS in `assets/`; use Stimulus controllers for browser behavior. Add JS dependencies through the import map.
@@ -53,7 +53,7 @@ docker compose exec php bin/console doctrine:migrations:migrate
 docker compose logs -f php worker worker-relay worker-profiles
 ```
 
-For recurring implementation tasks, use the existing guides: [entities](../../skills/add-doctrine-entity.md), [async handlers](../../skills/create-async-message-handler.md), [Stimulus](../../skills/create-stimulus-controller.md), [Live Components](../../skills/create-twig-live-component.md), [translations](../../skills/add-translations.md), and [documentation](../../skills/add-feature-documentation.md).
+For recurring implementation tasks, use the existing guides: [entities](../../.agents/skills/add-doctrine-entity/SKILL.md), [async handlers](../../.agents/skills/create-async-message-handler/SKILL.md), [Stimulus](../../.agents/skills/create-stimulus-controller/SKILL.md), [Twig components](../../.agents/skills/create-twig-component/SKILL.md), [translations](../../.agents/skills/add-translations/SKILL.md), and [documentation](../../.agents/skills/add-feature-documentation/SKILL.md).
 
 ## Validation
 
@@ -65,7 +65,7 @@ docker compose exec php bin/phpunit --testsuite Unit
 docker compose exec php bin/phpunit
 ```
 
-See [tests/README.md](../../tests/README.md) for test setup and [Rector guidance](../../skills/run-rector.md) before automated PHP modernization. Start Rector with a dry run.
+See [tests/README.md](../../tests/README.md) for test setup and [Rector guidance](../../.agents/skills/run-rector/SKILL.md) before automated PHP modernization. Start Rector with a dry run.
 
 Documentation-only changes should verify relative links, referenced paths, commands, and claims against the current source. Keep detailed relay, worker, and cron procedures in their feature/operations guides rather than copying them into onboarding.
 

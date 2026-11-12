@@ -8,7 +8,7 @@ And using Twig Live Components to create dynamic, interactive components in the 
 - When creating JS or CSS, put it in the `assets` folder, not inline in the templates.
 - When documenting the features, use the `documentation` folder and create a markdown file for each feature. This will help keep the documentation organized and easily accessible for future reference. Avoid creating multiple files.
 - Run any commands inside the docker container, to ensure that the environment is consistent and to avoid any issues with dependencies or configurations. This will help maintain a smooth development workflow and prevent any potential conflicts with the local environment.
-- This is a Nostr protocol client. Particular definitions and docs are in the `documentation/NIP` and `documentaion/NKBIP` folders. NIP stands for Nostr Implementation Possibilities, and NKBIP stands for Nostr Key Binding Implementation Possibilities. These folders contain detailed documentation on the specific implementations and features related to the Nostr protocol, which is essential for understanding how the client interacts with the protocol and how to implement various functionalities effectively.
+- This is a Nostr protocol client. Particular definitions and docs are in the `documentation/NIP` and `documentation/NKBIP` folders. NIP stands for Nostr Implementation Possibilities, and NKBIP stands for Nostr Key Binding Implementation Possibilities. These folders contain detailed documentation on the specific implementations and features related to the Nostr protocol, which is essential for understanding how the client interacts with the protocol and how to implement various functionalities effectively.
 - Add features and bugfixes to the Changelog file. One item per feature or fix. Assume that the topmost version is currently in development and that the one before it is currently live.
 
 ## Automatic approval denials
@@ -103,21 +103,9 @@ documentation/      # Feature docs (one file per feature), organized by area sub
   NIP/              # Nostr Implementation Possibilities reference
   NKBIP/            # Nostr Key Binding Implementation Possibilities
 
-skills/             # Step-by-step agent/developer guides for recurring tasks
-  README.md                        # Index + quick decision tree
-  add-nostr-event-kind.md          # Add support for a new Nostr event kind end-to-end
-  create-twig-live-component.md    # Create an Atom / Molecule / Organism Live Component
-  create-async-message-handler.md  # Add a Symfony Messenger message + handler
-  add-doctrine-entity.md           # New Doctrine entity, repository, and migration
-  create-stimulus-controller.md    # New Stimulus JS controller (AssetMapper, no build step)
-  add-redis-read-model.md          # Redis view (read model) for fast page rendering
-  add-ingestion-gate.md            # Silent event drop at ingestion (ban/tombstone pattern)
-  augment-relay-selection.md       # Per-user relay augmentation without polluting global registry
-  add-console-command.md           # New bin/console command (cron, admin utility, worker loop)
-  write-nip-feature-spec.md        # Gherkin .feature spec for NIP protocol compliance
-  add-translations.md              # i18n strings across all 5 locale files
-  add-feature-documentation.md     # Documentation file template and placement guide
-  run-rector.md                    # Run and configure Rector for automated PHP modernisation
+.agents/skills/     # Agent skills (open Agent Skills format): <name>/SKILL.md, auto-discovered
+.github/agents/     # Custom agent profiles (*.agent.md)
+.github/extensions/ # Copilot CLI extension entrypoints (not application assets)
 ```
 
 ### Key Patterns
@@ -169,7 +157,7 @@ skills/             # Step-by-step agent/developer guides for recurring tasks
 - Identity: 0 (metadata), 3 (follows), 10002 (relay list), 39089 (follow pack)
 
 **i18n:**
-- Translation files in `translations/messages.{locale}.yaml` (en, de, es, fr, sl)
+- Translation files in `translations/messages.{locale}.yaml` for every enabled locale (en, de, es, fr, it, sl)
 - All user-facing text uses `{{ 'key'|trans }}` in Twig
 
 
@@ -234,26 +222,54 @@ Controller-level `AGENT.md` files exist in:
 - `src/Controller/Newsroom/AGENT.md` — magazine/reading list publishing flows
 
 ### Skills
-Reusable step-by-step guides for recurring development tasks live in `skills/`. Consult them before implementing any of the patterns they cover. See `skills/README.md` for the full index and a quick decision tree.
+Project skills live in `.agents/skills/<name>/SKILL.md` (open Agent Skills format, discovered by Copilot and other agents). Each has YAML frontmatter with `name` and a trigger-oriented `description`. Before implementing a pattern below, load the matching skill (e.g. via the skill tool, or read its `SKILL.md`). This table is the human index; keep it in sync.
 
 | Skill | Use when |
 |---|---|
-| `add-nostr-event-kind` | Supporting a new Nostr event kind end-to-end |
-| `create-twig-live-component` | Adding a server-rendered interactive UI component |
+| `add-nostr-event-kind` | A kind must be fetched, persisted, projected, or specially handled (generic display needs no registration) |
+| `create-twig-component` | Adding a reusable Twig Component or, only when needed, a Live Component |
+| `create-stimulus-controller` | Adding client-side JS behaviour |
 | `create-async-message-handler` | Deferring work via Symfony Messenger |
 | `add-doctrine-entity` | Adding a new PostgreSQL table |
-| `create-stimulus-controller` | Adding client-side JS behaviour |
 | `add-redis-read-model` | Fast page rendering via pre-computed Redis views |
 | `add-ingestion-gate` | Silently dropping events at ingestion (bans, tombstones) |
+| `audit-ingestion-path` | Content is missing/duplicated/delayed, or measuring a fetch path's unique contribution |
 | `augment-relay-selection` | Per-user relay augmentation without polluting the global registry |
 | `add-console-command` | Adding a `bin/console` command (cron, admin utility, worker loop) |
+| `use-content-search-api` | Searching or recommending content via `ContentSearchService` |
 | `write-nip-feature-spec` | Writing a Gherkin `.feature` spec for NIP compliance |
-| `add-translations` | Adding i18n strings across all 5 locale files |
+| `add-translations` | Adding i18n strings across all enabled locale files |
 | `add-feature-documentation` | Documenting a new feature in `documentation/` |
+| `retire-feature` | Removing a feature, product, worker, or cron job safely |
 | `run-rector` | Running and configuring Rector for automated PHP modernisation |
+| `event-workspace-contract` | Changing event identity, reference resolution, previews, or collection expansion |
+| `add-event-viewer` | Adding a selectable event viewer or child/member display mode |
+| `migrate-event-surface` | Moving a page, embed, or inventory onto shared event previews |
+| `typesafe-ai` | (installed, third-party) Typed AI judgments; see `documentation/Processes/jev-decision-record.md` |
+
+### Custom agents
+Profiles in `.github/agents/*.agent.md` define focused roles:
+- `event-workspace-implementer` — implements one bounded slice of the event workspace plan.
+- `event-workspace-reviewer` — read-only review of event workspace changes.
+
+Prefer skills for repeatable procedures; add an agent profile only for a distinct role with its own permissions or review stance.
+
+### Event workspace workflows
+The optional Copilot CLI extension in `.github/extensions/event-workspace/` registers one-target migration and viewer workflows. Use them only after the shared preview foundation exists; they stop for missing prerequisites or failed verification and never start another target automatically. See `documentation/Guides/event-workspace-workflows.md` for activation, approval, and recovery.
+
+### Maintaining agent guidance
+- `AGENTS.md` is the single canonical repository guide. `.github/copilot-instructions.md` stays empty to avoid duplicate context; do not copy guidance into it.
+- Keep this file to durable facts and conventions; put procedures in skills and feature details in `documentation/`.
+- New skill: create `.agents/skills/<kebab-name>/SKILL.md`; `name` must equal the folder name; `description` (≤ 1024 chars) states what it does and "Use when…" triggers with concrete keywords (classes, kinds, paths). Add it to the table above.
+- Keep skills short and procedural: steps, invariants, checklist. Link to `documentation/` instead of duplicating it; put large references or scripts beside `SKILL.md` and link them relatively.
+- When code changes invalidate a skill, update the skill in the same change. Delete one-off plans or checklists once done rather than keeping them as skills.
+- Third-party skills are installed with `npx skills add` and tracked in `skills-lock.json`; do not hand-edit them.
+- Controller-level `AGENT.md` files hold local context; keep them consistent with this file.
 
 ## Next features
 
+### Event workspace and composable previews
+Evolve Reading Nook and My Content into an expandable, filesystem-style event browser with nestable previews that always render from signed event tags. Plan: `documentation/Reader/event-workspace-iteration-plan.md`. Skills: `event-workspace-contract`, `migrate-event-surface`, `add-event-viewer`.
 ## Backlog
 
 

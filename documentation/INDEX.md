@@ -9,7 +9,8 @@ Start here for reader, writer, and developer guides. Detailed feature documentat
 - [Architecture](Guides/architecture.md) — application services, Composer packages, data flow, and workers.
 - [Development guide](Guides/development.md) — code layout, working conventions, and validation.
 - [Setup and operations](../docs/INDEX.md) — environment setup, deployment, and troubleshooting.
-- [Implementation task guides](../skills/README.md) — repeatable development workflows.
+- [Agent skills](../AGENTS.md#skills) — repeatable development workflows in `.agents/skills/<name>/SKILL.md`.
+- [Event workspace agent workflows](Guides/event-workspace-workflows.md) — optional, one-target migration and viewer orchestration.
 - [Jev decision records](Processes/jev-decision-record.md) — public-context sharing scope and decision workflow.
 
 ## Package documentation
@@ -46,6 +47,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 - [Chapter previews (kind 30041)](Reader/chapter-previews.md)
 - [Web Preview for NIP-22 Comment External References](Reader/comment-web-preview.md)
 - [Deferred Nostr Embeds](Reader/deferred-nostr-embeds.md)
+- [Event workspace and composable previews (foundation in progress)](Reader/event-workspace-iteration-plan.md)
 - [Discover Page](Reader/discover-page.md)
 - [Featured Unfold Sites](Reader/featured-unfold-sites.md)
 - [Follow Packs Page](Reader/follow-packs-page.md)

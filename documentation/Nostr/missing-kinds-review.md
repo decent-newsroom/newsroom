@@ -2,6 +2,8 @@
 
 This page retains future feature ideas from the event-kind review. `src/Enum/KindsEnum.php` is the source of truth for declared kinds; an enum entry alone does not establish complete fetching, projection, rendering, or publishing support.
 
+The [event workspace foundation](../Reader/event-workspace-iteration-plan.md) documents its local handling of thread references, report classifications, and zap receipt metadata without adding ingestion support.
+
 The earlier highest-priority additions are already declared: deletion requests (5), mute lists (10000), pins (10001), interest sets (30015), zap requests (9734), playlists (34139), Blossom server lists (10063), reports (1984), and labels (1985). Do not re-add them from the old review checklist.
 
 ## Remaining candidates
@@ -18,4 +20,4 @@ The earlier highest-priority additions are already declared: deletion requests (
 | 9041 | Fundraising zap goals |
 | 31989 / 31990 | Cross-client app-handler discovery |
 
-These are proposals, not commitments. Verify the applicable protocol definitions and current implementation before selecting a kind. Follow `skills/add-nostr-event-kind.md` for an end-to-end implementation, and keep fetch groups in `src/Enum/KindBundles.php` rather than copying a stale integer list from this review. See [Fetch Strategy](fetch-optimization-implementation.md).
+These are proposals, not commitments. Verify the applicable protocol definitions and current implementation before selecting a kind. Follow the `add-nostr-event-kind` skill (`.agents/skills/add-nostr-event-kind/SKILL.md`) for an end-to-end implementation, and keep fetch groups in `src/Enum/KindBundles.php` rather than copying a stale integer list from this review. See [Fetch Strategy](fetch-optimization-implementation.md).

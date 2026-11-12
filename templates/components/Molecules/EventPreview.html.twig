@@ -1,0 +1,38 @@
+<div class="event-preview">
+    {% if presentation.isSensitive or presentation.hasContentWarning %}
+        <p class="event-preview__sensitive">{{ 'event_workspace.preview.sensitive'|trans|e }}</p>
+    {% else %}
+        <p class="event-preview__title break-word">
+            {% if presentation.title is null %}
+                {{ 'event_workspace.preview.untitled'|trans|e }}
+            {% else %}
+                {{ presentation.title|e }}
+            {% endif %}
+        </p>
+        {% if presentation.description is not null %}
+            <p class="event-preview__description break-word">{{ presentation.description|e }}</p>
+        {% endif %}
+    {% endif %}
+
+    <p class="event-preview__kind">{{ 'event_workspace.preview.kind'|trans({'%kind%': presentation.kind})|e }}</p>
+    <dl>
+        <dt>{{ 'event_workspace.preview.id'|trans|e }}</dt>
+        <dd class="event-preview__id break-word">
+            {% if presentation.eventId|trim is same as('') %}
+                {{ 'text.unknown'|trans|e }}
+            {% else %}
+                {{ presentation.eventId|e }}
+            {% endif %}
+        </dd>
+        <dt>{{ 'event_workspace.preview.author'|trans|e }}</dt>
+        <dd class="event-preview__author break-word">
+            {% if presentation.authorNpub is not null and presentation.authorNpub|trim is not same as('') %}
+                {{ presentation.authorNpub|e }}
+            {% elseif presentation.authorPubkey|trim is not same as('') %}
+                {{ presentation.authorPubkey|e }}
+            {% else %}
+                {{ 'text.unknown'|trans|e }}
+            {% endif %}
+        </dd>
+    </dl>
+</div>

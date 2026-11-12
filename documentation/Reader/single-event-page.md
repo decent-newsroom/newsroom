@@ -129,5 +129,7 @@ On the single event page (`/e/{nevent}`), kind:1 notes now show the thread root 
 ### Notes
 
 - Only kind:1 events use this OP block.
+- The NIP-10 parser recognizes WebSocket schemes case-insensitively and passes
+  the original, untrusted relay hint to the existing lookup.
 - If the root id matches the current event id, the OP block is not shown.
 - If the root event cannot be resolved, the page renders normally without the OP section.

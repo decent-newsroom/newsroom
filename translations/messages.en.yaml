@@ -141,6 +141,13 @@ event:
     references: 'References'
     client: 'Client'
     contentWarning: 'Content warning'
+event_workspace:
+    preview:
+        untitled: 'Untitled event'
+        sensitive: 'Sensitive content'
+        kind: 'Kind %kind%'
+        author: 'Author'
+        id: 'Event ID'
 brand:
     tagline: 'Collaborative publishing on Nostr'
     description: 'A decentralized platform for collaborative publishing'

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.1.0
+
+- [Feature] Began the event workspace with tag-based, nestable preview and ordered-reference foundations, local protocol specifications, and characterization of the existing personal inventories.
+- [Fix] Recognized mixed-case WebSocket schemes in NIP-10 thread relay hints.
+- [Feature] Added optional, one-target agent workflows for event workspace surface migrations and specialized viewers, with prerequisite and review gates.
+
+
 ## v0.0.55
 
 - [Fix] Disabled PHP session upload progress before request parsing in shared development/production configuration and the standalone MCP image.

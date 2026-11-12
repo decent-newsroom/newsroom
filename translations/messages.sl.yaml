@@ -123,6 +123,13 @@ event:
     references: 'Reference'
     client: 'Odjemalec'
     contentWarning: 'Opozorilo o vsebini'
+event_workspace:
+    preview:
+        untitled: 'Dogodek brez naslova'
+        sensitive: 'Občutljiva vsebina'
+        kind: 'Vrsta %kind%'
+        author: 'Avtor'
+        id: 'ID dogodka'
 brand:
     tagline: 'Sodelovalno založništvo na Nostru'
     description: 'Decentralizirana platforma za sodelovalno založništvo'

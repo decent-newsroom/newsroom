@@ -123,6 +123,13 @@ event:
     references: 'Referenzen'
     client: 'Client'
     contentWarning: 'Inhaltswarnung'
+event_workspace:
+    preview:
+        untitled: 'Unbenanntes Ereignis'
+        sensitive: 'Sensible Inhalte'
+        kind: 'Art %kind%'
+        author: 'Autor'
+        id: 'Ereignis-ID'
 brand:
     tagline: 'Kollaboratives Publizieren auf Nostr'
     description: 'Eine dezentralisierte Plattform für kollaboratives Publizieren'

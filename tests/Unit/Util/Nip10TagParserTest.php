@@ -63,5 +63,53 @@ final class Nip10TagParserTest extends TestCase
         $this->assertSame('first-root', $parsed['eventId']);
         $this->assertSame(['wss://relay.one'], $parsed['relays']);
     }
-}
 
+    /** @dataProvider mixedCaseWebSocketSchemes */
+    public function testParsesMixedCaseRelaySchemeInEitherMarkerLayout(string $relay, bool $markerFirst): void
+    {
+        $tag = $markerFirst
+            ? ['e', 'root-event-id', 'RoOt', $relay]
+            : ['e', 'root-event-id', $relay, 'rOoT'];
+
+        self::assertSame(
+            ['eventId' => 'root-event-id', 'relays' => [$relay]],
+            Nip10TagParser::findRootReference([$tag]),
+        );
+    }
+
+    /** @return array<string, array{string, bool}> */
+    public static function mixedCaseWebSocketSchemes(): array
+    {
+        return [
+            'uppercase secure scheme before marker' => ['WSS://Relay.Example/Path', false],
+            'uppercase secure scheme after marker' => ['WSS://Relay.Example/Path', true],
+            'uppercase scheme before marker' => ['WS://Relay.Example', false],
+            'uppercase scheme after marker' => ['WS://Relay.Example', true],
+            'mixed secure scheme' => ['WsS://Relay.Example', false],
+            'mixed scheme' => ['wS://Relay.Example', true],
+        ];
+    }
+
+    public function testMixedCaseRelayHintsDoNotChangeFirstRootSelection(): void
+    {
+        $tags = [
+            ['e', 'reply-id', 'WSS://Relay.Reply', 'reply'],
+            ['e', 'first-root', 'ROOT', 'WsS://Relay.First'],
+            ['e', 'second-root', 'WS://Relay.Second', 'root'],
+        ];
+
+        self::assertSame(
+            ['eventId' => 'first-root', 'relays' => ['WsS://Relay.First']],
+            Nip10TagParser::findRootReference($tags),
+        );
+    }
+
+    public function testWebSocketSchemeCandidateDoesNotClaimUrlValidation(): void
+    {
+        self::assertTrue(Nip10TagParser::isWebSocketSchemeCandidate('WSS://'));
+        self::assertTrue(Nip10TagParser::isWebSocketSchemeCandidate('wS://relay.example'));
+        self::assertFalse(Nip10TagParser::isWebSocketSchemeCandidate('https://relay.example'));
+        self::assertFalse(Nip10TagParser::isWebSocketSchemeCandidate('WSSX://relay.example'));
+        self::assertFalse(Nip10TagParser::isWebSocketSchemeCandidate(' WSS://relay.example'));
+    }
+}
