@@ -15,6 +15,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\FollowPackMemberPage;
+use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
@@ -156,6 +157,55 @@ final class ReadingNookController extends AbstractController
 
         $response = $this->render('reader/reading_nook/_follow_pack_members.html.twig', [
             'memberPage' => $members->fromAuthorizedEvent($event, $page),
+        ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+
+        return $response;
+    }
+
+    #[Route('/reading-nook/publication-indexes/{eventId}/toc', name: 'reading_nook_publication_toc', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function publicationToc(
+        string $eventId,
+        Request $request,
+        EntityManagerInterface $em,
+        PublicationTocPage $toc,
+        DeletedEventRepository $deletions,
+        ContentAuthorAccessPolicy $authorAccess,
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $page = filter_var($request->query->get('page', '1'), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+        if ($page === false) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid page.');
+        }
+
+        // Only this owner's exact signed index revision grants source access.
+        // No target content is resolved or exposed by this reference-only view.
+        $pubkey = $this->userPubkeyHex($user);
+        $authorAccess->assertReadable($pubkey);
+        $event = $em->getRepository(Event::class)->findOneBy([
+            'id' => $eventId,
+            'pubkey' => $pubkey,
+            'kind' => KindsEnum::PUBLICATION_INDEX->value,
+        ]);
+        if (!$event instanceof Event || $deletions->isSuppressed(
+            $event->getId(),
+            $event->getKind(),
+            $event->getPubkey(),
+            $event->getSlug(),
+            $event->getCreatedAt(),
+        )) {
+            throw $this->createNotFoundException();
+        }
+
+        $response = $this->render('reader/reading_nook/_publication_toc.html.twig', [
+            'tocPage' => $toc->fromAuthorizedEvent($event, $page),
         ]);
         $response->headers->set('Cache-Control', 'private, no-store');
 

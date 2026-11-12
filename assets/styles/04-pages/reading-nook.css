@@ -179,35 +179,49 @@
     border-top: 1px solid var(--color-border-strong);
 }
 
-.reading-nook-row > .event-member-disclosure {
+.reading-nook-row > .event-member-disclosure,
+.reading-nook-row > .event-toc-disclosure {
     grid-column: 1 / -1;
     padding: var(--spacing-3);
     min-width: 0;
 }
 
-.event-member-disclosure > summary {
+.event-member-disclosure > summary,
+.event-toc-disclosure > summary {
     cursor: pointer;
     color: var(--color-primary-link);
 }
 
-.event-member-disclosure > summary:focus-visible {
+.event-member-disclosure > summary:focus-visible,
+.event-toc-disclosure > summary:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 3px;
 }
 
-.event-member-disclosure turbo-frame {
+.event-member-disclosure turbo-frame,
+.event-toc-disclosure turbo-frame {
     display: block;
     margin-top: var(--spacing-3);
 }
 
-.event-member-list code {
+.event-member-list code,
+.event-toc-list {
     overflow-wrap: anywhere;
 }
 
-.event-member-pagination {
+.event-member-pagination,
+.event-toc-pagination {
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-3);
+}
+
+.event-toc-list li + li {
+    margin-top: var(--spacing-3);
+}
+
+.event-toc-list strong {
+    display: block;
 }
 
 .reading-nook-row {

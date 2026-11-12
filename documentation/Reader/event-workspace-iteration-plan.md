@@ -1,10 +1,35 @@
 # Event Workspace and Composable Previews
 
 Status: the signed-event presentation and reference snapshot, typed source
-records, and resolution-result contracts are implemented. The first bounded
-Step 2 slice wires Reading Nook kind `39089` member expansion to the source
-adapter and ordered presentation references. My Content integration, a shared
-lookup service, other expandable sources, and selectable viewers remain proposed.
+records, and resolution-result contracts are implemented. Two bounded Step 2
+slices add Reading Nook kind `39089` member expansion and a kind `30040`
+reference-only TOC disclosure. My Content integration, a shared lookup service,
+other expandable sources, and selectable viewers remain proposed.
+
+### Shipped Step 2 subset: Reading Nook publication-index TOC references
+
+- An eligible owned kind `30040` row has a separate native disclosure and lazy Turbo
+  Frame at `GET /reading-nook/publication-indexes/{eventId}/toc`. It is pinned
+  to the exact owned source event ID.
+- Each request requires `ROLE_USER`, re-queries that ID for the current owner's
+  pubkey and kind `30040`, and checks author suppression and NIP-09 deletion.
+  Successful responses are private and `no-store`.
+- Pages display at most 50 `Content`-role `a` reference occurrences from
+  `EventPresentationFactory`, retaining source positions, order, duplicates,
+  invalid occurrences, coordinates, and version pins. Pagination bounds output;
+  the source event's tags are still scanned in memory.
+- This is reference-only: it does not look up targets, perform relay work,
+  convert or display event bodies, offer child Open actions, or recursively
+  expand nested indexes. Labels use the target identifier, never a fetched
+  target title. Unresolved and ambiguous-version states explicitly say that the
+  target was not checked; coordinate identity, exact pins, and raw invalid string
+  pins remain separately visible. Non-string pins have an invalid-version label.
+- The inventory's existing classification of a kind `30040` containing a
+  kind `30040` child as a magazine is unchanged and remains pending. Nested
+  reference occurrences are preserved when an eligible, authorized source is
+  requested directly through this endpoint.
+- This does not add My Content, generic note or `e` reference handling, kind `3`,
+  or Bookshelf behavior.
 
 ### Shipped Step 2 subset: Reading Nook follow-pack npubs
 
@@ -175,7 +200,10 @@ event query caps results at 400 **before** deduplication and filtering, so
 displayed totals can omit older owned items. It does not currently include
 kind `3` follows or kind `30045` directories, and treats a `30040` with a
 `30040` child as a magazine rather than a Reading Nook list. Nested books must
-not disappear because of that heuristic.
+not disappear because of that heuristic. This inventory classification is
+unchanged by the bounded TOC-reference endpoint above: nested occurrences are
+available only when an eligible source is directly requested and authorized;
+changing which rows enter the inventory remains pending.
 
 My Content currently loads only kinds `30023` and `30024`; lists and magazines
 have separate navigation. Its repository collapses article revisions in
@@ -202,6 +230,11 @@ meaningful structure, not merely displaying raw tags.
 | Note, article, highlight, comment, or media event | Labeled relationships such as parent, root, mentions, and referenced events | Existing specialized presentation when supported, generic metadata/body fallback otherwise |
 | Unknown kind | Recognizable references under a separate References group | Useful tag-derived metadata, safe text where meaningful, kind and identity |
 | Profile node | Profile details, with explicit links to public lists/content | Cached metadata when available; npub remains usable without metadata |
+
+The publication-index row describes the planned general workspace behavior.
+The shipped Reading Nook slice is narrower: it discloses only ordered reference
+occurrences for an exact owned source, without target resolution, body output,
+child actions, or recursive expansion.
 
 Example:
 
@@ -556,7 +589,7 @@ media should not autoplay or load merely because a folder was expanded.
 | Step | Scope | Exit criterion |
 |---|---|---|
 | 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | One readable raw event can produce a generic presentation without Article storage, body HTML, or network access; both inventory routes retain their behavior. |
-| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing follow-pack/list rows, and add explicit kind `3` follows and Bookshelf sources. | A follow list expands into npubs with profile previews; a book index expands into ordered nested TOC entries. My Content uses the same component while retaining authoring actions. |
+| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing follow-pack/list rows, and add explicit kind `3` follows and Bookshelf sources. | Partially shipped: Reading Nook follow-pack members and a reference-only kind `30040` TOC endpoint. General ordered nested TOC expansion, follow-list previews, kind `3`, Bookshelf, and My Content integration remain pending. |
 | 3. Make discovery resilient | Shared bounded fetch coordination, per-fragment updates, retry/status fallback, and preserved browser state. Adapt Books/profile sources without render-time discovery. | Cold references progressively resolve without full-page reload, losing siblings, or unbounded fan-out. |
 | 4. Extend the graph | Add typed `p`/`e` relationships and version-binding fields, migrations/indexes, rebuild/backfill, and audit coverage. Add directories and mixed bookmark/curation expansion. | Indexed and raw-tag expansion give equivalent ordered results, including missing targets. Existing publication/Unfold queries retain their behavior. |
 | 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | A supported event has consistent identity, metadata, relationships, and status across all migrated contexts. Remove superseded dispatch paths only after parity. |
@@ -588,7 +621,9 @@ The first release is complete only when these scenarios are covered:
   disclosure controls are distinct from their action menus.
 - The Reading Nook can paginate past the current 400-event cap without losing
   older owned collections or reporting truncated totals. A `30040` containing
-  another `30040` remains accessible as a nested publication/book.
+  another `30040` remains accessible as a nested publication/book. These
+  inventory and general nested-publication behaviors remain pending; the
+  shipped direct TOC endpoint does not change source classification.
 - Raw kind `30023` without an Article row or processed HTML still has a useful
   preview. A body-converter failure leaves its metadata and relationships usable.
 - An unknown kind with empty content displays `alt`/summary/media where available;
@@ -627,17 +662,19 @@ component reuse alone.
 
 All implementation checks run in Docker. Add one changelog item per delivered
 feature/fix and update this document as decisions become implemented. The
-standalone foundation now supports the bounded follow-pack slice above,
-not yet a general-purpose expandable workspace.
+standalone foundation now supports the bounded follow-pack and reference-only
+publication-index TOC slices above, not yet a general-purpose expandable
+workspace.
 
 ## Recommended first workspace slice
 
-Build one narrow, end-to-end demonstration in Reading Nook: expand an existing
-follow pack and a reading list, then expose the user's kind `3` follow list and
-Bookshelf book directory through the same node. Preview a profile and a chapter,
-expand a nested index, and resolve a missing child asynchronously without
-disturbing the rest of the outline. Reuse the row/preview in My Content and
-inside an ordinary event page without changing their existing actions.
+Build out the narrow Reading Nook demonstration: expand an existing reading
+list, expose the user's kind `3` follow list and Bookshelf book directory
+through the same node, preview a profile and a chapter, expand a nested index,
+and resolve a missing child asynchronously without disturbing the rest of the
+outline. Reuse the row/preview in My Content and inside an ordinary event page
+without changing their existing actions. The shipped TOC disclosure is a
+reference-only step toward this broader behavior.
 
 That demonstrates the two main goals together: reusable components that really
 nest, and a foreground explorer driven by event structure rather than by whether

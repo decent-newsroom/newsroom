@@ -6,6 +6,13 @@ namespace App\Tests\Unit\Twig\Components\Molecules;
 
 use App\Twig\Components\Atoms\PageHeading;
 use App\Twig\Components\Molecules\EventMemberDisclosure;
+use App\Twig\Components\Molecules\EventTocDisclosure;
+use App\Entity\Event;
+use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\EventWorkspace\EventWorkspaceSourceAdapter;
+use App\Service\EventWorkspace\PublicationTocPage;
+use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -76,6 +83,87 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertSame('Member pages', $crawler->filter('nav')->attr('aria-label'));
     }
 
+    public function testTocDisclosureIsSeparateNativeLazyAndEscaped(): void
+    {
+        $crawler = $this->renderTwigComponent('Molecules:EventTocDisclosure', [
+            'eventId' => self::ID,
+            'title' => 'Book <unsafe>',
+            'url' => '/toc',
+        ])->crawler();
+
+        self::assertSame('Table of contents of Book <unsafe>', $crawler->filter('details > summary')->text());
+        self::assertSame(0, $crawler->filter('details[open], details[name], unsafe')->count());
+        self::assertSame('lazy', $crawler->filter('turbo-frame')->attr('loading'));
+        self::assertSame('nook-toc-' . self::ID, $crawler->filter('turbo-frame')->attr('id'));
+        self::assertSame('/toc', $crawler->filter('turbo-frame')->attr('src'));
+        self::assertSame('/toc', $crawler->filter('turbo-frame a')->attr('href'));
+    }
+
+    public function testTocFragmentRendersOrderedUnresolvedNestedAndInvalidReferencesNotBodiesOrActions(): void
+    {
+        self::bootKernel();
+        $coordinate = '30041:' . str_repeat('b', 64) . ':chapter<script>';
+        $pin = str_repeat('c', 64);
+        $event = new Event();
+        $event->setId(self::ID);
+        $event->setPubkey(str_repeat('b', 64));
+        $event->setKind(30040);
+        $event->setCreatedAt(123);
+        $event->setContent('never render body');
+        $event->setTags([
+            ['a', $coordinate, 'javascript:untrusted', $pin],
+            ['e', str_repeat('d', 64)],
+            ['a', '30040:' . str_repeat('b', 64) . ':nested'],
+            ['a', $coordinate, '', '<img src=x>'],
+            ['a'],
+            ['a', 'bad-address'],
+            ['a', $coordinate, '', 123],
+        ]);
+        $identities = new RecordIdentityService();
+        $pages = new PublicationTocPage(
+            new EventWorkspaceSourceAdapter($identities),
+            new EventPresentationFactory($identities, new NostrNip19Service()),
+        );
+        $page = $pages->fromAuthorizedEvent($event);
+        $page['page'] = 2;
+        $page['start'] = 51;
+        $page['hasPrevious'] = true;
+        $page['hasNext'] = true;
+        $html = self::getContainer()->get('twig')->render('reader/reading_nook/_publication_toc.html.twig', ['tocPage' => $page]);
+        $crawler = new Crawler($html);
+        self::assertSame('nook-toc-' . self::ID, $crawler->filter('turbo-frame')->attr('id'));
+        self::assertSame('51', $crawler->filter('ol')->attr('start'));
+        self::assertSame(['0', '2', '3', '4', '5', '6'], $crawler->filter('li')->extract(['data-source-tag-position']));
+        self::assertSame(1, $crawler->filter('li:contains("Index reference: nested")')->count());
+        self::assertSame(3, $crawler->filter('li:contains("Section reference: chapter")')->count());
+        self::assertSame(2, $crawler->filter('li:contains("Unresolved reference (target not checked)")')->count());
+        self::assertSame(1, $crawler->filter('li:contains("Unrecognized version pin (target not checked)")')->count());
+        self::assertSame(3, $crawler->filter('li:contains("Invalid publication reference")')->count());
+        self::assertStringContainsString('Exact event revision: ' . $pin, $crawler->text());
+        self::assertStringContainsString('Invalid version pin: <img src=x>', $crawler->text());
+        self::assertSame(0, $crawler->filter('li a, script, img, iframe, li details')->count());
+        self::assertStringNotContainsString('never render body', $html);
+        self::assertStringNotContainsString('javascript:untrusted', $html);
+        self::assertSame('Table of contents pages', $crawler->filter('nav')->attr('aria-label'));
+        self::assertStringContainsString('page=1', $crawler->filter('a[rel="prev"]')->attr('href'));
+        self::assertStringContainsString('page=3', $crawler->filter('a[rel="next"]')->attr('href'));
+    }
+
+    public function testEmptyTocPageKeepsSafePaginationAtMaximumPage(): void
+    {
+        self::bootKernel();
+        $html = self::getContainer()->get('twig')->render('reader/reading_nook/_publication_toc.html.twig', [
+            'tocPage' => [
+                'eventId' => self::ID, 'page' => PHP_INT_MAX, 'start' => 1,
+                'entries' => [], 'hasPrevious' => true, 'hasNext' => false,
+            ],
+        ]);
+        $crawler = new Crawler($html);
+        self::assertSame(0, $crawler->filter('li, a[rel="next"]')->count());
+        self::assertStringContainsString('No table of contents entries on this page.', $crawler->text());
+        self::assertStringContainsString('page=' . (PHP_INT_MAX - 1), $crawler->filter('a[rel="prev"]')->attr('href'));
+    }
+
     public function testInventoryKeepsTitleOpenManageAndIndependentActionMenu(): void
     {
         self::bootKernel();
@@ -92,12 +180,15 @@ final class EventMemberDisclosureTest extends KernelTestCase
             'kind' => 39089, 'section' => 'follow_packs', 'createdAt' => new \DateTimeImmutable(),
             'updatedAt' => null, 'summary' => '', 'tags' => [], 'meta' => ['memberCount' => 2],
         ];
+        $index = array_replace($item, ['eventId' => str_repeat('b', 64), 'kind' => 30040, 'section' => 'reading_lists', 'title' => 'My index']);
         $other = array_replace($item, ['kind' => 3, 'title' => 'Not expanded']);
+        $curation = array_replace($index, ['kind' => 30004]);
+        $subscription = array_replace($index, ['section' => 'subscriptions']);
         $crawler = new Crawler($twig->render('reader/reading_nook/index.html.twig', [
             'filters' => ['q' => '', 'section' => 'all', 'timespan' => 'all', 'tag' => ''],
             'allTags' => [], 'totalCount' => 2, 'filteredCount' => 2, 'sectionKeys' => [],
-            'sectionLabels' => ['follow_packs' => 'reading_nook.section.follow_packs'],
-            'sectionCounts' => [], 'timespanOptions' => [], 'items' => [$item, $other],
+            'sectionLabels' => ['follow_packs' => 'reading_nook.section.follow_packs', 'reading_lists' => 'reading_nook.section.reading_lists', 'subscriptions' => 'reading_nook.section.subscriptions'],
+            'sectionCounts' => [], 'timespanOptions' => [], 'items' => [$item, $index, $other, $curation, $subscription],
         ]));
 
         $row = $crawler->filter('article')->first();
@@ -109,6 +200,15 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertSame(1, $row->filter('details.event-member-disclosure')->count());
         self::assertSame(0, $row->filter('.reading-nook-menu .event-member-disclosure, h2 .event-member-disclosure')->count());
         self::assertSame(0, $crawler->filter('article')->last()->filter('.event-member-disclosure')->count());
+        $indexRow = $crawler->filter('article')->eq(1);
+        self::assertSame('/open', $indexRow->filter('h2 a')->attr('href'));
+        self::assertSame(['/open', '/manage'], $indexRow->filter('.reading-nook-menu__panel a')->extract(['href']));
+        self::assertSame('Actions for My index', $indexRow->filter('.reading-nook-menu > summary')->attr('aria-label'));
+        self::assertSame(1, $indexRow->filter('details.reading-nook-menu[name="reading-nook-actions"]')->count());
+        self::assertSame(1, $indexRow->filter('details.event-toc-disclosure')->count());
+        self::assertSame(0, $indexRow->filter('.reading-nook-menu .event-toc-disclosure, h2 .event-toc-disclosure')->count());
+        self::assertSame(1, $crawler->filter('.event-toc-disclosure')->count());
+        self::assertSame(2, count(array_unique($crawler->filter('turbo-frame')->extract(['id']))));
     }
 }
 
@@ -135,7 +235,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
             'anonymous_template_directory' => 'components/',
             'defaults' => ['App\\Twig\\Components\\' => 'components/'],
         ]);
-        foreach ([EventMemberDisclosure::class, PageHeading::class] as $component) {
+        foreach ([EventMemberDisclosure::class, EventTocDisclosure::class, PageHeading::class] as $component) {
             $container->services()->set($component)->autowire()->autoconfigure();
         }
     }
@@ -144,6 +244,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
     {
         $routes->add('reading_nook', '/reading-nook');
         $routes->add('reading_nook_follow_pack_members', '/reading-nook/follow-packs/{eventId}/members');
+        $routes->add('reading_nook_publication_toc', '/reading-nook/publication-indexes/{eventId}/toc');
     }
 
     public function getCacheDir(): string

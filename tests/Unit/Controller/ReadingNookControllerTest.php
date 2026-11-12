@@ -78,6 +78,15 @@ final class ReadingNookControllerTest extends TestCase
         self::assertSame('Bookmarks', $method->invoke($controller, KindsEnum::BOOKMARKS->value));
     }
 
+    public function testTocSliceDoesNotChangeNestedIndexMagazineClassification(): void
+    {
+        $controller = new ReadingNookController($this->createMock(RedisCacheService::class));
+        $classify = new \ReflectionMethod($controller, 'looksLikeMagazineIndex');
+        $owner = str_repeat('a', 64);
+        self::assertTrue($classify->invoke($controller, [['a', '30040:' . $owner . ':nested']]));
+        self::assertFalse($classify->invoke($controller, [['a', '30041:' . $owner . ':chapter']]));
+    }
+
     /**
      * @dataProvider roleAccessCases
      *

@@ -57,6 +57,40 @@ or expand kind `3`, Bookshelf, My Content, or arbitrary `a`/`e` relationships.
 The existing row member count is a deduplicated facet, not the number of ordered
 occurrences on these pages.
 
+### Publication-index table-of-contents references
+
+An eligible owned kind `30040` source can expose a separate table-of-contents
+disclosure in a lazy Turbo Frame. The frame loads up to 50 `Content`-role `a`
+reference occurrences per page from the source event's presentation. It
+preserves tag positions and order, duplicate occurrences, malformed entries,
+coordinate identity, version pins, and unresolved occurrences. Previous/Next
+links replace only the frame; without JavaScript, the Load table of contents
+link opens the same read-only page.
+
+Each GET to
+`/reading-nook/publication-indexes/{eventId}/toc?page=1` requires `ROLE_USER`
+and re-queries that exact event ID for the current user's pubkey and kind
+`30040`; browser-supplied owner or kind values cannot broaden access. Author
+suppression and NIP-09 deletion are checked before rendering, and successful
+responses use `Cache-Control: private, no-store`. Pagination bounds rendered
+occurrences, not the in-memory scan of the selected source's tags.
+
+This disclosure is deliberately reference-only. It does not resolve or fetch
+targets, perform relay work, convert or display event bodies, provide child
+Open actions, or recursively expand nested indexes. Section/index/generic
+fallback labels use the target identifier rather than an actual target title.
+The page shows coordinate identity and the pin separately; unresolved and
+unrecognized-version states say the target was not checked, and invalid pins
+retain their raw string value; non-string pins show an invalid-version label
+without interpreting their value.
+
+This slice does not change the inventory's existing classification that omits
+a kind `30040` containing another kind `30040` reference as a magazine. That
+source-classification change remains pending. Ordered nested occurrences are
+still retained when an eligible source is directly requested and authorized.
+The feature does not add My Content, generic note/`e` references, kind `3`, or
+Bookshelf behavior.
+
 ## Architecture
 
 ### Data model
@@ -83,6 +117,9 @@ Reading Nook does not introduce new tables. It composes existing data sources:
 | `src/Service/EventWorkspace/FollowPackMemberPage.php` | Pure ordered member pagination and npub conversion |
 | `src/Twig/Components/Molecules/EventMemberDisclosure.php` | Static disclosure; no data lookup |
 | `templates/reader/reading_nook/_follow_pack_members.html.twig` | Authorized, paginated member fragment |
+| `src/Service/EventWorkspace/PublicationTocPage.php` | Pure ordered publication-reference pagination |
+| `src/Twig/Components/Molecules/EventTocDisclosure.php` | Static publication-index disclosure; no target lookup |
+| `templates/reader/reading_nook/_publication_toc.html.twig` | Authorized reference-only TOC fragment |
 | `templates/reading-nook-layout.html.twig` | Reading Nook shell with local sidebar + page aside |
 | `assets/styles/04-pages/reading-nook.css` | Page styling and sidebar layout |
 | `assets/app.js` | Imports Reading Nook stylesheet |
@@ -97,13 +134,13 @@ No new environment variables or Symfony parameters are required.
 - Filtering is currently server-side and request-driven; there is no live incremental filtering.
 - Search is limited to locally persisted owned data (as intended), so remote-unfetched events are not included.
 - The event query takes the latest 400 rows before revision deduplication and filtering, so older collections may be omitted and counts may be incomplete.
-- Member pagination bounds rendered occurrences and npub encoding, but the selected event's JSON tags are still loaded and scanned in memory by the shared presentation factory.
-- Kind `3` follows and kind `30045` directories are not included in this inventory. A kind `30040` containing a kind `30040` reference is excluded as a magazine index.
-- Locale files currently contain placeholder translations for non-English Reading Nook strings.
+- Member and TOC pagination bound rendered occurrences and npub encoding, but the selected event's JSON tags are still loaded and scanned in memory by the shared presentation factory.
+- Kind `3` follows and kind `30045` directories are not included in this inventory. A kind `30040` containing a kind `30040` reference is still excluded as a magazine index; changing that inventory classification and enabling general nested-index expansion remain pending.
+- Locale files still contain placeholder translations for other non-English Reading Nook strings; the TOC disclosure labels are translated in all six enabled locales.
 
 ## Future Improvements
 
-- Replace placeholder locale entries with complete translations for `en`, `de`, `es`, `fr`, and `sl` Reading Nook keys.
+- Replace remaining placeholder locale entries with complete translations for all enabled Reading Nook locales (`en`, `de`, `es`, `fr`, `it`, and `sl`).
 - Add pagination for long result sets (global and/or per section), including persisted filter query params between pages.
 - Add source chips on each row (for example: bookmarks, interests, follow packs, reading lists) for faster scan/navigation.
 - Add support for private/encrypted bookmarks in the owned pool once decryption/access strategy is defined for user sessions.
