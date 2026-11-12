@@ -13,6 +13,39 @@ use Psr\Log\NullLogger;
 
 class UserMuteListServiceTest extends TestCase
 {
+    public function testStrictReadReturnsDeduplicatedLowercaseValidPubkeys(): void
+    {
+        $reader = str_repeat('a', 64);
+        $muted = str_repeat('b', 64);
+        $event = new Event();
+        $event->setTags([
+            ['p', strtoupper($muted)],
+            ['p', $muted],
+            ['p', 'not-a-pubkey'],
+            ['e', str_repeat('c', 64)],
+            'malformed',
+        ]);
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findLatestByPubkeyAndKind')
+            ->with($reader, KindsEnum::MUTE_LIST->value)
+            ->willReturn($event);
+
+        self::assertSame([$muted], (new UserMuteListService($repository, new NullLogger()))->getMutedPubkeysStrict($reader));
+    }
+
+    public function testStrictReadPropagatesPolicyLookupFailure(): void
+    {
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findLatestByPubkeyAndKind')
+            ->willThrowException(new \RuntimeException('mute-list lookup unavailable'));
+
+        $this->expectException(\RuntimeException::class);
+        (new UserMuteListService($repository, new NullLogger()))
+            ->getMutedPubkeysStrict(str_repeat('a', 64));
+    }
+
     public function testReturnsEmptyWhenNoMuteListEvent(): void
     {
         $repo = $this->createMock(EventRepository::class);
@@ -76,4 +109,3 @@ class UserMuteListServiceTest extends TestCase
         self::assertSame([], $service->getMutedPubkeys('aabbcc'));
     }
 }
-

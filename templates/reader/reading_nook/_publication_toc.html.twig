@@ -1,10 +1,10 @@
-<turbo-frame id="nook-toc-{{ tocPage.eventId }}">
+<turbo-frame id="{{ tocPage.frameId|default('nook-toc-' ~ tocPage.eventId) }}">
     {% if tocPage.entries is not empty %}
         <ol class="event-toc-list" start="{{ tocPage.start }}">
             {% for entry in tocPage.entries %}
                 {% set reference = entry.reference %}
                 <li data-source-tag-position="{{ reference.position }}">
-                    {# This is an identifier label from the source, not a resolved target title. #}
+                    {# The first label preserves the source identifier; authorized target metadata follows separately. #}
                     <strong>
                         {% if reference.targetIdentifier is not null and reference.targetIdentifier != '' %}
                             {{ (reference.targetKind == 30040 ? 'reading_nook.toc.index_reference' : 'reading_nook.toc.section_reference')|trans({'%identifier%': reference.targetIdentifier}) }}
@@ -12,7 +12,13 @@
                             {{ 'reading_nook.toc.reference'|trans }}
                         {% endif %}
                     </strong>
-                    <span>{{ ('reading_nook.toc.' ~ reference.status.value)|trans }}</span>
+                    {% if entry.targetResolution == 'available' %}
+                        <span>{{ 'reading_nook.toc.available'|trans }}</span>
+                    {% elseif entry.targetResolution == 'unavailable' %}
+                        <span>{{ 'reading_nook.toc.restricted'|trans }}</span>
+                    {% else %}
+                        <span>{{ ('reading_nook.toc.' ~ reference.status.value)|trans }}</span>
+                    {% endif %}
                     {% if reference.rawValue is not null %}
                         <div>{{ 'reading_nook.toc.coordinate'|trans }}: <code>{{ reference.rawValue }}</code></div>
                     {% endif %}
@@ -21,6 +27,45 @@
                     {% elseif entry.invalidVersionPin %}
                         <div>{{ 'reading_nook.toc.invalid_pin'|trans }}{% if entry.rawVersionPin is not null %}: <code>{{ entry.rawVersionPin }}</code>{% endif %}</div>
                     {% endif %}
+                    {% if entry.targetResolution == 'available' and entry.target is not null %}
+                        <div class="event-toc-target">
+                            {% if entry.target.title %}
+                                <strong>{{ entry.target.title }}</strong>
+                            {% else %}
+                                <strong>{{ 'reading_nook.toc.index_reference'|trans({'%identifier%': reference.targetIdentifier ?? ''}) }}</strong>
+                            {% endif %}
+                            {% if entry.target.sensitive %}
+                                <span>{{ 'reading_nook.toc.sensitive'|trans }}</span>
+                            {% elseif entry.target.summary %}
+                                <p>{{ entry.target.summary }}</p>
+                            {% endif %}
+                            <span>{{ 'reading_nook.toc.local_revision'|trans }}: <code>{{ entry.target.eventId }}</code></span>
+                        </div>
+                        {% if entry.cycle %}
+                            <span>{{ 'reading_nook.toc.cycle'|trans }}</span>
+                        {% elseif entry.depthLimited %}
+                            <span>{{ 'reading_nook.toc.depth_limit'|trans }}</span>
+                        {% elseif entry.nestedOccurrenceId is not null %}
+                            {% set nestedUrl = path('reading_nook_nested_publication_toc', {
+                                eventId: entry.target.eventId,
+                                page: 1,
+                                path: entry.nestedPath|join(','),
+                                occurrence: entry.nestedOccurrenceId,
+                                coordinate: entry.target.coordinate,
+                                signature: entry.nestedSignature
+                            }) %}
+                            <details class="event-toc-disclosure">
+                                <summary>{{ 'reading_nook.toc.expand_nested'|trans({'%title%': entry.target.title ?? reference.targetIdentifier ?? ''}) }}</summary>
+                                <turbo-frame
+                                    id="nook-toc-nested-{{ entry.nestedOccurrenceId }}"
+                                    src="{{ nestedUrl }}"
+                                    loading="lazy"
+                                >
+                                    <a href="{{ nestedUrl }}">{{ 'reading_nook.toc.load'|trans }}</a>
+                                </turbo-frame>
+                            </details>
+                        {% endif %}
+                    {% endif %}
                 </li>
             {% endfor %}
         </ol>
@@ -28,12 +73,28 @@
         <p>{{ 'reading_nook.toc.empty'|trans }}</p>
     {% endif %}
     <nav class="event-toc-pagination" aria-label="{{ 'reading_nook.toc.pagination'|trans }}">
+        {% set previousParams = {eventId: tocPage.eventId, page: tocPage.page - 1} %}
+        {% set nextParams = {eventId: tocPage.eventId, page: tocPage.page + 1} %}
+        {% if tocPage.occurrenceId|default(null) is not null %}
+            {% set previousParams = previousParams|merge({
+                path: tocPage.ancestorPath|join(','),
+                occurrence: tocPage.occurrenceId,
+                coordinate: tocPage.coordinate,
+                signature: tocPage.pageSignatures.previous
+            }) %}
+            {% set nextParams = nextParams|merge({
+                path: tocPage.ancestorPath|join(','),
+                occurrence: tocPage.occurrenceId,
+                coordinate: tocPage.coordinate,
+                signature: tocPage.pageSignatures.next
+            }) %}
+        {% endif %}
         {% if tocPage.hasPrevious %}
-            <a rel="prev" href="{{ path('reading_nook_publication_toc', {eventId: tocPage.eventId, page: tocPage.page - 1}) }}">{{ 'reading_nook.toc.previous'|trans }}</a>
+            <a rel="prev" href="{{ path(tocPage.routeName|default('reading_nook_publication_toc'), previousParams) }}">{{ 'reading_nook.toc.previous'|trans }}</a>
         {% endif %}
         <span>{{ 'reading_nook.toc.page'|trans({'%page%': tocPage.page}) }}</span>
         {% if tocPage.hasNext %}
-            <a rel="next" href="{{ path('reading_nook_publication_toc', {eventId: tocPage.eventId, page: tocPage.page + 1}) }}">{{ 'reading_nook.toc.next'|trans }}</a>
+            <a rel="next" href="{{ path(tocPage.routeName|default('reading_nook_publication_toc'), nextParams) }}">{{ 'reading_nook.toc.next'|trans }}</a>
         {% endif %}
     </nav>
 </turbo-frame>

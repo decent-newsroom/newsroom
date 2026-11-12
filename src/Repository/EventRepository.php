@@ -4,6 +4,8 @@ namespace App\Repository;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -564,6 +566,156 @@ class EventRepository extends ServiceEntityRepository
         }
 
         return $map;
+    }
+
+    /**
+     * Resolve only local kind-30040 targets for a bounded TOC page.
+     *
+     * Unpinned coordinates return their current local revision (highest
+     * created_at, then the lexicographically lowest event ID). Explicit event
+     * IDs are returned exactly and are never substituted with a newer
+     * coordinate revision. The query returns at most one row per coordinate
+     * plus one row per exact ID.
+     *
+     * @param list<string> $coordinates Canonical `30040:pubkey:d` identities
+     * @param list<string> $eventIds Exact hexadecimal event IDs
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    public function findPublicationIndexTargets(array $coordinates, array $eventIds): array
+    {
+        $coordinates = array_values(array_unique(array_filter(
+            $coordinates,
+            static function (string $coordinate): bool {
+                $parts = explode(':', $coordinate, 3);
+
+                return count($parts) === 3
+                    && $parts[0] === '30040'
+                    && preg_match('/^[0-9a-f]{64}$/', $parts[1]) === 1;
+            },
+        )));
+        $eventIds = array_values(array_unique(array_filter(
+            array_map('strtolower', $eventIds),
+            static fn (string $id): bool => preg_match('/^[0-9a-f]{64}$/', $id) === 1,
+        )));
+
+        if ($coordinates === [] && $eventIds === []) {
+            return ['coordinates' => [], 'eventIds' => []];
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+        $platform = $connection->getDatabasePlatform();
+        $dTagExpression = match (true) {
+            $platform instanceof PostgreSQLPlatform => "COALESCE(
+                (SELECT tag.value->>1
+                 FROM jsonb_array_elements(e.tags) WITH ORDINALITY AS tag(value, ordinality)
+                 WHERE tag.value->>0 = 'd'
+                 ORDER BY tag.ordinality
+                 LIMIT 1),
+                e.d_tag,
+                ''
+            )",
+            $platform instanceof SQLitePlatform => "COALESCE(
+                (SELECT json_extract(tag.value, '$[1]')
+                 FROM json_each(e.tags) AS tag
+                 WHERE json_extract(tag.value, '$[0]') = 'd'
+                 ORDER BY CAST(tag.key AS INTEGER)
+                 LIMIT 1),
+                e.d_tag,
+                ''
+            )",
+            default => "COALESCE(e.d_tag, '')",
+        };
+        $params = [];
+        $coordinateSql = [];
+        foreach ($coordinates as $index => $coordinate) {
+            [, $pubkey, $identifier] = explode(':', $coordinate, 3);
+            $coordinateSql[] = sprintf(
+                "(e.kind = 30040 AND lower(e.pubkey) = :pubkey_%d AND %s = :d_tag_%d)",
+                $index,
+                $dTagExpression,
+                $index,
+            );
+            $params['pubkey_' . $index] = $pubkey;
+            $params['d_tag_' . $index] = $identifier;
+        }
+
+        $selected = [];
+        if ($coordinateSql !== []) {
+            $selected[] = sprintf(
+                "SELECT id FROM (
+                    SELECT e.id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY lower(e.pubkey), %s
+                               ORDER BY e.created_at DESC, lower(e.id) ASC
+                           ) AS revision_rank
+                    FROM event e
+                    WHERE e.kind = 30040 AND (%s)
+                ) current_revisions
+                WHERE revision_rank = 1",
+                $dTagExpression,
+                implode(' OR ', $coordinateSql),
+            );
+        }
+
+        if ($eventIds !== []) {
+            $idPlaceholders = [];
+            foreach ($eventIds as $index => $eventId) {
+                $placeholder = 'event_id_' . $index;
+                $idPlaceholders[] = ':' . $placeholder;
+                $params[$placeholder] = $eventId;
+            }
+            // Exact pins are fetched by ID first, then the caller validates
+            // their declared kind/pubkey/d-tag. A wrong-kind pin is a mismatch,
+            // not a reason to fall back to the current coordinate revision.
+            $selected[] = 'SELECT e.id FROM event e WHERE lower(e.id) IN ('
+                . implode(', ', $idPlaceholders) . ')';
+        }
+
+        $sql = 'SELECT e.* FROM event e INNER JOIN ('
+            . implode(' UNION ', $selected)
+            . ') requested_targets ON lower(e.id) = lower(requested_targets.id)'
+            . ' ORDER BY e.created_at DESC, lower(e.id) ASC';
+        $rows = $connection->executeQuery($sql, $params)->fetchAllAssociative();
+
+        $byId = [];
+        foreach ($rows as $row) {
+            $event = $this->mapRowToEvent($row);
+            $byId[strtolower($event->getId())] = $event;
+        }
+
+        $byCoordinate = [];
+        foreach ($coordinates as $coordinate) {
+            [, $pubkey, $identifier] = explode(':', $coordinate, 3);
+            foreach ($byId as $event) {
+                if ($event->getKind() !== 30040
+                    || strtolower($event->getPubkey()) !== $pubkey
+                    || $this->dTagFromEvent($event) !== $identifier) {
+                    continue;
+                }
+                $byCoordinate[$coordinate] = $event;
+                break;
+            }
+        }
+
+        $byExactId = [];
+        foreach ($eventIds as $eventId) {
+            if (isset($byId[$eventId])) {
+                $byExactId[$eventId] = $byId[$eventId];
+            }
+        }
+
+        return ['coordinates' => $byCoordinate, 'eventIds' => $byExactId];
+    }
+
+    private function dTagFromEvent(Event $event): string
+    {
+        foreach ($event->getTags() as $tag) {
+            if (is_array($tag) && ($tag[0] ?? null) === 'd' && is_string($tag[1] ?? null)) {
+                return $tag[1];
+            }
+        }
+
+        return $event->getDTag() ?? '';
     }
 
     /**

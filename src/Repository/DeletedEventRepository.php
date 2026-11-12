@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\DeletedEvent;
+use App\Entity\Event;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -60,6 +61,73 @@ class DeletedEventRepository extends ServiceEntityRepository
         return false;
     }
 
+    /**
+     * Batch NIP-09 checks for already-selected local events.
+     *
+     * @param list<Event> $events
+     * @return list<string> Suppressed event IDs, lowercase
+     */
+    public function findSuppressedEventIds(array $events): array
+    {
+        $references = [];
+        foreach ($events as $event) {
+            $references[] = strtolower($event->getId());
+            if ($event->getKind() >= 30000 && $event->getKind() <= 39999) {
+                $references[] = $event->getKind() . ':' . strtolower($event->getPubkey()) . ':' . $this->dTagFromEvent($event);
+            }
+        }
+        $references = array_values(array_unique($references));
+        if ($references === []) {
+            return [];
+        }
+
+        /** @var DeletedEvent[] $tombstones */
+        $tombstones = $this->findBy(['targetRef' => $references]);
+        $byReference = [];
+        foreach ($tombstones as $tombstone) {
+            $byReference[strtolower($tombstone->getTargetRef())][] = $tombstone;
+        }
+
+        $suppressedIds = [];
+        foreach ($events as $event) {
+            $pubkey = strtolower($event->getPubkey());
+            $eventId = strtolower($event->getId());
+            foreach ($byReference[$eventId] ?? [] as $tombstone) {
+                if ($tombstone->getRefType() === DeletedEvent::REF_EVENT_ID
+                    && strtolower($tombstone->getPubkey()) === $pubkey) {
+                    $suppressedIds[$eventId] = true;
+                    break;
+                }
+            }
+
+            if (isset($suppressedIds[$eventId]) || $event->getKind() < 30000 || $event->getKind() > 39999) {
+                continue;
+            }
+            $coordinate = $event->getKind() . ':' . $pubkey . ':' . $this->dTagFromEvent($event);
+            foreach ($byReference[strtolower($coordinate)] ?? [] as $tombstone) {
+                if ($tombstone->getRefType() === DeletedEvent::REF_COORDINATE
+                    && strtolower($tombstone->getPubkey()) === $pubkey
+                    && $event->getCreatedAt() <= $tombstone->getDeletionCreatedAt()) {
+                    $suppressedIds[$eventId] = true;
+                    break;
+                }
+            }
+        }
+
+        return array_keys($suppressedIds);
+    }
+
+    private function dTagFromEvent(Event $event): string
+    {
+        foreach ($event->getTags() as $tag) {
+            if (($tag[0] ?? null) === 'd' && is_string($tag[1] ?? null)) {
+                return $tag[1];
+            }
+        }
+
+        return $event->getDTag() ?? '';
+    }
+
     public function save(DeletedEvent $deletedEvent, bool $flush = true): void
     {
         $this->getEntityManager()->persist($deletedEvent);
@@ -68,4 +136,3 @@ class DeletedEventRepository extends ServiceEntityRepository
         }
     }
 }
-

@@ -135,6 +135,17 @@ final readonly class EventPresentation
     }
 
     /**
+     * Tag-only sensitivity check for callers that need to gate metadata without
+     * building a full body presentation.
+     *
+     * @param array<array-key, mixed> $tags
+     */
+    public static function hasSensitiveTagEvidence(array $tags): bool
+    {
+        return self::sensitivityFromTags($tags)[2];
+    }
+
+    /**
      * JSON-decoded tags normally contain arrays and scalars. Copy stdClass too,
      * so even a malformed JSON object cannot mutate the snapshot by reference.
      */

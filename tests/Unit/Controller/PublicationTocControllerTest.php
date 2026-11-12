@@ -8,13 +8,17 @@ use App\Controller\Reader\ReadingNookController;
 use App\Entity\Event;
 use App\Entity\User;
 use App\Repository\DeletedEventRepository;
+use App\Repository\EventRepository;
+use App\Repository\HiddenCoordinateRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventWorkspaceSourceAdapter;
 use App\Service\EventWorkspace\PublicationTocPage;
+use App\Service\EventWorkspace\PublicationTocTraversalSigner;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\UserMuteListService;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\ORMSetup;
@@ -56,6 +60,172 @@ final class PublicationTocControllerTest extends TestCase
         self::assertSame(['GET'], $route->methods);
         self::assertSame('[0-9a-f]{64}', $route->requirements['eventId']);
         self::assertSame('ROLE_USER', $method->getAttributes(IsGranted::class)[0]->newInstance()->attribute);
+    }
+
+    public function testNestedRouteIsAnAuthenticatedExactEventFragment(): void
+    {
+        $method = new \ReflectionMethod(ReadingNookController::class, 'nestedPublicationToc');
+        $route = $method->getAttributes(Route::class)[0]->newInstance();
+        self::assertSame('reading_nook_nested_publication_toc', $route->name);
+        self::assertSame(['GET'], $route->methods);
+        self::assertSame('[0-9a-f]{64}', $route->requirements['eventId']);
+        self::assertSame('ROLE_USER', $method->getAttributes(IsGranted::class)[0]->newInstance()->attribute);
+
+        $child = $this->event(self::PIN, 30040);
+        $child->setId(self::PIN);
+        $child->setPubkey(str_repeat('d', 64));
+        $child->setDTag('nested');
+        $child->setTags([
+            ['d', 'nested'],
+            ['a', '30040:' . str_repeat('e', 64) . ':missing'],
+        ]);
+        $database = $this->database([$child]);
+        $captured = null;
+        $controller = $this->controller($captured);
+        $deletions = $this->createMock(DeletedEventRepository::class);
+        $deletions->expects(self::once())->method('isSuppressed')
+            ->with(self::PIN, 30040, str_repeat('d', 64), 'nested', 123)->willReturn(false);
+        $access = $this->createMock(ContentAuthorAccessPolicy::class);
+        $access->expects(self::once())->method('assertReadable')->with(str_repeat('d', 64));
+        $coordinate = '30040:' . str_repeat('d', 64) . ':nested';
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $muted = $this->createMock(UserMuteListService::class);
+        $muted->expects(self::once())->method('getMutedPubkeysStrict')->with(self::OWNER)->willReturn([]);
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->expects(self::once())->method('findHiddenCoordinates')->with([$coordinate])->willReturn([]);
+
+        try {
+            $response = $controller->nestedPublicationToc(
+                self::PIN,
+                new Request([
+                    'page' => '1',
+                    'path' => self::ID,
+                    'occurrence' => str_repeat('f', 64),
+                    'coordinate' => $coordinate,
+                    'signature' => $signer->sign(self::PIN, 1, [self::ID], str_repeat('f', 64), $coordinate),
+                ]),
+                $database,
+                $this->pages(),
+                $deletions,
+                $access,
+                $hidden,
+                $muted,
+                $signer,
+            );
+            self::assertTrue($response->headers->hasCacheControlDirective('private'));
+            self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+            self::assertSame('nook-toc-nested-' . str_repeat('f', 64), $captured['tocPage']['frameId']);
+            self::assertSame([self::ID, self::PIN], $captured['tocPage']['path']);
+            self::assertSame('reading_nook_nested_publication_toc', $captured['tocPage']['routeName']);
+        } finally {
+            $database->close();
+        }
+    }
+
+    public function testTamperedOrResetTraversalStateIsRejectedBeforeSourceQuery(): void
+    {
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $coordinate = '30040:' . str_repeat('d', 64) . ':nested';
+        $occurrence = str_repeat('f', 64);
+        $signature = $signer->sign(self::PIN, 1, [self::ID], $occurrence, $coordinate);
+        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
+        $em->expects(self::never())->method('getRepository');
+
+        foreach ([
+            [self::PIN, ['page' => '2', 'path' => self::ID]],
+            [self::PIN, ['page' => '1', 'path' => str_repeat('e', 64)]],
+            [self::PIN, ['page' => '1', 'path' => '']],
+            [self::PIN, ['page' => '1', 'path' => [self::ID]]],
+            [str_repeat('a', 64), ['page' => '1', 'path' => self::ID]],
+            [self::PIN, ['page' => '1', 'path' => self::ID, 'occurrence' => str_repeat('a', 64)]],
+            [self::PIN, ['page' => '1', 'path' => self::ID, 'coordinate' => '30040:' . str_repeat('e', 64) . ':nested']],
+        ] as $tampered) {
+            $captured = null;
+            [$routeEventId, $changedQuery] = $tampered;
+            $request = new Request($changedQuery + [
+                'occurrence' => $occurrence,
+                'coordinate' => $coordinate,
+                'signature' => $signature,
+            ]);
+            try {
+                $this->controller($captured, false)->nestedPublicationToc(
+                    $routeEventId,
+                    $request,
+                    $em,
+                    $this->pages(),
+                    $this->createMock(DeletedEventRepository::class),
+                    $this->createMock(ContentAuthorAccessPolicy::class),
+                    $this->createStub(HiddenCoordinateRepository::class),
+                    $this->mutedList(),
+                    $signer,
+                );
+                self::fail('Tampered traversal state must be rejected.');
+            } catch (BadRequestHttpException) {
+                self::assertNull($captured);
+            }
+        }
+    }
+
+    public function testHiddenAndReaderMutedNestedSourcesAreRejectedBeforeEventLookup(): void
+    {
+        $coordinate = '30040:' . str_repeat('d', 64) . ':nested';
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $signature = $signer->sign(self::PIN, 1, [self::ID], str_repeat('f', 64), $coordinate);
+        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
+        $em->expects(self::never())->method('getRepository');
+
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->expects(self::once())->method('findHiddenCoordinates')->with([$coordinate])->willReturn([$coordinate]);
+        $captured = null;
+        $this->expectException(NotFoundHttpException::class);
+        $this->controller($captured, false)->nestedPublicationToc(
+            self::PIN,
+            new Request([
+                'path' => self::ID,
+                'occurrence' => str_repeat('f', 64),
+                'coordinate' => $coordinate,
+                'signature' => $signature,
+            ]),
+            $em,
+            $this->pages(),
+            $this->createMock(DeletedEventRepository::class),
+            $this->createMock(ContentAuthorAccessPolicy::class),
+            $hidden,
+            $this->mutedList(),
+            $signer,
+        );
+    }
+
+    public function testMutedNestedSourceIsRejectedBeforeEventLookup(): void
+    {
+        $coordinate = '30040:' . str_repeat('d', 64) . ':nested';
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $signature = $signer->sign(self::PIN, 1, [self::ID], str_repeat('f', 64), $coordinate);
+        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
+        $em->expects(self::never())->method('getRepository');
+        $muted = $this->createMock(UserMuteListService::class);
+        $muted->expects(self::once())->method('getMutedPubkeysStrict')->with(self::OWNER)
+            ->willReturn([str_repeat('d', 64)]);
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->expects(self::never())->method('findHiddenCoordinates');
+        $captured = null;
+        $this->expectException(NotFoundHttpException::class);
+        $this->controller($captured, false)->nestedPublicationToc(
+            self::PIN,
+            new Request([
+                'path' => self::ID,
+                'occurrence' => str_repeat('f', 64),
+                'coordinate' => $coordinate,
+                'signature' => $signature,
+            ]),
+            $em,
+            $this->pages(),
+            $this->createMock(DeletedEventRepository::class),
+            $this->createMock(ContentAuthorAccessPolicy::class),
+            $hidden,
+            $muted,
+            $signer,
+        );
     }
 
     /** @dataProvider roleCases */
@@ -109,7 +279,7 @@ final class PublicationTocControllerTest extends TestCase
         try {
             $response = $controller->publicationToc(
                 self::ID, new Request(['page' => '2', 'owner' => self::PIN, 'kind' => '3']),
-                $database, $this->pages(), $deletions, $access,
+                $database, $this->pages(), $deletions, $access, $this->mutedList(),
             );
             self::assertTrue($response->headers->hasCacheControlDirective('private'));
             self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
@@ -146,7 +316,7 @@ final class PublicationTocControllerTest extends TestCase
             });
         $this->expectException(NotFoundHttpException::class);
         try {
-            $controller->publicationToc(self::ID, new Request(), $database, $this->pages(), $deletions, $access);
+            $controller->publicationToc(self::ID, new Request(), $database, $this->pages(), $deletions, $access, $this->mutedList());
         } finally {
             $database->close();
         }
@@ -173,6 +343,7 @@ final class PublicationTocControllerTest extends TestCase
         $this->controller($captured, false)->publicationToc(
             self::ID, new Request(['page' => $page]), $em, $this->pages(),
             $this->createMock(DeletedEventRepository::class), $this->createMock(ContentAuthorAccessPolicy::class),
+            $this->mutedList(),
         );
     }
 
@@ -192,6 +363,7 @@ final class PublicationTocControllerTest extends TestCase
         $this->controller($captured, false, false)->publicationToc(
             self::ID, new Request(), $em, $this->pages(),
             $this->createMock(DeletedEventRepository::class), $this->createMock(ContentAuthorAccessPolicy::class),
+            $this->mutedList(),
         );
     }
 
@@ -225,11 +397,28 @@ final class PublicationTocControllerTest extends TestCase
     private function pages(): PublicationTocPage
     {
         $identities = new RecordIdentityService();
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findPublicationIndexTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $authorAccess = $this->createMock(ContentAuthorAccessPolicy::class);
+        $deletions = $this->createMock(DeletedEventRepository::class);
 
         return new PublicationTocPage(
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, new NostrNip19Service()),
+            $events,
+            $deletions,
+            $authorAccess,
+            $this->createStub(HiddenCoordinateRepository::class),
+            new PublicationTocTraversalSigner('test-framework-secret'),
         );
+    }
+
+    private function mutedList(): UserMuteListService
+    {
+        $service = $this->createMock(UserMuteListService::class);
+        $service->method('getMutedPubkeysStrict')->willReturn([]);
+
+        return $service;
     }
 
     private function event(string $owner = self::OWNER, int $kind = 30040): Event

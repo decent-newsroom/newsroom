@@ -7,6 +7,7 @@ use App\Enum\RolesEnum;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -19,6 +20,31 @@ class UserEntityRepository extends ServiceEntityRepository
             'SELECT 1 FROM app_user WHERE npub = :npub AND CAST(roles AS JSONB) @> CAST(:roles AS JSONB)',
             ['npub' => $npub, 'roles' => json_encode([RolesEnum::MUTED->value], JSON_THROW_ON_ERROR)],
         ) !== false;
+    }
+
+    /**
+     * @param list<string> $npubs
+     * @return list<string>
+     */
+    public function findAdminMutedNpubs(array $npubs): array
+    {
+        $npubs = array_values(array_unique($npubs));
+        if ($npubs === []) {
+            return [];
+        }
+
+        return $this->entityManager->getConnection()
+            ->executeQuery(
+                'SELECT npub FROM app_user
+                 WHERE npub IN (:npubs)
+                   AND CAST(roles AS JSONB) @> CAST(:roles AS JSONB)',
+                [
+                    'npubs' => $npubs,
+                    'roles' => json_encode([RolesEnum::MUTED->value], JSON_THROW_ON_ERROR),
+                ],
+                ['npubs' => ArrayParameterType::STRING],
+            )
+            ->fetchFirstColumn();
     }
 
     /**

@@ -35,13 +35,14 @@ class UserMuteListService
                 $pubkeyHex,
                 KindsEnum::MUTE_LIST->value,
             );
-
             if ($event === null) {
                 return [];
             }
 
             $muted = [];
-            foreach ($event->getTags() as $tag) {
+            foreach ($event->getTags() as $rawTag) {
+                /** @var mixed $tag */
+                $tag = $rawTag;
                 if (is_array($tag) && isset($tag[0], $tag[1]) && $tag[0] === 'p') {
                     $muted[] = $tag[1];
                 }
@@ -57,5 +58,38 @@ class UserMuteListService
             return [];
         }
     }
-}
 
+    /**
+     * Read a reader's mute list without a fail-open fallback.
+     *
+     * Security-sensitive fragment callers should use this method so a database
+     * failure cannot be mistaken for an empty mute list.
+     *
+     * @param string $pubkeyHex The logged-in user's hex pubkey
+     * @return list<string> Muted lowercase hex pubkeys
+     */
+    public function getMutedPubkeysStrict(string $pubkeyHex): array
+    {
+        $event = $this->eventRepository->findLatestByPubkeyAndKind(
+            strtolower($pubkeyHex),
+            KindsEnum::MUTE_LIST->value,
+        );
+        if ($event === null) {
+            return [];
+        }
+
+        $muted = [];
+        foreach ($event->getTags() as $rawTag) {
+            /** @var mixed $tag */
+            $tag = $rawTag;
+            if (is_array($tag)
+                && ($tag[0] ?? null) === 'p'
+                && is_string($tag[1] ?? null)
+                && preg_match('/^[0-9a-f]{64}$/i', $tag[1]) === 1) {
+                $muted[] = strtolower($tag[1]);
+            }
+        }
+
+        return array_values(array_unique($muted));
+    }
+}

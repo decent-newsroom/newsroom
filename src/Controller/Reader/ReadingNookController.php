@@ -12,11 +12,14 @@ use App\Enum\UpdateSourceTypeEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Repository\EventRepository;
 use App\Repository\DeletedEventRepository;
+use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\FollowPackMemberPage;
 use App\Service\EventWorkspace\PublicationTocPage;
+use App\Service\EventWorkspace\PublicationTocTraversalSigner;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\UserMuteListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -172,6 +175,7 @@ final class ReadingNookController extends AbstractController
         PublicationTocPage $toc,
         DeletedEventRepository $deletions,
         ContentAuthorAccessPolicy $authorAccess,
+        UserMuteListService $userMuteList,
     ): Response {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -185,8 +189,9 @@ final class ReadingNookController extends AbstractController
             throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid page.');
         }
 
-        // Only this owner's exact signed index revision grants source access.
-        // No target content is resolved or exposed by this reference-only view.
+        // Only this owner's exact signed index revision grants root access.
+        // Eligible nested indexes may expose allowlisted metadata after their
+        // own local read-policy checks; target bodies/actions are never exposed.
         $pubkey = $this->userPubkeyHex($user);
         $authorAccess->assertReadable($pubkey);
         $event = $em->getRepository(Event::class)->findOneBy([
@@ -203,13 +208,169 @@ final class ReadingNookController extends AbstractController
         )) {
             throw $this->createNotFoundException();
         }
+        $mutedPubkeys = $userMuteList->getMutedPubkeysStrict($pubkey);
 
         $response = $this->render('reader/reading_nook/_publication_toc.html.twig', [
-            'tocPage' => $toc->fromAuthorizedEvent($event, $page),
+            'tocPage' => $toc->fromAuthorizedEvent($event, $page, readerMutedPubkeys: $mutedPubkeys),
         ]);
         $response->headers->set('Cache-Control', 'private, no-store');
 
         return $response;
+    }
+
+    /**
+     * Nested kind-30040 targets are public signed events, not inventory rows.
+     * The exact source ID is re-read and its author/tombstone policy is
+     * rechecked on every lazy fragment; no Article or generated body is used.
+     */
+    #[Route('/reading-nook/publication-indexes/{eventId}/nested-toc', name: 'reading_nook_nested_publication_toc', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function nestedPublicationToc(
+        string $eventId,
+        Request $request,
+        EntityManagerInterface $em,
+        PublicationTocPage $toc,
+        DeletedEventRepository $deletions,
+        ContentAuthorAccessPolicy $authorAccess,
+        HiddenCoordinateRepository $hiddenCoordinates,
+        UserMuteListService $userMuteList,
+        PublicationTocTraversalSigner $traversalSigner,
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $page = $this->tocPageNumber($request);
+        $path = $this->tocAncestorPath($request);
+        $occurrenceId = $request->query->get('occurrence');
+        $coordinate = $request->query->get('coordinate');
+        $signature = $request->query->get('signature');
+        if ($path === []
+            || !is_string($occurrenceId)
+            || preg_match('/^[0-9a-f]{64}$/', $occurrenceId) !== 1
+            || !is_string($coordinate)
+            || !$this->isCanonicalPublicationCoordinate($coordinate)
+            || !$traversalSigner->isValid($eventId, $page, $path, $occurrenceId, $coordinate, is_string($signature) ? $signature : null)) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid nested TOC path.');
+        }
+
+        $readerPubkey = $this->userPubkeyHex($user);
+        $mutedPubkeys = $userMuteList->getMutedPubkeysStrict($readerPubkey);
+        $targetPubkey = explode(':', $coordinate, 3)[1];
+        if (in_array($targetPubkey, $mutedPubkeys, true)
+            || $hiddenCoordinates->findHiddenCoordinates([$coordinate]) !== []) {
+            throw $this->createNotFoundException();
+        }
+
+        $event = $em->getRepository(Event::class)->findOneBy([
+            'id' => $eventId,
+            'kind' => KindsEnum::PUBLICATION_INDEX->value,
+        ]);
+        if (!$event instanceof Event
+            || in_array(strtolower($event->getId()), array_map('strtolower', $path), true)
+            || $this->publicationCoordinate($event) !== $coordinate) {
+            throw $this->createNotFoundException();
+        }
+
+        $authorAccess->assertReadable($event->getPubkey());
+        if ($deletions->isSuppressed(
+            $event->getId(),
+            $event->getKind(),
+            $event->getPubkey(),
+            $event->getSlug(),
+            $event->getCreatedAt(),
+        )) {
+            throw $this->createNotFoundException();
+        }
+
+        $response = $this->render('reader/reading_nook/_publication_toc.html.twig', [
+            'tocPage' => $toc->fromAuthorizedEvent(
+                $event,
+                $page,
+                $path,
+                $occurrenceId,
+                'reading_nook_nested_publication_toc',
+                $mutedPubkeys,
+            ),
+        ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+
+        return $response;
+    }
+
+    private function tocPageNumber(Request $request): int
+    {
+        $page = filter_var($request->query->get('page', '1'), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+        if ($page === false) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid page.');
+        }
+
+        return $page;
+    }
+
+    /**
+     * The signed path is integrity-protected traversal state, not an
+     * authorization token. Every source event is independently authorized.
+     *
+     * @return list<string>
+     */
+    private function tocAncestorPath(Request $request): array
+    {
+        $rawPath = $request->query->all()['path'] ?? '';
+        if (!is_string($rawPath)) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid nested TOC path.');
+        }
+        if ($rawPath === '') {
+            return [];
+        }
+
+        $path = explode(',', $rawPath);
+        $invalidId = false;
+        foreach ($path as $id) {
+            if (preg_match('/^[0-9a-f]{64}$/', $id) !== 1) {
+                $invalidId = true;
+                break;
+            }
+        }
+        if (count($path) >= PublicationTocPage::MAX_EXPANSION_DEPTH
+            || strlen($rawPath) > PublicationTocPage::MAX_EXPANSION_DEPTH * 65
+            || $invalidId
+            || count(array_unique($path)) !== count($path)) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid nested TOC path.');
+        }
+
+        return $path;
+    }
+
+    private function isCanonicalPublicationCoordinate(string $coordinate): bool
+    {
+        $parts = explode(':', $coordinate, 3);
+
+        return count($parts) === 3
+            && $parts[0] === (string) KindsEnum::PUBLICATION_INDEX->value
+            && preg_match('/^[0-9a-f]{64}$/', $parts[1]) === 1
+            && $coordinate === $this->publicationCoordinateParts($parts[1], $parts[2]);
+    }
+
+    private function publicationCoordinate(Event $event): string
+    {
+        $dTag = $event->getDTag() ?? '';
+        foreach ($event->getTags() as $tag) {
+            if (is_array($tag) && ($tag[0] ?? null) === 'd' && is_string($tag[1] ?? null)) {
+                $dTag = $tag[1];
+                break;
+            }
+        }
+
+        return $this->publicationCoordinateParts(strtolower($event->getPubkey()), $dTag);
+    }
+
+    private function publicationCoordinateParts(string $pubkey, string $dTag): string
+    {
+        return KindsEnum::PUBLICATION_INDEX->value . ':' . strtolower($pubkey) . ':' . $dTag;
     }
 
     private function userPubkeyHex(User $user): string
@@ -256,10 +417,6 @@ final class ReadingNookController extends AbstractController
             $kind = $event->getKind();
             $section = $this->resolveEventSection($kind);
             if ($section === null) {
-                continue;
-            }
-
-            if ($section === self::SECTION_READING_LISTS && $kind === KindsEnum::PUBLICATION_INDEX->value && $this->looksLikeMagazineIndex($event->getTags())) {
                 continue;
             }
 
@@ -441,21 +598,6 @@ final class ReadingNookController extends AbstractController
             KindsEnum::CURATION_PICTURES->value => self::SECTION_READING_LISTS,
             default => null,
         };
-    }
-
-    private function looksLikeMagazineIndex(array $tags): bool
-    {
-        foreach ($tags as $tag) {
-            if (!is_array($tag) || ($tag[0] ?? null) !== 'a' || !isset($tag[1])) {
-                continue;
-            }
-
-            if (str_starts_with((string) $tag[1], '30040:')) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private function eventDedupeKey(Event $event): string

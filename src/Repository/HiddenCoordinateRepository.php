@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\HiddenCoordinate;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -37,6 +38,34 @@ class HiddenCoordinateRepository extends ServiceEntityRepository
         return $this->findOneBy(['coordinate' => $coordinate]) !== null;
     }
 
+    /**
+     * Find hidden canonical coordinates in one bounded query.
+     *
+     * @param list<string> $coordinates
+     * @return list<string>
+     */
+    public function findHiddenCoordinates(array $coordinates): array
+    {
+        $coordinates = array_values(array_unique(array_filter(
+            $coordinates,
+            static fn (string $coordinate): bool => preg_match(
+                '/^30040:[0-9a-f]{64}:/',
+                $coordinate,
+            ) === 1,
+        )));
+        if ($coordinates === []) {
+            return [];
+        }
+
+        return $this->getEntityManager()->getConnection()
+            ->executeQuery(
+                'SELECT coordinate FROM hidden_coordinate WHERE coordinate IN (:coordinates)',
+                ['coordinates' => $coordinates],
+                ['coordinates' => ArrayParameterType::STRING],
+            )
+            ->fetchFirstColumn();
+    }
+
     public function hide(string $coordinate, ?string $reason = null): HiddenCoordinate
     {
         $existing = $this->findOneBy(['coordinate' => $coordinate]);
@@ -67,4 +96,3 @@ class HiddenCoordinateRepository extends ServiceEntityRepository
         return true;
     }
 }
-

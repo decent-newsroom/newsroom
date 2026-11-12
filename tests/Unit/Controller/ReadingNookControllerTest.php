@@ -78,15 +78,6 @@ final class ReadingNookControllerTest extends TestCase
         self::assertSame('Bookmarks', $method->invoke($controller, KindsEnum::BOOKMARKS->value));
     }
 
-    public function testTocSliceDoesNotChangeNestedIndexMagazineClassification(): void
-    {
-        $controller = new ReadingNookController($this->createMock(RedisCacheService::class));
-        $classify = new \ReflectionMethod($controller, 'looksLikeMagazineIndex');
-        $owner = str_repeat('a', 64);
-        self::assertTrue($classify->invoke($controller, [['a', '30040:' . $owner . ':nested']]));
-        self::assertFalse($classify->invoke($controller, [['a', '30041:' . $owner . ':chapter']]));
-    }
-
     /**
      * @dataProvider roleAccessCases
      *
@@ -237,22 +228,22 @@ final class ReadingNookControllerTest extends TestCase
         );
 
         self::assertSame(
-            ['Saved updates', 'Reading queue', 'Curated queue', 'Colleagues', 'Topics', 'Bookmarks'],
+            ['Saved updates', 'Magazine', 'Reading queue', 'Curated queue', 'Colleagues', 'Topics', 'Bookmarks'],
             array_column($parameters['items'], 'title'),
         );
-        self::assertSame(6, $parameters['totalCount']);
-        self::assertSame(6, $parameters['filteredCount']);
+        self::assertSame(7, $parameters['totalCount']);
+        self::assertSame(7, $parameters['filteredCount']);
         $counts = [
             'bookmarks' => 1,
             'interests' => 1,
-            'reading_lists' => 2,
+            'reading_lists' => 3,
             'follow_packs' => 1,
             'subscriptions' => 1,
         ];
         self::assertSame($counts, $parameters['sectionCounts']);
         self::assertSame($counts, $parameters['filteredSectionCounts']);
         self::assertSame(
-            ['Reading queue', 'Curated queue'],
+            ['Magazine', 'Reading queue', 'Curated queue'],
             array_column($parameters['itemsBySection']['reading_lists'], 'title'),
         );
 
@@ -268,6 +259,7 @@ final class ReadingNookControllerTest extends TestCase
         self::assertSame('/follow_pack_setup', $items['Colleagues']['manageUrl']);
         self::assertSame(sprintf('%064x', 4), $items['Colleagues']['eventId']);
         self::assertSame(2, $items['Reading queue']['meta']['itemCount']);
+        self::assertSame(1, $items['Magazine']['meta']['itemCount']);
         self::assertSame(
             '/reading-list?' . http_build_query(['npub' => $user->getUserIdentifier(), 'slug' => 'reading']),
             $items['Reading queue']['url'],

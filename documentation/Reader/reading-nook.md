@@ -57,13 +57,14 @@ or expand kind `3`, Bookshelf, My Content, or arbitrary `a`/`e` relationships.
 The existing row member count is a deduplicated facet, not the number of ordered
 occurrences on these pages.
 
-### Publication-index table-of-contents references
+### Publication-index table-of-contents
 
 An eligible owned kind `30040` source can expose a separate table-of-contents
 disclosure in a lazy Turbo Frame. The frame loads up to 50 `Content`-role `a`
 reference occurrences per page from the source event's presentation. It
 preserves tag positions and order, duplicate occurrences, malformed entries,
-coordinate identity, version pins, and unresolved occurrences. Previous/Next
+coordinate identity, version pins, and unresolved occurrences. A kind `30040`
+reference can expand another locally stored kind `30040` index. Previous/Next
 links replace only the frame; without JavaScript, the Load table of contents
 link opens the same read-only page.
 
@@ -75,20 +76,26 @@ suppression and NIP-09 deletion are checked before rendering, and successful
 responses use `Cache-Control: private, no-store`. Pagination bounds rendered
 occurrences, not the in-memory scan of the selected source's tags.
 
-This disclosure is deliberately reference-only. It does not resolve or fetch
-targets, perform relay work, convert or display event bodies, provide child
-Open actions, or recursively expand nested indexes. Section/index/generic
-fallback labels use the target identifier rather than an actual target title.
-The page shows coordinate identity and the pin separately; unresolved and
-unrecognized-version states say the target was not checked, and invalid pins
-retain their raw string value; non-string pins show an invalid-version label
-without interpreting their value.
+Nested expansion resolves only locally stored kind `30040` events in one
+batched lookup for the visible page. Unpinned references use the latest local
+revision; pinned references resolve by exact event ID and must still match the
+referenced kind, author, and `d` identifier. A missing or mismatched pin never
+falls back to a different revision. Duplicate references remain independent
+occurrences, and a repeated event on the current ancestry path is shown as a
+cycle instead of recursively expanded. Nesting is capped at six index levels.
+Other reference kinds and unresolved or invalid targets remain reference-only.
 
-This slice does not change the inventory's existing classification that omits
-a kind `30040` containing another kind `30040` reference as a magazine. That
-source-classification change remains pending. Ordered nested occurrences are
-still retained when an eligible source is directly requested and authorized.
-The feature does not add My Content, generic note/`e` references, kind `3`, or
+Target titles and summaries are exposed only after hidden-coordinate, reader
+mute, author-suppression, and NIP-09 deletion checks. Sensitive target metadata
+is gated. No target body, rendered HTML, media, or action is shown; no relay
+work or persistence occurs. Traversal path and nested-page state are signed
+with the application secret to preserve occurrence identity and prevent path
+reset/tampering, but the signature is not authorization: every fragment
+rechecks source access. Responses use `Cache-Control: private, no-store`.
+
+The inventory's previous heuristic that treated any index with a kind `30040`
+child as a magazine has been removed; these indexes now remain in Reading
+Nook. This does not add My Content, generic note/`e` references, kind `3`, or
 Bookshelf behavior.
 
 ## Architecture
@@ -117,9 +124,11 @@ Reading Nook does not introduce new tables. It composes existing data sources:
 | `src/Service/EventWorkspace/FollowPackMemberPage.php` | Pure ordered member pagination and npub conversion |
 | `src/Twig/Components/Molecules/EventMemberDisclosure.php` | Static disclosure; no data lookup |
 | `templates/reader/reading_nook/_follow_pack_members.html.twig` | Authorized, paginated member fragment |
-| `src/Service/EventWorkspace/PublicationTocPage.php` | Pure ordered publication-reference pagination |
-| `src/Twig/Components/Molecules/EventTocDisclosure.php` | Static publication-index disclosure; no target lookup |
-| `templates/reader/reading_nook/_publication_toc.html.twig` | Authorized reference-only TOC fragment |
+| `src/Service/EventWorkspace/PublicationTocPage.php` | Ordered TOC pages and batched local nested-index resolution |
+| `src/Service/EventWorkspace/PublicationTocTraversalSigner.php` | Integrity-protects nested occurrence and pagination state |
+| `src/Repository/EventRepository.php` | Batch local target lookup by coordinate or exact event ID |
+| `src/Twig/Components/Molecules/EventTocDisclosure.php` | Static publication-index disclosure |
+| `templates/reader/reading_nook/_publication_toc.html.twig` | Authorized, paginated TOC and nested-index fragment |
 | `templates/reading-nook-layout.html.twig` | Reading Nook shell with local sidebar + page aside |
 | `assets/styles/04-pages/reading-nook.css` | Page styling and sidebar layout |
 | `assets/app.js` | Imports Reading Nook stylesheet |
@@ -135,7 +144,8 @@ No new environment variables or Symfony parameters are required.
 - Search is limited to locally persisted owned data (as intended), so remote-unfetched events are not included.
 - The event query takes the latest 400 rows before revision deduplication and filtering, so older collections may be omitted and counts may be incomplete.
 - Member and TOC pagination bound rendered occurrences and npub encoding, but the selected event's JSON tags are still loaded and scanned in memory by the shared presentation factory.
-- Kind `3` follows and kind `30045` directories are not included in this inventory. A kind `30040` containing a kind `30040` reference is still excluded as a magazine index; changing that inventory classification and enabling general nested-index expansion remain pending.
+- Nested resolution supports locally stored kind `30040` targets only; it does not resolve chapters or other kinds, fetch remote events, or render child bodies.
+- Kind `3` follows and kind `30045` directories are not included in this inventory.
 - Locale files still contain placeholder translations for other non-English Reading Nook strings; the TOC disclosure labels are translated in all six enabled locales.
 
 ## Future Improvements
