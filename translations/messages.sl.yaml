@@ -439,6 +439,7 @@ newsstand:
 bookshelf:
     read_this_book: 'Beri to knjigo'
     contained_in_index: 'Vključeno v kazalo'
+    open_index: 'Odpri na knjižni polici'
     references:
         disclosure: 'Shranjeni sklici imenika'
         load: 'Naloži sklice imenika'

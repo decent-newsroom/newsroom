@@ -52,15 +52,16 @@ final class BookContainingIndexesTest extends TestCase
         $nip19 = new NostrNip19Service();
         $service = new BookContainingIndexes(
             $events, new EventPresentationFactory(new RecordIdentityService(), $nip19),
-            $authors, $deletions, $hiddenCoordinates, $nip19,
+            $authors, $deletions, $hiddenCoordinates,
         );
 
         self::assertSame($visible ? [[
             'title' => '<Parent>',
-            'naddr' => $nip19->encodeAddr($pubkey, 'index:with:colons', 30040),
+            'eventId' => $parent->getId(),
         ]] : [], $service->forBook($book, $muted ? [$pubkey] : []));
     }
 
+    /** @return iterable<string, array{list<list<string>>, bool, bool, bool, bool, bool, bool}> */
     public static function parentCases(): iterable
     {
         $ref = ['a', '30040:' . str_repeat('a', 64) . ':book'];
@@ -88,7 +89,6 @@ final class BookContainingIndexesTest extends TestCase
             $this->createMock(ContentAuthorAccessPolicy::class),
             $this->createMock(DeletedEventRepository::class),
             $this->createMock(HiddenCoordinateRepository::class),
-            $nip19,
         );
         self::assertSame([], $service->forBook($this->event(
             str_repeat('b', 64), str_repeat('a', 64), [['d', 'book']],

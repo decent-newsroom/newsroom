@@ -11,6 +11,12 @@ shared DB-only target preview resolver is shipped for bookmarks and the
 Bookshelf directory. General resolution, other expandable sources, and
 selectable viewers remain proposed.
 
+Bookshelf containing-index links also compose the existing public-index preview
+and TOC primitives at an exact-ID Bookshelf route, with independently authorized
+public sources/fragments (not the owner-only Reading Nook endpoints). See
+[Book detail navigation](bookshelf-local-fallback.md#book-detail-navigation)
+for the bounded local-only behavior; generic magazine routing is unchanged.
+
 ### Shipped bounded shared target preview slice
 
 - Both bookmark (`10003`/`30003`) and directory (`30045`) reference pages now use

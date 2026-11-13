@@ -10,7 +10,6 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
-use App\Service\Nostr\NostrNip19Service;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 
 final readonly class BookContainingIndexes
@@ -21,12 +20,11 @@ final readonly class BookContainingIndexes
         private ContentAuthorAccessPolicy $authors,
         private DeletedEventRepository $deletions,
         private HiddenCoordinateRepository $hidden,
-        private NostrNip19Service $nip19,
     ) {}
 
     /**
      * @param list<string> $mutedPubkeys
-     * @return list<array{title: string, naddr: string}>
+     * @return list<array{title: string, eventId: string}>
      */
     public function forBook(Event $book, array $mutedPubkeys = []): array
     {
@@ -71,11 +69,7 @@ final readonly class BookContainingIndexes
                 }
                 $result[] = [
                     'title' => $presentation->title ?? $parent->getId(),
-                    'naddr' => $this->nip19->encodeAddr(
-                        $parent->getPubkey(),
-                        explode(':', $presentation->coordinate, 3)[2],
-                        30040,
-                    ),
+                    'eventId' => $parent->getId(),
                 ];
                 break;
             }

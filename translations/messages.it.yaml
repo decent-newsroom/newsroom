@@ -355,6 +355,7 @@ newsstand:
 bookshelf:
     read_this_book: 'Leggi questo libro'
     contained_in_index: 'Contenuto nell’indice'
+    open_index: 'Apri nella libreria'
     references:
         disclosure: 'Riferimenti della directory salvata'
         load: 'Carica i riferimenti della directory'

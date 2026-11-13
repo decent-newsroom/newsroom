@@ -8,6 +8,7 @@ use App\Twig\Components\Atoms\PageHeading;
 use App\Twig\Components\Molecules\BookshelfDirectoryDisclosure;
 use App\Twig\Components\Molecules\EventBookmarkDisclosure;
 use App\Twig\Components\Molecules\EventMemberDisclosure;
+use App\Twig\Components\Molecules\EventPreview;
 use App\Twig\Components\Molecules\EventTocDisclosure;
 use App\Twig\Components\Molecules\LazyDisclosure;
 use App\Entity\Event;
@@ -247,12 +248,12 @@ final class EventMemberDisclosureTest extends KernelTestCase
                 'event' => ['title' => 'Chapter', 'slug' => 'chapter'],
                 'coordinate' => '30041:' . str_repeat('b', 64) . ':chapter',
             ]],
-            'containingIndexes' => [['title' => '<script>Parent</script>', 'naddr' => 'naddr1parent']],
+            'containingIndexes' => [['title' => '<script>Parent</script>', 'eventId' => str_repeat('c', 64)]],
         ];
         $crawler = new Crawler($twig->render('bookshelf/publication.html.twig', $parameters));
         self::assertSame('/bookshelf/' . self::ID, $crawler->selectLink('Read this book')->attr('href'));
         self::assertSame('Contained in index', $crawler->filter('#publication-containing-indexes')->text());
-        self::assertSame('/e/naddr1parent', $crawler->selectLink('<script>Parent</script>')->attr('href'));
+        self::assertSame('/bookshelf/index/' . str_repeat('c', 64), $crawler->selectLink('<script>Parent</script>')->attr('href'));
         self::assertSame(0, $crawler->filter('script')->count());
         self::assertSame('Chapter', $crawler->filter('.bookshelf-publication__chapters li')->text());
         self::assertSame('/magazine/book/chapter/chapter', $crawler->selectLink('Chapter')->attr('href'));
@@ -546,9 +547,10 @@ final class EventMemberDisclosureTest extends KernelTestCase
             new PublicationTocTraversalSigner('test-framework-secret'),
         );
 
+        $page = $pages->fromAuthorizedEvent($source);
         $html = self::getContainer()->get('twig')->render(
             'reader/reading_nook/_publication_toc.html.twig',
-            ['tocPage' => $pages->fromAuthorizedEvent($source)],
+            ['tocPage' => $page],
         );
         $crawler = new Crawler($html);
 
@@ -567,6 +569,40 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertStringNotContainsString('child body must not render', $html);
         self::assertStringNotContainsString('private.example', $html);
         self::assertSame(0, $crawler->filter('img, video, audio, a[href*="/event/"]')->count());
+
+        // The very same ordered TOC can live in Bookshelf without borrowing
+        // Reading Nook's authenticated owner-only fragment URLs.
+        $twig = self::getContainer()->get('twig');
+        $twig->setLoader(new ChainLoader([
+            new ArrayLoader(['@Bookshelf/bookshelf-layout.html.twig' => '{% block body %}{% endblock %}']),
+            $twig->getLoader(),
+        ]));
+        $page['routeName'] = 'bookshelf_index';
+        $page['hasNext'] = true;
+        $factory = new EventPresentationFactory($identities, new NostrNip19Service());
+        $parameters = [
+            'presentation' => $factory->fromAuthorizedEvent($source), 'isBook' => false,
+            'tocPage' => $page, 'tocNestedRoute' => 'bookshelf_index_toc', 'tocBookshelfLinks' => true,
+        ];
+        $html = $twig->render('bookshelf/index.html.twig', $parameters);
+        $crawler = new Crawler($html);
+        self::assertCount(2, $crawler->selectLink('Open in Bookshelf'));
+        self::assertSame('/bookshelf/index/' . $childId, $crawler->selectLink('Open in Bookshelf')->first()->attr('href'));
+        self::assertCount(2, $crawler->filter('li'));
+        self::assertCount($enabled ? 2 : 0, $crawler->filter('turbo-frame[loading="lazy"]'));
+        foreach ($crawler->filter('turbo-frame[loading="lazy"]') as $frame) {
+            self::assertInstanceOf(\DOMElement::class, $frame);
+            self::assertStringStartsWith('/bookshelf/index/' . $childId . '/toc?', $frame->getAttribute('src'));
+            self::assertStringContainsString('signature=', $frame->getAttribute('src'));
+        }
+        self::assertStringStartsWith('/bookshelf/index/' . self::ID . '?page=2', $crawler->filter('a[rel="next"]')->attr('href'));
+        self::assertCount(0, $crawler->filter('a[href*="/mag"], a[href*="/reading-nook"], img, script, iframe'));
+        self::assertStringNotContainsString('child body must not render', $html);
+        self::assertStringNotContainsString('private.example', $html);
+        self::assertCount(0, $crawler->selectLink('Read this book'));
+        $parameters['isBook'] = true;
+        $crawler = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
+        self::assertSame('/bookshelf/' . self::ID, $crawler->selectLink('Read this book')->attr('href'));
     }
 
     public function testEmptyTocPageKeepsSafePaginationAtMaximumPage(): void
@@ -711,7 +747,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
             'anonymous_template_directory' => 'components/',
             'defaults' => ['App\\Twig\\Components\\' => 'components/'],
         ]);
-        foreach ([LazyDisclosure::class, BookshelfDirectoryDisclosure::class, EventBookmarkDisclosure::class, EventMemberDisclosure::class, EventTocDisclosure::class, PageHeading::class] as $component) {
+        foreach ([LazyDisclosure::class, BookshelfDirectoryDisclosure::class, EventBookmarkDisclosure::class, EventMemberDisclosure::class, EventTocDisclosure::class, EventPreview::class, PageHeading::class] as $component) {
             $container->services()->set($component)->autowire()->autoconfigure();
         }
     }
@@ -729,6 +765,8 @@ final class EventMemberDisclosureTestKernel extends Kernel
         $routes->add('bookshelf', '/bookshelf');
         $routes->add('bookshelf_read', '/bookshelf/{id}');
         $routes->add('bookshelf_read_native_fallback', '/bookshelf/{id}');
+        $routes->add('bookshelf_index', '/bookshelf/index/{eventId}');
+        $routes->add('bookshelf_index_toc', '/bookshelf/index/{eventId}/toc');
         $routes->add('nevent', '/e/{nevent}');
         $routes->add('magazine-chapter', '/magazine/{mag}/chapter/{slug}');
         $routes->add('bookshelf_directory_publish', '/api/bookshelf/directory');

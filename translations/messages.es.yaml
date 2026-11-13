@@ -439,6 +439,7 @@ newsstand:
 bookshelf:
     read_this_book: 'Leer este libro'
     contained_in_index: 'Incluido en el índice'
+    open_index: 'Abrir en la biblioteca'
     references:
         disclosure: 'Referencias del directorio guardado'
         load: 'Cargar referencias del directorio'

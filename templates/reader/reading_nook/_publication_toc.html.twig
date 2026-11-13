@@ -40,13 +40,16 @@
                                 <p>{{ entry.target.summary }}</p>
                             {% endif %}
                             <span>{{ 'reading_nook.toc.local_revision'|trans }}: <code>{{ entry.target.eventId }}</code></span>
+                            {% if tocBookshelfLinks|default(false) %}
+                                <a data-turbo-frame="_top" href="{{ path('bookshelf_index', {eventId: entry.target.eventId}) }}">{{ 'bookshelf.open_index'|trans }}</a>
+                            {% endif %}
                         </div>
                         {% if entry.cycle %}
                             <span>{{ 'reading_nook.toc.cycle'|trans }}</span>
                         {% elseif entry.depthLimited %}
                             <span>{{ 'reading_nook.toc.depth_limit'|trans }}</span>
                         {% elseif entry.nestedOccurrenceId is not null %}
-                            {% set nestedUrl = path('reading_nook_nested_publication_toc', {
+                            {% set nestedUrl = path(tocNestedRoute|default('reading_nook_nested_publication_toc'), {
                                 eventId: entry.target.eventId,
                                 page: 1,
                                 path: entry.nestedPath|join(','),

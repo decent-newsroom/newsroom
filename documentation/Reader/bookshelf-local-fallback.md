@@ -55,8 +55,32 @@ available. A "Contained in index" section lists locally known current kind
 pins, hidden/deleted indexes, suppressed or reader-muted authors, and sensitive
 metadata. Parent discovery inspects at most the 50 newest local referencing
 events (lowest event ID first on timestamp ties), rather than the oldest; no
-remote discovery is added. Links retain the parent's author-qualified NIP-19
-address.
+remote discovery is added. Links now open `/bookshelf/index/{eventId}` with the
+displayed parent's exact local revision, not the generic NIP-19 route (which
+may classify an index as a magazine). Same-slug authors and old pinned revisions
+remain distinct. Existing magazine classification/routes and slug-based book
+detail chapter/actions are unchanged.
+
+This public Bookshelf index viewer composes the shared tag-only event preview
+and ordered TOC. Books retain the exact-ID continuous-reader link. Each TOC
+page resolves at most 50 local nested-index occurrences; ordinary chapter
+references remain visible without loading bodies. Nested indexes have a
+Bookshelf detail link and an explicit lazy disclosure using
+`/bookshelf/index/{eventId}/toc`, never the owner-only Reading Nook endpoints.
+Source order, duplicates, unresolved references, raw pins, and full coordinates
+are preserved. Exact pins never fall back to latest or a different author.
+
+Every page/fragment allows only locally stored public kind `30040` Events,
+checking hidden coordinates, reader mutes, author suppression, and NIP-09
+deletion before exposing source data. Signed fragment ancestry is also
+re-authorized on each request. No Article/draft lookup, relay fetch, body
+conversion, profile fetch, or write occurs. Sensitive preview metadata stays
+gated by the shared preview/TOC primitives. Responses are private/no-store.
+Nested state uses the existing HMAC traversal signer, occurrence-specific
+frame IDs, path-local cycle detection, six-level depth limit, and 50-row
+pagination. The expansion rollback flag hides lazy controls and disables the
+nested fragment endpoint, not the navigable detail pages. Local misses remain
+unavailable; this viewer does not add remote discovery or a new book reader.
 
 ## Ordered directory disclosure
 

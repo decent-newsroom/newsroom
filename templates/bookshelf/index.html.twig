@@ -1,0 +1,18 @@
+{% extends '@Bookshelf/bookshelf-layout.html.twig' %}
+
+{% block title %}{{ 'bookshelf.publication.index'|trans }} | {{ 'bookshelf.heading'|trans }}{% endblock %}
+
+{% block body %}
+    <section class="bookshelf-publication">
+        <a class="bookshelf-publication__back" href="{{ path('bookshelf') }}">{{ 'bookshelf.back'|trans }}</a>
+        <h1>{{ 'bookshelf.publication.index'|trans }}</h1>
+        <twig:Molecules:EventPreview :presentation="presentation" />
+        {% if isBook %}
+            <a class="btn btn-secondary btn-sm" href="{{ path('bookshelf_read_native_fallback', {id: presentation.eventId}) }}">{{ 'bookshelf.read_this_book'|trans }}</a>
+        {% endif %}
+        <section class="bookshelf-publication__chapters" aria-labelledby="bookshelf-index-contents">
+            <h2 id="bookshelf-index-contents">{{ 'bookshelf.publication.chapters'|trans }}</h2>
+            {% include 'reader/reading_nook/_publication_toc.html.twig' %}
+        </section>
+    </section>
+{% endblock %}

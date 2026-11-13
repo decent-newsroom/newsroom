@@ -86,7 +86,7 @@
             <h2 id="publication-containing-indexes">{{ 'bookshelf.contained_in_index'|trans }}</h2>
             <ul>
                 {% for index in containingIndexes %}
-                    <li><a href="{{ path('nevent', {nevent: index.naddr}) }}">{{ index.title }}</a></li>
+                    <li><a href="{{ path('bookshelf_index', {eventId: index.eventId}) }}">{{ index.title }}</a></li>
                 {% endfor %}
             </ul>
         </section>
