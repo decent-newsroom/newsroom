@@ -57,6 +57,7 @@ final class EventWorkspaceExpansionRollbackTest extends TestCase
         yield 'members' => [ReadingNookController::class, 'followPackMembers'];
         yield 'bookmarks' => [ReadingNookController::class, 'bookmarkReferences'];
         yield 'root toc' => [ReadingNookController::class, 'publicationToc'];
+        yield 'lazy chapter preview' => [ReadingNookController::class, 'publicationTocChapterPreview'];
         yield 'signed nested toc' => [ReadingNookController::class, 'nestedPublicationToc'];
         yield 'toc discovery and status' => [ReadingNookController::class, 'publicationTocDiscovery'];
         yield 'directory' => [BookshelfReferencesController::class, 'references'];

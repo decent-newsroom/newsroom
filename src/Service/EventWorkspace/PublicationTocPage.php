@@ -123,6 +123,8 @@ final readonly class PublicationTocPage
                 'invalidVersionPin' => $hasPin && $reference->versionEventId === null,
                 'targetResolution' => null,
                 'target' => null,
+                'chapterPreviewOccurrenceId' => null,
+                'chapterPreviewSignature' => null,
                 'cycle' => false,
                 'depthLimited' => false,
                 'nestedPath' => null,
@@ -131,7 +133,13 @@ final readonly class PublicationTocPage
         }
 
         $this->resolveNestedIndexes($result['entries'], $eventPath, $occurrenceId, $readerMutedPubkeys, $resolutionPosition);
-        $this->resolvePinnedChapters($result['entries'], $readerMutedPubkeys, $resolutionPosition);
+        $this->resolvePinnedChapters(
+            $result['entries'],
+            $readerMutedPubkeys,
+            $resolutionPosition,
+            $eventPath,
+            $occurrenceId,
+        );
         if ($result['hasNext'] && $occurrenceId !== null && $page < PHP_INT_MAX) {
             $result['pageSignatures']['next'] = $this->traversalSigner->sign(
                 $source->eventId,
@@ -315,11 +323,14 @@ final readonly class PublicationTocPage
      *
      * @param list<array<string, mixed>> $entries
      * @param list<string> $readerMutedPubkeys
+     * @param list<string> $eventPath
      */
     private function resolvePinnedChapters(
         array &$entries,
         array $readerMutedPubkeys,
         ?int $resolutionPosition,
+        array $eventPath,
+        ?string $occurrenceId,
     ): void {
         $requests = [];
         $eventIds = [];
@@ -426,6 +437,20 @@ final readonly class PublicationTocPage
                 'summary' => $sensitive ? null : $this->textTag($target, 'summary', 500),
                 'sensitive' => $sensitive,
             ];
+            $entries[$index]['chapterPreviewOccurrenceId'] = hash(
+                'sha256',
+                ($occurrenceId ?? 'root:' . strtolower($reference->sourceEventId))
+                    . ':chapter:' . $reference->position . ':' . strtolower($presentation->eventId),
+            );
+            $entries[$index]['chapterPreviewSignature'] = $presentation->coordinate !== null
+                ? $this->traversalSigner->sign(
+                    strtolower($presentation->eventId),
+                    1,
+                    $eventPath,
+                    $entries[$index]['chapterPreviewOccurrenceId'],
+                    $presentation->coordinate,
+                )
+                : null;
             unset($entries[$index]['candidateEventId']);
         }
     }

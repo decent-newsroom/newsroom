@@ -1276,6 +1276,9 @@ reading_nook:
         local_revision: 'Revisión local del evento'
         sensitive: 'Metadatos sensibles del índice ocultos'
         expand_nested: 'Expandir la tabla de contenido de %title%'
+        preview_chapter: 'Vista previa del capítulo: %title%'
+        load_chapter: 'Cargar vista previa del capítulo'
+        chapter_warning: 'Contenido sensible del capítulo'
         cycle: 'Se detectó un ciclo; este índice ya está abierto en esta ruta.'
         depth_limit: 'Se alcanzó la profundidad máxima de índices anidados.'
         discovery:

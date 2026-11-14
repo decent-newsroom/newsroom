@@ -43,6 +43,26 @@
         <span>{{ 'reading_nook.toc.cycle'|trans }}</span>
     {% elseif entry.depthLimited %}
         <span>{{ 'reading_nook.toc.depth_limit'|trans }}</span>
+    {% elseif reference.targetKind == 30041 and tocChapterPreviewEnabled|default(false) %}
+        {% set chapterPreviewParams = {
+            eventId: tocPage.eventId, position: reference.position,
+            target: entry.target.eventId, targetOccurrence: entry.chapterPreviewOccurrenceId,
+            targetCoordinate: entry.target.coordinate, targetSignature: entry.chapterPreviewSignature
+        } %}
+        {% if tocPage.occurrenceId|default(null) is not null %}
+            {% set chapterPreviewParams = chapterPreviewParams|merge({
+                page: tocPage.page, path: tocPage.ancestorPath|join(','),
+                occurrence: tocPage.occurrenceId, coordinate: tocPage.coordinate,
+                signature: tocPage.discoverySignature
+            }) %}
+        {% endif %}
+        <twig:Molecules:LazyDisclosure
+            disclosureClass="event-toc-disclosure"
+            :frameId="'nook-chapter-' ~ (tocPage.occurrenceId|default(tocPage.eventId)) ~ '-' ~ reference.position"
+            :url="path('reading_nook_publication_toc_chapter_preview', chapterPreviewParams)"
+            :summary="'reading_nook.toc.preview_chapter'|trans({'%title%': entry.target.title ?? reference.targetIdentifier ?? ''})"
+            :loadLabel="'reading_nook.toc.load_chapter'|trans"
+        />
     {% elseif entry.nestedOccurrenceId is not null %}
         {% set nestedUrl = path(tocNestedRoute|default('reading_nook_nested_publication_toc'), {
             eventId: entry.target.eventId, page: 1, path: entry.nestedPath|join(','),

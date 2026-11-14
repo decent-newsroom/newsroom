@@ -1273,6 +1273,9 @@ reading_nook:
         local_revision: 'Révision locale de l’événement'
         sensitive: 'Métadonnées sensibles de l’index masquées'
         expand_nested: 'Développer la table des matières de %title%'
+        preview_chapter: 'Aperçu du chapitre : %title%'
+        load_chapter: 'Charger l’aperçu du chapitre'
+        chapter_warning: 'Contenu sensible du chapitre'
         cycle: 'Cycle détecté ; cet index est déjà ouvert dans ce parcours.'
         depth_limit: 'Profondeur maximale des index imbriqués atteinte.'
         discovery:

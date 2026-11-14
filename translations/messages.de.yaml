@@ -1286,6 +1286,9 @@ reading_nook:
         local_revision: 'Lokale Ereignisrevision'
         sensitive: 'Sensible Metadaten des Inhaltsverzeichnisses ausgeblendet'
         expand_nested: 'Inhaltsverzeichnis von %title% öffnen'
+        preview_chapter: 'Kapitelvorschau: %title%'
+        load_chapter: 'Kapitelvorschau laden'
+        chapter_warning: 'Sensibler Kapitelinhalt'
         cycle: 'Zyklus erkannt; dieses Inhaltsverzeichnis ist in diesem Pfad bereits geöffnet.'
         depth_limit: 'Maximale Verschachtelungstiefe erreicht.'
         discovery:

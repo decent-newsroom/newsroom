@@ -13,7 +13,9 @@ use App\Repository\HiddenCoordinateRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventWorkspaceSourceAdapter;
+use App\Service\EventWorkspace\PublicationChapterPreview;
 use App\Service\EventWorkspace\PublicationTocPage;
+use App\Service\EventWorkspace\PublicationTocSourceAccess;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrNip19Service;
@@ -42,6 +44,8 @@ use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener;
 use Twig\Environment;
+use AsciiDocConverter;
+use Psr\Log\LoggerInterface;
 
 final class PublicationTocControllerTest extends TestCase
 {
@@ -60,6 +64,168 @@ final class PublicationTocControllerTest extends TestCase
         self::assertSame(['GET'], $route->methods);
         self::assertSame('[0-9a-f]{64}', $route->requirements['eventId']);
         self::assertSame('ROLE_USER', $method->getAttributes(IsGranted::class)[0]->newInstance()->attribute);
+    }
+
+    public function testChapterPreviewRouteIsASeparateAuthenticatedGetFragment(): void
+    {
+        $method = new \ReflectionMethod(ReadingNookController::class, 'publicationTocChapterPreview');
+        $route = $method->getAttributes(Route::class)[0]->newInstance();
+        self::assertSame('reading_nook_publication_toc_chapter_preview', $route->name);
+        self::assertSame(['GET'], $route->methods);
+        self::assertSame('[0-9a-f]{64}', $route->requirements['eventId']);
+        self::assertSame('\d+', $route->requirements['position']);
+        self::assertSame('ROLE_USER', $method->getAttributes(IsGranted::class)[0]->newInstance()->attribute);
+    }
+
+    public function testChapterPreviewReauthorizesTheSourceAndReturnsPrivateFragment(): void
+    {
+        $source = $this->event();
+        $author = str_repeat('d', 64);
+        $coordinate = '30041:' . $author . ':chapter';
+        $source->setTags([['d', 'book'], ['a', $coordinate]]);
+        $target = $this->event(self::PIN, 30041);
+        $target->setId(self::PIN);
+        $target->setPubkey($author);
+        $target->setDTag('chapter');
+        $target->setCreatedAt(456);
+        $target->setTags([['d', 'chapter'], ['title', 'Preview title'], ['summary', 'Preview summary']]);
+        $target->setContent("== Chapter body\n\nRendered on demand.");
+        $metadata = clone $target;
+        $metadata->setContent('');
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findWorkspacePreviewTargets')
+            ->with([$coordinate], [])
+            ->willReturn(['coordinates' => [$coordinate => $metadata], 'eventIds' => []]);
+        $events->expects(self::exactly(2))->method('findById')
+            ->willReturnMap([[self::ID, $source], [self::PIN, $target]]);
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->expects(self::exactly(2))->method('findHiddenCoordinates')->willReturn([]);
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        $authors->expects(self::exactly(2))->method('assertReadable');
+        $deletions = $this->createMock(DeletedEventRepository::class);
+        $deletions->expects(self::exactly(2))->method('isSuppressed')->willReturn(false);
+        $sourceAccess = new PublicationTocSourceAccess(
+            $events,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $deletions,
+            $hidden,
+            $authors,
+        );
+        $chapterPreview = new PublicationChapterPreview(
+            $events,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $sourceAccess,
+        );
+        $muted = $this->createMock(UserMuteListService::class);
+        $muted->expects(self::once())->method('getMutedPubkeysStrict')->with(self::OWNER)->willReturn([]);
+        $captured = null;
+        $controller = $this->controller(
+            $captured,
+            true,
+            true,
+            'reader/reading_nook/_publication_chapter_preview.html.twig',
+        );
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $targetOccurrence = hash('sha256', 'root:' . self::ID . ':chapter:1:' . self::PIN);
+
+        $response = $controller->publicationTocChapterPreview(
+            self::ID,
+            '1',
+            new Request([
+                'target' => self::PIN,
+                'targetOccurrence' => $targetOccurrence,
+                'targetCoordinate' => $coordinate,
+                'targetSignature' => $signer->sign(self::PIN, 1, [self::ID], $targetOccurrence, $coordinate),
+            ]),
+            $sourceAccess,
+            $chapterPreview,
+            $signer,
+            $muted,
+            new AsciiDocConverter(),
+            $this->createMock(LoggerInterface::class),
+        );
+
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+        self::assertSame('Preview title', $captured['chapter']['title']);
+        self::assertSame('Preview summary', $captured['chapter']['summary']);
+        self::assertStringContainsString('Chapter body', $captured['contentHtml']);
+        self::assertSame('nook-chapter-' . self::ID . '-1', $captured['frameId']);
+    }
+
+    public function testTamperedNestedChapterPreviewSignatureFailsBeforeSourceLookup(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findById');
+        $sourceAccess = new PublicationTocSourceAccess(
+            $events,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $this->createStub(DeletedEventRepository::class),
+            $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(ContentAuthorAccessPolicy::class),
+        );
+        $chapterPreview = new PublicationChapterPreview(
+            $events,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $sourceAccess,
+        );
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $occurrence = str_repeat('f', 64);
+        $coordinate = '30040:' . str_repeat('d', 64) . ':nested';
+        $muted = $this->createMock(UserMuteListService::class);
+        $muted->expects(self::never())->method('getMutedPubkeysStrict');
+        $captured = null;
+        $this->expectException(BadRequestHttpException::class);
+        $this->controller($captured, false)->publicationTocChapterPreview(
+            self::PIN,
+            '1',
+            new Request([
+                'page' => '1',
+                'path' => self::ID,
+                'occurrence' => $occurrence,
+                'coordinate' => $coordinate,
+                'signature' => $signer->sign(self::ID, 1, [self::ID], $occurrence, $coordinate),
+            ]),
+            $sourceAccess,
+            $chapterPreview,
+            $signer,
+            $muted,
+            new AsciiDocConverter(),
+            $this->createMock(LoggerInterface::class),
+        );
+    }
+
+    public function testUnpinnedChapterPreviewWithoutSignedLocalResolutionFailsBeforeLookup(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findById');
+        $sourceAccess = new PublicationTocSourceAccess(
+            $events,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $this->createStub(DeletedEventRepository::class),
+            $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(ContentAuthorAccessPolicy::class),
+        );
+        $chapterPreview = new PublicationChapterPreview(
+            $events,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $sourceAccess,
+        );
+        $muted = $this->createMock(UserMuteListService::class);
+        $muted->expects(self::never())->method('getMutedPubkeysStrict');
+        $captured = null;
+        $this->expectException(BadRequestHttpException::class);
+        $this->controller($captured, false)->publicationTocChapterPreview(
+            self::ID,
+            '1',
+            new Request(),
+            $sourceAccess,
+            $chapterPreview,
+            new PublicationTocTraversalSigner('test-framework-secret'),
+            $muted,
+            new AsciiDocConverter(),
+            $this->createMock(LoggerInterface::class),
+        );
     }
 
     public function testNestedRouteIsAnAuthenticatedExactEventFragment(): void
@@ -367,7 +533,12 @@ final class PublicationTocControllerTest extends TestCase
         );
     }
 
-    private function controller(?array &$captured, bool $renders = true, bool $authenticated = true): ReadingNookController
+    private function controller(
+        ?array &$captured,
+        bool $renders = true,
+        bool $authenticated = true,
+        string $expectedTemplate = 'reader/reading_nook/_publication_toc.html.twig',
+    ): ReadingNookController
     {
         $cache = $this->createMock(RedisCacheService::class);
         $cache->expects(self::never())->method('getMetadata');
@@ -382,8 +553,8 @@ final class PublicationTocControllerTest extends TestCase
         $container->set('security.token_storage', $storage);
         $twig = $this->createMock(Environment::class);
         $twig->expects($renders ? self::once() : self::never())->method('render')
-            ->willReturnCallback(static function (string $template, array $parameters) use (&$captured): string {
-                self::assertSame('reader/reading_nook/_publication_toc.html.twig', $template);
+            ->willReturnCallback(static function (string $template, array $parameters) use (&$captured, $expectedTemplate): string {
+                self::assertSame($expectedTemplate, $template);
                 $captured = $parameters;
 
                 return 'toc-fragment';

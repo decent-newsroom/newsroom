@@ -495,6 +495,104 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertStringContainsString('page=3', $crawler->filter('a[rel="next"]')->attr('href'));
     }
 
+    public function testAvailableChapterOccurrencesHaveSeparateLazyPreviewFrames(): void
+    {
+        self::bootKernel();
+        $coordinate = '30041:' . str_repeat('b', 64) . ':chapter';
+        $source = new Event();
+        $source->setId(self::ID);
+        $source->setPubkey(str_repeat('b', 64));
+        $source->setKind(30040);
+        $source->setCreatedAt(123);
+        $source->setTags([['d', 'book'], ['a', $coordinate], ['a', $coordinate]]);
+        $factory = new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service());
+        $references = $factory->fromAuthorizedEvent($source)->references;
+        $target = [
+            'eventId' => str_repeat('c', 64),
+            'coordinate' => $coordinate,
+            'title' => 'Chapter title',
+            'summary' => null,
+            'sensitive' => false,
+        ];
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $page = [
+            'eventId' => self::ID,
+            'page' => 1,
+            'start' => 1,
+            'frameId' => 'nook-toc-' . self::ID,
+            'entries' => array_map(static fn ($reference): array => [
+                'reference' => $reference,
+                'targetResolution' => 'available',
+                'target' => $target,
+                'chapterPreviewOccurrenceId' => hash(
+                    'sha256',
+                    'root:' . self::ID . ':chapter:' . $reference->position . ':' . $target['eventId'],
+                ),
+                'chapterPreviewSignature' => $signer->sign(
+                    $target['eventId'],
+                    1,
+                    [self::ID],
+                    hash('sha256', 'root:' . self::ID . ':chapter:' . $reference->position . ':' . $target['eventId']),
+                    $coordinate,
+                ),
+                'invalidVersionPin' => false,
+                'cycle' => false,
+                'depthLimited' => false,
+                'nestedOccurrenceId' => null,
+            ], $references),
+            'hasNext' => false,
+            'hasPrevious' => false,
+        ];
+
+        $withoutReadingNookOptIn = self::getContainer()->get('twig')->render(
+            'reader/reading_nook/_publication_toc.html.twig',
+            ['tocPage' => $page],
+        );
+        self::assertSame(0, (new Crawler($withoutReadingNookOptIn))->filter('turbo-frame[loading="lazy"]')->count());
+
+        $html = self::getContainer()->get('twig')->render('reader/reading_nook/_publication_toc.html.twig', [
+            'tocPage' => $page,
+            'tocChapterPreviewEnabled' => true,
+        ]);
+        $crawler = new Crawler($html);
+
+        self::assertSame([
+            'nook-chapter-' . self::ID . '-1',
+            'nook-chapter-' . self::ID . '-2',
+        ], $crawler->filter('turbo-frame[loading="lazy"]')->extract(['id']));
+        self::assertStringContainsString('/toc/1/chapter-preview', $html);
+        self::assertStringContainsString('/toc/2/chapter-preview', $html);
+        self::assertSame(2, $crawler->filter('details.event-toc-disclosure')->count());
+        self::assertStringNotContainsString('chapter body', $html);
+    }
+
+    public function testChapterPreviewFragmentUsesEscapedMetadataAndRenderedBody(): void
+    {
+        self::bootKernel();
+        $html = self::getContainer()->get('twig')->render(
+            'reader/reading_nook/_publication_chapter_preview.html.twig',
+            [
+                'frameId' => 'nook-chapter-' . self::ID . '-1',
+                'chapter' => [
+                    'title' => 'Chapter title',
+                    'identifier' => 'chapter-one',
+                    'summary' => '<em>plain untrusted summary</em>',
+                    'content' => 'raw fallback',
+                    'sensitive' => false,
+                    'warningReason' => null,
+                ],
+                'contentHtml' => '<h2>Converted body</h2>',
+            ],
+        );
+        $crawler = new Crawler($html);
+
+        self::assertSame('nook-chapter-' . self::ID . '-1', $crawler->filter('turbo-frame')->attr('id'));
+        self::assertSame('Chapter title', $crawler->filter('h3')->text());
+        self::assertSame('&lt;em&gt;plain untrusted summary&lt;/em&gt;', $crawler->filter('p')->html());
+        self::assertSame(1, $crawler->filter('.event-chapter-preview__body h2:contains("Converted body")')->count());
+        self::assertStringNotContainsString('raw fallback', $html);
+    }
+
     public function testTocDiscoveryControlsAreOccurrenceScopedAndDoNotExposeTargetOrRelayInputs(): void
     {
         self::bootKernel();
@@ -833,6 +931,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
         $routes->add('reading_nook_publication_toc', '/reading-nook/publication-indexes/{eventId}/toc');
         $routes->add('reading_nook_nested_publication_toc', '/reading-nook/publication-indexes/{eventId}/nested-toc');
         $routes->add('reading_nook_publication_toc_discovery', '/reading-nook/publication-indexes/{eventId}/toc/{position}/discovery');
+        $routes->add('reading_nook_publication_toc_chapter_preview', '/reading-nook/publication-indexes/{eventId}/toc/{position}/chapter-preview');
     }
 
     public function getCacheDir(): string

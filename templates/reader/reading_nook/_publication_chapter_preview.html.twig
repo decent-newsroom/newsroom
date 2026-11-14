@@ -1,0 +1,25 @@
+<turbo-frame id="{{ frameId }}">
+    <article class="event-chapter-preview">
+        {% if chapter.title %}
+            <h3>{{ chapter.title }}</h3>
+        {% else %}
+            <h3>{{ chapter.identifier }}</h3>
+        {% endif %}
+        {% if chapter.sensitive %}
+            <p role="note">
+                {{ 'reading_nook.toc.chapter_warning'|trans }}
+                {% if chapter.warningReason %}: {{ chapter.warningReason }}{% endif %}
+            </p>
+        {% endif %}
+        {% if chapter.summary %}
+            <p>{{ chapter.summary }}</p>
+        {% endif %}
+        <div class="event-chapter-preview__body">
+            {% if contentHtml is not null %}
+                {{ contentHtml|raw }}
+            {% else %}
+                <pre>{{ chapter.content }}</pre>
+            {% endif %}
+        </div>
+    </article>
+</turbo-frame>

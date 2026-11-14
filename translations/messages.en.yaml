@@ -1649,6 +1649,9 @@ reading_nook:
         local_revision: 'Local event revision'
         sensitive: 'Sensitive index metadata hidden'
         expand_nested: 'Expand table of contents of %title%'
+        preview_chapter: 'Preview chapter: %title%'
+        load_chapter: 'Load chapter preview'
+        chapter_warning: 'Sensitive chapter content'
         cycle: 'Cycle detected; this index is already open in this path.'
         depth_limit: 'Maximum nested index depth reached.'
         discovery:

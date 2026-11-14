@@ -18,13 +18,16 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\BookmarkReferencePage;
 use App\Service\EventWorkspace\FollowPackMemberPage;
 use App\Service\EventWorkspace\PublicationTocPage;
+use App\Service\EventWorkspace\PublicationChapterPreview;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
 use App\Service\EventWorkspace\PublicationTocDiscovery;
 use App\Service\EventWorkspace\PublicationTocSourceAccess;
 use App\Service\EventWorkspace\TargetPreviewResolver;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\UserMuteListService;
+use AsciiDocConverter;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+use Psr\Log\LoggerInterface;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -277,6 +280,120 @@ final class ReadingNookController extends AbstractController
         $response = $this->render('reader/reading_nook/_publication_toc.html.twig', [
             'tocPage' => $toc->fromAuthorizedEvent($event, $page, readerMutedPubkeys: $mutedPubkeys),
             'tocDiscoveryEnabled' => true,
+            'tocChapterPreviewEnabled' => true,
+        ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+
+        return $response;
+    }
+
+    #[Route('/reading-nook/publication-indexes/{eventId}/toc/{position}/chapter-preview', name: 'reading_nook_publication_toc_chapter_preview', requirements: ['eventId' => '[0-9a-f]{64}', 'position' => '\d+'], methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function publicationTocChapterPreview(
+        string $eventId,
+        string $position,
+        Request $request,
+        PublicationTocSourceAccess $sourceAccess,
+        PublicationChapterPreview $chapterPreview,
+        PublicationTocTraversalSigner $traversalSigner,
+        UserMuteListService $userMuteList,
+        AsciiDocConverter $asciidocConverter,
+        LoggerInterface $logger,
+    ): Response {
+        if (!$this->expansionEnabled) {
+            throw $this->createNotFoundException();
+        }
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $tagPosition = filter_var($position, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if ($tagPosition === false) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid tag position.');
+        }
+        $page = $this->tocPageNumber($request);
+        $path = $this->tocAncestorPath($request);
+        $occurrence = $request->query->get('occurrence');
+        $coordinate = $request->query->get('coordinate');
+        $signature = $request->query->get('signature');
+        if ($path !== [] && (!is_string($occurrence)
+            || preg_match('/^[0-9a-f]{64}$/', $occurrence) !== 1
+            || !is_string($coordinate)
+            || !$this->isCanonicalPublicationCoordinate($coordinate)
+            || !$traversalSigner->isValid(
+                $eventId,
+                $page,
+                $path,
+                $occurrence,
+                $coordinate,
+                is_string($signature) ? $signature : null,
+            ))) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid nested TOC path.');
+        }
+        if ($path === [] && ($occurrence !== null || $coordinate !== null || $signature !== null)) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Unexpected nested TOC state.');
+        }
+
+        $targetEventId = $request->query->get('target');
+        $targetOccurrence = $request->query->get('targetOccurrence');
+        $targetCoordinate = $request->query->get('targetCoordinate');
+        $targetSignature = $request->query->get('targetSignature');
+        if (!is_string($targetEventId)
+            || preg_match('/^[0-9a-f]{64}$/', $targetEventId) !== 1
+            || !is_string($targetOccurrence)
+            || preg_match('/^[0-9a-f]{64}$/', $targetOccurrence) !== 1
+            || !is_string($targetCoordinate)
+            || !$this->isCanonicalChapterCoordinate($targetCoordinate)) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid chapter preview identity.');
+        }
+        $expectedTargetOccurrence = hash(
+            'sha256',
+            ($occurrence ?? 'root:' . strtolower($eventId))
+                . ':chapter:' . $tagPosition . ':' . strtolower($targetEventId),
+        );
+        if (!hash_equals($expectedTargetOccurrence, $targetOccurrence)
+            || !$traversalSigner->isValid(
+                strtolower($targetEventId),
+                1,
+                [...$path, strtolower($eventId)],
+                $targetOccurrence,
+                $targetCoordinate,
+                is_string($targetSignature) ? $targetSignature : null,
+            )) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid chapter preview signature.');
+        }
+
+        $reader = $this->userPubkeyHex($user);
+        $muted = $userMuteList->getMutedPubkeysStrict($reader);
+        $source = $sourceAccess->authorize($reader, $eventId, $path, $muted);
+        if ($path !== [] && $this->publicationCoordinate($source) !== $coordinate) {
+            throw $this->createNotFoundException();
+        }
+        $chapter = $chapterPreview->fromAuthorizedIndexOccurrence(
+            $source,
+            $tagPosition,
+            strtolower($targetEventId),
+            $targetCoordinate,
+            $muted,
+        );
+
+        $contentHtml = null;
+        try {
+            // Use the leaf AsciiDoc renderer, not the general embed converter:
+            // chapter references in a chapter body are not expanded here.
+            $contentHtml = $asciidocConverter->convert($chapter['content']);
+        } catch (\Throwable $exception) {
+            $logger->warning('Reading Nook chapter preview conversion failed.', [
+                'event_id' => $chapter['eventId'],
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        $response = $this->render('reader/reading_nook/_publication_chapter_preview.html.twig', [
+            'chapter' => $chapter,
+            'contentHtml' => $contentHtml,
+            'frameId' => 'nook-chapter-' . ($occurrence ?? $eventId) . '-' . $tagPosition,
         ]);
         $response->headers->set('Cache-Control', 'private, no-store');
 
@@ -362,6 +479,7 @@ final class ReadingNookController extends AbstractController
                 $mutedPubkeys,
             ),
             'tocDiscoveryEnabled' => true,
+            'tocChapterPreviewEnabled' => true,
         ]);
         $response->headers->set('Cache-Control', 'private, no-store');
 
@@ -456,17 +574,35 @@ final class ReadingNookController extends AbstractController
             }
             if ($reference->targetKind === 30041) {
                 $preview = $resolution->presentation;
+                if ($preview->coordinate === null) {
+                    throw $this->createNotFoundException();
+                }
                 $entry['targetResolution'] = 'available';
                 $entry['target'] = [
                     'eventId' => $preview->eventId, 'pubkey' => $preview->authorPubkey,
                     'coordinate' => $preview->coordinate, 'title' => $preview->title,
                     'summary' => null, 'sensitive' => $preview->isSensitive,
                 ];
+                $entry['chapterPreviewOccurrenceId'] = hash(
+                    'sha256',
+                    ($occurrence ?? 'root:' . strtolower($reference->sourceEventId))
+                        . ':chapter:' . $reference->position . ':' . strtolower($preview->eventId),
+                );
+                $entry['chapterPreviewSignature'] = $signer->sign(
+                    strtolower($preview->eventId),
+                    1,
+                    $tocPage['path'],
+                    $entry['chapterPreviewOccurrenceId'],
+                    $preview->coordinate,
+                );
             }
             $data = [
                 'status' => 'available', 'retryAfter' => 0,
                 'html' => $this->renderView('reader/reading_nook/_publication_toc_entry.html.twig', [
-                    'entry' => $entry, 'tocPage' => $tocPage, 'tocDiscoveryEnabled' => true,
+                    'entry' => $entry,
+                    'tocPage' => $tocPage,
+                    'tocDiscoveryEnabled' => true,
+                    'tocChapterPreviewEnabled' => true,
                 ]),
             ];
         } else {
@@ -540,6 +676,16 @@ final class ReadingNookController extends AbstractController
             && $parts[0] === (string) KindsEnum::PUBLICATION_INDEX->value
             && preg_match('/^[0-9a-f]{64}$/', $parts[1]) === 1
             && $coordinate === $this->publicationCoordinateParts($parts[1], $parts[2]);
+    }
+
+    private function isCanonicalChapterCoordinate(string $coordinate): bool
+    {
+        $parts = explode(':', $coordinate, 3);
+
+        return count($parts) === 3
+            && $parts[0] === (string) KindsEnum::PUBLICATION_CONTENT->value
+            && preg_match('/^[0-9a-f]{64}$/', $parts[1]) === 1
+            && $coordinate === $parts[0] . ':' . strtolower($parts[1]) . ':' . $parts[2];
     }
 
     private function publicationCoordinate(Event $event): string

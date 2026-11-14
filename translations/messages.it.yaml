@@ -908,6 +908,9 @@ reading_nook:
         local_revision: 'Revisione locale dell’evento'
         sensitive: 'Metadati sensibili dell’indice nascosti'
         expand_nested: 'Espandi l’indice dei contenuti di %title%'
+        preview_chapter: 'Anteprima del capitolo: %title%'
+        load_chapter: 'Carica l’anteprima del capitolo'
+        chapter_warning: 'Contenuto sensibile del capitolo'
         cycle: 'Ciclo rilevato: questo indice è già aperto in questo percorso.'
         depth_limit: 'Raggiunta la profondità massima degli indici nidificati.'
         discovery:

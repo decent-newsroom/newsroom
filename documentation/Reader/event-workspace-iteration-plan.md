@@ -11,7 +11,8 @@ shared DB-only target preview resolver is shipped for bookmarks and the
 Bookshelf directory. General resolution, other expandable sources, and
 selectable viewers remain proposed. A bounded Step 3 subset now provides
 user-triggered asynchronous discovery for Reading Nook TOC public publication
-addresses; Step 3 as a whole remains incomplete.
+addresses and separately authorized lazy previews for available kind `30041`
+TOC children; Step 3 as a whole remains incomplete.
 Step 4 has an additive exact-event-ID (`e`) parsed-reference slice: lowercase
 event references are stored separately from coordinates with original tag
 positions, duplicates, and NIP-10 marker/relay context. A migration and all
@@ -78,6 +79,37 @@ remain pending.
   and AssetMapper compile remain blocked by the missing installed
   `DecentNewsroom\UnfoldBundle\UnfoldBundle` class. Browser/live worker/Redis
   integration verification remains pending. No host-runtime checks substituted.
+
+### Delivered bounded Step 3 subset: Reading Nook chapter previews
+
+- Available kind `30041` child occurrences in root and nested Reading Nook
+  publication-index TOCs have their own lazy Turbo Frame. Exact local pins can
+  preview directly; an unpinned reference becomes previewable only after the
+  existing explicit discovery action reports a local target.
+- Each fragment requires `ROLE_USER`, re-reads the exact owned root and every
+  bounded nested-index source in the traversal path, and re-derives the
+  selected child only from its source tag position. Nested signatures bind the
+  exact source, page, occurrence, ancestry, and coordinate; they are integrity
+  state, not authorization. A separate preview signature binds the displayed
+  local chapter ID/coordinate to that source occurrence, so a hand-built URL
+  cannot bypass explicit discovery for an unpinned reference.
+- Only a matching kind `30041` coordinate and exact pin are accepted. Target
+  hidden-coordinate, strict reader-mute, author-suppression, and NIP-09
+  tombstone policy is reapplied before returning body or metadata. Missing,
+  changed, and blocked targets fail closed. Responses are private and
+  `no-store`.
+- The fragment exposes only tag-derived title/summary, identity metadata, and
+  the requested chapter body. A leaf AsciiDoc conversion prevents recursive
+  embed previews; conversion failure retains metadata and renders escaped
+  plain text. Sensitive tag evidence withholds title/summary and is identified
+  after the explicit lazy disclosure is opened.
+- Ordinary TOC rendering remains DB-only and does not resolve unpinned
+  chapters. This slice does not mount Bookshelf, invoke Article projections,
+  perform network discovery, or expand references from chapter bodies.
+- Known limits: no browser/worker/Redis integration claim is made for this
+  slice; existing cold-reference discovery limits remain unchanged. Other
+  Reading Nook sources, Bookshelf, and generic chapter expansion are out of
+  scope.
 
 Bookshelf containing-index links also compose the existing public-index preview
 and TOC primitives at an exact-ID Bookshelf route, with independently authorized
@@ -933,11 +965,12 @@ preview a chapter, expand a nested index,
 and resolve a missing child asynchronously without disturbing the rest of the
 outline. Nested index expansion remains local-only during rendering; explicit
 discovery now supports missing public `30040`/`30041` addresses with bounded
-per-occurrence updates. **Next bounded slice:** validate this discovery path on
-a Docker/browser cold-reference fixture (including duplicate unpinned
-occurrences, locally available exact pins, sibling disclosures,
-sign-out/policy changes, and failed workers), then add one separately
-authorized lazy chapter preview without Book mounting or recursive discovery.
+per-occurrence updates. A separately authorized lazy chapter preview for
+available kind `30041` children is now implemented without Book mounting or
+recursive discovery. **Next bounded slice:** validate the discovery and
+chapter-preview paths on a Docker/browser cold-reference fixture (including
+duplicate unpinned occurrences, locally available exact pins, sibling
+disclosures, sign-out/policy changes, and failed workers).
 Other kinds still need a separate policy/scoping decision. Reuse the row/preview
 in My Content and inside an ordinary event page without changing their existing
 actions. The shipped TOC disclosure remains a narrower step toward this broader
