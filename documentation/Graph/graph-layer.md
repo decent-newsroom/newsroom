@@ -85,7 +85,7 @@ docker compose exec php bin/console dn:graph:audit --limit=100
 docker compose exec php bin/console dn:graph:rebuild-record "30040:<pubkey>:<slug>" --dry-run
 ~~~
 
-The audit checks current versions, sampled reference counts, and orphan records. Reference-count sampling includes lowercase `p` tags, but equal counts do not prove that stored fields match the parser. `--fix-versions`, `--fix-references`, or `--fix` enable repairs. The scheduled audit runs daily at 03:00 with `--fix` in [the crontab](../../docker/cron/crontab).
+The audit checks current versions, sampled reference counts, and orphan records. Reference-count sampling includes lowercase `p` tags, but equal counts do not prove that stored fields match the parser. Reference inserts are split into bounded statements to stay below PostgreSQL's bind-parameter limit. `--fix-versions`, `--fix-references`, or `--fix` enable repairs. The scheduled audit runs daily at 03:00 with `--fix` in [the crontab](../../docker/cron/crontab).
 
 A record rebuild accepts `--cascade` to include structural children. The two backfill commands accept `--truncate` to clear and rebuild their derived tables; use this deliberately rather than as routine startup work.
 

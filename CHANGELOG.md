@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Chunked parsed-reference bulk inserts below PostgreSQL's parameter limit so large event batches complete without per-row fallback.
 - [Feature] Indexed lowercase profile references with ordered occurrences and source-kind-aware follow/member roles; preserved bounded auxiliary tag data without profile fetching or traversal.
 - [Feature] Added additive parsed-reference support for lowercase exact event-ID (`e`) relationships, retaining source order, duplicate occurrences, exact IDs, NIP-10 marker/relay context, and unresolved IDs without changing address-based publication traversal.
 - [Fix] Show metadata for locally stored exact-pinned chapter references while keeping cold pins non-fetchable and visibility-filtered.

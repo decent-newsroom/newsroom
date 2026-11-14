@@ -144,4 +144,35 @@ final class GraphProfileReferencesCommandTest extends TestCase
             $this->assertSame(['wss://relay.example', 'name'], json_decode($rows[0][1][14], true));
         }
     }
+
+    public function testBulkInsertChunksReferenceRowsBelowDatabaseParameterLimit(): void
+    {
+        $pubkey = str_repeat('ab', 32);
+        $refs = (new ReferenceParserService(new RecordIdentityService()))->parseFromTagsArray(
+            'source',
+            3,
+            array_fill(0, 4847, ['p', $pubkey]),
+        );
+
+        foreach (['audit', 'backfill'] as $path) {
+            $connection = $this->createMock(Connection::class);
+            $chunkParameterCounts = [];
+            $connection->expects($this->exactly(2))
+                ->method('executeStatement')
+                ->willReturnCallback(static function (string $sql, array $params = []) use (&$chunkParameterCounts): int {
+                    $chunkParameterCounts[] = count($params);
+
+                    return 1;
+                });
+            $parser = new ReferenceParserService(new RecordIdentityService());
+            $logger = $this->createMock(LoggerInterface::class);
+            $command = $path === 'audit'
+                ? new GraphAuditCommand($connection, $this->createMock(CurrentVersionResolver::class), $parser, $logger)
+                : new GraphBackfillReferencesCommand($connection, $parser, $logger);
+
+            (new \ReflectionMethod($command, 'bulkInsertReferences'))->invoke($command, $refs);
+
+            $this->assertSame([60000, 12705], $chunkParameterCounts);
+        }
+    }
 }

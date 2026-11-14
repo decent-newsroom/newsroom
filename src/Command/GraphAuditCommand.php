@@ -34,6 +34,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class GraphAuditCommand extends Command
 {
+    private const MAX_BULK_INSERT_PARAMETERS = 60000;
+    private const COLUMNS_PER_REFERENCE = 15;
+
     private const BATCH_SIZE = 500;
     private const MIN_FRESHNESS_CHUNK_SIZE = 25;
 
@@ -800,6 +803,17 @@ class GraphAuditCommand extends Command
      * @param \App\Service\Graph\ParsedReferenceDto[] $refs
      */
     private function bulkInsertReferences(array $refs): void
+    {
+        $maxRows = intdiv(self::MAX_BULK_INSERT_PARAMETERS, self::COLUMNS_PER_REFERENCE);
+        foreach (array_chunk($refs, $maxRows) as $chunk) {
+            $this->insertReferenceChunk($chunk);
+        }
+    }
+
+    /**
+     * @param \App\Service\Graph\ParsedReferenceDto[] $refs
+     */
+    private function insertReferenceChunk(array $refs): void
     {
         $sql = <<<'SQL'
             INSERT INTO parsed_reference
