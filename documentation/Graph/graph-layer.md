@@ -1,10 +1,11 @@
 # Graph Layer
 
-The graph layer is the host application's local index for Nostr structures that reference other records by coordinate. It is used when relational lookups need to answer questions such as:
+The graph layer is the host application's local index for supported Nostr event references. It is used when relational lookups need to answer questions such as:
 
 - Which current articles or chapters are inside this publication index?
 - Which magazines, reading lists, or collections reference this article coordinate?
 - Which current event realizes a replaceable coordinate?
+- Which exact event IDs are referenced, including targets not stored locally?
 
 Raw Nostr events remain the source of truth. The graph tables are derived indexes that can be rebuilt from stored events and article rows.
 
@@ -15,7 +16,7 @@ The current implementation is relational PostgreSQL, not Apache AGE. The earlier
 | Layer | Purpose |
 |---|---|
 | `event.d_tag` | Fast coordinate lookups for parameterized replaceable events. |
-| `parsed_reference` | Normalized outgoing references parsed from event tags, currently focused on structural `a` tags. |
+| `parsed_reference` | Normalized `a` coordinate and lowercase `e` exact-event references; `a` structural edges drive current traversal, while `e` edges are retained as contextual references. |
 | `current_record` | Current winning event for each replaceable coordinate. |
 | `GraphLookupService` | Recursive CTE queries for children, descendants, ancestors, magazine trees, and bulk event row fetches. |
 | `EventIngestionListener` | Keeps graph tables updated when events are projected or persisted. |
@@ -64,13 +65,15 @@ The graph layer reduces reliance on relay round-trips for magazine and publicati
 
 `RecordIdentityService` derives `kind:pubkey:d_tag` coordinates and `coord:<coordinate>` record identifiers. Addressable events with a missing or empty `d` tag use an empty string; non-addressable events keep a null `d_tag`.
 
-`ReferenceParserService` classifies structural `a` references for publication and curation indexes. `CurrentVersionResolver` atomically selects the newer event; equal timestamps use the lexicographically lower event ID.
+`ReferenceParserService` parses supported `a` and lowercase `e` tags. Address references retain their canonical coordinate and existing structural classification. Exact event IDs are stored separately from coordinates in `target_event_id`; repeated tags remain separate rows at their original source positions. For kind-1 events, the `e` tag's NIP-10 marker and relay hint are retained. The generic parser treats these `e` references as contextual, not structural. `GraphLookupService` does not yet resolve or traverse `target_event_id`; the reference remains available even when its target is absent locally. Uppercase `E` tags are not interpreted as lowercase `e`.
+
+`CurrentVersionResolver` atomically selects the newer event for replaceable coordinates; equal timestamps use the lexicographically lower event ID. Exact event IDs do not pass through this latest-version selection.
 
 `GraphLookupService::resolveChildren()` can repair missing current records from the article table when structural references exist but the main join finds no children. `fetchEventRows()` also falls back to article raw-event data. Backfilling current records covers both event and article tables.
 
 ## Repair and audit
 
-The schema originated in migrations `Version20260315140000` and `Version20260315140001`. Use normal Doctrine migrations, then backfill references and current records for existing data.
+The schema originated in migrations `Version20260315140000` and `Version20260315140001`; `Version20261114120000` adds exact event-ID and relay-hint columns plus the target-ID index. Use normal Doctrine migrations, then backfill references and current records for existing data. The reference backfill includes both `a` and lowercase `e` tags.
 
 ~~~bash
 docker compose exec php bin/console dn:graph:audit

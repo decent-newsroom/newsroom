@@ -698,11 +698,11 @@ can identify presentation and expansion behavior, with a generic fallback.
 Adding a kind should not require editing a switch in every controller/template.
 
 Relationships should retain source event ID, original tag index, target type,
-target identity, relay hints, role, and any version binding. Add target event-ID
-storage and the indexes needed for `e` edges; use existing pubkey fields for
-profile targets where appropriate. The exact-ID column and database index are
-now present; exact-target lookup behavior, remaining relationship fields, and
-kind-specific interpretations are still follow-up work.
+target identity, relay hints, role, and any version binding. Use existing
+pubkey fields for profile targets where appropriate. The nullable exact-ID
+column and target-ID index are present; exact-target lookup behavior, remaining
+relationship fields, and kind-specific interpretations are still follow-up
+work.
 
 #### Shipped bounded Step 4 slice: exact event-ID occurrences
 
