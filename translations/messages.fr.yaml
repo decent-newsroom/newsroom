@@ -1275,6 +1275,15 @@ reading_nook:
         expand_nested: 'Développer la table des matières de %title%'
         cycle: 'Cycle détecté ; cet index est déjà ouvert dans ce parcours.'
         depth_limit: 'Profondeur maximale des index imbriqués atteinte.'
+        discovery:
+            request: 'Rechercher la référence publique'
+            retry: 'Relancer la recherche'
+            loading: 'Vérification des relais publics…'
+            failed: 'Aucun résultat local lisible pour le moment. Réessayez après une minute.'
+            limited: 'Limite de recherches atteinte. Veuillez patienter avant de réessayer.'
+            available: 'Section disponible localement'
+            completed: 'La référence publique est maintenant disponible.'
+            pinned_unavailable: 'Cette révision exacte n’est pas stockée localement et ne sera pas récupérée.'
     nav:
         overview: 'Vue d''ensemble'
         all_items: 'Tous les éléments'

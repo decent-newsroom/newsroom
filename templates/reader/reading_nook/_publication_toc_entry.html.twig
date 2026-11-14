@@ -1,0 +1,69 @@
+{% set reference = entry.reference %}
+{# Reference identity is always the source's original occurrence. #}
+<strong>
+    {% if reference.targetIdentifier is not null and reference.targetIdentifier != '' %}
+        {{ (reference.targetKind == 30040 ? 'reading_nook.toc.index_reference' : 'reading_nook.toc.section_reference')|trans({'%identifier%': reference.targetIdentifier}) }}
+    {% else %}
+        {{ 'reading_nook.toc.reference'|trans }}
+    {% endif %}
+</strong>
+{% if entry.targetResolution == 'available' %}
+    <span>{{ (reference.targetKind == 30041 ? 'reading_nook.toc.discovery.available' : 'reading_nook.toc.available')|trans }}</span>
+{% elseif entry.targetResolution == 'unavailable' %}
+    <span>{{ 'reading_nook.toc.restricted'|trans }}</span>
+{% else %}
+    <span>{{ ('reading_nook.toc.' ~ reference.status.value)|trans }}</span>
+{% endif %}
+{% if reference.rawValue is not null %}
+    <div>{{ 'reading_nook.toc.coordinate'|trans }}: <code>{{ reference.rawValue }}</code></div>
+{% endif %}
+{% if reference.versionEventId is not null %}
+    <div>{{ 'reading_nook.toc.pinned_version'|trans }}: <code>{{ reference.versionEventId }}</code></div>
+{% elseif entry.invalidVersionPin %}
+    <div>{{ 'reading_nook.toc.invalid_pin'|trans }}{% if entry.rawVersionPin is not null %}: <code>{{ entry.rawVersionPin }}</code>{% endif %}</div>
+{% endif %}
+{% if entry.targetResolution == 'available' and entry.target is not null %}
+    <div class="event-toc-target">
+        {% if entry.target.title %}
+            <strong>{{ entry.target.title }}</strong>
+        {% else %}
+            <strong>{{ (reference.targetKind == 30040 ? 'reading_nook.toc.index_reference' : 'reading_nook.toc.section_reference')|trans({'%identifier%': reference.targetIdentifier ?? ''}) }}</strong>
+        {% endif %}
+        {% if entry.target.sensitive %}
+            <span>{{ 'reading_nook.toc.sensitive'|trans }}</span>
+        {% elseif entry.target.summary %}
+            <p>{{ entry.target.summary }}</p>
+        {% endif %}
+        <span>{{ 'reading_nook.toc.local_revision'|trans }}: <code>{{ entry.target.eventId }}</code></span>
+        {% if tocBookshelfLinks|default(false) %}
+            <a data-turbo-frame="_top" href="{{ path('bookshelf_index', {eventId: entry.target.eventId}) }}">{{ 'bookshelf.open_index'|trans }}</a>
+        {% endif %}
+    </div>
+    {% if entry.cycle %}
+        <span>{{ 'reading_nook.toc.cycle'|trans }}</span>
+    {% elseif entry.depthLimited %}
+        <span>{{ 'reading_nook.toc.depth_limit'|trans }}</span>
+    {% elseif entry.nestedOccurrenceId is not null %}
+        {% set nestedUrl = path(tocNestedRoute|default('reading_nook_nested_publication_toc'), {
+            eventId: entry.target.eventId, page: 1, path: entry.nestedPath|join(','),
+            occurrence: entry.nestedOccurrenceId, coordinate: entry.target.coordinate,
+            signature: entry.nestedSignature
+        }) %}
+        <twig:Molecules:LazyDisclosure
+            disclosureClass="event-toc-disclosure"
+            :frameId="'nook-toc-nested-' ~ entry.nestedOccurrenceId"
+            :url="nestedUrl"
+            :summary="'reading_nook.toc.expand_nested'|trans({'%title%': entry.target.title ?? reference.targetIdentifier ?? ''})"
+            :loadLabel="'reading_nook.toc.load'|trans"
+        />
+    {% endif %}
+{% elseif tocDiscoveryEnabled|default(false) and reference.type.value == 'address'
+    and reference.targetKind in [30040, 30041] and reference.status.value == 'unresolved' and not entry.invalidVersionPin %}
+    {% if reference.versionEventId is not null %}
+        <span>{{ 'reading_nook.toc.discovery.pinned_unavailable'|trans }}</span>
+    {% else %}
+        <button type="button" data-content--toc-discovery-target="button" data-action="content--toc-discovery#discover">
+            {{ 'reading_nook.toc.discovery.request'|trans }}
+        </button>
+    {% endif %}
+{% endif %}

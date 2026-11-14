@@ -1651,6 +1651,15 @@ reading_nook:
         expand_nested: 'Expand table of contents of %title%'
         cycle: 'Cycle detected; this index is already open in this path.'
         depth_limit: 'Maximum nested index depth reached.'
+        discovery:
+            request: 'Discover public reference'
+            retry: 'Retry discovery'
+            loading: 'Checking public relays…'
+            failed: 'No readable local result yet. You can retry after a minute.'
+            limited: 'Discovery limit reached. Please wait before retrying.'
+            available: 'Available local section'
+            completed: 'Public reference is now available.'
+            pinned_unavailable: 'This exact revision is not stored locally and will not be fetched.'
     nav:
         overview: 'Overview'
         all_items: 'All items'

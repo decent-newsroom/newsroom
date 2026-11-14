@@ -493,6 +493,59 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertStringContainsString('page=3', $crawler->filter('a[rel="next"]')->attr('href'));
     }
 
+    public function testTocDiscoveryControlsAreOccurrenceScopedAndDoNotExposeTargetOrRelayInputs(): void
+    {
+        self::bootKernel();
+        $request = new \Symfony\Component\HttpFoundation\Request();
+        $request->setSession(new \Symfony\Component\HttpFoundation\Session\Session(
+            new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage(),
+        ));
+        self::getContainer()->get('request_stack')->push($request);
+        try {
+            $coordinate = '30040:' . str_repeat('b', 64) . ':missing';
+            $event = new Event();
+            $event->setId(self::ID);
+            $event->setPubkey(str_repeat('b', 64));
+            $event->setKind(30040);
+            $event->setCreatedAt(123);
+            $event->setContent('');
+            $event->setTags([
+                ['d', 'book'], ['a', $coordinate, 'wss://evil.example'],
+                ['a', $coordinate], ['a', '30041:' . str_repeat('b', 64) . ':section'],
+                ['a', '30024:' . str_repeat('b', 64) . ':private'],
+                ['a', $coordinate, '', 'invalid-pin'],
+            ]);
+            $identities = new RecordIdentityService();
+            $events = $this->createMock(EventRepository::class);
+            $events->method('findPublicationIndexTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
+            $pages = new PublicationTocPage(
+                new EventWorkspaceSourceAdapter($identities), new EventPresentationFactory($identities, new NostrNip19Service()),
+                $events, $this->createStub(DeletedEventRepository::class), $this->createStub(ContentAuthorAccessPolicy::class),
+                $this->createStub(\App\Repository\HiddenCoordinateRepository::class), new PublicationTocTraversalSigner('secret'),
+            );
+            $html = self::getContainer()->get('twig')->render('reader/reading_nook/_publication_toc.html.twig', [
+                'tocPage' => $pages->fromAuthorizedEvent($event), 'tocDiscoveryEnabled' => true,
+            ]);
+            $crawler = new Crawler($html);
+            self::assertCount(3, $crawler->filter('li[data-controller="content--toc-discovery"]'));
+            self::assertCount(3, $crawler->filter('button[data-action="content--toc-discovery#discover"]'));
+            self::assertCount(3, $crawler->filter('[role="status"][aria-live="polite"]'));
+            $urls = $crawler->filter('[data-content--toc-discovery-url-value]')->extract(['data-content--toc-discovery-url-value']);
+            self::assertCount(3, array_unique($urls));
+            self::assertStringContainsString('/toc/1/discovery', $urls[0]);
+            self::assertStringContainsString('/toc/2/discovery', $urls[1]);
+            self::assertStringNotContainsString('wss://evil.example', $html);
+            self::assertStringNotContainsString('relayHints', $html);
+            self::assertCount(0, $crawler->filter('img, iframe, script'));
+            foreach ($urls as $url) {
+                self::assertStringNotContainsString('coordinate=', $url);
+                self::assertStringNotContainsString('missing', $url);
+            }
+        } finally {
+            self::getContainer()->get('request_stack')->pop();
+        }
+    }
+
     /** @dataProvider expansionFlags */
     public function testResolvedNestedIndexesUseUniqueLazyFramesAndAllowlistedMetadataOnly(bool $enabled): void
     {
@@ -736,6 +789,8 @@ final class EventMemberDisclosureTestKernel extends Kernel
     {
         $container->extension('framework', [
             'test' => true, 'secret' => 'member-test',
+            'csrf_protection' => true,
+            'session' => ['storage_factory_id' => 'session.storage.factory.mock_file'],
             'property_info' => ['with_constructor_extractor' => true],
         ]);
         $container->import($this->getProjectDir() . '/config/packages/translation.yaml');
@@ -775,6 +830,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
         $routes->add('reading_nook_bookmark_references', '/reading-nook/bookmarks/{eventId}/references');
         $routes->add('reading_nook_publication_toc', '/reading-nook/publication-indexes/{eventId}/toc');
         $routes->add('reading_nook_nested_publication_toc', '/reading-nook/publication-indexes/{eventId}/nested-toc');
+        $routes->add('reading_nook_publication_toc_discovery', '/reading-nook/publication-indexes/{eventId}/toc/{position}/discovery');
     }
 
     public function getCacheDir(): string

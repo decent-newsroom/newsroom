@@ -910,6 +910,15 @@ reading_nook:
         expand_nested: 'Espandi l’indice dei contenuti di %title%'
         cycle: 'Ciclo rilevato: questo indice è già aperto in questo percorso.'
         depth_limit: 'Raggiunta la profondità massima degli indici nidificati.'
+        discovery:
+            request: 'Cerca riferimento pubblico'
+            retry: 'Riprova la ricerca'
+            loading: 'Verifica dei relay pubblici…'
+            failed: 'Nessun risultato locale leggibile per ora. Puoi riprovare dopo un minuto.'
+            limited: 'Limite di ricerche raggiunto. Attendi prima di riprovare.'
+            available: 'Sezione disponibile localmente'
+            completed: 'Il riferimento pubblico è ora disponibile.'
+            pinned_unavailable: 'Questa revisione esatta non è archiviata localmente e non verrà recuperata.'
     nav:
         overview: 'Panoramica'
         all_items: 'Tutti gli elementi'

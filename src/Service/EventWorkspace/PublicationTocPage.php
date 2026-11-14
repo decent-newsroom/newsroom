@@ -54,6 +54,7 @@ final readonly class PublicationTocPage
         ?string $occurrenceId = null,
         string $routeName = 'reading_nook_publication_toc',
         array $readerMutedPubkeys = [],
+        ?int $resolutionPosition = null,
     ): array
     {
         if ($event->getKind() !== KindsEnum::PUBLICATION_INDEX->value || $page < 1) {
@@ -79,6 +80,9 @@ final readonly class PublicationTocPage
             'occurrenceId' => $occurrenceId,
             'routeName' => $routeName,
             'coordinate' => $coordinate,
+            'discoverySignature' => $occurrenceId !== null
+                ? $this->traversalSigner->sign($source->eventId, $page, $ancestorEventIds, $occurrenceId, $coordinate)
+                : null,
             'pageSignatures' => [
                 'previous' => $occurrenceId !== null && $page > 1
                     ? $this->traversalSigner->sign($source->eventId, $page - 1, $ancestorEventIds, $occurrenceId, $coordinate)
@@ -126,7 +130,7 @@ final readonly class PublicationTocPage
             ];
         }
 
-        $this->resolveNestedIndexes($result['entries'], $eventPath, $occurrenceId, $readerMutedPubkeys);
+        $this->resolveNestedIndexes($result['entries'], $eventPath, $occurrenceId, $readerMutedPubkeys, $resolutionPosition);
         if ($result['hasNext'] && $occurrenceId !== null && $page < PHP_INT_MAX) {
             $result['pageSignatures']['next'] = $this->traversalSigner->sign(
                 $source->eventId,
@@ -153,6 +157,7 @@ final readonly class PublicationTocPage
         array $eventPath,
         ?string $occurrenceId,
         array $readerMutedPubkeys,
+        ?int $resolutionPosition,
     ): void
     {
         $coordinates = [];
@@ -161,6 +166,9 @@ final readonly class PublicationTocPage
         foreach ($entries as $index => $entry) {
             /** @var EventReference $reference */
             $reference = $entry['reference'];
+            if ($resolutionPosition !== null && $reference->position !== $resolutionPosition) {
+                continue;
+            }
             if ($reference->role !== EventReferenceRole::Content
                 || $reference->type->value !== 'address'
                 || $reference->targetKind !== KindsEnum::PUBLICATION_INDEX->value

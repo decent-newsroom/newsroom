@@ -356,6 +356,82 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
         ));
     }
 
+    /** @dataProvider workspaceResults */
+    public function testWorkspaceDiscoveryIsBoundedPublicAddressOnlyAndNeverPublishes(
+        int $kind, string $outcome, bool $persisted,
+    ): void {
+        $pubkey = str_repeat('b', 64);
+        $raw = $this->rawEvent(str_repeat('a', 64), $kind, $pubkey, 'section:one');
+        if ($outcome === 'wrong-kind') $raw->kind = 30024;
+        if ($outcome === 'wrong-author') $raw->pubkey = str_repeat('f', 64);
+        if ($outcome === 'wrong-address') $raw->tags = [['d', 'different']];
+        if ($outcome === 'empty-d') $raw->tags = [['d', '']];
+        $identifier = $outcome === 'empty-d' ? '' : 'section:one';
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())->method('findByNaddr')
+            ->with($kind, $pubkey, $identifier)->willReturn(null);
+        $repository->expects(self::never())->method('findById');
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::once())->method('getEventByNaddr')
+            ->willReturnCallback(static function (array $decoded, bool $hintOnly, bool $allowRelayListNetworkFetch, int $gatewayTimeout, int $directTimeout) use ($raw, $outcome): ?object {
+                self::assertCount(4, $decoded['relays']);
+                self::assertTrue($hintOnly);
+                self::assertFalse($allowRelayListNetworkFetch);
+                self::assertSame(10, $gatewayTimeout);
+                self::assertSame(5, $directTimeout);
+                return $outcome === 'missing' ? null : $raw;
+            });
+        $projector = $this->createMock(GenericEventProjector::class);
+        $projector->expects($persisted ? self::once() : self::never())->method('projectEventFromNostrEvent')
+            ->with($raw, 'wss://1.example')->willReturn($this->eventEntity($raw));
+        $hub = $this->createMock(HubInterface::class);
+        $hub->expects(self::never())->method('publish');
+        $books = $this->createMock(BooksChapterLookup::class);
+        $books->expects(self::never())->method('find');
+        $authorRelays = $this->createMock(UserRelayListService::class);
+        $authorRelays->expects(self::never())->method('getRelaysForFetching');
+        $this->handler($client, $repository, $projector, $hub, $authorRelays, booksLookup: $books)(
+            new FetchEventFromRelaysMessage(
+                lookupKey: EventLookupKey::forNaddr($kind, $pubkey, $identifier),
+                type: 'naddr', kind: $kind, pubkey: $pubkey, identifier: $identifier,
+                relays: ['wss://1.example', 'wss://2.example', 'wss://3.example', 'wss://4.example', 'wss://5.example'],
+                workspaceDiscovery: true,
+            ),
+        );
+    }
+
+    public static function workspaceResults(): iterable
+    {
+        foreach ([30040, 30041] as $kind) {
+            yield 'latest-' . $kind => [$kind, 'found', true];
+        }
+        yield 'empty identifier' => [30041, 'empty-d', true];
+        foreach (['wrong-kind', 'wrong-author', 'wrong-address', 'missing'] as $outcome) {
+            yield $outcome => [30040, $outcome, false];
+        }
+    }
+
+    public function testWorkspaceFlagCannotFetchEventIdsOrArbitraryKinds(): void
+    {
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::never())->method('getEventById');
+        $client->expects(self::never())->method('getEventByNaddr');
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::never())->method('findById');
+        $repository->expects(self::never())->method('findByNaddr');
+        $projector = $this->createMock(GenericEventProjector::class);
+        $projector->expects(self::never())->method('projectEventFromNostrEvent');
+        $hub = $this->createMock(HubInterface::class);
+        $hub->expects(self::never())->method('publish');
+        $handler = $this->handler($client, $repository, $projector, $hub, $this->createMock(UserRelayListService::class));
+        $handler(new FetchEventFromRelaysMessage('unused', 'nevent', eventId: str_repeat('a', 64), workspaceDiscovery: true));
+        $handler(new FetchEventFromRelaysMessage('unused', 'naddr', 30024, str_repeat('b', 64), 'private', workspaceDiscovery: true));
+        $handler(new FetchEventFromRelaysMessage(
+            'unused', 'naddr', 30040, str_repeat('b', 64), 'pinned',
+            workspaceDiscovery: true, exactVersionEventId: str_repeat('c', 64),
+        ));
+    }
+
     private function handler(
         NostrClient $nostrClient,
         EventRepository $eventRepository,

@@ -1277,6 +1277,15 @@ reading_nook:
         expand_nested: 'Razširi kazalo vsebine: %title%'
         cycle: 'Zaznan je cikel; to kazalo je v tej poti že odprto.'
         depth_limit: 'Dosežena je največja globina gnezdenja kazal.'
+        discovery:
+            request: 'Poišči javno referenco'
+            retry: 'Ponovi iskanje'
+            loading: 'Preverjanje javnih relejev…'
+            failed: 'Berljivega lokalnega rezultata še ni. Poskusi znova čez minuto.'
+            limited: 'Dosežena je omejitev iskanja. Pred ponovnim poskusom počakaj.'
+            available: 'Lokalno dostopen razdelek'
+            completed: 'Javna referenca je zdaj dostopna.'
+            pinned_unavailable: 'Ta točna različica ni shranjena lokalno in ne bo pridobljena.'
     nav:
         overview: 'Pregled'
         all_items: 'Vsi elementi'

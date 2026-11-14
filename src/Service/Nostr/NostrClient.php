@@ -255,7 +255,7 @@ class NostrClient
         $identifier = $decoded['identifier'] ?? '';
         $relays     = $decoded['relays']     ?? [];
 
-        if (empty($pubkey) || empty($identifier)) {
+        if (empty($pubkey) || !is_string($identifier)) {
             $this->logger->info('naddr lookup missing required fields', [
                 'kind' => $kind,
                 'pubkey' => $pubkey,

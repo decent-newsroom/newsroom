@@ -36,6 +36,11 @@ final class FetchEventFromRelaysHandler
 
     public function __invoke(FetchEventFromRelaysMessage $message): void
     {
+        // Old PHP-serialized queue entries predate the optional promoted field.
+        if (isset($message->workspaceDiscovery) && $message->workspaceDiscovery) {
+            $this->fetchWorkspaceAddress($message);
+            return;
+        }
         $this->logger->info('Async event fetch started', [
             'lookup_key' => $message->lookupKey,
             'type' => $message->type,
@@ -132,6 +137,54 @@ final class FetchEventFromRelaysHandler
         }
 
         $this->persistAndPublish($message, $rawEvent, $relays[0] ?? 'async-fetch');
+    }
+
+    /**
+     * Narrow relay-only path; local policy, not worker/SSE results, authorizes
+     * the occurrence. No Books API, Article projection, media or Mercure.
+     */
+    private function fetchWorkspaceAddress(FetchEventFromRelaysMessage $message): void
+    {
+        if ($message->type !== 'naddr'
+            || !in_array($message->kind, [30040, 30041], true)
+            || !is_string($message->pubkey)
+            || preg_match('/^[0-9a-f]{64}$/', $message->pubkey) !== 1
+            || !is_string($message->identifier)
+            || $message->exactVersionEventId !== null) {
+            return;
+        }
+        $local = $this->eventRepository->findByNaddr($message->kind, $message->pubkey, $message->identifier);
+        if ($local !== null) {
+            return;
+        }
+        try {
+            $relays = array_slice($message->relays, 0, 4);
+            if ($relays === []) {
+                return;
+            }
+            $raw = $this->nostrClient->getEventByNaddr([
+                'kind' => $message->kind, 'pubkey' => $message->pubkey,
+                'identifier' => $message->identifier, 'relays' => $relays,
+            ], hintOnly: true, allowRelayListNetworkFetch: false, gatewayTimeout: 10, directTimeout: 5);
+            if ($raw === null) {
+                return;
+            }
+            $identifier = null;
+            foreach ($raw->tags ?? [] as $tag) {
+                if (($tag[0] ?? null) === 'd' && is_string($tag[1] ?? null)) {
+                    $identifier = $tag[1];
+                    break;
+                }
+            }
+            if (($raw->kind ?? null) !== $message->kind
+                || strtolower($raw->pubkey ?? '') !== $message->pubkey
+                || $identifier !== $message->identifier) {
+                return;
+            }
+            $this->genericEventProjector->projectEventFromNostrEvent($raw, $relays[0]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Workspace address discovery failed', ['error' => $e->getMessage()]);
+        }
     }
 
     private function persistAndPublish(FetchEventFromRelaysMessage $message, object $rawEvent, string $source): void

@@ -44,6 +44,24 @@ final class PublicationTocPageTest extends TestCase
         );
     }
 
+    public function testOccurrencePollResolvesOnlyRequestedPositionWithoutRemovingSiblings(): void
+    {
+        $coordinate = '30040:' . str_repeat('b', 64) . ':missing';
+        $pin = str_repeat('c', 64);
+        $event = $this->event([
+            ['d', 'book'], ['a', $coordinate], ['a', $coordinate, '', $pin],
+            ['a', $coordinate], ['a', '30041:' . str_repeat('b', 64) . ':section'],
+        ]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findPublicationIndexTargets')
+            ->with([], [$pin])->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $page = $this->pages($events)->fromAuthorizedEvent($event, resolutionPosition: 2);
+        self::assertSame([1, 2, 3, 4], array_map(static fn (array $entry): int => $entry['reference']->position, $page['entries']));
+        self::assertNull($page['entries'][0]['targetResolution']);
+        self::assertSame('unavailable', $page['entries'][1]['targetResolution']);
+        self::assertNull($page['entries'][2]['targetResolution']);
+    }
+
     public function testOrderedContentOccurrencesKeepNestedDuplicatesMalformedAddressesAndPins(): void
     {
         $coordinate = '30041:' . str_repeat('b', 64) . ':chapter:one';

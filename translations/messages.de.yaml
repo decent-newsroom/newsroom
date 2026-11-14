@@ -1288,6 +1288,15 @@ reading_nook:
         expand_nested: 'Inhaltsverzeichnis von %title% öffnen'
         cycle: 'Zyklus erkannt; dieses Inhaltsverzeichnis ist in diesem Pfad bereits geöffnet.'
         depth_limit: 'Maximale Verschachtelungstiefe erreicht.'
+        discovery:
+            request: 'Öffentliche Referenz suchen'
+            retry: 'Suche wiederholen'
+            loading: 'Öffentliche Relays werden geprüft…'
+            failed: 'Noch kein lesbares lokales Ergebnis. Nach einer Minute erneut versuchen.'
+            limited: 'Suchlimit erreicht. Bitte vor einem erneuten Versuch warten.'
+            available: 'Lokal verfügbarer Abschnitt'
+            completed: 'Die öffentliche Referenz ist jetzt verfügbar.'
+            pinned_unavailable: 'Diese exakte Version ist nicht lokal gespeichert und wird nicht abgerufen.'
     nav:
         overview: 'Überblick'
         all_items: 'Alle Elemente'

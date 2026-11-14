@@ -19,6 +19,9 @@ use App\Service\EventWorkspace\BookmarkReferencePage;
 use App\Service\EventWorkspace\FollowPackMemberPage;
 use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
+use App\Service\EventWorkspace\PublicationTocDiscovery;
+use App\Service\EventWorkspace\PublicationTocSourceAccess;
+use App\Service\EventWorkspace\TargetPreviewResolver;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\UserMuteListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
@@ -273,6 +276,7 @@ final class ReadingNookController extends AbstractController
 
         $response = $this->render('reader/reading_nook/_publication_toc.html.twig', [
             'tocPage' => $toc->fromAuthorizedEvent($event, $page, readerMutedPubkeys: $mutedPubkeys),
+            'tocDiscoveryEnabled' => true,
         ]);
         $response->headers->set('Cache-Control', 'private, no-store');
 
@@ -357,9 +361,128 @@ final class ReadingNookController extends AbstractController
                 'reading_nook_nested_publication_toc',
                 $mutedPubkeys,
             ),
+            'tocDiscoveryEnabled' => true,
         ]);
         $response->headers->set('Cache-Control', 'private, no-store');
 
+        return $response;
+    }
+
+    #[Route('/reading-nook/publication-indexes/{eventId}/toc/{position}/discovery', name: 'reading_nook_publication_toc_discovery', requirements: ['eventId' => '[0-9a-f]{64}', 'position' => '\d+'], methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_USER')]
+    public function publicationTocDiscovery(
+        string $eventId,
+        string $position,
+        Request $request,
+        PublicationTocPage $toc,
+        PublicationTocSourceAccess $sourceAccess,
+        PublicationTocTraversalSigner $signer,
+        TargetPreviewResolver $targets,
+        PublicationTocDiscovery $discovery,
+        UserMuteListService $mutes,
+    ): Response {
+        if (!$this->expansionEnabled) {
+            throw $this->createNotFoundException();
+        }
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+        if ($request->isMethod('POST')
+            && !$this->isCsrfTokenValid('toc-discovery:' . $eventId . ':' . $position, $request->headers->get('X-CSRF-Token'))) {
+            throw $this->createAccessDeniedException();
+        }
+        $tagPosition = filter_var($position, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if ($tagPosition === false) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid tag position.');
+        }
+        $reader = $this->userPubkeyHex($user);
+        $muted = $mutes->getMutedPubkeysStrict($reader);
+        $page = $this->tocPageNumber($request);
+        $path = $this->tocAncestorPath($request);
+        $event = $sourceAccess->authorize($reader, $eventId, $path, $muted);
+        $occurrence = $request->query->get('occurrence');
+        if ($path !== []) {
+            $signature = $request->query->get('signature');
+            if (!is_string($occurrence) || preg_match('/^[0-9a-f]{64}$/', $occurrence) !== 1
+                || !$signer->isValid($eventId, $page, $path, $occurrence, $this->publicationCoordinate($event), is_string($signature) ? $signature : null)) {
+                throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid nested TOC path.');
+            }
+        } else {
+            $occurrence = null;
+        }
+        $tocPage = $toc->fromAuthorizedEvent(
+            $event, $page, $path, $occurrence,
+            $path === [] ? 'reading_nook_publication_toc' : 'reading_nook_nested_publication_toc', $muted,
+            $tagPosition,
+        );
+        $entry = null;
+        foreach ($tocPage['entries'] as $candidate) {
+            if ($candidate['reference']->position === $tagPosition) {
+                $entry = $candidate;
+                break;
+            }
+        }
+        if ($entry === null || $entry['invalidVersionPin']
+            || $entry['reference']->type->value !== 'address'
+            || $entry['reference']->status->value !== 'unresolved'
+            || !in_array($entry['reference']->targetKind, [30040, 30041], true)) {
+            throw $this->createNotFoundException();
+        }
+        $reference = $entry['reference'];
+        // Derivation is exclusively from the re-read signed tag position.
+        // Browser target/relay/body fields are never read.
+        $resolution = $targets->resolvePage([$reference])[$tagPosition] ?? null;
+        if ($resolution === null || !in_array($resolution->status->value, ['available', 'missing'], true)) {
+            throw $this->createNotFoundException();
+        }
+        if ($resolution->status->value === 'available') {
+            if ($reference->targetKind === 30040 && $entry['targetResolution'] !== 'available') {
+                // A row may have arrived between the two local reads. Re-read
+                // only this occurrence to obtain its cycle/depth/signature data.
+                $updated = $toc->fromAuthorizedEvent(
+                    $event, $page, $path, $occurrence,
+                    $tocPage['routeName'], $muted, $tagPosition,
+                );
+                foreach ($updated['entries'] as $candidate) {
+                    if ($candidate['reference']->position === $tagPosition) {
+                        $entry = $candidate;
+                        break;
+                    }
+                }
+                if ($entry['targetResolution'] !== 'available') {
+                    throw $this->createNotFoundException();
+                }
+            }
+            if ($reference->targetKind === 30041) {
+                $preview = $resolution->presentation;
+                $entry['targetResolution'] = 'available';
+                $entry['target'] = [
+                    'eventId' => $preview->eventId, 'pubkey' => $preview->authorPubkey,
+                    'coordinate' => $preview->coordinate, 'title' => $preview->title,
+                    'summary' => null, 'sensitive' => $preview->isSensitive,
+                ];
+            }
+            $data = [
+                'status' => 'available', 'retryAfter' => 0,
+                'html' => $this->renderView('reader/reading_nook/_publication_toc_entry.html.twig', [
+                    'entry' => $entry, 'tocPage' => $tocPage, 'tocDiscoveryEnabled' => true,
+                ]),
+            ];
+        } else {
+            // Missing targets still undergo known author/mute/hidden/pinned
+            // tombstone policy before any work is scheduled. Coordinate
+            // tombstones conservatively block cold discovery.
+            $sourceAccess->assertTargetReadable(
+                $reference->targetPubkey, $reference->target,
+                $reference->versionEventId ?? '', 0, $muted,
+            );
+            $data = $request->isMethod('POST')
+                ? $discovery->request($reader, $reference)
+                : $discovery->status($reader, $reference);
+        }
+        $response = $this->json($data);
+        $response->headers->set('Cache-Control', 'private, no-store');
         return $response;
     }
 

@@ -9,7 +9,65 @@ and draft previews with ordered references. The
 proposed contact-list (kind `3`) preview is intentionally skipped. A bounded
 shared DB-only target preview resolver is shipped for bookmarks and the
 Bookshelf directory. General resolution, other expandable sources, and
-selectable viewers remain proposed.
+selectable viewers remain proposed. A bounded Step 3 subset now provides
+user-triggered asynchronous discovery for Reading Nook TOC public publication
+addresses; Step 3 as a whole remains incomplete.
+
+### Delivered bounded Step 3 subset: Reading Nook TOC discovery
+
+- Reading Nook root and nested kind `30040` TOCs expose a separate discovery
+  button for valid unresolved, unpinned `a` occurrences targeting public
+  `30040`/`30041` kinds only. Other kinds, `e` IDs, malformed pins, and cold
+  exact pins cannot queue work. A pin already available locally resolves
+  exactly; a cold pin is explicitly unavailable rather than fetched and
+  accidentally replaced by the latest revision. Ordinary rendering remains
+  DB-only. Bookshelf TOCs do not acquire this action.
+- The authenticated GET/POST occurrence endpoint derives identity exclusively
+  from the authorized exact source's signed raw tag position on the current
+  page. POST requires a session CSRF token. Every POST and poll rereads the owned
+  root and all bounded exact nested sources, verifies raw parent relationships
+  and signed traversal state, and rechecks author, strict reader mute, hidden
+  coordinate, and tombstone policy. Source ownership is not a browser grant.
+- `PublicationTocDiscovery` atomically reserves Redis keys: one pending job per
+  coordinate+pin for 60 seconds, two attempts per reader/target per ten minutes,
+  and four new jobs per reader per minute. Redis failures fail closed.
+  Duplicate occurrences share discovery work, but keep distinct DOM rows.
+- `FetchEventFromRelaysMessage`/Handler have an additive public-address-only
+  workspace mode. Only four configured content relays are supplied; signed and
+  browser relay hints are ignored. No author-relay discovery, Books API fallback,
+  Article projection, body conversion, media fetch, or Mercure topic is used.
+  Empty valid `d` identifiers work. Exact pins do not enter this unpinned
+  discovery path; they remain local-only until a safe historical revision
+  storage/resolution path is designed.
+- The Stimulus controller performs no work on connect. Each click makes one
+  POST then at most 20 GET checks at three-second intervals, with ten-second
+  HTTP timeouts and a shared four-active-occurrence browser bound. Completion
+  replaces only that occurrence's inner panel; siblings and their disclosures
+  remain mounted. Focus is restored without scrolling; no page/frame reload.
+  Disconnect aborts requests/timers and releases the browser slot.
+- Polls resolve only the requested occurrence locally and apply existing public
+  target visibility policy. `30040` keeps cycle/depth-safe nested disclosure;
+  `30041` gets bounded tag metadata only, not a mounted chapter/body viewer.
+  Worker completion is not an authorization result. Missing/failed transport,
+  persistence, or relay results converge to a bounded generic failure with
+  explicit retry; server cooldown/attempt limits remain authoritative.
+- Known limits: discovery checks configured relays, not arbitrary author/hint
+  relays; late jobs require another explicit check after the polling window.
+  Cold coordinate tombstones conservatively prevent discovery even if a newer
+  allowed revision might exist. A cold exact pin is unavailable because the
+  current Event store retains only the winning replaceable revision; fetching
+  it through the generic projector could substitute latest. No worker error
+  details or private identifiers are broadcast. This is not shared graph
+  recursion or all of Step 3.
+- Validation: final isolated Docker checks pass: **50 PHPUnit tests / 256
+  assertions** across discovery, handler, and controller suites, plus **five
+  Node tests** for the Stimulus controller. All six locale YAML files parse and
+  contain the same eight discovery keys. The Compose PHP service is not running;
+  the isolated PHP image is 8.5.6, not the deployment's required patched
+  runtime, so this is not deployment acceptance. Full-app Twig/container lint
+  and AssetMapper compile remain blocked by the missing installed
+  `DecentNewsroom\UnfoldBundle\UnfoldBundle` class. Browser/live worker/Redis
+  integration verification remains pending. No host-runtime checks substituted.
 
 Bookshelf containing-index links also compose the existing public-index preview
 and TOC primitives at an exact-ID Bookshelf route, with independently authorized
@@ -56,7 +114,7 @@ for the bounded local-only behavior; generic magazine routing is unchanged.
   behavior. Symfony's `event_workspace_expansion_enabled` parameter supplies both
   the Twig gate and fragment controllers. Set it to `false` and rebuild/clear the
   deployed Symfony cache as usual to roll back: all workspace expansion controls
-  disappear and all six fragment actions (including signed nested TOCs and every
+  disappear and all fragment actions (including discovery, signed nested TOCs and every
   pagination request) return 404 before lookup, validation, or rendering.
   Existing authentication requirements remain in place. Ordinary inventory,
   read, edit, publish, and removal routes are not gated.
@@ -743,7 +801,7 @@ media should not autoplay or load merely because a folder was expanded.
 |---|---|---|
 | 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | One readable raw event can produce a generic presentation without Article storage, body HTML, or network access; both inventory routes retain their behavior. |
 | 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing collection rows and the Bookshelf directory; kind `3` follow-list previews are intentionally skipped. | Partially shipped: follow-pack members, bookmarks, bounded kind `30040` local nested indexes, Bookshelf directory disclosures on both inventories, My Content previews, and bounded shared DB-only bookmark/directory target metadata behind the existing rollback flag. General recursion, article target entitlement, and broader viewers remain pending. |
-| 3. Make discovery resilient | Shared bounded fetch coordination, per-fragment updates, retry/status fallback, and preserved browser state. Adapt Books/profile sources without render-time discovery. | Cold references progressively resolve without full-page reload, losing siblings, or unbounded fan-out. |
+| 3. Make discovery resilient | Shared bounded fetch coordination, per-fragment updates, retry/status fallback, and preserved browser state. Adapt Books/profile sources without render-time discovery. | Partially delivered: user-triggered Reading Nook TOC `30040`/`30041` unpinned address discovery, per-occurrence polling, and retry limits. Local exact pins remain exact; cold exact-pin fetching, general coordination, and Books/profile adapters remain incomplete. Docker/browser validation is pending. |
 | 4. Extend the graph | Add typed `p`/`e` relationships and version-binding fields, migrations/indexes, rebuild/backfill, and audit coverage. Add directories and mixed bookmark/curation expansion. | Indexed and raw-tag expansion give equivalent ordered results, including missing targets. Existing publication/Unfold queries retain their behavior. |
 | 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | A supported event has consistent identity, metadata, relationships, and status across all migrated contexts. Remove superseded dispatch paths only after parity. |
 | 6. Promote and stabilize | Enable expansion in the existing workspaces broadly; add drive mounting, saved local workspace state, performance instrumentation, and user-facing documentation. Evaluate package extraction after a second consumer proves the boundary. | Browsing works for cold/partial data, deep/shared/cyclic structures, mobile, keyboard navigation, and restricted content. Existing reader/publisher routes remain intact. |
@@ -825,8 +883,13 @@ Build out the narrow Reading Nook demonstration: expand an existing reading
 list, expose the user's Bookshelf book directory through the same node,
 preview a chapter, expand a nested index,
 and resolve a missing child asynchronously without disturbing the rest of the
-outline. Nested index expansion is now a bounded local-only slice; unresolved
-children of other kinds still need asynchronous discovery. Reuse the row/preview
+outline. Nested index expansion remains local-only during rendering; explicit
+discovery now supports missing public `30040`/`30041` addresses with bounded
+per-occurrence updates. **Next bounded slice:** validate this discovery path on
+a Docker/browser cold-reference fixture (including duplicate pins, sibling
+disclosures, sign-out/policy changes, and failed workers), then add one separately
+authorized lazy chapter preview without Book mounting or recursive discovery.
+Other kinds still need a separate policy/scoping decision. Reuse the row/preview
 in My Content and inside an ordinary event page without changing their existing
 actions. The shipped TOC disclosure remains a narrower step toward this broader
 behavior. Kind `3` follow-list previews are intentionally skipped. Bookshelf
