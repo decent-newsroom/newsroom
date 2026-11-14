@@ -25,7 +25,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Checks:
  *  1. current_record freshness — is the stored current_event_id actually the newest?
- *  2. parsed_reference completeness — are reference rows present for all events with a/e tags?
+ *  2. parsed_reference completeness — are reference rows present for sampled events with a/e/p tags?
  *  3. Orphan detection — current_record entries whose event no longer exists.
  */
 #[AsCommand(
@@ -422,7 +422,7 @@ class GraphAuditCommand extends Command
     }
 
     /**
-     * Check 2: Sample events with `a` or `e` tags and verify parsed_reference count matches.
+     * Check 2: Sample events with `a`, `e` or `p` tags and verify parsed_reference count matches.
      *
      * Uses JSONB containment operator (@>) to leverage the GIN index instead of
      * casting to text. Batch-fetches stored counts to avoid N+1 queries.
@@ -434,7 +434,7 @@ class GraphAuditCommand extends Command
     {
         $checkLimit = $limit > 0 ? $limit : 1000;
 
-        $io->info(sprintf('Sampling up to %d events with a or e tags…', $checkLimit));
+        $io->info(sprintf('Sampling up to %d events with a, e or p tags…', $checkLimit));
 
         // Use JSONB containment operators — hits the GIN index (jsonb_path_ops).
         // No ORDER BY: we just need a sample, sorting all matching rows is expensive
@@ -442,20 +442,20 @@ class GraphAuditCommand extends Command
             $rows = $this->connection->fetchAllAssociative(
                 <<<'SQL'
                     SELECT id, kind, tags FROM event
-                    WHERE tags @> '[["a"]]' OR tags @> '[["e"]]'
+                    WHERE tags @> '[["a"]]' OR tags @> '[["e"]]' OR tags @> '[["p"]]'
                     LIMIT :lim
                 SQL,
                 ['lim' => $checkLimit],
                 ['lim' => ParameterType::INTEGER],
             );
         } catch (\Throwable $e) {
-            $io->error('Failed to query events with a or e tags: ' . $e->getMessage());
+            $io->error('Failed to query events with a, e or p tags: ' . $e->getMessage());
             $this->logger->error('Graph audit: parsed_reference query failed', ['error' => $e->getMessage()]);
             return [];
         }
 
         if (empty($rows)) {
-            $io->info('✓ No events with a or e tags found.');
+            $io->info('✓ No events with a, e or p tags found.');
             return [];
         }
 
@@ -803,7 +803,7 @@ class GraphAuditCommand extends Command
     {
         $sql = <<<'SQL'
             INSERT INTO parsed_reference
-                (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable)
+                (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable, auxiliary_data)
             VALUES
         SQL;
 
@@ -814,8 +814,8 @@ class GraphAuditCommand extends Command
 
         foreach ($refs as $ref) {
             $values[] = sprintf(
-                '(:sei%d, :tn%d, :trt%d, :tk%d, :tp%d, :td%d, :tc%d, :teid%d, :rel%d, :mk%d, :rh%d, :pos%d, :is%d, :ir%d)',
-                $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i
+                '(:sei%d, :tn%d, :trt%d, :tk%d, :tp%d, :td%d, :tc%d, :teid%d, :rel%d, :mk%d, :rh%d, :pos%d, :is%d, :ir%d, :aux%d)',
+                $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i
             );
             $params["sei{$i}"] = $ref->sourceEventId;
             $params["tn{$i}"] = $ref->tagName;
@@ -833,6 +833,7 @@ class GraphAuditCommand extends Command
             $types["is{$i}"] = ParameterType::BOOLEAN;
             $params["ir{$i}"] = $ref->isResolvable;
             $types["ir{$i}"] = ParameterType::BOOLEAN;
+            $params["aux{$i}"] = $ref->auxiliaryData;
             $i++;
         }
 
@@ -849,19 +850,19 @@ class GraphAuditCommand extends Command
             foreach ($refs as $ref) {
                 try {
                     $this->connection->executeStatement(
-                        'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable, auxiliary_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [
                             $ref->sourceEventId, $ref->tagName, $ref->targetRefType,
                             $ref->targetKind, $ref->targetPubkey, $ref->targetDTag,
                             $ref->targetCoord, $ref->targetEventId, $ref->relation, $ref->marker, $ref->relayHint,
-                            $ref->position, $ref->isStructural, $ref->isResolvable,
+                            $ref->position, $ref->isStructural, $ref->isResolvable, $ref->auxiliaryData,
                         ],
                         [
                             ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::INTEGER, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::STRING, ParameterType::STRING,
-                            ParameterType::INTEGER, ParameterType::BOOLEAN, ParameterType::BOOLEAN,
+                            ParameterType::INTEGER, ParameterType::BOOLEAN, ParameterType::BOOLEAN, ParameterType::STRING,
                         ],
                     );
                 } catch (\Throwable $inner) {

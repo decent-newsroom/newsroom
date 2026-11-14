@@ -89,7 +89,7 @@ class ReferenceParserServiceTest extends TestCase
 
     public function testSkipsNonATags(): void
     {
-        $tags = [['d', 'slug'], ['t', 'topic'], ['p', str_repeat('ab', 32)]];
+        $tags = [['d', 'slug'], ['t', 'topic'], ['P', str_repeat('ab', 32)]];
         $this->assertCount(0, $this->parser->parseFromTagsArray('ev1', 30040, $tags));
     }
 
@@ -218,5 +218,73 @@ class ReferenceParserServiceTest extends TestCase
         ]);
 
         $this->assertSame([], $references);
+    }
+
+    public function testProfileReferencesAreKindAwareAndNeverStructural(): void
+    {
+        $pubkey = str_repeat('AB', 32);
+        foreach ([3 => 'follows', 39089 => 'member', 1 => 'references', 30040 => 'references'] as $kind => $relation) {
+            $references = $this->parser->parseFromTagsArray('source', $kind, [
+                ['p', $pubkey, 'WSS://relay.example', 'explicit-petname'],
+            ]);
+
+            $this->assertCount(1, $references);
+            $ref = $references[0];
+            $this->assertSame('source', $ref->sourceEventId);
+            $this->assertSame('p', $ref->tagName);
+            $this->assertSame('profile', $ref->targetRefType);
+            $this->assertSame(strtolower($pubkey), $ref->targetPubkey);
+            $this->assertSame($relation, $ref->relation);
+            $this->assertSame('WSS://relay.example', $ref->relayHint);
+            $this->assertSame(['WSS://relay.example', 'explicit-petname'], json_decode($ref->auxiliaryData, true));
+            $this->assertNull($ref->marker);
+            $this->assertNull($ref->targetEventId);
+            $this->assertNull($ref->targetCoord);
+            $this->assertFalse($ref->isStructural);
+            $this->assertFalse($ref->isResolvable);
+        }
+    }
+
+    public function testProfileOccurrencesRetainPositionsDuplicatesAndMixedReferenceTypes(): void
+    {
+        $pubkey = str_repeat('ab', 32);
+        $eventId = str_repeat('cd', 32);
+        $refs = $this->parser->parseFromTagsArray('source', 30040, [
+            ['d', 'index'],
+            ['p', $pubkey, '', 'name'],
+            ['e', $eventId],
+            ['p', $pubkey, 'nudity'],
+            ['a', "30023:{$pubkey}:article"],
+            ['p', 'invalid'],
+            ['p', str_repeat('g', 64)],
+            ['p', str_repeat('a', 63)],
+            ['P', $pubkey],
+            ['p', 123],
+        ]);
+
+        $this->assertSame([1, 2, 3, 4], array_map(static fn ($ref) => $ref->position, $refs));
+        $this->assertSame(['p', 'e', 'p', 'a'], array_map(static fn ($ref) => $ref->tagName, $refs));
+        $this->assertSame($pubkey, $refs[0]->targetPubkey);
+        $this->assertSame($pubkey, $refs[2]->targetPubkey);
+        $this->assertNull($refs[2]->relayHint);
+        $this->assertSame(['nudity'], json_decode($refs[2]->auxiliaryData, true));
+        $this->assertSame($eventId, $refs[1]->targetEventId);
+        $this->assertFalse($refs[1]->isStructural);
+        $this->assertSame("30023:{$pubkey}:article", $refs[3]->targetCoord);
+        $this->assertTrue($refs[3]->isStructural);
+    }
+
+    public function testProfileAuxiliaryIndexIsBoundedAndDoesNotInferRelayFromOtherSlots(): void
+    {
+        $pubkey = str_repeat('ab', 32);
+        $refs = $this->parser->parseFromTagsArray('source', 1984, [
+            ['p', $pubkey, 'impersonation', 'wss://not-slot-two.example'],
+            ['p', $pubkey, 'wss://' . str_repeat('x', 5000)],
+        ]);
+
+        $this->assertNull($refs[0]->relayHint);
+        $this->assertSame(['impersonation', 'wss://not-slot-two.example'], json_decode($refs[0]->auxiliaryData, true));
+        $this->assertNull($refs[1]->relayHint);
+        $this->assertNull($refs[1]->auxiliaryData);
     }
 }

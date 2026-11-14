@@ -25,5 +25,6 @@ final readonly class ParsedReferenceDto
         public bool $isResolvable,
         public ?string $targetEventId = null,
         public ?string $relayHint = null,
+        public ?string $auxiliaryData = null,
     ) {}
 }

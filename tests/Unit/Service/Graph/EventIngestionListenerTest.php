@@ -9,6 +9,7 @@ use App\Service\Graph\CurrentVersionResolver;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\ParsedReferenceDto;
 use App\Service\Graph\ReferenceParserService;
+use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\AuthorIngestionGate;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
@@ -215,6 +216,41 @@ class EventIngestionListenerTest extends TestCase
         $this->currentVersionResolver->expects($this->never())->method('updateIfCurrent');
 
         $this->listener->processRawEvent($raw);
+    }
+
+    public function testRawProfileReferencesPersistEveryOccurrenceAndAuxiliaries(): void
+    {
+        $pubkey = str_repeat('AB', 32);
+        $raw = (object) [
+            'id' => 'follow-list',
+            'kind' => 3,
+            'pubkey' => 'aabb',
+            'created_at' => 100,
+            'tags' => [['d', 'ignored'], ['p', $pubkey, 'wss://relay.example', 'name'], ['p', $pubkey]],
+        ];
+        $listener = new EventIngestionListener(
+            $this->connection,
+            new ReferenceParserService(new RecordIdentityService()),
+            $this->currentVersionResolver,
+            $this->logger,
+            $this->createMock(AuthorIngestionGate::class),
+        );
+        $rows = [];
+        $this->connection->expects($this->exactly(3))->method('executeStatement')
+            ->willReturnCallback(static function (string $sql, array $params = []) use (&$rows): int {
+                if (str_starts_with($sql, 'INSERT')) {
+                    $rows[] = $params;
+                }
+                return 1;
+            });
+        $listener->processRawEvent($raw);
+        $this->assertCount(2, $rows);
+        $this->assertSame([1, 2], array_column($rows, 11));
+        $this->assertSame([strtolower($pubkey), strtolower($pubkey)], array_column($rows, 4));
+        $this->assertSame('follows', $rows[0][8]);
+        $this->assertSame('wss://relay.example', $rows[0][10]);
+        $this->assertSame(['wss://relay.example', 'name'], json_decode($rows[0][14], true));
+        $this->assertNull($rows[1][14]);
     }
 
     public function testProcessRawEventDTagDefaultsToEmptyForParameterizedReplaceable(): void

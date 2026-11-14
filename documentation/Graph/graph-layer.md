@@ -16,7 +16,7 @@ The current implementation is relational PostgreSQL, not Apache AGE. The earlier
 | Layer | Purpose |
 |---|---|
 | `event.d_tag` | Fast coordinate lookups for parameterized replaceable events. |
-| `parsed_reference` | Normalized `a` coordinate and lowercase `e` exact-event references; `a` structural edges drive current traversal, while `e` edges are retained as contextual references. |
+| `parsed_reference` | Normalized `a` coordinate, lowercase `e` exact-event, and lowercase `p` profile references; only `a` structural edges drive current traversal. |
 | `current_record` | Current winning event for each replaceable coordinate. |
 | `GraphLookupService` | Recursive CTE queries for children, descendants, ancestors, magazine trees, and bulk event row fetches. |
 | `EventIngestionListener` | Keeps graph tables updated when events are projected or persisted. |
@@ -65,7 +65,11 @@ The graph layer reduces reliance on relay round-trips for magazine and publicati
 
 `RecordIdentityService` derives `kind:pubkey:d_tag` coordinates and `coord:<coordinate>` record identifiers. Addressable events with a missing or empty `d` tag use an empty string; non-addressable events keep a null `d_tag`.
 
-`ReferenceParserService` parses supported `a` and lowercase `e` tags. Address references retain their canonical coordinate and existing structural classification. Exact event IDs are stored separately from coordinates in `target_event_id`; repeated tags remain separate rows at their original source positions. For kind-1 events, the `e` tag's NIP-10 marker and relay hint are retained. The generic parser treats these `e` references as contextual, not structural. `GraphLookupService` does not yet resolve or traverse `target_event_id`; the reference remains available even when its target is absent locally. Uppercase `E` tags are not interpreted as lowercase `e`.
+`ReferenceParserService` parses supported `a`, lowercase `e`, and lowercase `p` tags. Address references retain their canonical coordinate and existing structural classification. Exact event IDs are stored separately from coordinates in `target_event_id`; repeated tags remain separate rows at their original source positions. For kind-1 events, the `e` tag's NIP-10 marker and relay hint are retained. The generic parser treats these `e` references as contextual, not structural. `GraphLookupService` does not yet resolve or traverse `target_event_id`; the reference remains available even when its target is absent locally. Uppercase `E` tags are not interpreted as lowercase `e`.
+
+Valid lowercase `p` tags store a normalized 64-hex profile key in `target_pubkey`, with `target_ref_type` `profile`. Kind `3` references have relation `follows`, kind `39089` references have relation `member`, and other kinds have relation `references`. These rows are always non-structural and `is_resolvable` is false: profile lookup and traversal are not implemented. Uppercase `P` is not interpreted as `p`.
+
+The optional slot-2 relay hint is retained only for a WebSocket scheme candidate of at most 2048 bytes, without validation or network use. `auxiliary_data` stores the complete JSON-encoded array of slots from index 2 onward when its encoded size is at most 4096 bytes; otherwise it is null. These untrusted slots can represent a petname, report classification, role, or other kind-specific data, and no display name is inferred. Raw event tags remain the source of truth, including over-limit or unencodable auxiliary data.
 
 `CurrentVersionResolver` atomically selects the newer event for replaceable coordinates; equal timestamps use the lexicographically lower event ID. Exact event IDs do not pass through this latest-version selection.
 
@@ -73,7 +77,7 @@ The graph layer reduces reliance on relay round-trips for magazine and publicati
 
 ## Repair and audit
 
-The schema originated in migrations `Version20260315140000` and `Version20260315140001`; `Version20261114120000` adds exact event-ID and relay-hint columns plus the target-ID index. Use normal Doctrine migrations, then backfill references and current records for existing data. The reference backfill includes both `a` and lowercase `e` tags.
+The schema originated in migrations `Version20260315140000` and `Version20260315140001`; `Version20261114120000` adds exact event-ID and relay-hint columns plus the target-ID index, and `Version20261114130000` adds profile auxiliary data. Deploy migrations before the updated graph writers. Run the reference backfill again to index existing lowercase `p` tags; it includes `a`, `e`, and `p` tags.
 
 ~~~bash
 docker compose exec php bin/console dn:graph:audit
@@ -81,7 +85,7 @@ docker compose exec php bin/console dn:graph:audit --limit=100
 docker compose exec php bin/console dn:graph:rebuild-record "30040:<pubkey>:<slug>" --dry-run
 ~~~
 
-The audit checks current versions, reference completeness, and orphan records. `--fix-versions`, `--fix-references`, or `--fix` enable repairs. The scheduled audit runs daily at 03:00 with `--fix` in [the crontab](../../docker/cron/crontab).
+The audit checks current versions, sampled reference counts, and orphan records. Reference-count sampling includes lowercase `p` tags, but equal counts do not prove that stored fields match the parser. `--fix-versions`, `--fix-references`, or `--fix` enable repairs. The scheduled audit runs daily at 03:00 with `--fix` in [the crontab](../../docker/cron/crontab).
 
 A record rebuild accepts `--cascade` to include structural children. The two backfill commands accept `--truncate` to clear and rebuild their derived tables; use this deliberately rather than as routine startup work.
 

@@ -11,12 +11,16 @@ use App\Util\Nip10TagParser;
 /**
  * Extracts DN-relevant references from event tags.
  *
- * Parses `a` tags as coordinate references and lowercase `e` tags as exact
- * event-ID references. The parser does not resolve targets.
+ * Parses `a` coordinates, lowercase `e` event IDs and lowercase `p` pubkeys.
+ * The parser does not resolve targets.
  * Returns normalized reference DTOs ready for insertion into parsed_reference.
  */
 class ReferenceParserService
 {
+    /** Maximum serialized bytes of profile tag auxiliaries kept in the index. */
+    private const MAX_PROFILE_AUXILIARY_BYTES = 4096;
+    private const MAX_PROFILE_RELAY_BYTES = 2048;
+
     /** Kinds whose `a` tags represent structural containment (parent→child). */
     private const STRUCTURAL_SOURCE_KINDS = [
         30040, // PUBLICATION_INDEX — magazines, categories, reading lists
@@ -73,6 +77,50 @@ class ReferenceParserService
         foreach ($tags as $tag) {
             $sourceTagPosition = $position++;
             if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+
+            if (($tag[0] ?? null) === 'p') {
+                $pubkey = $tag[1] ?? null;
+                if (!is_string($pubkey) || !$this->isHex32($pubkey)) {
+                    continue;
+                }
+
+                // Other kinds use this slot for non-relay values (e.g. reports).
+                $candidate = $tag[2] ?? null;
+                $relayHint = is_string($candidate)
+                    && strlen($candidate) <= self::MAX_PROFILE_RELAY_BYTES
+                    && Nip10TagParser::isWebSocketSchemeCandidate($candidate)
+                    ? $candidate : null;
+                $auxiliaryData = null;
+                if (count($tag) > 2) {
+                    $encoded = json_encode(array_values(array_slice($tag, 2)));
+                    if ($encoded !== false && strlen($encoded) <= self::MAX_PROFILE_AUXILIARY_BYTES) {
+                        $auxiliaryData = $encoded;
+                    }
+                }
+
+                $refs[] = new ParsedReferenceDto(
+                    sourceEventId: $eventId,
+                    tagName: 'p',
+                    targetRefType: 'profile',
+                    targetKind: null,
+                    targetPubkey: strtolower($pubkey),
+                    targetDTag: null,
+                    targetCoord: null,
+                    relation: match ($eventKind) {
+                        KindsEnum::FOLLOWS->value => 'follows',
+                        KindsEnum::FOLLOW_PACK->value => 'member',
+                        default => 'references',
+                    },
+                    marker: null,
+                    position: $sourceTagPosition,
+                    isStructural: false,
+                    isResolvable: false,
+                    relayHint: $relayHint,
+                    auxiliaryData: $auxiliaryData,
+                );
+
                 continue;
             }
 

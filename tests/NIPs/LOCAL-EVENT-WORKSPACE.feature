@@ -68,6 +68,13 @@ Feature: Raw-event presentations for the event workspace
     Then the "p" references are identified as pack members in their original order
     And they are not treated as profiles the viewer already follows
 
+  Scenario: The graph indexes profile occurrences without resolving them
+    Given a kind:3 follow list has repeated lowercase "p" tags and an uppercase "P" tag
+    When the graph indexes its public references
+    Then each valid lowercase occurrence retains its source tag position
+    And the profile relationships are non-structural follows
+    And the uppercase tag is not indexed as a lowercase profile reference
+
   Scenario: Encrypted list contents are not used as a text excerpt
     Given a NIP-51 list contains encrypted private entries in its content
     When the event is prepared for presentation

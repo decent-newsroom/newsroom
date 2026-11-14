@@ -18,12 +18,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * One-time backfill of the parsed_reference table from existing events.
  *
- * Parses coordinate (`a`) and exact event-ID (`e`) references.
+ * Parses coordinate (`a`), exact event-ID (`e`) and profile (`p`) references.
  * Processes events in batches to avoid memory issues on large tables.
  */
 #[AsCommand(
     name: 'dn:graph:backfill-references',
-    description: 'Backfill parsed_reference table from existing a/e references',
+    description: 'Backfill parsed_reference table from existing a/e/p references',
 )]
 class GraphBackfillReferencesCommand extends Command
 {
@@ -57,20 +57,20 @@ class GraphBackfillReferencesCommand extends Command
             $this->connection->executeStatement('TRUNCATE TABLE parsed_reference');
         }
 
-        // Count events that have `a` or `e` tags — use JSONB containment for the GIN index.
+        // Use JSONB containment for the GIN index.
         $totalCount = (int) $this->connection->fetchOne(
             <<<'SQL'
                 SELECT COUNT(*) FROM event
-                WHERE tags @> '[["a"]]' OR tags @> '[["e"]]'
+                WHERE tags @> '[["a"]]' OR tags @> '[["e"]]' OR tags @> '[["p"]]'
             SQL,
         );
 
         if ($totalCount === 0) {
-            $io->success('No events with a or e tags found.');
+            $io->success('No events with a, e or p tags found.');
             return Command::SUCCESS;
         }
 
-        $io->info(sprintf('Found %d events with potential a or e tags to process.', $totalCount));
+        $io->info(sprintf('Found %d events with potential a, e or p tags to process.', $totalCount));
         $io->progressStart($totalCount);
 
         $offset = 0;
@@ -81,7 +81,7 @@ class GraphBackfillReferencesCommand extends Command
             $rows = $this->connection->fetchAllAssociative(
                 <<<'SQL'
                     SELECT id, kind, pubkey, tags FROM event
-                    WHERE tags @> '[["a"]]' OR tags @> '[["e"]]'
+                    WHERE tags @> '[["a"]]' OR tags @> '[["e"]]' OR tags @> '[["p"]]'
                     ORDER BY id LIMIT :limit OFFSET :offset
                 SQL,
                 ['limit' => $batchSize, 'offset' => $offset],
@@ -154,7 +154,7 @@ class GraphBackfillReferencesCommand extends Command
     {
         $sql = <<<'SQL'
             INSERT INTO parsed_reference
-                (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable)
+                (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable, auxiliary_data)
             VALUES
         SQL;
 
@@ -165,8 +165,8 @@ class GraphBackfillReferencesCommand extends Command
 
         foreach ($refs as $ref) {
             $values[] = sprintf(
-                '(:sei%d, :tn%d, :trt%d, :tk%d, :tp%d, :td%d, :tc%d, :teid%d, :rel%d, :mk%d, :rh%d, :pos%d, :is%d, :ir%d)',
-                $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i
+                '(:sei%d, :tn%d, :trt%d, :tk%d, :tp%d, :td%d, :tc%d, :teid%d, :rel%d, :mk%d, :rh%d, :pos%d, :is%d, :ir%d, :aux%d)',
+                $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i
             );
             $params["sei{$i}"] = $ref->sourceEventId;
             $params["tn{$i}"] = $ref->tagName;
@@ -184,6 +184,7 @@ class GraphBackfillReferencesCommand extends Command
             $types["is{$i}"] = ParameterType::BOOLEAN;
             $params["ir{$i}"] = $ref->isResolvable;
             $types["ir{$i}"] = ParameterType::BOOLEAN;
+            $params["aux{$i}"] = $ref->auxiliaryData;
             $i++;
         }
 
@@ -200,19 +201,19 @@ class GraphBackfillReferencesCommand extends Command
             foreach ($refs as $ref) {
                 try {
                     $this->connection->executeStatement(
-                        'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable, auxiliary_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [
                             $ref->sourceEventId, $ref->tagName, $ref->targetRefType,
                             $ref->targetKind, $ref->targetPubkey, $ref->targetDTag,
                             $ref->targetCoord, $ref->targetEventId, $ref->relation, $ref->marker, $ref->relayHint,
-                            $ref->position, $ref->isStructural, $ref->isResolvable,
+                            $ref->position, $ref->isStructural, $ref->isResolvable, $ref->auxiliaryData,
                         ],
                         [
                             ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::INTEGER, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::STRING, ParameterType::STRING,
-                            ParameterType::INTEGER, ParameterType::BOOLEAN, ParameterType::BOOLEAN,
+                            ParameterType::INTEGER, ParameterType::BOOLEAN, ParameterType::BOOLEAN, ParameterType::STRING,
                         ]
                     );
                 } catch (\Throwable $inner) {

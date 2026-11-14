@@ -16,7 +16,8 @@ Step 4 has an additive exact-event-ID (`e`) parsed-reference slice: lowercase
 event references are stored separately from coordinates with original tag
 positions, duplicates, and NIP-10 marker/relay context. A migration and all
 graph ingestion, rebuild, backfill, and audit writers carry the exact IDs.
-Resolution queries, profile (`p`) graph edges, and broader graph traversal
+An additional bounded slice indexes lowercase profile (`p`) occurrences with
+source-kind-aware roles. Target resolution queries and broader graph traversal
 remain pending.
 
 ### Delivered bounded Step 3 subset: Reading Nook TOC discovery
@@ -716,10 +717,30 @@ work.
   retained; other `e` relay hints are stored without being used for network work.
 - Ingestion, graph rebuild/backfill, and graph audit consume the same additive
   representation. Existing `a` coordinate parsing and publication/Unfold
-  coordinate queries remain unchanged. `p` edges, target resolution, and
-  broader traversal/index-vs-raw equivalence remain pending.
+  coordinate queries remain unchanged. This first graph slice did not yet
+  include `p` edges; the separate profile-occurrence slice below adds them.
+  Target resolution and broader traversal/index-vs-raw equivalence remain
+  pending.
 - Validation: the isolated Docker graph-service suite passes **75 PHPUnit
-  tests / 179 assertions**; the migration was not applied to an environment.
+  tests / 179 assertions**. The migration has since been applied successfully;
+  run `dn:graph:backfill-references` if existing events still need their `e`
+  references indexed.
+
+#### Shipped bounded Step 4 slice: profile occurrences
+
+- Valid lowercase `p` references are indexed by normalized pubkey, preserving
+  source ID, original position, and duplicates. Kind `3` uses `follows`, kind
+  `39089` uses `member`, and other kinds use `references`; all are
+  non-structural and do not yet support graph target resolution.
+- The slot-2 WebSocket-scheme hint is untrusted and never used for network
+  calls. Bounded JSON-encoded auxiliary slots preserve explicit tag data
+  without assigning it a universal role or inferring a display name; raw
+  signed tags remain authoritative when auxiliary data exceeds the bound.
+  Uppercase `P` remains distinct.
+- The new auxiliary-data migration must be deployed before graph writers and
+  the reference backfill must be rerun for existing events. Graph audits sample
+  reference counts, not full field equivalence. Profile resolution, exact-ID
+  lookup and generic traversal remain pending.
 
 Important semantics:
 
