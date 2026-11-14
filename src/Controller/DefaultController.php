@@ -17,6 +17,8 @@ use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\BooksChapterLookup;
+use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\Graph\GraphMagazineListService;
 use App\Service\Magazine\MagazineStructureService;
 use App\Service\Magazine\PublicationIndexClassifier;
@@ -2024,7 +2026,14 @@ class DefaultController extends AbstractController
      * Nostr Preview endpoint for Nostr identifiers (naddr, nevent, note, npub, nprofile)
      */
     #[Route('/api/preview/', name: 'nostr_preview', methods: ['POST'])]
-    public function nostrPreview(RequestStack $requestStack, EntityManagerInterface $entityManager, LoggerInterface $logger, RedisCacheService $redisCacheService): Response
+    public function nostrPreview(
+        RequestStack $requestStack,
+        EntityManagerInterface $entityManager,
+        LoggerInterface $logger,
+        RedisCacheService $redisCacheService,
+        EventPresentationFactory $eventPresentations,
+        EventPreviewAccessPolicy $eventPreviewAccess,
+    ): Response
     {
         $request = $requestStack->getCurrentRequest();
         $data = json_decode($request->getContent(), true);
@@ -2058,7 +2067,7 @@ class DefaultController extends AbstractController
                     return $this->handleNaddrPreview($decoded, $entityManager, $logger);
                 case 'nevent':
                 case 'note':
-                    return $this->handleEventPreview($decoded, $entityManager, $logger);
+                    return $this->handleEventPreview($decoded, $entityManager, $eventPresentations, $eventPreviewAccess);
                 case 'npub':
                 case 'nprofile':
                     return $this->handleProfilePreview($decoded, $entityManager, $logger, $redisCacheService);
@@ -2218,7 +2227,12 @@ class DefaultController extends AbstractController
         return new Response('<div class="alert alert-info">Preview for kind ' . $kind . ' not yet supported.</div>', 200);
     }
 
-    private function handleEventPreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    private function handleEventPreview(
+        array $decoded,
+        EntityManagerInterface $entityManager,
+        EventPresentationFactory $eventPresentations,
+        EventPreviewAccessPolicy $eventPreviewAccess,
+    ): Response
     {
         $eventId = $decoded['id'] ?? ($decoded[0] ?? null);
 
@@ -2226,20 +2240,15 @@ class DefaultController extends AbstractController
             return new Response('<div class="alert alert-warning">Invalid event identifier.</div>', 200);
         }
 
-        // Try to find the event in database
-        $event = $entityManager->getRepository(Event::class)->findOneBy(['eventId' => $eventId]);
+        // note/nevent references identify one exact event, never the latest
+        // revision at a replaceable coordinate. Keep this local-only lookup
+        // separate from naddr handling above.
+        $event = $entityManager->getRepository(Event::class)->findOneBy(['id' => $eventId]);
 
-        if ($event) {
-            $content = $event->getPayload()['content'] ?? '';
-            $kind = $event->getKind();
-
-            return new Response(
-                '<div class="nostr-event-preview p-3">' .
-                '<span class="badge" style="background: var(--color-info, #17a2b8);">Kind: ' . (int)$kind . '</span> ' .
-                '<p class="mt-2 mb-0 text-muted small line-clamp-3">' . htmlspecialchars(mb_substr($content, 0, 300)) . '</p>' .
-                '</div>',
-                200
-            );
+        if ($event instanceof Event && $eventPreviewAccess->isReadable($event)) {
+            return $this->render('event_workspace/_api_event_preview.html.twig', [
+                'presentation' => $eventPresentations->fromAuthorizedEvent($event),
+            ]);
         }
 
         return new Response('<div class="alert alert-info">Event not found locally.</div>', 200);

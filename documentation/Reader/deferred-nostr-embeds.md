@@ -90,6 +90,17 @@ The template then renders:
 
 The `nostr--deferred-embed` Stimulus controller (`assets/controllers/nostr/deferred_embed_controller.js`) automatically calls `/api/preview/` on connect to attempt resolution for embeds that couldn't be resolved server-side.
 
+The endpoint's exact `note`/`nevent` fallback resolves only the referenced event
+ID from the local Event store and renders the shared Event Workspace
+presentation/preview only after checking admin/permanent author suppression,
+NIP-09 tombstones, and hidden coordinates. Authenticated viewers' strict NIP-51
+mute lists are applied as well; lookup failures fail closed. Denied exact events
+use the existing local-missing fragment. Unauthenticated public previews remain
+available for readable events. The endpoint does not fetch or persist during
+rendering. Addressable `naddr` previews keep their specialist article, chapter,
+and wiki paths; this bounded migration does not change those
+coordinate/latest-version semantics.
+
 ## Files
 
 | File | Role |

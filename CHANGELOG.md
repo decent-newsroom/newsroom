@@ -2,6 +2,8 @@
 
 ## v0.1.0
 
+- [Fix] Enforced author suppression, NIP-09 tombstones, hidden-coordinate, and authenticated strict NIP-51 mute policy before `/api/preview/` returns an exact event presentation; denied events keep the existing missing fragment and policy lookup failures fail closed.
+- [Feature] Migrated exact `note`/`nevent` `/api/preview/` fragments to the shared Event Workspace presentation and preview, retaining local-only exact-ID lookup, ordered reference occurrences, and specialist `naddr` previews.
 - [Feature] Added separately authorized, lazy Reading Nook chapter previews for available kind `30041` publication-index references, with local-only resolution, per-fragment policy checks, and no recursive chapter expansion.
 - [Fix] Chunked parsed-reference bulk inserts below PostgreSQL's parameter limit so large event batches complete without per-row fallback.
 - [Feature] Indexed lowercase profile references with ordered occurrences and source-kind-aware follow/member roles; preserved bounded auxiliary tag data without profile fetching or traversal.

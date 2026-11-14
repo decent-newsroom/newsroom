@@ -28,6 +28,7 @@ use Symfony\Contracts\Translation\LocaleAwareInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\UX\TwigComponent\Test\InteractsWithTwigComponents;
 use Symfony\UX\TwigComponent\TwigComponentBundle;
+use Twig\Environment;
 
 final class EventPreviewTest extends KernelTestCase
 {
@@ -67,6 +68,31 @@ final class EventPreviewTest extends KernelTestCase
         }
         self::assertStringNotContainsString('https://example.test/never-load.png', $rendered->toString());
         self::assertSame(0, $crawler->filter('img, video, audio, picture, source, iframe')->count());
+    }
+
+    public function testApiEventPreviewAdapterKeepsEmbedWrapperAroundSharedPreview(): void
+    {
+        $presentation = $this->factory()->fromAuthorizedFields(
+            self::EVENT_ID,
+            65001,
+            self::AUTHOR,
+            123,
+            [['title', 'Unknown-kind title'], ['summary', 'Unknown-kind summary']],
+            'opaque body',
+        );
+
+        $twig = self::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+        $html = $twig->render('event_workspace/_api_event_preview.html.twig', [
+            'presentation' => $presentation,
+        ]);
+        $crawler = new Crawler($html);
+
+        self::assertSame(1, $crawler->filter('.nostr-event-preview.p-3 .event-preview')->count());
+        self::assertSame('Unknown-kind title', $crawler->filter('.event-preview__title')->text());
+        self::assertSame('Unknown-kind summary', $crawler->filter('.event-preview__description')->text());
+        self::assertSame('Kind 65001', $crawler->filter('.event-preview__kind')->text());
+        self::assertStringNotContainsString('opaque body', $html);
     }
 
     /**

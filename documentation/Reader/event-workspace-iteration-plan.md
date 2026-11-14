@@ -1,6 +1,15 @@
 # Event Workspace and Composable Previews
 
-Status: the signed-event presentation and reference snapshot, typed source
+Status: **Steps 1–4 are complete for the bounded implementation delivered so
+far.** Completion means the current supported surfaces and graph slices are
+implemented and covered by their targeted tests; it does not mean every
+capability in the longer-term workspace proposal is implemented. Treat any
+defect found in later or broader testing as a bug to fix, not as a reason to
+reopen these milestone statuses. Browser/live worker/Redis verification and
+deployment-runtime acceptance remain follow-up validation, not claims made by
+this status.
+
+The signed-event presentation and reference snapshot, typed source
 records, and resolution-result contracts are implemented. Five bounded Step 2
 slices add Reading Nook kind `39089` member expansion, kind `30040` nested
 index expansion, kind `10003`/`30003` bookmark reference expansion, and Bookshelf
@@ -12,14 +21,15 @@ Bookshelf directory. General resolution, other expandable sources, and
 selectable viewers remain proposed. A bounded Step 3 subset now provides
 user-triggered asynchronous discovery for Reading Nook TOC public publication
 addresses and separately authorized lazy previews for available kind `30041`
-TOC children; Step 3 as a whole remains incomplete.
+TOC children.
 Step 4 has an additive exact-event-ID (`e`) parsed-reference slice: lowercase
 event references are stored separately from coordinates with original tag
 positions, duplicates, and NIP-10 marker/relay context. A migration and all
 graph ingestion, rebuild, backfill, and audit writers carry the exact IDs.
 An additional bounded slice indexes lowercase profile (`p`) occurrences with
-source-kind-aware roles. Target resolution queries and broader graph traversal
-remain pending.
+source-kind-aware roles. These bounded reference-indexing slices complete the
+current Step 4 scope; general target resolution and graph traversal remain
+future extensions.
 
 ### Delivered bounded Step 3 subset: Reading Nook TOC discovery
 
@@ -56,8 +66,9 @@ remain pending.
   Disconnect aborts requests/timers and releases the browser slot.
 - Polls resolve only the requested occurrence locally and apply existing public
   target visibility policy. `30040` keeps cycle/depth-safe nested disclosure;
-  `30041` gets bounded tag metadata only, not a mounted chapter/body viewer.
-  Worker completion is not an authorization result. Missing/failed transport,
+  available `30041` targets expose bounded metadata and a separate lazy chapter
+  preview. The TOC fragment itself never includes a chapter body. Worker
+  completion is not an authorization result. Missing/failed transport,
   persistence, or relay results converge to a bounded generic failure with
   explicit retry; server cooldown/attempt limits remain authoritative. Failed
   queue dispatch releases only its own atomic Redis reservation and counters.
@@ -69,16 +80,17 @@ remain pending.
   it through the generic projector could substitute latest. No worker error
   details or private identifiers are broadcast. This is not shared graph
   recursion or all of Step 3.
-- Validation: final isolated Docker checks pass: **160 PHPUnit tests / 1,141
+- Discovery-only validation at that milestone: isolated Docker checks passed:
+  **160 PHPUnit tests / 1,141
   assertions** across TOC page, discovery, fetch handler, discovery controller,
   Twig, TOC controller, Bookshelf, and expansion rollback suites, plus **five
   Node tests** for the Stimulus controller. All six locale YAML files parse and
-  contain the same eight discovery keys. The Compose PHP service is not running;
-  the isolated PHP image is 8.5.6, not the deployment's required patched
-  runtime, so this is not deployment acceptance. Full-app Twig/container lint
-  and AssetMapper compile remain blocked by the missing installed
-  `DecentNewsroom\UnfoldBundle\UnfoldBundle` class. Browser/live worker/Redis
-  integration verification remains pending. No host-runtime checks substituted.
+  contain the same eight discovery keys. At that earlier checkpoint the
+  Compose PHP service was unavailable; the isolated PHP image was 8.5.6, not
+  the deployment's required patched runtime. Full-app Twig/container lint and
+  AssetMapper compile were blocked by the missing installed
+  `DecentNewsroom\UnfoldBundle\UnfoldBundle` class. These checks do not verify
+  browser/live worker/Redis integration.
 
 ### Delivered bounded Step 3 subset: Reading Nook chapter previews
 
@@ -110,6 +122,11 @@ remain pending.
   slice; existing cold-reference discovery limits remain unchanged. Other
   Reading Nook sources, Bookshelf, and generic chapter expansion are out of
   scope.
+- Validation: focused Docker PHPUnit coverage passes **127 tests / 818
+  assertions** across chapter preview service/controller/Twig, TOC page and
+  discovery, expansion rollback, and disclosure regression tests. Translation
+  YAML and both changed Twig templates pass their Symfony lint commands.
+  Browser, worker, and Redis integration checks remain pending.
 
 Bookshelf containing-index links also compose the existing public-index preview
 and TOC primitives at an exact-ID Bookshelf route, with independently authorized
@@ -300,7 +317,8 @@ for the bounded local-only behavior; generic magazine routing is unchanged.
 - The shared factory still scans the selected source event's tags in memory;
   pagination bounds output/npub encoding, not loading the source event's JSON.
 - No kind `3`, Bookshelf, My Content, profile cards, or `a`/`e` expansion is
-  included. The rest of Step 2 and its broader rollout remain pending.
+  included. These remain future workspace extensions outside the completed
+  bounded Step 2 scope.
 
 ## Implemented foundation
 
@@ -877,19 +895,20 @@ media should not autoplay or load merely because a folder was expanded.
 
 ## Delivery plan
 
-| Step | Scope | Exit criterion |
+| Step | Scope | Status and current completion boundary |
 |---|---|---|
-| 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | One readable raw event can produce a generic presentation without Article storage, body HTML, or network access; both inventory routes retain their behavior. |
-| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing collection rows and the Bookshelf directory; kind `3` follow-list previews are intentionally skipped. | Partially shipped: follow-pack members, bookmarks, bounded kind `30040` local nested indexes, Bookshelf directory disclosures on both inventories, My Content previews, and bounded shared DB-only bookmark/directory target metadata behind the existing rollback flag. General recursion, article target entitlement, and broader viewers remain pending. |
-| 3. Make discovery resilient | Shared bounded fetch coordination, per-fragment updates, retry/status fallback, and preserved browser state. Adapt Books/profile sources without render-time discovery. | Partially delivered: user-triggered Reading Nook TOC `30040`/`30041` unpinned address discovery, per-occurrence polling, and retry limits. Exact pins resolve locally and cold exact-pin fetching remains deferred; general coordination and Books/profile adapters remain incomplete. Targeted isolated-Docker PHPUnit and Node tests pass; live browser/worker/Redis and deployment-runtime verification remain pending. |
-| 4. Extend the graph | Add typed `p`/`e` relationships and version-binding fields, migrations/indexes, rebuild/backfill, and audit coverage. Add directories and mixed bookmark/curation expansion. | Partially delivered: lowercase exact `e` occurrences are indexed separately from address coordinates and retained through ingestion/rebuild/backfill/audit. Profile edges, broader resolution/expansion, and indexed-vs-raw equivalence remain pending. Existing publication/Unfold queries retain their behavior. |
-| 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | A supported event has consistent identity, metadata, relationships, and status across all migrated contexts. Remove superseded dispatch paths only after parity. |
+| 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | **Complete for the current contract foundation.** A readable raw event produces a generic presentation without Article storage, body HTML, or network access; typed source/reference/result contracts exist, and the characterized Reading Nook and My Content routes retain their behavior. Broader PostgreSQL/firewall coverage is follow-up hardening; defects found there are bugs. |
+| 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand selected existing collection rows and the Bookshelf directory. | **Complete for the shipped bounded surfaces.** Follow-pack members, bookmarks, bounded kind `30040` local nested indexes, Bookshelf directory disclosures, My Content previews, shared DB-only bookmark/directory target metadata, and lazy chapter previews are delivered behind the existing rollback flag. Kind `3` previews, general recursion, broader article entitlement, and selectable viewers are intentionally outside this milestone and remain future work. |
+| 3. Make discovery resilient | Provide bounded user-triggered discovery, per-occurrence updates, retry/status fallback, and preserved local disclosure state for the supported TOC path. | **Complete for the supported Reading Nook TOC path.** Unpinned public `30040`/`30041` discovery, per-occurrence polling/retry limits, and separately authorized lazy previews for available `30041` chapters are implemented with targeted Docker PHPUnit and Node coverage. Cold exact-pin fetching, general-purpose coordination, and Books/profile adapters are future extensions. Browser/live worker/Redis and deployment-runtime validation remain follow-up checks; failures found there are handled as bugs. |
+| 4. Extend the graph | Add and maintain the bounded typed `p`/`e` parsed-reference representation without changing existing publication/Unfold coordinate behavior. | **Complete for the delivered parsed-reference indexing scope.** Lowercase exact `e` occurrences and source-kind-aware `p` occurrences are indexed with positions/duplicates and carried through migrations, ingestion, rebuild, backfill, and audit writers. General target resolution/traversal, additional version-binding behavior, mixed collection expansion, and full indexed-vs-raw equivalence are future extensions, not blockers for this milestone. |
+| 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | **In progress — first bounded `/api/preview/` event-ID slice shipped.** `note`/`nevent` exact-ID responses now use the shared event presentation and preview template, retaining ordered references and DB-only behavior. Author suppression, NIP-09 tombstones, hidden coordinates, and authenticated strict NIP-51 mutes are checked before presentation; mute/policy lookup failures fail closed. Article, chapter, wiki, profile, and coordinate-address specialists remain unchanged; deferred embeds and other Step 5 surfaces still need separate parity review and migration. |
 | 6. Promote and stabilize | Enable expansion in the existing workspaces broadly; add drive mounting, saved local workspace state, performance instrumentation, and user-facing documentation. Evaluate package extraction after a second consumer proves the boundary. | Browsing works for cold/partial data, deep/shared/cyclic structures, mobile, keyboard navigation, and restricted content. Existing reader/publisher routes remain intact. |
 | 7. Add selectable viewers (later) | Introduce compatible Generic/Magazine/Book viewers, titles/cards/full-contents controls for indexes, npub/profile-card modes for follow lists, and alternate browser layouts where useful. Reuse shared event resolution and components. | The same event and ordered children/members can be viewed in different ways without changing source events, losing navigation state, or requiring a specialist for generic browsing. |
 
-Step 4 is an optimization/generalization, not a dependency for the first useful
-workspace: the vertical slice can enumerate raw tags. Steps 3 and 4 both build on
-step 2; convergence and broad rollout require their relevant loading/index work.
+Steps 3 and 4 provide bounded discovery and indexing for the shipped surfaces;
+they are not claims of a general resolver or complete graph browser.
+Convergence and broad rollout remain later work and may use raw tags where the
+graph index does not yet cover a target.
 
 After the shared contract, generic preview, and source-adapter interface exist,
 the optional [event workspace agent workflows](../Guides/event-workspace-workflows.md)
@@ -903,9 +922,14 @@ on the index. The UI flag provides rollback without rolling back signed data.
 Do not move application-specific moderation, billing, or relay selection into a
 generic preview package.
 
-## Acceptance and verification
+## Broader acceptance and verification backlog
 
-The first release is complete only when these scenarios are covered:
+The scenarios below describe the broader workspace/product acceptance target;
+they are not blockers for marking Steps 1–4 complete for the bounded scope in
+the delivery table. The delivered scope has focused PHPUnit, Twig/YAML, and
+JavaScript coverage as recorded above. Where broader or live checks have not
+been run, do not claim they passed. Any defects those checks later reveal are
+bugs to address in follow-up work.
 
 - Reading Nook and My Content keep their existing URLs, filters, scoped
   inventories, Open/Manage/Edit actions, and signed-delete confirmation. Their
@@ -923,6 +947,10 @@ The first release is complete only when these scenarios are covered:
   metadata retains an npub preview and enriches asynchronously.
 - A book/index preserves nested order and unresolved entries, including a TOC
   assembled from partial data. Version-pinned references do not drift to latest.
+- Available kind `30041` TOC occurrences can be opened as separately authorized
+  lazy previews; initial TOC rendering never includes chapter bodies, and
+  missing, changed, muted, hidden, suppressed, or tombstoned targets disclose
+  no body or target metadata.
 - Directory `a`/`e` members, references whose identifiers contain colons, empty
   valid `d` identifiers, malformed tags, and mixed case pubkeys behave predictably.
 - Shared children appear in both branches; self-references and A-to-B-to-A cycles
@@ -957,24 +985,21 @@ standalone foundation now supports the bounded follow-pack, bookmark, nested
 publication-index, and Bookshelf directory slices above, not yet a
 general-purpose expandable workspace.
 
-## Recommended first workspace slice
+## Follow-up validation and workspace direction
 
-Build out the narrow Reading Nook demonstration: expand an existing reading
-list, expose the user's Bookshelf book directory through the same node,
-preview a chapter, expand a nested index,
-and resolve a missing child asynchronously without disturbing the rest of the
-outline. Nested index expansion remains local-only during rendering; explicit
-discovery now supports missing public `30040`/`30041` addresses with bounded
-per-occurrence updates. A separately authorized lazy chapter preview for
-available kind `30041` children is now implemented without Book mounting or
-recursive discovery. **Next bounded slice:** validate the discovery and
-chapter-preview paths on a Docker/browser cold-reference fixture (including
-duplicate unpinned occurrences, locally available exact pins, sibling
-disclosures, sign-out/policy changes, and failed workers).
-Other kinds still need a separate policy/scoping decision. Reuse the row/preview
+The narrow Reading Nook demonstration is implemented: selected collection
+rows can expose bounded disclosures, nested indexes remain local-only during
+rendering, missing public `30040`/`30041` addresses can use explicit bounded
+discovery, and available chapters have separately authorized lazy previews
+without Book mounting or recursive discovery. The immediate follow-up is
+browser/live Docker validation on a cold-reference fixture (duplicate unpinned
+occurrences, locally available exact pins, sibling disclosures, sign-out/policy
+changes, and failed workers); this is additional confidence work, not a blocker
+for the completed bounded milestones above.
+
+Other kinds still need separate policy/scoping decisions. Reuse the row/preview
 in My Content and inside an ordinary event page without changing their existing
-actions. The shipped TOC disclosure remains a narrower step toward this broader
-behavior. Kind `3` follow-list previews are intentionally skipped. Bookshelf
+actions. Kind `3` follow-list previews are intentionally skipped. Bookshelf
 currently exposes its ordered directory references on My Books rather than
 mounting them in Reading Nook.
 
