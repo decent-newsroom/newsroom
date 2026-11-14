@@ -23,6 +23,7 @@ final readonly class ParsedReferenceDto
         public int $position,
         public bool $isStructural,
         public bool $isResolvable,
+        public ?string $targetEventId = null,
+        public ?string $relayHint = null,
     ) {}
 }
-

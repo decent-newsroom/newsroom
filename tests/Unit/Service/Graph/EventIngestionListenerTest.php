@@ -142,6 +142,71 @@ class EventIngestionListenerTest extends TestCase
         $this->listener->processRawEvent($raw);
     }
 
+    public function testProcessRawEventPersistsEveryExactEventIdOccurrence(): void
+    {
+        $targetId = str_repeat('ab', 32);
+        $raw = (object) [
+            'id' => 'event123',
+            'kind' => 1,
+            'pubkey' => 'aabbccdd',
+            'created_at' => 1700000000,
+            'tags' => [
+                ['e', $targetId, 'wss://relay.example', 'reply'],
+                ['e', $targetId, 'wss://relay.example', 'reply'],
+            ],
+        ];
+        $references = [];
+        foreach ([0, 1] as $position) {
+            $references[] = new ParsedReferenceDto(
+                sourceEventId: 'event123',
+                tagName: 'e',
+                targetRefType: 'event_id',
+                targetKind: null,
+                targetPubkey: null,
+                targetDTag: null,
+                targetCoord: null,
+                relation: 'references',
+                marker: 'reply',
+                position: $position,
+                isStructural: false,
+                isResolvable: true,
+                targetEventId: $targetId,
+                relayHint: 'wss://relay.example',
+            );
+        }
+
+        $this->referenceParser->expects($this->once())
+            ->method('parseFromTagsArray')
+            ->with('event123', 1, $raw->tags)
+            ->willReturn($references);
+        $this->currentVersionResolver->expects($this->once())
+            ->method('updateIfCurrent')
+            ->with('event123', 1, 'aabbccdd', null, 1700000000);
+
+        $insertedRows = [];
+        $this->connection->expects($this->exactly(3))
+            ->method('executeStatement')
+            ->willReturnCallback(static function (string $sql, array $params = []) use (&$insertedRows): int {
+                if (str_starts_with($sql, 'INSERT INTO parsed_reference')) {
+                    $insertedRows[] = [$sql, $params];
+                }
+
+                return 1;
+            });
+
+        $this->listener->processRawEvent($raw);
+
+        $this->assertCount(2, $insertedRows);
+        foreach ($insertedRows as [$sql, $params]) {
+            $this->assertStringContainsString('target_event_id', $sql);
+            $this->assertStringContainsString('relay_hint', $sql);
+            $this->assertSame($targetId, $params[7]);
+            $this->assertSame('references', $params[8]);
+            $this->assertSame('reply', $params[9]);
+            $this->assertSame('wss://relay.example', $params[10]);
+        }
+    }
+
     public function testProcessRawEventWithEmptyIdIsSkipped(): void
     {
         $raw = (object) ['id' => '', 'kind' => 1, 'pubkey' => 'aabb', 'created_at' => 0, 'tags' => []];

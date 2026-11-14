@@ -12,6 +12,12 @@ Bookshelf directory. General resolution, other expandable sources, and
 selectable viewers remain proposed. A bounded Step 3 subset now provides
 user-triggered asynchronous discovery for Reading Nook TOC public publication
 addresses; Step 3 as a whole remains incomplete.
+Step 4 has an additive exact-event-ID (`e`) parsed-reference slice: lowercase
+event references are stored separately from coordinates with original tag
+positions, duplicates, and NIP-10 marker/relay context. A migration and all
+graph ingestion, rebuild, backfill, and audit writers carry the exact IDs.
+Resolution queries, profile (`p`) graph edges, and broader graph traversal
+remain pending.
 
 ### Delivered bounded Step 3 subset: Reading Nook TOC discovery
 
@@ -377,7 +383,7 @@ extracting another Composer package.
 | [Generic event body](../../templates/event/_generic_event_body.html.twig) already supports content, `alt`, `summary`, and common media tags. [The event page](../../templates/event/index.html.twig) has further kind-specific dispatch and tag extraction. | Preserve these capabilities, but move semantic interpretation out of page templates so every presentation can use them. Unknown kinds can still be readable. |
 | `ArticleFromCoordinate` primarily expects Article storage and delegates chapters to [ChapterFromCoordinate](../../src/Twig/Components/Organisms/ChapterFromCoordinate.php). [ReadingListContentPreviewProvider](../../src/Service/ReadingListContentPreviewProvider.php) already demonstrates Article-to-Event fallback and batched metadata lookup. | Storage projections are adapters and optimizations, not prerequisites for a preview. Books API results also need an adapter; they must not require a synthetic persisted row. |
 | [Converter](../../src/Util/CommonMark/Converter.php) combines body conversion, local reference lookup, and card rendering. [Deferred embeds](deferred-nostr-embeds.md) compensate for unavailable references through several resolution stages. | Keep document conversion separate from event resolution and composition. HTML is an output/cache, not the event model or the dependency graph. |
-| [ReferenceParserService](../../src/Service/Graph/ReferenceParserService.php) currently parses `a` tags. [GraphLookupService](../../src/Service/Graph/GraphLookupService.php) joins structural references to resolved current records. | The graph is a useful starting point, but it does not yet cover follow-list `p` entries or immutable `e` targets. A browser must retain unresolved entries rather than lose them through joins. |
+| [ReferenceParserService](../../src/Service/Graph/ReferenceParserService.php) parses `a` coordinates and now stores lowercase exact `e` event IDs. [GraphLookupService](../../src/Service/Graph/GraphLookupService.php) still joins only structural references to resolved current records. | The graph is a useful starting point, but it does not yet resolve exact `e` targets or cover follow-list `p` entries. A browser must retain unresolved entries rather than lose them through joins. |
 | [RecordIdentityService](../../src/Service/Graph/RecordIdentityService.php) and [CurrentVersionResolver](../../src/Service/Graph/CurrentVersionResolver.php) already handle stable identities and revision selection. | Extend these mechanisms instead of inventing another coordinate/version implementation. Keep exact event references distinct from latest-version references. |
 | [Async fetching](../../src/MessageHandler/FetchEventFromRelaysHandler.php) already uses Messenger and Mercure; its [browser controller](../../assets/controllers/content/event_fetch_controller.js) reloads the page. | Reuse the fetch infrastructure, but update just the affected occurrence without losing expanded branches, focus, or scroll. |
 | [NKBIP-04](../NKBIP/04.md) defines drives and directories; [Bookshelf](bookshelf-local-fallback.md) uses kind `30045`. | Directory semantics and book resolution already exist. The two inventory pages are the UI precursor; expandable arbitrary-event traversal still needs to be added. |
@@ -694,8 +700,26 @@ Adding a kind should not require editing a switch in every controller/template.
 Relationships should retain source event ID, original tag index, target type,
 target identity, relay hints, role, and any version binding. Add target event-ID
 storage and the indexes needed for `e` edges; use existing pubkey fields for
-profile targets where appropriate. Plan a migration against the actual
-`parsed_reference` schema, which currently has no target event-ID column.
+profile targets where appropriate. The exact-ID column and database index are
+now present; exact-target lookup behavior, remaining relationship fields, and
+kind-specific interpretations are still follow-up work.
+
+#### Shipped bounded Step 4 slice: exact event-ID occurrences
+
+- The existing parser/index now accepts valid lowercase `e` tags as exact
+  event-ID references, stores their target IDs separately from address
+  coordinates, and preserves ordered duplicate occurrences at original source
+  tag positions. Uppercase `E` remains outside this generic parser.
+- These new graph edges are contextual references by default, never structural
+  or expandable. Parsing does not look up targets, so valid but locally missing
+  IDs remain indexed occurrences. Kind-1 NIP-10 marker and relay metadata are
+  retained; other `e` relay hints are stored without being used for network work.
+- Ingestion, graph rebuild/backfill, and graph audit consume the same additive
+  representation. Existing `a` coordinate parsing and publication/Unfold
+  coordinate queries remain unchanged. `p` edges, target resolution, and
+  broader traversal/index-vs-raw equivalence remain pending.
+- Validation: the isolated Docker graph-service suite passes **75 PHPUnit
+  tests / 179 assertions**; the migration was not applied to an environment.
 
 Important semantics:
 
@@ -805,7 +829,7 @@ media should not autoplay or load merely because a folder was expanded.
 | 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | One readable raw event can produce a generic presentation without Article storage, body HTML, or network access; both inventory routes retain their behavior. |
 | 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand existing collection rows and the Bookshelf directory; kind `3` follow-list previews are intentionally skipped. | Partially shipped: follow-pack members, bookmarks, bounded kind `30040` local nested indexes, Bookshelf directory disclosures on both inventories, My Content previews, and bounded shared DB-only bookmark/directory target metadata behind the existing rollback flag. General recursion, article target entitlement, and broader viewers remain pending. |
 | 3. Make discovery resilient | Shared bounded fetch coordination, per-fragment updates, retry/status fallback, and preserved browser state. Adapt Books/profile sources without render-time discovery. | Partially delivered: user-triggered Reading Nook TOC `30040`/`30041` unpinned address discovery, per-occurrence polling, and retry limits. Exact pins resolve locally and cold exact-pin fetching remains deferred; general coordination and Books/profile adapters remain incomplete. Targeted isolated-Docker PHPUnit and Node tests pass; live browser/worker/Redis and deployment-runtime verification remain pending. |
-| 4. Extend the graph | Add typed `p`/`e` relationships and version-binding fields, migrations/indexes, rebuild/backfill, and audit coverage. Add directories and mixed bookmark/curation expansion. | Indexed and raw-tag expansion give equivalent ordered results, including missing targets. Existing publication/Unfold queries retain their behavior. |
+| 4. Extend the graph | Add typed `p`/`e` relationships and version-binding fields, migrations/indexes, rebuild/backfill, and audit coverage. Add directories and mixed bookmark/curation expansion. | Partially delivered: lowercase exact `e` occurrences are indexed separately from address coordinates and retained through ingestion/rebuild/backfill/audit. Profile edges, broader resolution/expansion, and indexed-vs-raw equivalence remain pending. Existing publication/Unfold queries retain their behavior. |
 | 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | A supported event has consistent identity, metadata, relationships, and status across all migrated contexts. Remove superseded dispatch paths only after parity. |
 | 6. Promote and stabilize | Enable expansion in the existing workspaces broadly; add drive mounting, saved local workspace state, performance instrumentation, and user-facing documentation. Evaluate package extraction after a second consumer proves the boundary. | Browsing works for cold/partial data, deep/shared/cyclic structures, mobile, keyboard navigation, and restricted content. Existing reader/publisher routes remain intact. |
 | 7. Add selectable viewers (later) | Introduce compatible Generic/Magazine/Book viewers, titles/cards/full-contents controls for indexes, npub/profile-card modes for follow lists, and alternate browser layouts where useful. Reuse shared event resolution and components. | The same event and ordered children/members can be viewed in different ways without changing source events, losing navigation state, or requiring a specialist for generic browsing. |

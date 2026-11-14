@@ -31,7 +31,7 @@ class ReferenceParserServiceTest extends TestCase
         $this->assertSame('contains', $refs[0]->relation);
         $this->assertTrue($refs[0]->isStructural);
         $this->assertTrue($refs[0]->isResolvable);
-        $this->assertSame(0, $refs[0]->position);
+        $this->assertSame(1, $refs[0]->position);
     }
 
     public function testParseMultipleATagsPreservesOrder(): void
@@ -140,5 +140,83 @@ class ReferenceParserServiceTest extends TestCase
         $tags = [['a', "30023:{$pk}:art", 'wss://relay.example.com']];
         $refs = $this->parser->parseFromTagsArray('ev1', 30040, $tags);
         $this->assertNull($refs[0]->marker);
+    }
+
+    public function testLowercaseEReferencesPreserveOrderedDuplicateExactIdsAndSourcePositions(): void
+    {
+        $targetId = str_repeat('ab', 32);
+        $otherTargetId = str_repeat('cd', 32);
+        $tags = [
+            ['d', 'source'],
+            ['e', $targetId],
+            ['t', 'topic'],
+            ['e', $targetId],
+            ['e', $otherTargetId],
+            ['E', str_repeat('ef', 32)],
+        ];
+
+        $references = $this->parser->parseFromTagsArray('source-event', 1, $tags);
+
+        $this->assertCount(3, $references);
+        $this->assertSame([1, 3, 4], array_map(static fn ($reference) => $reference->position, $references));
+        $this->assertSame([$targetId, $targetId, $otherTargetId], array_map(
+            static fn ($reference) => $reference->targetEventId,
+            $references,
+        ));
+        foreach ($references as $reference) {
+            $this->assertSame('source-event', $reference->sourceEventId);
+            $this->assertSame('e', $reference->tagName);
+            $this->assertSame('event_id', $reference->targetRefType);
+            $this->assertNull($reference->targetCoord);
+            $this->assertSame('references', $reference->relation);
+            $this->assertFalse($reference->isStructural);
+            $this->assertTrue($reference->isResolvable);
+        }
+    }
+
+    public function testExactEReferenceRetainsNip10MarkerAndRelayHintWithoutBecomingStructural(): void
+    {
+        $targetId = str_repeat('ab', 32);
+        $references = $this->parser->parseFromTagsArray(
+            'reply-event',
+            1,
+            [['e', $targetId, 'wss://relay.example', 'reply']],
+        );
+
+        $this->assertCount(1, $references);
+        $this->assertSame('reply', $references[0]->marker);
+        $this->assertSame('wss://relay.example', $references[0]->relayHint);
+        $this->assertSame('references', $references[0]->relation);
+        $this->assertFalse($references[0]->isStructural);
+    }
+
+    public function testExactEventIdDoesNotBecomeCoordinateOrLatestAddressReference(): void
+    {
+        $targetId = str_repeat('ab', 32);
+        $pubkey = str_repeat('cd', 32);
+        $references = $this->parser->parseFromTagsArray('source', 30040, [
+            ['e', $targetId],
+            ['a', "30023:{$pubkey}:article"],
+        ]);
+
+        $this->assertCount(2, $references);
+        $this->assertSame($targetId, $references[0]->targetEventId);
+        $this->assertNull($references[0]->targetCoord);
+        $this->assertNull($references[0]->targetKind);
+        $this->assertSame('event_id', $references[0]->targetRefType);
+        $this->assertNull($references[1]->targetEventId);
+        $this->assertSame("30023:{$pubkey}:article", $references[1]->targetCoord);
+        $this->assertSame('coordinate', $references[1]->targetRefType);
+        $this->assertTrue($references[1]->isStructural);
+    }
+
+    public function testMalformedAndUppercaseEventReferencesAreNotParsedAsLowercaseE(): void
+    {
+        $references = $this->parser->parseFromTagsArray('source', 1, [
+            ['e', 'not-an-event-id'],
+            ['E', str_repeat('ab', 32)],
+        ]);
+
+        $this->assertSame([], $references);
     }
 }

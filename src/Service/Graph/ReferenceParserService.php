@@ -6,11 +6,13 @@ namespace App\Service\Graph;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Util\Nip10TagParser;
 
 /**
  * Extracts DN-relevant references from event tags.
  *
- * Phase 1 scope: only `a` tags (coordinate references).
+ * Parses `a` tags as coordinate references and lowercase `e` tags as exact
+ * event-ID references. The parser does not resolve targets.
  * Returns normalized reference DTOs ready for insertion into parsed_reference.
  */
 class ReferenceParserService
@@ -46,7 +48,7 @@ class ReferenceParserService
     ) {}
 
     /**
-     * Parse all `a` tag references from an Event entity.
+     * Parse supported reference tags from an Event entity.
      *
      * @return ParsedReferenceDto[]
      */
@@ -56,7 +58,7 @@ class ReferenceParserService
     }
 
     /**
-     * Parse all `a` tag references from raw event data.
+     * Parse supported reference tags from raw event data.
      *
      * @param string $eventId
      * @param int    $eventKind
@@ -69,7 +71,42 @@ class ReferenceParserService
         $position = 0;
 
         foreach ($tags as $tag) {
+            $sourceTagPosition = $position++;
             if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+
+            if ($tag[0] === 'e') {
+                $targetEventId = $tag[1];
+                if (!is_string($targetEventId) || !$this->isHex32($targetEventId)) {
+                    continue;
+                }
+
+                $relayHint = is_string($tag[2] ?? null) && $tag[2] !== '' ? $tag[2] : null;
+                $marker = null;
+                if ($eventKind === KindsEnum::TEXT_NOTE->value) {
+                    $auxiliaries = Nip10TagParser::parseReferenceAuxiliaries($tag);
+                    $marker = $auxiliaries['marker'];
+                    $relayHint = $auxiliaries['relays'][0] ?? null;
+                }
+
+                $refs[] = new ParsedReferenceDto(
+                    sourceEventId: $eventId,
+                    tagName: 'e',
+                    targetRefType: 'event_id',
+                    targetKind: null,
+                    targetPubkey: null,
+                    targetDTag: null,
+                    targetCoord: null,
+                    relation: 'references',
+                    marker: $marker,
+                    position: $sourceTagPosition,
+                    isStructural: false,
+                    isResolvable: true,
+                    targetEventId: strtolower($targetEventId),
+                    relayHint: $relayHint,
+                );
+
                 continue;
             }
 
@@ -78,6 +115,9 @@ class ReferenceParserService
             }
 
             $aTagValue = $tag[1];
+            if (!is_string($aTagValue)) {
+                continue;
+            }
             $decomposed = $this->identityService->decomposeATag($aTagValue);
 
             if ($decomposed === null) {
@@ -105,12 +145,10 @@ class ReferenceParserService
                 targetCoord: $canonicalCoord,
                 relation: $relation,
                 marker: $marker,
-                position: $position,
+                position: $sourceTagPosition,
                 isStructural: $isStructural,
                 isResolvable: $isResolvable,
             );
-
-            $position++;
         }
 
         return $refs;
@@ -149,5 +187,10 @@ class ReferenceParserService
         }
 
         return 'references';
+    }
+
+    private function isHex32(string $value): bool
+    {
+        return strlen($value) === 64 && ctype_xdigit($value);
     }
 }

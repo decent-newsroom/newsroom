@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Feature] Added additive parsed-reference support for lowercase exact event-ID (`e`) relationships, retaining source order, duplicate occurrences, exact IDs, NIP-10 marker/relay context, and unresolved IDs without changing address-based publication traversal.
 - [Fix] Show metadata for locally stored exact-pinned chapter references while keeping cold pins non-fetchable and visibility-filtered.
 - [Fix] Release a TOC discovery rate-limit reservation if Messenger rejects dispatch, so the reader can retry instead of polling a job that was never queued.
 - [Feature] Added user-triggered asynchronous discovery of unpinned Reading Nook TOC publication addresses, with per-occurrence updates, reauthorized polling, and bounded retry/concurrency limits; cold exact pins remain unavailable rather than drifting or being incorrectly projected as latest.

@@ -18,12 +18,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * One-time backfill of the parsed_reference table from existing events.
  *
- * Phase 1 scope: only `a` tags are parsed.
+ * Parses coordinate (`a`) and exact event-ID (`e`) references.
  * Processes events in batches to avoid memory issues on large tables.
  */
 #[AsCommand(
     name: 'dn:graph:backfill-references',
-    description: 'Backfill parsed_reference table from existing events (a tags only)',
+    description: 'Backfill parsed_reference table from existing a/e references',
 )]
 class GraphBackfillReferencesCommand extends Command
 {
@@ -57,18 +57,20 @@ class GraphBackfillReferencesCommand extends Command
             $this->connection->executeStatement('TRUNCATE TABLE parsed_reference');
         }
 
-        // Count events that have `a` tags — use JSONB containment to leverage the GIN index
+        // Count events that have `a` or `e` tags — use JSONB containment for the GIN index.
         $totalCount = (int) $this->connection->fetchOne(
-            "SELECT COUNT(*) FROM event WHERE tags @> :pattern",
-            ['pattern' => '[["a"]]'],
+            <<<'SQL'
+                SELECT COUNT(*) FROM event
+                WHERE tags @> '[["a"]]' OR tags @> '[["e"]]'
+            SQL,
         );
 
         if ($totalCount === 0) {
-            $io->success('No events with a tags found.');
+            $io->success('No events with a or e tags found.');
             return Command::SUCCESS;
         }
 
-        $io->info(sprintf('Found %d events with potential a tags to process.', $totalCount));
+        $io->info(sprintf('Found %d events with potential a or e tags to process.', $totalCount));
         $io->progressStart($totalCount);
 
         $offset = 0;
@@ -77,8 +79,12 @@ class GraphBackfillReferencesCommand extends Command
 
         while ($offset < $totalCount) {
             $rows = $this->connection->fetchAllAssociative(
-                "SELECT id, kind, pubkey, tags FROM event WHERE tags @> :pattern ORDER BY id LIMIT :limit OFFSET :offset",
-                ['pattern' => '[["a"]]', 'limit' => $batchSize, 'offset' => $offset],
+                <<<'SQL'
+                    SELECT id, kind, pubkey, tags FROM event
+                    WHERE tags @> '[["a"]]' OR tags @> '[["e"]]'
+                    ORDER BY id LIMIT :limit OFFSET :offset
+                SQL,
+                ['limit' => $batchSize, 'offset' => $offset],
                 ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
             );
 
@@ -148,7 +154,7 @@ class GraphBackfillReferencesCommand extends Command
     {
         $sql = <<<'SQL'
             INSERT INTO parsed_reference
-                (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, relation, marker, position, is_structural, is_resolvable)
+                (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable)
             VALUES
         SQL;
 
@@ -159,8 +165,8 @@ class GraphBackfillReferencesCommand extends Command
 
         foreach ($refs as $ref) {
             $values[] = sprintf(
-                '(:sei%d, :tn%d, :trt%d, :tk%d, :tp%d, :td%d, :tc%d, :rel%d, :mk%d, :pos%d, :is%d, :ir%d)',
-                $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i
+                '(:sei%d, :tn%d, :trt%d, :tk%d, :tp%d, :td%d, :tc%d, :teid%d, :rel%d, :mk%d, :rh%d, :pos%d, :is%d, :ir%d)',
+                $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i
             );
             $params["sei{$i}"] = $ref->sourceEventId;
             $params["tn{$i}"] = $ref->tagName;
@@ -169,8 +175,10 @@ class GraphBackfillReferencesCommand extends Command
             $params["tp{$i}"] = $ref->targetPubkey;
             $params["td{$i}"] = $ref->targetDTag;
             $params["tc{$i}"] = $ref->targetCoord;
+            $params["teid{$i}"] = $ref->targetEventId;
             $params["rel{$i}"] = $ref->relation;
             $params["mk{$i}"] = $ref->marker;
+            $params["rh{$i}"] = $ref->relayHint;
             $params["pos{$i}"] = $ref->position;
             $params["is{$i}"] = $ref->isStructural;
             $types["is{$i}"] = ParameterType::BOOLEAN;
@@ -192,17 +200,18 @@ class GraphBackfillReferencesCommand extends Command
             foreach ($refs as $ref) {
                 try {
                     $this->connection->executeStatement(
-                        'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, relation, marker, position, is_structural, is_resolvable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [
                             $ref->sourceEventId, $ref->tagName, $ref->targetRefType,
                             $ref->targetKind, $ref->targetPubkey, $ref->targetDTag,
-                            $ref->targetCoord, $ref->relation, $ref->marker,
+                            $ref->targetCoord, $ref->targetEventId, $ref->relation, $ref->marker, $ref->relayHint,
                             $ref->position, $ref->isStructural, $ref->isResolvable,
                         ],
                         [
                             ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::INTEGER, ParameterType::STRING, ParameterType::STRING,
                             ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
+                            ParameterType::STRING, ParameterType::STRING,
                             ParameterType::INTEGER, ParameterType::BOOLEAN, ParameterType::BOOLEAN,
                         ]
                     );
@@ -217,6 +226,3 @@ class GraphBackfillReferencesCommand extends Command
         }
     }
 }
-
-
-

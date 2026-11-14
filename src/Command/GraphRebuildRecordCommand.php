@@ -226,17 +226,18 @@ class GraphRebuildRecordCommand extends Command
         // Insert new
         foreach ($refs as $ref) {
             $this->connection->executeStatement(
-                'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, relation, marker, position, is_structural, is_resolvable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, target_event_id, relation, marker, relay_hint, position, is_structural, is_resolvable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     $ref->sourceEventId, $ref->tagName, $ref->targetRefType,
                     $ref->targetKind, $ref->targetPubkey, $ref->targetDTag,
-                    $ref->targetCoord, $ref->relation, $ref->marker,
+                    $ref->targetCoord, $ref->targetEventId, $ref->relation, $ref->marker, $ref->relayHint,
                     $ref->position, $ref->isStructural, $ref->isResolvable,
                 ],
                 [
                     ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
                     ParameterType::INTEGER, ParameterType::STRING, ParameterType::STRING,
                     ParameterType::STRING, ParameterType::STRING, ParameterType::STRING,
+                    ParameterType::STRING, ParameterType::STRING,
                     ParameterType::INTEGER, ParameterType::BOOLEAN, ParameterType::BOOLEAN,
                 ],
             );
@@ -272,5 +273,3 @@ class GraphRebuildRecordCommand extends Command
         }
     }
 }
-
-
