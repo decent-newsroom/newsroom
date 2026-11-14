@@ -447,7 +447,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $event->setCreatedAt(123);
         $event->setContent('never render body');
         $event->setTags([
-            ['a', $coordinate, 'javascript:untrusted', $pin],
+            ['a', '30041:' . str_repeat('b', 64) . ':chapter', 'javascript:untrusted', $pin],
             ['e', str_repeat('d', 64)],
             ['a', '30040:' . str_repeat('b', 64) . ':nested'],
             ['a', $coordinate, '', '<img src=x>'],
@@ -458,6 +458,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $identities = new RecordIdentityService();
         $events = $this->createMock(EventRepository::class);
         $events->method('findPublicationIndexTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $events->method('findWorkspacePreviewTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
         $pages = new PublicationTocPage(
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, new NostrNip19Service()),
@@ -481,6 +482,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertSame(3, $crawler->filter('li:contains("Section reference: chapter")')->count());
         self::assertSame(1, $crawler->filter('li:contains("Unresolved reference (target not checked)")')->count());
         self::assertSame(1, $crawler->filter('li:contains("Restricted or unavailable index")')->count());
+        self::assertSame(1, $crawler->filter('li:contains("This exact revision is not stored locally and will not be fetched.")')->count());
         self::assertSame(1, $crawler->filter('li:contains("Unrecognized version pin (target not checked)")')->count());
         self::assertSame(3, $crawler->filter('li:contains("Invalid publication reference")')->count());
         self::assertStringContainsString('Exact event revision: ' . $pin, $crawler->text());

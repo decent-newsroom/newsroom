@@ -12,6 +12,7 @@ use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\RelayRegistry;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -34,7 +35,7 @@ final class PublicationTocDiscoveryTest extends TestCase
         $redis->expects(self::once())->method('eval')->willReturnCallback(
             static function (string $script, array $keys, int $number) use ($reservation, $reader): array {
                 self::assertSame(3, $number);
-                self::assertCount(3, $keys);
+                self::assertCount(4, $keys);
                 self::assertStringContainsString("redis.call('INCR', KEYS[2])", $script);
                 self::assertStringContainsString('>= 2', $script);
                 self::assertStringContainsString('>= 4', $script);
@@ -52,14 +53,13 @@ final class PublicationTocDiscoveryTest extends TestCase
                 self::assertSame(30041, $message->kind);
                 self::assertSame($reader, $message->pubkey);
                 self::assertSame('chapter:one', $message->identifier);
-                self::assertNull($message->exactVersionEventId);
                 self::assertTrue($message->workspaceDiscovery);
                 self::assertNull($message->eventId);
                 self::assertCount(4, $message->relays);
                 self::assertNotContains('https://evil.example', $message->relays);
                 return new Envelope($message);
             });
-        $result = (new PublicationTocDiscovery($redis, $bus, $relays))->request($reader, $reference);
+        $result = (new PublicationTocDiscovery($redis, $bus, $relays, new NullLogger()))->request($reader, $reference);
         self::assertSame($status, $result['status']);
         self::assertSame($reservation[1], $result['retryAfter']);
     }
@@ -82,7 +82,7 @@ final class PublicationTocDiscoveryTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::never())->method('dispatch');
 
-        $discovery = new PublicationTocDiscovery($redis, $bus, $this->createMock(RelayRegistry::class));
+        $discovery = new PublicationTocDiscovery($redis, $bus, $this->createMock(RelayRegistry::class), new NullLogger());
         self::assertSame(['status' => 'unavailable', 'retryAfter' => 0], $discovery->request($reader, $reference));
         self::assertSame(['status' => 'unavailable', 'retryAfter' => 0], $discovery->status($reader, $reference));
     }
@@ -110,7 +110,47 @@ final class PublicationTocDiscoveryTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::never())->method('dispatch');
         $this->expectException(\RuntimeException::class);
-        (new PublicationTocDiscovery($redis, $bus, $this->createMock(RelayRegistry::class)))
+        (new PublicationTocDiscovery($redis, $bus, $this->createMock(RelayRegistry::class), new NullLogger()))
             ->request(str_repeat('a', 64), $reference);
+    }
+
+    public function testDispatchFailureReleasesOnlyItsReservationAndAllowsRetry(): void
+    {
+        $reader = str_repeat('a', 64);
+        $event = new Event();
+        $event->setId(str_repeat('b', 64));
+        $event->setKind(30040);
+        $event->setPubkey($reader);
+        $event->setCreatedAt(123);
+        $event->setContent('');
+        $event->setTags([['d', 'book'], ['a', '30041:' . $reader . ':chapter']]);
+        $reference = (new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()))
+            ->fromAuthorizedEvent($event)->references[0];
+
+        $token = null;
+        $redis = $this->createMock(\Redis::class);
+        $redis->expects(self::exactly(2))->method('eval')->willReturnCallback(
+            static function (string $script, array $keys, int $number) use (&$token): int|array {
+                self::assertSame(3, $number);
+                self::assertCount(4, $keys);
+                if ($token === null) {
+                    self::assertStringContainsString("redis.call('SET', KEYS[1], ARGV[1], 'EX', 60)", $script);
+                    $token = $keys[3];
+                    return [1, 60];
+                }
+                self::assertSame($token, $keys[3]);
+                self::assertStringContainsString("redis.call('GET', KEYS[1]) ~= ARGV[1]", $script);
+                self::assertStringContainsString("redis.call('DECR', KEYS[i])", $script);
+                return 1;
+            },
+        );
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::once())->method('dispatch')->willThrowException(new \RuntimeException('transport unavailable'));
+        $relays = $this->createMock(RelayRegistry::class);
+        $relays->method('getContentRelays')->willReturn(['wss://relay.example']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('transport unavailable');
+        (new PublicationTocDiscovery($redis, $bus, $relays, new NullLogger()))->request($reader, $reference);
     }
 }

@@ -131,6 +131,7 @@ final readonly class PublicationTocPage
         }
 
         $this->resolveNestedIndexes($result['entries'], $eventPath, $occurrenceId, $readerMutedPubkeys, $resolutionPosition);
+        $this->resolvePinnedChapters($result['entries'], $readerMutedPubkeys, $resolutionPosition);
         if ($result['hasNext'] && $occurrenceId !== null && $page < PHP_INT_MAX) {
             $result['pageSignatures']['next'] = $this->traversalSigner->sign(
                 $source->eventId,
@@ -308,6 +309,127 @@ final readonly class PublicationTocPage
         }
     }
 
+    /**
+     * Exact chapter pins are previewed only when that event is already local.
+     * Cold pins remain visible as references but are never fetched or upgraded.
+     *
+     * @param list<array<string, mixed>> $entries
+     * @param list<string> $readerMutedPubkeys
+     */
+    private function resolvePinnedChapters(
+        array &$entries,
+        array $readerMutedPubkeys,
+        ?int $resolutionPosition,
+    ): void {
+        $requests = [];
+        $eventIds = [];
+        foreach ($entries as $index => $entry) {
+            /** @var EventReference $reference */
+            $reference = $entry['reference'];
+            if (($resolutionPosition !== null && $reference->position !== $resolutionPosition)
+                || $reference->role !== EventReferenceRole::Content
+                || $reference->type->value !== 'address'
+                || $reference->targetKind !== KindsEnum::PUBLICATION_CONTENT->value
+                || $reference->target === null
+                || $reference->versionEventId === null
+                || $reference->status !== EventReferenceStatus::Unresolved
+                || $entry['invalidVersionPin']) {
+                continue;
+            }
+
+            $requests[$index] = $reference;
+            $eventIds[] = $reference->versionEventId;
+        }
+        if ($requests === []) {
+            return;
+        }
+
+        $targets = $this->events->findWorkspacePreviewTargets([], $eventIds)['eventIds'];
+        $candidateTargets = [];
+        foreach ($requests as $index => $reference) {
+            $target = $targets[$reference->versionEventId] ?? null;
+            if (!$target instanceof Event) {
+                continue;
+            }
+            if (!$this->matchesAddress($target, $reference)) {
+                $entries[$index]['targetResolution'] = 'unavailable';
+                continue;
+            }
+            $targetId = strtolower($target->getId());
+            $entries[$index]['candidateEventId'] = $targetId;
+            $candidateTargets[$targetId] = $target;
+        }
+        if ($candidateTargets === []) {
+            return;
+        }
+
+        $targetCoordinates = [];
+        foreach ($candidateTargets as $targetId => $target) {
+            $targetCoordinates[$targetId] = $this->coordinateFromEvent($target);
+        }
+        $hidden = array_fill_keys(
+            $this->hiddenCoordinates->findHiddenCoordinates(array_values($targetCoordinates)),
+            true,
+        );
+        $muted = array_fill_keys(array_map('strtolower', $readerMutedPubkeys), true);
+        $allowedTargets = [];
+        foreach ($candidateTargets as $targetId => $target) {
+            if (!isset($hidden[$targetCoordinates[$targetId]])
+                && !isset($muted[strtolower($target->getPubkey())])) {
+                $allowedTargets[$targetId] = $target;
+            }
+        }
+        if ($allowedTargets === []) {
+            foreach ($requests as $index => $reference) {
+                if (isset($entries[$index]['candidateEventId'])) {
+                    $entries[$index]['targetResolution'] = 'unavailable';
+                    unset($entries[$index]['candidateEventId']);
+                }
+            }
+
+            return;
+        }
+
+        $suppressedAuthors = array_fill_keys(
+            $this->authorAccess->suppressedPubkeys(array_values(array_unique(array_map(
+                static fn (Event $target): string => strtolower($target->getPubkey()),
+                array_values($allowedTargets),
+            )))),
+            true,
+        );
+        $deletedEvents = array_fill_keys(
+            $this->deletions->findSuppressedEventIds(array_values($allowedTargets)),
+            true,
+        );
+        foreach ($requests as $index => $reference) {
+            $targetId = $entries[$index]['candidateEventId'] ?? null;
+            if (!is_string($targetId)) {
+                continue;
+            }
+            $target = $allowedTargets[$targetId] ?? null;
+            if (!$target instanceof Event
+                || isset($suppressedAuthors[strtolower($target->getPubkey())])
+                || isset($deletedEvents[$targetId])) {
+                $entries[$index]['targetResolution'] = 'unavailable';
+                unset($entries[$index]['candidateEventId']);
+                continue;
+            }
+
+            $presentation = $this->presentations->fromAuthorizedTargetMetadata($target);
+            $sensitive = EventPresentation::hasSensitiveTagEvidence($target->getTags());
+            $entries[$index]['targetResolution'] = 'available';
+            $entries[$index]['target'] = [
+                'eventId' => $presentation->eventId,
+                'pubkey' => $presentation->authorPubkey,
+                'coordinate' => $presentation->coordinate,
+                'title' => $sensitive ? null : $this->textTag($target, 'title', 300),
+                'summary' => $sensitive ? null : $this->textTag($target, 'summary', 500),
+                'sensitive' => $sensitive,
+            ];
+            unset($entries[$index]['candidateEventId']);
+        }
+    }
+
     private function matchesAddress(Event $event, EventReference $reference): bool
     {
         return $event->getKind() === $reference->targetKind
@@ -328,7 +450,7 @@ final readonly class PublicationTocPage
 
     private function coordinateFromEvent(Event $event): string
     {
-        return KindsEnum::PUBLICATION_INDEX->value . ':'
+        return $event->getKind() . ':'
             . strtolower($event->getPubkey()) . ':'
             . $this->dTagFromEvent($event);
     }

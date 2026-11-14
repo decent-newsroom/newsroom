@@ -26,6 +26,7 @@ use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\UserMuteListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpFoundation\Request;
@@ -65,7 +66,6 @@ final class PublicationTocDiscoveryControllerTest extends TestCase
         self::assertSame(30041, $this->queued[0]->kind);
         self::assertSame(self::AUTHOR, $this->queued[0]->pubkey);
         self::assertSame('section:one', $this->queued[0]->identifier);
-        self::assertNull($this->queued[0]->exactVersionEventId);
         self::assertSame(['wss://configured.example'], $this->queued[0]->relays);
         self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
         self::assertTrue($response->headers->hasCacheControlDirective('private'));
@@ -267,7 +267,7 @@ final class PublicationTocDiscoveryControllerTest extends TestCase
             $sourceId, $position, $request, $toc,
             new PublicationTocSourceAccess($events, $presentations, $deletions, $hidden, $authors), $signer,
             new TargetPreviewResolver($events, $deletions, $hidden, $authors, $presentations, $security, $mutes),
-            new PublicationTocDiscovery($redis, $bus, $relays), $mutes,
+            new PublicationTocDiscovery($redis, $bus, $relays, new NullLogger()), $mutes,
         );
     }
 

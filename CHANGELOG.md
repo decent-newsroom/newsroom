@@ -2,6 +2,8 @@
 
 ## v0.1.0
 
+- [Fix] Show metadata for locally stored exact-pinned chapter references while keeping cold pins non-fetchable and visibility-filtered.
+- [Fix] Release a TOC discovery rate-limit reservation if Messenger rejects dispatch, so the reader can retry instead of polling a job that was never queued.
 - [Feature] Added user-triggered asynchronous discovery of unpinned Reading Nook TOC publication addresses, with per-occurrence updates, reauthorized polling, and bounded retry/concurrency limits; cold exact pins remain unavailable rather than drifting or being incorrectly projected as latest.
 - [Fix] Keep Bookshelf containing-index navigation in Bookshelf using exact local event IDs and shared ordered, lazy nested TOCs, preserving version pins and author identity with bounded traversal and independent source/child access checks.
 - [Feature] Added shared, bounded DB-only target metadata previews to Reading Nook bookmarks and Bookshelf directory fragments, preserving ordered references and exact pins while enforcing target policy, explicit missing/restricted states, and sensitive-title gating without bodies, media, or network fetching.

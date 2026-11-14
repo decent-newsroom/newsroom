@@ -31,6 +31,7 @@ final class PublicationTocPageTest extends TestCase
         if ($events === null) {
             $events = $this->createMock(EventRepository::class);
             $events->method('findPublicationIndexTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
+            $events->method('findWorkspacePreviewTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
         }
 
         return new PublicationTocPage(
@@ -158,13 +159,14 @@ final class PublicationTocPageTest extends TestCase
         $author = str_repeat('c', 64);
         $validPin = str_repeat('3', 64);
         $mismatchedPin = str_repeat('4', 64);
+        $missingPin = str_repeat('5', 64);
         $coordinate = '30040:' . $author . ':nested';
         $valid = $this->index($validPin, $author, 'nested', [['title', 'Pinned title']]);
         $mismatch = $this->index($mismatchedPin, $author, 'different', [['title', 'Must stay hidden']]);
         $repository = $this->createMock(EventRepository::class);
         $repository->expects(self::once())
             ->method('findPublicationIndexTargets')
-            ->with([], [$validPin, $mismatchedPin])
+            ->with([], [$validPin, $mismatchedPin, $missingPin])
             ->willReturn(['coordinates' => [], 'eventIds' => [$validPin => $valid, $mismatchedPin => $mismatch]]);
         $access = $this->createMock(ContentAuthorAccessPolicy::class);
         $access->expects(self::once())->method('suppressedPubkeys')->with([$author])->willReturn([]);
@@ -175,6 +177,7 @@ final class PublicationTocPageTest extends TestCase
             ['d', 'parent'],
             ['a', $coordinate, '', $validPin],
             ['a', $coordinate, '', $mismatchedPin],
+            ['a', $coordinate, '', $missingPin],
         ]);
         $page = $this->pages($repository, $deletions, $access)->fromAuthorizedEvent($source);
 
@@ -182,7 +185,50 @@ final class PublicationTocPageTest extends TestCase
         self::assertSame($validPin, $page['entries'][0]['target']['eventId']);
         self::assertSame('unavailable', $page['entries'][1]['targetResolution']);
         self::assertNull($page['entries'][1]['target']);
+        self::assertSame('unavailable', $page['entries'][2]['targetResolution']);
         self::assertStringNotContainsString('Must stay hidden', serialize($page));
+    }
+
+    public function testLocallyAvailableExactChapterPinGetsPolicyCheckedMetadataOnly(): void
+    {
+        $author = str_repeat('c', 64);
+        $pin = str_repeat('3', 64);
+        $coordinate = '30041:' . $author . ':chapter:one';
+        $chapter = new Event();
+        $chapter->setId($pin);
+        $chapter->setKind(30041);
+        $chapter->setPubkey($author);
+        $chapter->setCreatedAt(456);
+        $chapter->setDTag('chapter:one');
+        $chapter->setTags([['d', 'chapter:one'], ['title', 'Pinned chapter'], ['summary', 'Pinned summary']]);
+        $chapter->setContent('chapter body must not leak');
+
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findWorkspacePreviewTargets')
+            ->with([], [$pin])
+            ->willReturn(['coordinates' => [], 'eventIds' => [$pin => $chapter]]);
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->expects(self::once())->method('findHiddenCoordinates')->with([$coordinate])->willReturn([]);
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        $authors->expects(self::once())->method('suppressedPubkeys')->with([$author])->willReturn([]);
+        $deletions = $this->createMock(DeletedEventRepository::class);
+        $deletions->expects(self::once())->method('findSuppressedEventIds')->with([$chapter])->willReturn([]);
+
+        $source = $this->event([
+            ['d', 'book'],
+            ['a', $coordinate, '', $pin],
+        ]);
+        $page = $this->pages($repository, $deletions, $authors, $hidden)->fromAuthorizedEvent(
+            $source,
+            readerMutedPubkeys: [],
+        );
+
+        self::assertSame('available', $page['entries'][0]['targetResolution']);
+        self::assertSame($pin, $page['entries'][0]['target']['eventId']);
+        self::assertSame('Pinned chapter', $page['entries'][0]['target']['title']);
+        self::assertSame('Pinned summary', $page['entries'][0]['target']['summary']);
+        self::assertStringNotContainsString('chapter body must not leak', serialize($page));
     }
 
     public function testSuppressionAndTombstonesKeepOccurrencesButHideAllTargetFields(): void

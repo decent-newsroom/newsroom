@@ -149,8 +149,7 @@ final class FetchEventFromRelaysHandler
             || !in_array($message->kind, [30040, 30041], true)
             || !is_string($message->pubkey)
             || preg_match('/^[0-9a-f]{64}$/', $message->pubkey) !== 1
-            || !is_string($message->identifier)
-            || $message->exactVersionEventId !== null) {
+            || !is_string($message->identifier)) {
             return;
         }
         $local = $this->eventRepository->findByNaddr($message->kind, $message->pubkey, $message->identifier);

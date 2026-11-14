@@ -8,6 +8,7 @@ use App\Dto\EventWorkspace\EventReference;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\RelayRegistry;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -18,13 +19,11 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 final readonly class PublicationTocDiscovery
 {
-    public const WINDOW = 60;
-    public const RETENTION = 600;
-
     public function __construct(
         private \Redis $redis,
         private MessageBusInterface $bus,
         private RelayRegistry $relays,
+        private LoggerInterface $logger,
         #[Autowire('%kernel.environment%')]
         private string $environment = 'prod',
     ) {}
@@ -55,6 +54,7 @@ final readonly class PublicationTocDiscovery
 
         // One reservation per coordinate; two attempts per reader/target
         // in ten minutes; at most four new requests per reader per minute.
+        $reservationToken = bin2hex(random_bytes(16));
         $result = $this->redis->eval(<<<'LUA'
 local ttl = redis.call('TTL', KEYS[1])
 if ttl > 0 then return {0, ttl} end
@@ -64,26 +64,49 @@ end
 if tonumber(redis.call('GET', KEYS[3]) or '0') >= 4 then
     return {-1, math.max(1, redis.call('TTL', KEYS[3]))}
 end
-redis.call('SET', KEYS[1], '1', 'EX', 60)
+redis.call('SET', KEYS[1], ARGV[1], 'EX', 60)
 if redis.call('INCR', KEYS[2]) == 1 then redis.call('EXPIRE', KEYS[2], 600) end
 if redis.call('INCR', KEYS[3]) == 1 then redis.call('EXPIRE', KEYS[3], 60) end
 return {1, 60}
-LUA, $this->keys($reader, $reference), 3);
+LUA, [...$this->keys($reader, $reference), $reservationToken], 3);
         if (!is_array($result)) {
             throw new \RuntimeException('Discovery reservation unavailable.');
         }
         if ($result[0] === 1) {
-            $this->bus->dispatch(new FetchEventFromRelaysMessage(
-                lookupKey: EventLookupKey::forNaddr($reference->targetKind, $reference->targetPubkey, $reference->targetIdentifier),
-                type: 'naddr',
-                kind: $reference->targetKind,
-                pubkey: $reference->targetPubkey,
-                identifier: $reference->targetIdentifier,
-                // Ignore even signed relay hints: only configured content relays.
-                relays: array_slice($this->relays->getContentRelays(), 0, 4),
-                workspaceDiscovery: true,
-                exactVersionEventId: $reference->versionEventId,
-            ));
+            try {
+                $this->bus->dispatch(new FetchEventFromRelaysMessage(
+                    lookupKey: EventLookupKey::forNaddr($reference->targetKind, $reference->targetPubkey, $reference->targetIdentifier),
+                    type: 'naddr',
+                    kind: $reference->targetKind,
+                    pubkey: $reference->targetPubkey,
+                    identifier: $reference->targetIdentifier,
+                    // Ignore even signed relay hints: only configured content relays.
+                    relays: array_slice($this->relays->getContentRelays(), 0, 4),
+                    workspaceDiscovery: true,
+                ));
+            } catch (\Throwable $e) {
+                try {
+                    $this->redis->eval(<<<'LUA'
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+redis.call('DEL', KEYS[1])
+for i = 2, 3 do
+    local value = tonumber(redis.call('GET', KEYS[i]) or '0')
+    if value <= 1 then
+        redis.call('DEL', KEYS[i])
+    else
+        redis.call('DECR', KEYS[i])
+    end
+end
+return 1
+LUA, [...$this->keys($reader, $reference), $reservationToken], 3);
+                } catch (\Throwable $rollbackError) {
+                    $this->logger->error('Could not release TOC discovery reservation after dispatch failure', [
+                        'error' => $rollbackError->getMessage(),
+                    ]);
+                }
+
+                throw $e;
+            }
         }
         return ['status' => $result[0] < 0 ? 'limited' : 'loading', 'retryAfter' => (int) $result[1]];
     }

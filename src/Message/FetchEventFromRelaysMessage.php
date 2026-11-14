@@ -33,6 +33,5 @@ final class FetchEventFromRelaysMessage
         public readonly ?string $mag = null,
         // Workspace discovery is public-address-only, relay-only, and polled.
         public readonly bool $workspaceDiscovery = false,
-        public readonly ?string $exactVersionEventId = null,
     ) {}
 }

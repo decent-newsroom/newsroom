@@ -426,10 +426,6 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
         $handler = $this->handler($client, $repository, $projector, $hub, $this->createMock(UserRelayListService::class));
         $handler(new FetchEventFromRelaysMessage('unused', 'nevent', eventId: str_repeat('a', 64), workspaceDiscovery: true));
         $handler(new FetchEventFromRelaysMessage('unused', 'naddr', 30024, str_repeat('b', 64), 'private', workspaceDiscovery: true));
-        $handler(new FetchEventFromRelaysMessage(
-            'unused', 'naddr', 30040, str_repeat('b', 64), 'pinned',
-            workspaceDiscovery: true, exactVersionEventId: str_repeat('c', 64),
-        ));
     }
 
     private function handler(

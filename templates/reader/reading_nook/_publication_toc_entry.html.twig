@@ -57,11 +57,11 @@
             :loadLabel="'reading_nook.toc.load'|trans"
         />
     {% endif %}
-{% elseif tocDiscoveryEnabled|default(false) and reference.type.value == 'address'
+{% elseif reference.type.value == 'address'
     and reference.targetKind in [30040, 30041] and reference.status.value == 'unresolved' and not entry.invalidVersionPin %}
     {% if reference.versionEventId is not null %}
         <span>{{ 'reading_nook.toc.discovery.pinned_unavailable'|trans }}</span>
-    {% else %}
+    {% elseif tocDiscoveryEnabled|default(false) %}
         <button type="button" data-content--toc-discovery-target="button" data-action="content--toc-discovery#discover">
             {{ 'reading_nook.toc.discovery.request'|trans }}
         </button>
