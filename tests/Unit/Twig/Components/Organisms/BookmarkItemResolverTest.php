@@ -13,11 +13,14 @@ use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\NostrIdentityService;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\Nostr\NostrNip19Service;
+use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\UserMuteListService;
@@ -27,6 +30,7 @@ use App\Twig\Components\Organisms\BookmarkItemResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
+use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
 use Psr\Log\NullLogger;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
@@ -551,6 +555,7 @@ final class BookmarkItemResolverTest extends KernelTestCase
         self::getContainer()->set(ArticleRepository::class, $articles);
         self::getContainer()->set(EventPreviewAccessPolicy::class, $policy);
         self::getContainer()->set(EventPresentationFactory::class, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()));
+        self::getContainer()->set(NostrEventVerifier::class, $this->eventVerifier());
         self::getContainer()->set(LoggerInterface::class, new NullLogger());
         if ($page !== null) {
             $client = $this->createMock(NostrClient::class);
@@ -572,6 +577,11 @@ final class BookmarkItemResolverTest extends KernelTestCase
             'components/Organisms/BookmarkItemResolver.html.twig',
             get_object_vars($resolver) + ['attributes' => new ComponentAttributes([], new EscaperRuntime())],
         );
+    }
+
+    private function eventVerifier(): NostrEventVerifier
+    {
+        return new NostrEventVerifier(new NostrSigner($this->createMock(SignatureServiceInterface::class)));
     }
 
     protected static function createKernel(array $options = []): KernelInterface
@@ -619,9 +629,10 @@ final class BookmarkItemResolverTestKernel extends Kernel
         ]);
         $services = $container->services();
         $services->set(\App\Twig\Filters::class)->autowire()->autoconfigure();
-        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, LoggerInterface::class, EntityManagerInterface::class, NostrClient::class] as $dependency) {
+        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, NostrEventVerifier::class, LoggerInterface::class, EntityManagerInterface::class, NostrClient::class] as $dependency) {
             $services->set($dependency)->synthetic()->public();
         }
+        $services->set(AuthoredArticlePreview::class)->autowire();
         $services->set(NostrEmbed::class)->autowire()->autoconfigure();
         // Use the real resolver mount/template; Live HTTP transport is outside this template test.
         $services->set(BookmarkItemResolver::class)->autowire()->tag('twig.component', [

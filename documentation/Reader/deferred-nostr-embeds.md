@@ -84,10 +84,16 @@ Readable local Event kinds `1`, `20`, `21`, `22`, `30040`, `30041`, and
 `30818` use `EventPresentationFactory` and the shared `EventPreview`. Kind
 `30023` additionally requires an Article projection for that **exact Event
 ID**, with matching identity and Essayist-exclusive entitlement. A local
-longform event without that evidence is restricted. An Article projection
-without a local Event is also restricted rather than rendered or handed to
-the fallback. Drafts, encrypted and unclassified kinds are restricted until
-their scope can be established. This is intentionally a bounded allowlist.
+longform event without that evidence is restricted. If its local Event row is
+absent, the component may use the complete raw signed event envelope from that
+exact Article projection after projection identity, timestamp, author
+signature and event-ID verification, suppression, tombstone, hidden-coordinate,
+mute, and entitlement checks. It builds the snapshot from raw signed
+tags/content without fabricating an Event, rendering processed HTML, or
+fetching or persisting data. Missing or inconsistent raw fields remain
+restricted and never fall through to deferred fetch. Drafts, encrypted and
+unclassified kinds are restricted until their scope can be established. This
+is intentionally a bounded allowlist.
 
 Every displayed Event passes author suppression, NIP-09 tombstone, hidden
 coordinate, and authenticated strict-mute checks. A policy or lookup failure

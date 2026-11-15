@@ -10,8 +10,10 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
+use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\Nostr\NostrEventVerifier;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Log\LoggerInterface;
@@ -34,6 +36,8 @@ final class NostrEmbed
         private readonly EventRepository $eventRepository,
         private readonly ArticleRepository $articleRepository,
         private readonly EventPreviewAccessPolicy $access,
+        private readonly AuthoredArticlePreview $articlePreviews,
+        private readonly NostrEventVerifier $eventVerifier,
         private readonly EventPresentationFactory $presentations,
         private readonly LoggerInterface $logger,
     ) {}
@@ -98,15 +102,15 @@ final class NostrEmbed
 
         $event = $this->eventRepository->findByNaddr($kind, $address->pubkey, $address->identifier);
         if ($event === null) {
-            // Do not hand a known projection to the deferred API merely because
-            // its signed event is absent: the projection may be restricted.
-            if ($kind === KindsEnum::LONGFORM->value
-                && $this->articleRepository->findOneBy([
+            if ($kind === KindsEnum::LONGFORM->value) {
+                $article = $this->articleRepository->findOneBy([
                     'slug' => $address->identifier,
                     'pubkey' => $address->pubkey,
                     'kind' => KindsEnum::LONGFORM,
-                ]) !== null) {
-                $this->restricted = true;
+                ], ['createdAt' => 'DESC', 'eventId' => 'ASC']);
+                if ($article instanceof Article) {
+                    $this->presentArticleProjection($article, $address->pubkey, $address->identifier);
+                }
             }
             return;
         }
@@ -155,6 +159,32 @@ final class NostrEmbed
         }
 
         $this->presentation = $this->presentations->fromAuthorizedEvent($event);
+    }
+
+    private function presentArticleProjection(Article $article, string $pubkey, string $identifier): void
+    {
+        $raw = $article->getRaw();
+        if (!is_array($raw) || !$this->eventVerifier->verify($this->eventVerifier->fromArray($raw))) {
+            $this->restricted = true;
+            return;
+        }
+
+        if (!$this->access->isArticleReadable($article, $pubkey, $identifier)) {
+            $this->restricted = true;
+            return;
+        }
+
+        $presentation = $this->articlePreviews->fromAuthorizedArticle($article, null);
+        if (!$presentation instanceof EventPresentation) {
+            $this->restricted = true;
+            return;
+        }
+        if ($presentation->isSensitive) {
+            $this->sensitive = true;
+            return;
+        }
+
+        $this->presentation = $presentation;
     }
 
     /** First signed d wins; no d is the empty NIP-01 identifier. */

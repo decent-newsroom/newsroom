@@ -11,18 +11,23 @@ use App\Repository\ArticleRepository;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
+use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrIdentityService;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\Nostr\NostrNip19Service;
+use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\UserMuteListService;
 use App\Twig\Components\Molecules\NostrEmbed;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
+use Innis\Nostr\Core\Domain\Entity\Event as NostrCoreEvent;
+use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
 use nostriphant\NIP19\Bech32;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -300,7 +305,7 @@ final class NostrEmbedTest extends TestCase
         self::assertNull($mismatch->presentation);
     }
 
-    public function testLongformMissingProjectionAndProjectionOnlyFailClosed(): void
+    public function testLongformMissingProjectionFailsClosed(): void
     {
         $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
         $events = $this->createMock(EventRepository::class);
@@ -313,12 +318,137 @@ final class NostrEmbedTest extends TestCase
 
         $events = $this->createMock(EventRepository::class);
         $events->method('findByNaddr')->willReturn(null);
+        $article = $this->articleWithRaw();
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->expects(self::once())->method('findOneBy')
+            ->with(
+                ['slug' => 'article', 'pubkey' => self::AUTHOR, 'kind' => KindsEnum::LONGFORM],
+                ['createdAt' => 'DESC', 'eventId' => 'ASC'],
+            )
+            ->willReturn($article);
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'naddr');
+        self::assertFalse($component->restricted);
+        self::assertSame($article->getEventId(), $component->presentation->eventId);
+        self::assertSame('Article title', $component->presentation->title);
+        self::assertSame('Signed article content', $component->presentation->textContent);
+        self::assertSame('/article/' . $reference, $component->href);
+        self::assertStringContainsString('Article title', $this->render($component));
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testArticleOnlyPreviewFailsClosedWhenRawEventEnvelopeIsIncomplete(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn(null);
         $articles = $this->createMock(ArticleRepository::class);
         $articles->method('findOneBy')->willReturn($this->article());
         $component = $this->component($events, $articles);
         $component->mount($reference, 'naddr');
+
         self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
         self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testArticleOnlyPreviewFailsClosedWhenSignatureVerificationFails(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn(null);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($this->articleWithRaw());
+        $component = $this->component($events, $articles, verifier: $this->articleVerifier(valid: false));
+        $component->mount($reference, 'naddr');
+
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testArticleOnlyPreviewFailsClosedWhenSignedEnvelopeHasNoSignature(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn(null);
+        $article = $this->articleWithRaw();
+        $raw = $article->getRaw();
+        unset($raw['sig']);
+        $article->setRaw($raw);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($article);
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'naddr');
+
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testArticleOnlyPreviewFailsClosedWhenRawTimestampDiffersFromProjection(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn(null);
+        $article = $this->articleWithRaw();
+        $raw = $article->getRaw();
+        $raw['created_at'] = 999;
+        $article->setRaw($raw);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($article);
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'naddr');
+
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testArticleOnlyPreviewUsesWarningOnlyStateForSensitiveRawTags(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn(null);
+        $article = $this->articleWithRaw([
+            ['d', 'article'],
+            ['title', 'Article title'],
+            ['content-warning', 'private reason'],
+        ]);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($article);
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'naddr');
+        $html = $this->render($component);
+
+        self::assertFalse($component->restricted);
+        self::assertTrue($component->sensitive);
+        self::assertNull($component->presentation);
+        self::assertStringContainsString('event-preview__sensitive', $html);
+        self::assertStringNotContainsString('Article title', $html);
+        self::assertStringNotContainsString('private reason', $html);
+        self::assertStringNotContainsString('href=', $html);
+        self::assertStringNotContainsString('data-controller=', $html);
+    }
+
+    public function testArticleOnlyPreviewAppliesAccessPolicyBeforePresentation(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn(null);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($this->articleWithRaw());
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        $authors->expects(self::once())->method('assertReadable')->with(self::AUTHOR)
+            ->willThrowException(new NotFoundHttpException());
+        $component = $this->component($events, $articles, authors: $authors);
+        $component->mount($reference, 'naddr');
+        $html = $this->render($component);
+
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('Article title', $html);
+        self::assertStringNotContainsString('data-controller=', $html);
     }
 
     public function testLongformProjectionLookupFailureIsLoggedAndNotDeferred(): void
@@ -438,6 +568,7 @@ final class NostrEmbedTest extends TestCase
         ?HiddenCoordinateRepository $hidden = null,
         ?Security $security = null,
         ?UserMuteListService $mutes = null,
+        ?NostrEventVerifier $verifier = null,
     ): NostrEmbed {
         $logger ??= new NullLogger();
         $policy = new EventPreviewAccessPolicy(
@@ -456,8 +587,18 @@ final class NostrEmbedTest extends TestCase
         );
         return new NostrEmbed(
             $events, $articles ?? $this->createMock(ArticleRepository::class), $policy,
+            new AuthoredArticlePreview(new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service())),
+            $verifier ?? $this->articleVerifier(),
             new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()), $logger,
         );
+    }
+
+    private function articleVerifier(bool $valid = true): NostrEventVerifier
+    {
+        $signatures = $this->createMock(SignatureServiceInterface::class);
+        $signatures->method('verify')->willReturn($valid);
+
+        return new NostrEventVerifier(new NostrSigner($signatures));
     }
 
     private function viewerSecurity(array $roles = []): Security
@@ -488,6 +629,23 @@ final class NostrEmbedTest extends TestCase
         $article = (new Article())->setEventId(self::ID)->setKind(KindsEnum::LONGFORM)
             ->setPubkey(self::AUTHOR)->setSlug('article')->setCreatedAt(123);
         $article->setRaw(['tags' => [['d', 'article']]]);
+        return $article;
+    }
+
+    /** @param list<list<string>> $tags */
+    private function articleWithRaw(array $tags = [['d', 'article'], ['title', 'Article title']]): Article
+    {
+        $article = $this->article();
+        $raw = NostrCoreEvent::fromArray([
+            'pubkey' => self::AUTHOR,
+            'created_at' => 123,
+            'kind' => KindsEnum::LONGFORM->value,
+            'tags' => $tags,
+            'content' => 'Signed article content',
+        ])->toArray();
+        $raw['sig'] = str_repeat('c', 128);
+        $article->setEventId($raw['id']);
+        $article->setRaw($raw);
         return $article;
     }
 

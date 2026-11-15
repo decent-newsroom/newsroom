@@ -22,10 +22,14 @@ final readonly class AuthoredArticlePreview
             'tags' => $event->getTags(),
             'content' => $event->getContent(),
         ];
+        if (!is_array($raw)) {
+            return null;
+        }
         if (($raw['id'] ?? null) !== $article->getEventId()
             || ($raw['pubkey'] ?? null) !== $article->getPubkey()
             || ($raw['kind'] ?? null) !== $article->getKind()?->value
             || !is_int($raw['created_at'] ?? null)
+            || $raw['created_at'] !== $article->getCreatedAt()?->getTimestamp()
             || !is_array($raw['tags'] ?? null)
             || !is_string($raw['content'] ?? null)) {
             return null;
