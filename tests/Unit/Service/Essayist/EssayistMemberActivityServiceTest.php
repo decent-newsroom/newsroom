@@ -84,6 +84,79 @@ final class EssayistMemberActivityServiceTest extends TestCase
         $this->assertSame(['repost', 'highlight', 'comment'], array_column($activity, 'type'));
     }
 
+    public function testHighlightPreservesAnExactNoteSourceReference(): void
+    {
+        $memberHex = str_repeat('a1', 32);
+        $noteId = str_repeat('b', 64);
+        $member = new User();
+        $member->setNpub((static function (string $pubkey): string {
+            return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32()
+                ?? throw new \InvalidArgumentException('Not a valid hex pubkey');
+        })($memberHex));
+        $userRepository = $this->createMock(UserEntityRepository::class);
+        $userRepository->method('findByRoleWithQuery')->willReturn([$member]);
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository->method('findByFilter')->willReturn([
+            $this->makeEvent(
+                'highlight-id',
+                KindsEnum::HIGHLIGHTS->value,
+                $memberHex,
+                'A highlighted passage',
+                [
+                    ['context', 'The passage'],
+                    ['E', $noteId, 'wss://wrong.example'],
+                    ['e', strtoupper($noteId), 'wss://relay.example', 'mention'],
+                    ['a', '30023:' . $memberHex . ':source-article'],
+                ],
+            ),
+        ]);
+        $service = new EssayistMemberActivityService(
+            $userRepository,
+            $eventRepository,
+            new NostrLinkParser(new NullLogger()),
+        );
+
+        $activity = $service->getRecentActivity();
+
+        self::assertCount(1, $activity);
+        self::assertSame('highlight', $activity[0]['type']);
+        self::assertSame(strtolower($noteId), $activity[0]['highlight']['event_ref']);
+        self::assertSame('30023:' . $memberHex . ':source-article', $activity[0]['highlight']['article_ref']);
+    }
+
+    public function testHighlightDoesNotTreatUppercaseEventTagAsANip84Source(): void
+    {
+        $memberHex = str_repeat('a1', 32);
+        $noteId = str_repeat('b', 64);
+        $member = new User();
+        $member->setNpub((static function (string $pubkey): string {
+            return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32()
+                ?? throw new \InvalidArgumentException('Not a valid hex pubkey');
+        })($memberHex));
+        $userRepository = $this->createMock(UserEntityRepository::class);
+        $userRepository->method('findByRoleWithQuery')->willReturn([$member]);
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository->method('findByFilter')->willReturn([
+            $this->makeEvent(
+                'highlight-id',
+                KindsEnum::HIGHLIGHTS->value,
+                $memberHex,
+                'A highlighted passage',
+                [['E', $noteId]],
+            ),
+        ]);
+        $service = new EssayistMemberActivityService(
+            $userRepository,
+            $eventRepository,
+            new NostrLinkParser(new NullLogger()),
+        );
+
+        $activity = $service->getRecentActivity();
+
+        self::assertCount(1, $activity);
+        self::assertNull($activity[0]['highlight']['event_ref']);
+    }
+
     private function makeEvent(string $id, int $kind, string $pubkey, string $content, array $tags): Event
     {
         $event = new Event();

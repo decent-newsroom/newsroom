@@ -12,13 +12,15 @@ use App\Repository\ArticleRepository;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
-use App\Service\Cache\RedisCacheService;
+use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrIdentityService;
 use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\NostrNip19Service;
+use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\UserMuteListService;
@@ -37,6 +39,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
+use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
 
 final class DefaultControllerExactPreviewTest extends TestCase
 {
@@ -345,8 +348,11 @@ final class DefaultControllerExactPreviewTest extends TestCase
         $requests = new RequestStack();
         $requests->push(new Request(content: json_encode($payload, JSON_THROW_ON_ERROR)));
         return $controller->nostrPreview(
-            $requests, $em, $logger, $this->createMock(RedisCacheService::class),
-            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()), $access,
+            $requests, $em, $logger,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $access,
+            new AuthoredArticlePreview(new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service())),
+            new NostrEventVerifier(new NostrSigner($this->createMock(SignatureServiceInterface::class))),
         );
     }
 }

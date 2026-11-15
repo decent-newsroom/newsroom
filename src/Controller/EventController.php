@@ -209,6 +209,22 @@ class EventController extends AbstractController
         return $kind === KindsEnum::LONGFORM->value || $kind === KindsEnum::LONGFORM_DRAFT->value;
     }
 
+    private function extractNip84EventReference(array $tags): ?string
+    {
+        foreach ($tags as $tag) {
+            if (!is_array($tag)
+                || ($tag[0] ?? null) !== 'e'
+                || !is_string($tag[1] ?? null)
+                || !preg_match('/^[0-9a-f]{64}$/i', $tag[1])) {
+                continue;
+            }
+
+            return strtolower($tag[1]);
+        }
+
+        return null;
+    }
+
     /** A note with an explicit community/group scope is outside this slice. */
     private function hasUnsupportedNoteScope(array $tags): bool
     {
@@ -393,6 +409,12 @@ class EventController extends AbstractController
             }
         }
 
+        $highlightEventRef = null;
+        if ((int) ($event->kind ?? 0) === KindsEnum::HIGHLIGHTS->value
+            && is_array($event->tags ?? null)) {
+            $highlightEventRef = $this->extractNip84EventReference($event->tags);
+        }
+
         $response = $this->render('event/index.html.twig', [
             'event' => $event,
             'author' => $authorMetadata,
@@ -401,9 +423,10 @@ class EventController extends AbstractController
             'nostrLinks' => $nostrLinks,
             'followPackProfiles' => $followPackProfiles,
             'eventPresentation' => $presentation,
+            'highlightEventRef' => $highlightEventRef,
         ]);
 
-        if ($presentation !== null) {
+        if ($presentation !== null || $highlightEventRef !== null) {
             // Mutes are viewer-specific; a shared cache must not bypass policy.
             $response->setPrivate();
             $response->headers->addCacheControlDirective('no-store');

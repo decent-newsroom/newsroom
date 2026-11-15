@@ -31,6 +31,14 @@
     {% elseif error %}
         <div class="alert alert-info">{{ error|trans }}</div>
     {% elseif chapter %}
-        <twig:Molecules:ChapterCard :chapter="chapter" />
+        {% if useSharedPreview and previewBech %}
+            <twig:Molecules:NostrEmbed :bech="previewBech" type="naddr" />
+        {% elseif useSharedPreview %}
+            <div class="nostr-placeholder">
+                <span class="nostr-placeholder-label">{{ 'event_workspace.target.restricted'|trans }}</span>
+            </div>
+        {% else %}
+            <twig:Molecules:ChapterCard :chapter="chapter" :mag="mag" />
+        {% endif %}
     {% endif %}
 </div>

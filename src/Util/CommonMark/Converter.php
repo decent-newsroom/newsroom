@@ -1339,6 +1339,8 @@ class Converter implements MarkdownConverterInterface
 
                 $isLongform = (int) $obj->kind === (int) KindsEnum::LONGFORM->value;
                 $isChapter = (int) $obj->kind === (int) KindsEnum::PUBLICATION_CONTENT->value;
+                $isPublicationIndex = (int) $obj->kind === (int) KindsEnum::PUBLICATION_INDEX->value;
+                $isWiki = (int) $obj->kind === (int) KindsEnum::WIKI->value;
                 $href = match (true) {
                     $isLongform => '/article/' . $this->e($bechEncoded),
                     $isChapter => '/chapter/' . $this->e($bechEncoded),
@@ -1356,41 +1358,23 @@ class Converter implements MarkdownConverterInterface
                     return $this->renderDeferredEmbed($bechEncoded, 'naddr');
                 }
 
+                // Public workspace previews must apply coordinate access and
+                // warning policy when saved content is rendered, not converted.
+                if ($isLongform
+                    || $isPublicationIndex
+                    || $isChapter
+                    || $isWiki
+                    || in_array((int) $event->kind, [
+                        KindsEnum::LONGFORM->value,
+                        KindsEnum::PUBLICATION_INDEX->value,
+                        KindsEnum::PUBLICATION_CONTENT->value,
+                        KindsEnum::WIKI->value,
+                    ], true)) {
+                    return $this->renderDeferredEmbed($bechEncoded, 'naddr');
+                }
+
                 // Otherwise render a rich card
                 $authorMeta = $metadataByHex[$event->pubkey] ?? null;
-
-                // Use article card for longform content (kind 30023)
-                if ((int) $event->kind === (int) KindsEnum::LONGFORM->value) {
-                    try {
-                        // Convert event to Article entity for the Card component
-                        $article = $this->articleFactory->createFromLongFormContentEvent($event);
-
-                        // Prepare authors metadata in the format expected by Card component
-                        $authorsMetadata = $authorMeta ? [$event->pubkey => $authorMeta] : [];
-
-                        return $this->twig->render('components/Molecules/Card.html.twig', [
-                            'article' => $article,
-                            'authors_metadata' => $authorsMetadata,
-                            'is_author_profile' => false,
-                        ]);
-                    } catch (\Throwable $e) {
-                        // If conversion fails, fall back to simple link
-                        return '<a href="/article/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($bechEncoded) . '</a>';
-                    }
-                }
-
-                if ((int) $event->kind === (int) KindsEnum::PUBLICATION_CONTENT->value) {
-                    return $this->twig->render('components/Molecules/ChapterCard.html.twig', [
-                        'chapter' => $event,
-                        'slug' => $obj->identifier,
-                        'title' => $this->chapterTitle($event, $obj->identifier),
-                        'summary' => $this->chapterSummary($event),
-                        'authorPubkey' => $event->pubkey,
-                        'createdAt' => (int) $event->created_at,
-                        'naddr' => $bechEncoded,
-                        'link' => '/chapter/' . $this->e($bechEncoded),
-                    ]);
-                }
 
                 // Use generic event card for other addressable events
                 return $this->twig->render('components/event_card.html.twig', [
@@ -1566,44 +1550,6 @@ class Converter implements MarkdownConverterInterface
         $escapedBech = $this->e($bech);
         $escapedType = $this->e($type);
         return '<div class="nostr-deferred-embed" data-nostr-bech="' . $escapedBech . '" data-nostr-type="' . $escapedType . '"></div>';
-    }
-
-    private function chapterTitle(object $event, string $identifier): string
-    {
-        foreach ($event->tags ?? [] as $tag) {
-            if (is_array($tag) && ($tag[0] ?? '') === 'title' && isset($tag[1]) && trim((string) $tag[1]) !== '') {
-                return trim((string) $tag[1]);
-            }
-        }
-
-        return $identifier;
-    }
-
-    private function chapterSummary(object $event): ?string
-    {
-        foreach ($event->tags ?? [] as $tag) {
-            if (is_array($tag) && ($tag[0] ?? '') === 'summary' && isset($tag[1]) && trim((string) $tag[1]) !== '') {
-                return trim((string) $tag[1]);
-            }
-        }
-
-        $content = (string) ($event->content ?? '');
-        $text = preg_replace('~^\s*(=+|#+)\s*~m', '', $content) ?? $content;
-        $text = preg_replace('~\b(?:image|video)::[^\[]+\[[^\]]*\]~i', ' ', $text) ?? $text;
-        $text = preg_replace('~(?:\[\[[^\]]+\]\]|\[[^\]]+\])~', ' ', $text) ?? $text;
-        $text = preg_replace('~[`*_+#~|>-]+~', ' ', $text) ?? $text;
-        $text = preg_replace('~\s+~u', ' ', strip_tags($text)) ?? $text;
-        $text = trim($text);
-
-        if ($text === '') {
-            return null;
-        }
-
-        if (strlen($text) <= 220) {
-            return $text;
-        }
-
-        return rtrim(substr($text, 0, 217)) . '…';
     }
 
     private function labelFromKey(string $npub): string

@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Controller;
 use App\Controller\EventController;
 use App\Dto\EventWorkspace\EventPresentation;
 use App\Entity\Event;
+use App\Enum\KindsEnum;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
@@ -137,6 +138,31 @@ final class EventControllerWorkspacePageTest extends TestCase
             $this->createMock(MessageBusInterface::class), $this->createMock(NostrClient::class),
             $this->createMock(GenericEventProjector::class), $this->createMock(UserRelayListService::class),
         );
+    }
+
+    public function testHighlightPagePreservesOnlyValidLowercaseNip84EventSourcesAndDisablesSharedCache(): void
+    {
+        $exactId = str_repeat('d', 64);
+        [$controller, $response] = $this->request($this->event(KindsEnum::HIGHLIGHTS->value, [
+            ['E', str_repeat('e', 64)],
+            ['e', strtoupper($exactId), 'wss://relay.example', 'mention'],
+            ['a', '30023:' . self::AUTHOR . ':article'],
+        ]), $this->policy('deleted'));
+
+        self::assertSame(strtolower($exactId), $controller->parameters['highlightEventRef']);
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+        self::assertFalse($response->headers->hasCacheControlDirective('public'));
+    }
+
+    public function testHighlightPageIgnoresUppercaseEventSourceTag(): void
+    {
+        [$controller, $response] = $this->request($this->event(KindsEnum::HIGHLIGHTS->value, [
+            ['E', str_repeat('e', 64)],
+        ]), $this->policy('deleted'));
+
+        self::assertNull($controller->parameters['highlightEventRef']);
+        self::assertTrue($response->headers->hasCacheControlDirective('public'));
     }
 
     /** @dataProvider legacyCases */

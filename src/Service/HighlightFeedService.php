@@ -44,12 +44,12 @@ class HighlightFeedService
                     $articleCoordinate = $article['kind'] . ':' . $article['pubkey'] . ':' . $article['slug'];
                 }
 
-                $naddr = $articleCoordinate ? $this->generateNaddr($articleCoordinate, []) : null;
-                $eventRef = $baseObject['highlight']['refs']['event_ref'] ?? null;
+                $eventRef = $this->normalizeEventRef($baseObject['highlight']['refs']['event_ref'] ?? null);
                 $relayHints = $baseObject['highlight']['refs']['relay_hints'] ?? [];
                 if (!is_array($relayHints)) {
                     $relayHints = [];
                 }
+                $naddr = $articleCoordinate ? $this->generateNaddr($articleCoordinate, $relayHints) : null;
 
                 $highlights[] = [
                     'id' => $baseObject['highlight']['eventId'] ?? null,
@@ -139,7 +139,8 @@ class HighlightFeedService
                 $articleKind = $articleEntity->getKind()->value;
             }
 
-            $naddr = $this->generateNaddr($articleCoordinate, []);
+            $relayHints = $this->extractRelayHints($highlightEntity->getRawEvent(), $articleCoordinate);
+            $naddr = $this->generateNaddr($articleCoordinate, $relayHints);
             $eventRef = $this->extractEventRef($highlightEntity->getRawEvent());
 
             $highlights[] = [
@@ -160,7 +161,7 @@ class HighlightFeedService
                 'article_author_profile' => $articlePubkey
                     ? $this->metadataToProfile($metadataMap[$articlePubkey] ?? null)
                     : null,
-                'relayHints' => $this->extractRelayHints($highlightEntity->getRawEvent(), $articleCoordinate),
+                'relayHints' => $relayHints,
             ];
         }
 
@@ -252,12 +253,26 @@ class HighlightFeedService
         }
 
         foreach ($rawEvent['tags'] as $tag) {
-            if (is_array($tag) && count($tag) >= 2 && in_array($tag[0], ['e', 'E'])) {
-                return $tag[1] ?? null;
+            if (is_array($tag)
+                && count($tag) >= 2
+                && ($tag[0] ?? null) === 'e') {
+                $eventRef = $this->normalizeEventRef($tag[1] ?? null);
+                if ($eventRef !== null) {
+                    return $eventRef;
+                }
             }
         }
 
         return null;
+    }
+
+    private function normalizeEventRef(mixed $eventRef): ?string
+    {
+        if (!is_string($eventRef) || !preg_match('/^[0-9a-f]{64}$/i', $eventRef)) {
+            return null;
+        }
+
+        return strtolower($eventRef);
     }
 
     /**
@@ -282,7 +297,7 @@ class HighlightFeedService
                 continue;
             }
 
-            $relay = rtrim(trim($relay), '/');
+            $relay = trim($relay);
             if ($relay !== '' && !in_array($relay, $relayHints, true)) {
                 $relayHints[] = $relay;
             }

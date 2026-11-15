@@ -1,3 +1,12 @@
-<div class="nostr-event-preview p-3">
-    {% include 'components/Molecules/EventPreview.html.twig' with {presentation: presentation} only %}
-</div>
+{% if presentation.isSensitive or presentation.hasContentWarning %}
+    {% include 'event_workspace/_api_sensitive_preview.html.twig' %}
+{% else %}
+    <div class="nostr-event-preview p-3">
+        {% include 'components/Molecules/EventPreview.html.twig' with {presentation: presentation} only %}
+        {% if href is defined and href %}
+            <div class="event-footer">
+                <a href="{{ href|e('html_attr') }}" data-turbo-frame="_top">{{ 'event.details'|trans }}</a>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}

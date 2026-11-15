@@ -305,7 +305,7 @@ final class NostrEmbedTest extends TestCase
         self::assertNull($mismatch->presentation);
     }
 
-    public function testLongformMissingProjectionFailsClosed(): void
+    public function testLongformMissingProjectionKeepsOnlyDeferredFocusedLink(): void
     {
         $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
         $events = $this->createMock(EventRepository::class);
@@ -314,7 +314,20 @@ final class NostrEmbedTest extends TestCase
         $articles->method('findOneBy')->willReturn(null);
         $component = $this->component($events, $articles);
         $component->mount($reference, 'naddr');
-        self::assertTrue($component->restricted);
+        self::assertFalse($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringContainsString('data-controller="nostr--deferred-embed"', $this->render($component));
+        self::assertStringContainsString('href="/article/' . $reference . '"', $this->render($component));
+
+        $exactReference = (new NostrNip19Service())->encodeNote(self::ID);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($this->event(30023, [['d', 'article']]));
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn(null);
+        $exactComponent = $this->component($events, $articles);
+        $exactComponent->mount($exactReference, 'note');
+        self::assertTrue($exactComponent->restricted);
+        self::assertStringNotContainsString('data-controller=', $this->render($exactComponent));
 
         $events = $this->createMock(EventRepository::class);
         $events->method('findByNaddr')->willReturn(null);

@@ -18,6 +18,7 @@ use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\BooksChapterLookup;
+use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\Graph\GraphMagazineListService;
@@ -25,6 +26,7 @@ use App\Service\Magazine\MagazineStructureService;
 use App\Service\Magazine\PublicationIndexClassifier;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrEventParser;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ContentSearchService;
 use App\Util\CommonMark\Converter;
@@ -2034,9 +2036,10 @@ class DefaultController extends AbstractController
         RequestStack $requestStack,
         EntityManagerInterface $entityManager,
         LoggerInterface $logger,
-        RedisCacheService $redisCacheService,
         EventPresentationFactory $eventPresentations,
         EventPreviewAccessPolicy $eventPreviewAccess,
+        AuthoredArticlePreview $articlePreviews,
+        NostrEventVerifier $eventVerifier,
     ): Response
     {
         $request = $requestStack->getCurrentRequest();
@@ -2068,13 +2071,22 @@ class DefaultController extends AbstractController
             // Handle different Nostr identifier types
             switch ($type) {
                 case 'naddr':
-                    return $this->handleNaddrPreview($decoded, $entityManager, $logger, $eventPresentations, $eventPreviewAccess);
+                    return $this->handleNaddrPreview(
+                        $decoded,
+                        $identifier,
+                        $entityManager,
+                        $logger,
+                        $eventPresentations,
+                        $eventPreviewAccess,
+                        $articlePreviews,
+                        $eventVerifier,
+                    );
                 case 'nevent':
                 case 'note':
                     return $this->handleEventPreview($decoded, $entityManager, $eventPresentations, $eventPreviewAccess, $type, $identifier);
                 case 'npub':
                 case 'nprofile':
-                    return $this->handleProfilePreview($decoded, $entityManager, $logger, $redisCacheService);
+                    return $this->handleProfilePreview($identifier, $type, $logger);
                 default:
                     return new Response('<div class="alert alert-warning">Unsupported preview type: ' . htmlspecialchars($type) . '</div>', 200);
             }
@@ -2090,28 +2102,44 @@ class DefaultController extends AbstractController
 
     private function handleNaddrPreview(
         array $decoded,
+        string $identifier,
         EntityManagerInterface $entityManager,
         LoggerInterface $logger,
         EventPresentationFactory $eventPresentations,
         EventPreviewAccessPolicy $eventPreviewAccess,
+        AuthoredArticlePreview $articlePreviews,
+        NostrEventVerifier $eventVerifier,
     ): Response
     {
-        $kind = $decoded['kind'] ?? null;
-        $pubkey = $decoded['pubkey'] ?? null;
-        $identifier = $decoded['identifier'] ?? null;
-
-        if (($kind === null || $pubkey === null || $identifier === null) && isset($decoded['bech']) && is_string($decoded['bech'])) {
-            try {
-                $bech = new \nostriphant\NIP19\Bech32($decoded['bech']);
-                if ($bech->type === 'naddr') {
-                    $kind = $bech->data->kind ?? $kind;
-                    $pubkey = $bech->data->pubkey ?? $pubkey;
-                    $identifier = $bech->data->identifier ?? $identifier;
-                    $decoded['relays'] = $bech->data->relays ?? ($decoded['relays'] ?? []);
-                }
-            } catch (\Throwable) {
-                // Keep the existing unsupported-preview fallback.
+        try {
+            $bech = new \nostriphant\NIP19\Bech32($identifier);
+            if ($bech->type !== 'naddr'
+                || (isset($decoded['bech']) && $decoded['bech'] !== $identifier)) {
+                throw new \InvalidArgumentException('Conflicting address identifier.');
             }
+            $address = $bech();
+            $kind = $address->kind;
+            $pubkey = $address->pubkey;
+            $addressIdentifier = $address->identifier;
+            $decodedKind = $decoded['kind'] ?? null;
+            if ((array_key_exists('kind', $decoded)
+                    && ((!is_int($decodedKind) && !(is_string($decodedKind) && ctype_digit($decodedKind)))
+                        || (int) $decodedKind !== $kind))
+                || (array_key_exists('pubkey', $decoded)
+                    && (!is_string($decoded['pubkey']) || strtolower($decoded['pubkey']) !== strtolower($pubkey)))
+                || (array_key_exists('identifier', $decoded)
+                    && (!is_string($decoded['identifier']) || $decoded['identifier'] !== $addressIdentifier))) {
+                throw new \InvalidArgumentException('Decoded address conflicts with its identifier.');
+            }
+            $decoded['relays'] = $address->relays ?? [];
+            $identifier = $addressIdentifier;
+        } catch (\Throwable $exception) {
+            $logger->warning('Nostr preview: invalid or conflicting naddr identifier.', [
+                'identifier' => $identifier,
+                'exception' => $exception,
+            ]);
+
+            return new Response('<div class="alert alert-warning">Invalid address identifier.</div>', 200);
         }
 
         if ($kind === KindsEnum::LONGFORM->value) {
@@ -2128,16 +2156,62 @@ class DefaultController extends AbstractController
                     return $this->missingNostrEventPreview();
                 }
 
-                // The projection's derived flags cannot override signed warning
-                // evidence. Do not pass an Article to Card in the warning case:
-                // it exposes title, summary and image independently of EventPreview.
-                $rawTags = $article->getRaw()['tags'] ?? [];
+                try {
+                    $raw = $article->getRaw();
+                    if (!is_array($raw) || !$eventVerifier->verify($eventVerifier->fromArray($raw))) {
+                        $logger->warning('Nostr preview: Article raw envelope failed verification; denying preview.', [
+                            'event_id' => $article->getEventId(),
+                        ]);
+                        return $this->missingNostrEventPreview();
+                    }
+                } catch (\Throwable $exception) {
+                    $logger->error('Nostr preview: Article raw envelope verification failed; denying preview.', [
+                        'event_id' => $article->getEventId(),
+                        'exception' => $exception,
+                    ]);
+                    return $this->missingNostrEventPreview();
+                }
+
+                // Only signed warning evidence is authoritative. Do not pass an
+                // Article to a specialist card: it exposes projected metadata.
+                $rawTags = $raw['tags'] ?? [];
                 if (is_array($rawTags) && EventPresentation::hasSensitiveTagEvidence($rawTags)) {
                     return $this->render('event_workspace/_api_sensitive_preview.html.twig');
                 }
 
-                return $this->render('components/Molecules/ArticlePreview.html.twig', [
-                    'article' => $article,
+                try {
+                    $presentation = $articlePreviews->fromAuthorizedArticle($article, null);
+                } catch (\Throwable $exception) {
+                    $logger->error('Nostr preview: Article presentation failed; denying preview.', [
+                        'event_id' => $article->getEventId(),
+                        'exception' => $exception,
+                    ]);
+                    return $this->missingNostrEventPreview();
+                }
+
+                if (!$presentation instanceof EventPresentation || $presentation->isSensitive) {
+                    return $this->missingNostrEventPreview();
+                }
+
+                try {
+                    $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
+                        kind: KindsEnum::LONGFORM->value,
+                        pubkey: (string) $pubkey,
+                        identifier: (string) $identifier,
+                        relays: is_array($decoded['relays'] ?? null) ? $decoded['relays'] : [],
+                    );
+                    $href = $this->generateUrl('article-naddr', ['naddr' => $naddr]);
+                } catch (\Throwable $exception) {
+                    $logger->error('Nostr preview: Failed to generate Article route; denying preview.', [
+                        'event_id' => $article->getEventId(),
+                        'exception' => $exception,
+                    ]);
+                    return $this->missingNostrEventPreview();
+                }
+
+                return $this->render('event_workspace/_api_event_preview.html.twig', [
+                    'presentation' => $presentation,
+                    'href' => $href,
                 ]);
             }
 
@@ -2175,6 +2249,10 @@ class DefaultController extends AbstractController
             if ($chapter instanceof Event
                 && $this->matchesPreviewNaddr($chapter, (int) $kind, (string) $pubkey, (string) $identifier)
                 && $eventPreviewAccess->isReadable($chapter)) {
+                if (EventPresentation::hasSensitiveTagEvidence($chapter->getTags())) {
+                    return $this->render('event_workspace/_api_sensitive_preview.html.twig');
+                }
+
                 try {
                     $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
                         kind: KindsEnum::PUBLICATION_CONTENT->value,
@@ -2186,10 +2264,9 @@ class DefaultController extends AbstractController
                     $naddr = null;
                 }
 
-                return $this->render('components/Molecules/ChapterCard.html.twig', [
-                    'chapter' => $chapter,
-                    'naddr' => $naddr,
-                    'link' => $naddr ? $this->generateUrl('chapter', ['naddr' => $naddr]) : '#',
+                return $this->render('event_workspace/_api_event_preview.html.twig', [
+                    'presentation' => $eventPresentations->fromAuthorizedEvent($chapter),
+                    'href' => $naddr ? $this->generateUrl('chapter', ['naddr' => $naddr]) : null,
                 ]);
             }
             if ($chapter instanceof Event) {
@@ -2245,9 +2322,13 @@ class DefaultController extends AbstractController
             }
 
             if ($wiki instanceof Event) {
-                return $this->render('components/Molecules/WikiPreview.html.twig', [
-                    'wiki' => $wiki,
-                    'link' => $this->generateUrl('nevent', ['nevent' => $naddr]),
+                if (EventPresentation::hasSensitiveTagEvidence($wiki->getTags())) {
+                    return $this->render('event_workspace/_api_sensitive_preview.html.twig');
+                }
+
+                return $this->render('event_workspace/_api_event_preview.html.twig', [
+                    'presentation' => $eventPresentations->fromAuthorizedEvent($wiki),
+                    'href' => $this->generateUrl('nevent', ['nevent' => $naddr]),
                 ]);
             }
             return new Response(
@@ -2389,37 +2470,34 @@ class DefaultController extends AbstractController
         ]);
     }
 
-    private function handleProfilePreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger, RedisCacheService $redisCacheService): Response
+    private function handleProfilePreview(string $identifier, string $type, LoggerInterface $logger): Response
     {
-        // decoded data contains hex pubkey directly or nested
-        $pubkey = $decoded['pubkey'] ?? ($decoded[0] ?? null);
-
-        if (!$pubkey || !PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) !== null) {
-            $logger->warning('Profile preview: invalid or missing pubkey', ['decoded' => $decoded]);
+        try {
+            $bech = new \nostriphant\NIP19\Bech32($identifier);
+            if ($bech->type !== $type) {
+                throw new \InvalidArgumentException('Unexpected profile identifier type.');
+            }
+            $data = $bech();
+            $pubkey = is_string($data) ? $data : ($data->pubkey ?? null);
+            $canonicalKey = is_string($pubkey) ? PublicKey::fromHex(strtolower(trim($pubkey))) : null;
+            if ($canonicalKey === null) {
+                throw new \InvalidArgumentException('Invalid profile public key.');
+            }
+        } catch (\Throwable $exception) {
+            $logger->warning('Profile preview: invalid or missing profile identifier', [
+                'identifier' => $identifier,
+                'type' => $type,
+                'exception' => $exception,
+            ]);
             if ($this->isGranted('ROLE_ADMIN')) {
                 return new Response('<div class="alert alert-warning">Invalid profile identifier.</div>', 200);
             }
             return new Response('', 200);
         }
 
-        try {
-            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
-            $metadata = $redisCacheService->getMetadata($pubkey);
-            $user = $metadata->toStdClass();
-
-            return $this->render('components/Molecules/ProfilePreview.html.twig', [
-                'user' => $user,
-                'npub' => $npub,
-                'pubkey' => $pubkey,
-            ]);
-        } catch (\Exception $e) {
-            $logger->error('Failed to load profile preview', ['pubkey' => $pubkey, 'error' => $e->getMessage()]);
-            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
-            return $this->render('components/Molecules/ProfilePreview.html.twig', [
-                'user' => null,
-                'npub' => $npub,
-                'pubkey' => $pubkey,
-            ]);
-        }
+        return $this->render('components/Molecules/ProfilePreview.html.twig', [
+            'npub' => $canonicalKey->toBech32(),
+            'pubkey' => $canonicalKey->toHex(),
+        ]);
     }
 }

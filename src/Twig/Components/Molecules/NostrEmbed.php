@@ -121,10 +121,10 @@ final class NostrEmbed
             $this->restricted = true;
             return;
         }
-        $this->presentEvent($event);
+        $this->presentEvent($event, allowMissingArticleFallback: true);
     }
 
-    private function presentEvent(Event $event): void
+    private function presentEvent(Event $event, bool $allowMissingArticleFallback = false): void
     {
         $kind = $event->getKind();
         $identifier = $kind >= 30000 && $kind <= 39999 ? $this->firstIdentifier($event) : null;
@@ -139,8 +139,14 @@ final class NostrEmbed
             // Essayist exclusivity is not signed: require the matching exact
             // projection, not a conversion or another coordinate revision.
             $article = $this->articleRepository->findOneBy(['eventId' => $event->getId()]);
-            if (!$article instanceof Article
-                || strtolower((string) $article->getEventId()) !== strtolower($event->getId())
+            if (!$article instanceof Article) {
+                if ($allowMissingArticleFallback) {
+                    return;
+                }
+                $this->restricted = true;
+                return;
+            }
+            if (strtolower((string) $article->getEventId()) !== strtolower($event->getId())
                 || !$this->access->isArticleReadable($article, $event->getPubkey(), $identifier)) {
                 $this->restricted = true;
                 return;

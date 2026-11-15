@@ -10,11 +10,13 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
-use App\Service\Cache\RedisCacheService;
+use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Nostr\NostrNip19Service;
+use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Nostr\NostrIdentityService;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
@@ -28,6 +30,8 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Innis\Nostr\Core\Domain\Entity\Event as NostrEvent;
+use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
 
 final class DefaultControllerNostrPreviewTest extends TestCase
 {
@@ -63,13 +67,21 @@ final class DefaultControllerNostrPreviewTest extends TestCase
         $controller->setContainer($container);
 
         $method = new \ReflectionMethod($controller, 'handleNaddrPreview');
+        $reference = (string) \nostriphant\NIP19\Bech32::naddr(
+            kind: KindsEnum::WIKI->value,
+            pubkey: $pubkey,
+            identifier: $identifier,
+        );
         $response = $method->invoke(
             $controller,
             ['kind' => KindsEnum::WIKI->value, 'pubkey' => $pubkey, 'identifier' => $identifier],
+            $reference,
             $entityManager,
             $this->createMock(LoggerInterface::class),
             $this->presentations(),
             $this->accessPolicy(),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
         );
 
         self::assertInstanceOf(Response::class, $response);
@@ -77,7 +89,7 @@ final class DefaultControllerNostrPreviewTest extends TestCase
         self::assertStringContainsString('/e/wiki-entry', $response->getContent());
     }
 
-    public function testStoredNip54WikiPreviewRendersWikiCard(): void
+    public function testStoredNip54WikiPreviewUsesSharedPresentationAndFocusedLink(): void
     {
         $pubkey = str_repeat('b', 64);
         $identifier = 'wiki-entry';
@@ -124,23 +136,68 @@ final class DefaultControllerNostrPreviewTest extends TestCase
         $controller->setContainer($container);
 
         $method = new \ReflectionMethod($controller, 'handleNaddrPreview');
+        $reference = (string) \nostriphant\NIP19\Bech32::naddr(
+            kind: KindsEnum::WIKI->value,
+            pubkey: $pubkey,
+            identifier: $identifier,
+        );
         $response = $method->invoke(
             $controller,
             ['kind' => KindsEnum::WIKI->value, 'pubkey' => $pubkey, 'identifier' => $identifier],
+            $reference,
             $entityManager,
             $this->createMock(LoggerInterface::class),
             $this->presentations(),
             $this->accessPolicyForAuthor($pubkey),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
         );
 
         self::assertInstanceOf(Response::class, $response);
         self::assertSame('rendered', $response->getContent());
-        self::assertSame('components/Molecules/WikiPreview.html.twig', $controller->renderedView);
-        self::assertSame($wiki, $controller->renderParameters['wiki']);
-        self::assertSame('/e/wiki-entry', $controller->renderParameters['link']);
+        self::assertSame('event_workspace/_api_event_preview.html.twig', $controller->renderedView);
+        self::assertSame('Wiki Entry', $controller->renderParameters['presentation']->title);
+        self::assertSame('A wiki summary', $controller->renderParameters['presentation']->description);
+        self::assertSame('/e/wiki-entry', $controller->renderParameters['href']);
     }
 
-    public function testNaddrLongformKeepsArticlePreviewForAuthorizedProjection(): void
+    public function testSensitiveNip54WikiPreviewUsesWarningOnlyFragment(): void
+    {
+        $wiki = new Event();
+        $wiki->setId(self::EVENT_ID);
+        $wiki->setKind(KindsEnum::WIKI->value);
+        $wiki->setPubkey(self::AUTHOR);
+        $wiki->setCreatedAt(123);
+        $wiki->setTags([
+            ['d', 'wiki-entry'],
+            ['title', 'Private wiki title'],
+            ['content-warning', 'Private warning reason'],
+        ]);
+        $repository = $this->createMock(EventRepository::class);
+        $repository->method('findByNaddr')->willReturn($wiki);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->with(Event::class)->willReturn($repository);
+        $controller = new class extends DefaultController {
+            protected function render(string $view, array $parameters = [], ?Response $response = null): Response
+            {
+                TestCase::assertSame('event_workspace/_api_sensitive_preview.html.twig', $view);
+                TestCase::assertSame([], $parameters);
+
+                return new Response('warning-only');
+            }
+        };
+
+        $response = $this->invokeNaddr(
+            ['kind' => KindsEnum::WIKI->value, 'pubkey' => self::AUTHOR, 'identifier' => 'wiki-entry'],
+            $entityManager,
+            $controller,
+            $this->accessPolicyForAuthor(self::AUTHOR),
+        );
+
+        self::assertSame('warning-only', $response->getContent());
+    }
+
+    public function testNaddrLongformUsesVerifiedSharedPresentationAndFocusedRoute(): void
     {
         $article = $this->article();
         $repository = $this->createMock(ArticleRepository::class);
@@ -163,9 +220,22 @@ final class DefaultControllerNostrPreviewTest extends TestCase
                 $this->renderedView = $view;
                 $this->renderParameters = $parameters;
 
-                return new Response('article-specialist-preview');
+                return new Response('shared-article-preview');
             }
         };
+        $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
+            kind: KindsEnum::LONGFORM->value,
+            pubkey: self::AUTHOR,
+            identifier: 'article-slug',
+        );
+        $router = $this->createMock(UrlGeneratorInterface::class);
+        $router->expects(self::once())
+            ->method('generate')
+            ->with('article-naddr', ['naddr' => $naddr], UrlGeneratorInterface::ABSOLUTE_PATH)
+            ->willReturn('/article/' . $naddr);
+        $container = new Container();
+        $container->set('router', $router);
+        $controller->setContainer($container);
 
         $response = $this->invokeNaddr(
             ['kind' => KindsEnum::LONGFORM->value, 'pubkey' => self::AUTHOR, 'identifier' => 'article-slug'],
@@ -173,9 +243,128 @@ final class DefaultControllerNostrPreviewTest extends TestCase
             $controller,
         );
 
-        self::assertSame('article-specialist-preview', $response->getContent());
-        self::assertSame('components/Molecules/ArticlePreview.html.twig', $controller->renderedView);
-        self::assertSame($article, $controller->renderParameters['article']);
+        self::assertSame('shared-article-preview', $response->getContent());
+        self::assertSame('event_workspace/_api_event_preview.html.twig', $controller->renderedView);
+        self::assertSame('Article title', $controller->renderParameters['presentation']->title);
+        self::assertSame('/article/' . $naddr, $controller->renderParameters['href']);
+    }
+
+    public function testNaddrLongformRejectsInvalidSignature(): void
+    {
+        $article = $this->article();
+        $repository = $this->createMock(ArticleRepository::class);
+        $repository->method('findOneBy')->willReturn($article);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->with(Article::class)->willReturn($repository);
+
+        $response = $this->invokeNaddr(
+            ['kind' => KindsEnum::LONGFORM->value, 'pubkey' => self::AUTHOR, 'identifier' => 'article-slug'],
+            $entityManager,
+            eventVerifier: $this->eventVerifier(false),
+        );
+
+        self::assertStringContainsString('Event not found locally.', $response->getContent());
+    }
+
+    public function testNaddrLongformRejectsSignedEnvelopeThatDoesNotMatchProjection(): void
+    {
+        $article = $this->article();
+        $raw = $this->signedArticleRaw([['d', 'different-slug'], ['title', 'Untrusted title']]);
+        $article->setEventId($raw['id']);
+        $article->setRaw($raw);
+        $repository = $this->createMock(ArticleRepository::class);
+        $repository->method('findOneBy')->willReturn($article);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->with(Article::class)->willReturn($repository);
+
+        $response = $this->invokeNaddr(
+            ['kind' => KindsEnum::LONGFORM->value, 'pubkey' => self::AUTHOR, 'identifier' => 'article-slug'],
+            $entityManager,
+        );
+
+        self::assertStringContainsString('Event not found locally.', $response->getContent());
+    }
+
+    public function testNaddrPreviewRejectsDecodedIdentityThatConflictsWithRequestedIdentifier(): void
+    {
+        $requested = (string) \nostriphant\NIP19\Bech32::naddr(
+            kind: KindsEnum::LONGFORM->value,
+            pubkey: self::AUTHOR,
+            identifier: 'article-slug',
+        );
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('getRepository');
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request(content: json_encode([
+            'identifier' => $requested,
+            'type' => 'naddr',
+            'decoded' => [
+                'bech' => $requested,
+                'kind' => KindsEnum::LONGFORM->value,
+                'pubkey' => str_repeat('c', 64),
+                'identifier' => 'attacker-selected-article',
+            ],
+        ], JSON_THROW_ON_ERROR)));
+
+        $response = (new DefaultController())->nostrPreview(
+            $requestStack,
+            $entityManager,
+            $this->createMock(LoggerInterface::class),
+            $this->presentations(),
+            $this->accessPolicy(),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('Invalid address identifier.', $response->getContent());
+    }
+
+    /** @dataProvider profileIdentifiers */
+    public function testProfilePreviewUsesCanonicalNip19IdentityAndSharedProfileCard(string $type, string $identifier): void
+    {
+        $controller = new class extends DefaultController {
+            public ?string $renderedView = null;
+            /** @var array<string, mixed> */
+            public array $renderParameters = [];
+
+            protected function render(string $view, array $parameters = [], ?Response $response = null): Response
+            {
+                $this->renderedView = $view;
+                $this->renderParameters = $parameters;
+
+                return new Response('profile-preview');
+            }
+        };
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request(content: json_encode([
+            'identifier' => $identifier,
+            'type' => $type,
+            'decoded' => ['hex' => str_repeat('c', 64)],
+        ], JSON_THROW_ON_ERROR)));
+
+        $response = $controller->nostrPreview(
+            $requestStack,
+            $this->createMock(EntityManagerInterface::class),
+            $this->createMock(LoggerInterface::class),
+            $this->presentations(),
+            $this->accessPolicy(),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
+        );
+
+        self::assertSame('profile-preview', $response->getContent());
+        self::assertSame('components/Molecules/ProfilePreview.html.twig', $controller->renderedView);
+        self::assertSame(self::AUTHOR, $controller->renderParameters['pubkey']);
+        self::assertSame((new NostrNip19Service())->encodeNpub(self::AUTHOR), $controller->renderParameters['npub']);
+    }
+
+    public static function profileIdentifiers(): iterable
+    {
+        $nip19 = new NostrNip19Service();
+
+        yield 'npub' => ['npub', $nip19->encodeNpub(self::AUTHOR)];
+        yield 'nprofile' => ['nprofile', (string) \nostriphant\NIP19\Bech32::nprofile(pubkey: self::AUTHOR)];
     }
 
     public function testColdNaddrLongformKeepsExistingFetchAndViewLink(): void
@@ -232,7 +421,9 @@ final class DefaultControllerNostrPreviewTest extends TestCase
     public function testArticleRawWarningEvidenceNeverReachesSpecialist(array $tags): void
     {
         $article = $this->article()->setTitle('Private title')->setSummary('Private summary');
-        $article->setRaw(['tags' => [['d', 'article-slug'], ...$tags], 'sensitive' => false]);
+        $signedRaw = $this->signedArticleRaw([['d', 'article-slug'], ...$tags]);
+        $article->setEventId($signedRaw['id']);
+        $article->setRaw([...$signedRaw, 'sensitive' => false]);
         $repository = $this->createMock(ArticleRepository::class);
         $repository->method('findOneBy')->willReturn($article);
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -269,22 +460,36 @@ final class DefaultControllerNostrPreviewTest extends TestCase
     public function testArticleRawFirstDControlsExposure(?array $raw, string $identifier, bool $readable): void
     {
         $article = $this->article()->setSlug($identifier);
+        if ($raw !== null && is_array($raw['tags'] ?? null)) {
+            $tags = $raw['tags'];
+            if ($this->areStringTags($tags)) {
+                $raw = $this->signedArticleRaw($tags);
+                $article->setEventId($raw['id']);
+            }
+        }
         $article->setRaw($raw);
         $repository = $this->createMock(ArticleRepository::class);
         $repository->method('findOneBy')->willReturn($article);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->with(Article::class)->willReturn($repository);
         $controller = new class extends DefaultController {
-            public bool $rendered = false;
+            public ?string $renderedView = null;
+            /** @var array<string, mixed> */
+            public array $renderParameters = [];
 
             protected function render(string $view, array $parameters = [], ?Response $response = null): Response
             {
-                TestCase::assertSame('components/Molecules/ArticlePreview.html.twig', $view);
-                $this->rendered = true;
+                $this->renderedView = $view;
+                $this->renderParameters = $parameters;
 
-                return new Response('article-specialist-preview');
+                return new Response('shared-article-preview');
             }
         };
+        $router = $this->createMock(UrlGeneratorInterface::class);
+        $router->method('generate')->willReturn('/article/article-slug');
+        $container = new Container();
+        $container->set('router', $router);
+        $controller->setContainer($container);
 
         $response = $this->invokeNaddr(
             ['kind' => 30023, 'pubkey' => self::AUTHOR, 'identifier' => $identifier],
@@ -293,8 +498,8 @@ final class DefaultControllerNostrPreviewTest extends TestCase
         );
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame($readable, $controller->rendered);
-        self::assertStringContainsString($readable ? 'article-specialist-preview' : 'Event not found locally.', $response->getContent());
+        self::assertSame($readable, $controller->renderedView === 'event_workspace/_api_event_preview.html.twig');
+        self::assertStringContainsString($readable ? 'shared-article-preview' : 'Event not found locally.', $response->getContent());
     }
 
     public static function articleFirstDCases(): iterable
@@ -361,6 +566,90 @@ final class DefaultControllerNostrPreviewTest extends TestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('Event not found locally.', $response->getContent());
+    }
+
+    public function testReadableNaddrChapterUsesSharedPresentationAndFocusedRoute(): void
+    {
+        $chapter = $this->event(KindsEnum::PUBLICATION_CONTENT->value, [
+            ['d', 'chapter-slug'],
+            ['title', 'Chapter title'],
+            ['summary', 'Chapter summary'],
+        ]);
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findByNaddr')
+            ->with(KindsEnum::PUBLICATION_CONTENT->value, self::AUTHOR, 'chapter-slug')
+            ->willReturn($chapter);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->with(Event::class)->willReturn($repository);
+        $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
+            kind: KindsEnum::PUBLICATION_CONTENT->value,
+            pubkey: self::AUTHOR,
+            identifier: 'chapter-slug',
+        );
+        $router = $this->createMock(UrlGeneratorInterface::class);
+        $router->expects(self::once())
+            ->method('generate')
+            ->with('chapter', ['naddr' => $naddr], UrlGeneratorInterface::ABSOLUTE_PATH)
+            ->willReturn('/chapter/' . $naddr);
+        $controller = new class extends DefaultController {
+            public ?string $renderedView = null;
+            /** @var array<string, mixed> */
+            public array $renderParameters = [];
+
+            protected function render(string $view, array $parameters = [], ?Response $response = null): Response
+            {
+                $this->renderedView = $view;
+                $this->renderParameters = $parameters;
+
+                return new Response('shared-chapter-preview');
+            }
+        };
+        $container = new Container();
+        $container->set('router', $router);
+        $controller->setContainer($container);
+
+        $response = $this->invokeNaddr(
+            ['kind' => KindsEnum::PUBLICATION_CONTENT->value, 'pubkey' => self::AUTHOR, 'identifier' => 'chapter-slug'],
+            $entityManager,
+            $controller,
+        );
+
+        self::assertSame('shared-chapter-preview', $response->getContent());
+        self::assertSame('event_workspace/_api_event_preview.html.twig', $controller->renderedView);
+        self::assertSame('Chapter title', $controller->renderParameters['presentation']->title);
+        self::assertSame('Chapter summary', $controller->renderParameters['presentation']->description);
+        self::assertSame('/chapter/' . $naddr, $controller->renderParameters['href']);
+    }
+
+    public function testSensitiveNaddrChapterReturnsWarningOnlyFragment(): void
+    {
+        $chapter = $this->event(KindsEnum::PUBLICATION_CONTENT->value, [
+            ['d', 'chapter-slug'],
+            ['title', 'Private chapter title'],
+            ['content-warning', 'Private warning reason'],
+        ]);
+        $repository = $this->createMock(EventRepository::class);
+        $repository->method('findByNaddr')->willReturn($chapter);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->with(Event::class)->willReturn($repository);
+        $controller = new class extends DefaultController {
+            protected function render(string $view, array $parameters = [], ?Response $response = null): Response
+            {
+                TestCase::assertSame('event_workspace/_api_sensitive_preview.html.twig', $view);
+                TestCase::assertSame([], $parameters);
+
+                return new Response('warning-only');
+            }
+        };
+
+        $response = $this->invokeNaddr(
+            ['kind' => KindsEnum::PUBLICATION_CONTENT->value, 'pubkey' => self::AUTHOR, 'identifier' => 'chapter-slug'],
+            $entityManager,
+            $controller,
+        );
+
+        self::assertSame('warning-only', $response->getContent());
     }
 
     public function testOtherLocalNaddrKindUsesSharedGenericPreview(): void
@@ -462,9 +751,10 @@ final class DefaultControllerNostrPreviewTest extends TestCase
             $requestStack,
             $entityManager,
             $this->createMock(LoggerInterface::class),
-            $this->createMock(RedisCacheService::class),
             $this->presentations(),
             $this->accessPolicy(),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -510,9 +800,10 @@ final class DefaultControllerNostrPreviewTest extends TestCase
             $requestStack,
             $entityManager,
             $this->createMock(LoggerInterface::class),
-            $this->createMock(RedisCacheService::class),
             $this->presentations(),
             $this->accessPolicy(),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -559,9 +850,10 @@ final class DefaultControllerNostrPreviewTest extends TestCase
             $requestStack,
             $entityManager,
             $this->createMock(LoggerInterface::class),
-            $this->createMock(RedisCacheService::class),
             $this->presentations(),
             $this->accessPolicy(),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -598,9 +890,10 @@ final class DefaultControllerNostrPreviewTest extends TestCase
             $requestStack,
             $entityManager,
             $this->createMock(LoggerInterface::class),
-            $this->createMock(RedisCacheService::class),
             $this->presentations(),
             $this->accessPolicy(false),
+            $this->articlePreviews(),
+            $this->eventVerifier(),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -612,15 +905,63 @@ final class DefaultControllerNostrPreviewTest extends TestCase
         return new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service());
     }
 
+    private function articlePreviews(): AuthoredArticlePreview
+    {
+        return new AuthoredArticlePreview($this->presentations());
+    }
+
+    private function eventVerifier(bool $valid = true): NostrEventVerifier
+    {
+        $signatureService = $this->createMock(SignatureServiceInterface::class);
+        $signatureService->method('verify')->willReturn($valid);
+
+        return new NostrEventVerifier(new NostrSigner($signatureService));
+    }
+
+    /** @param list<list<string>> $tags
+     *  @return array<string, mixed>
+     */
+    private function signedArticleRaw(array $tags): array
+    {
+        $raw = NostrEvent::fromArray([
+            'pubkey' => self::AUTHOR,
+            'created_at' => 123,
+            'kind' => KindsEnum::LONGFORM->value,
+            'tags' => $tags,
+            'content' => 'Article body',
+        ])->toArray();
+        $raw['sig'] = str_repeat('0', 128);
+
+        return $raw;
+    }
+
+    /** @param array<mixed> $tags */
+    private function areStringTags(array $tags): bool
+    {
+        foreach ($tags as $tag) {
+            if (!is_array($tag)) {
+                return false;
+            }
+            foreach ($tag as $value) {
+                if (!is_string($value)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     private function article(): Article
     {
+        $raw = $this->signedArticleRaw([['d', 'article-slug'], ['title', 'Article title']]);
         $article = (new Article())
-            ->setEventId(self::EVENT_ID)
+            ->setEventId($raw['id'])
             ->setPubkey(self::AUTHOR)
             ->setSlug('article-slug')
             ->setKind(KindsEnum::LONGFORM)
             ->setCreatedAt(123);
-        $article->setRaw(['tags' => [['d', 'article-slug']]]);
+        $article->setRaw($raw);
 
         return $article;
     }
@@ -643,6 +984,7 @@ final class DefaultControllerNostrPreviewTest extends TestCase
         EntityManagerInterface $entityManager,
         ?DefaultController $controller = null,
         ?EventPreviewAccessPolicy $eventPreviewAccess = null,
+        ?NostrEventVerifier $eventVerifier = null,
     ): Response {
         $controller ??= new DefaultController();
         $method = new \ReflectionMethod(DefaultController::class, 'handleNaddrPreview');
@@ -650,10 +992,18 @@ final class DefaultControllerNostrPreviewTest extends TestCase
         return $method->invoke(
             $controller,
             $decoded,
+            (string) \nostriphant\NIP19\Bech32::naddr(
+                kind: (int) $decoded['kind'],
+                pubkey: (string) $decoded['pubkey'],
+                identifier: (string) $decoded['identifier'],
+                relays: is_array($decoded['relays'] ?? null) ? $decoded['relays'] : [],
+            ),
             $entityManager,
             $this->createMock(LoggerInterface::class),
             $this->presentations(),
             $eventPreviewAccess ?? $this->accessPolicy(),
+            $this->articlePreviews(),
+            $eventVerifier ?? $this->eventVerifier(),
         );
     }
 

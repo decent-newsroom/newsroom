@@ -2,6 +2,19 @@
 
 ## v0.1.0
 
+- [Fix] Bind API `naddr` previews to the original requested Bech32 coordinate and reject conflicting decoded identity fields, preventing the preview request from being redirected to a different Article.
+- [Fix] Route locally stored chapter coordinate cards through guarded shared previews outside magazine-specific contexts, preserving Books API cards, magazine links, relay hints, and explicit cold-fetch behavior.
+- [Fix] Render supported highlight address coordinates through guarded shared previews in both highlight surfaces, preserving ordered source context, relay hints, and deferred cold-reference behavior while retaining the Books-backed chapter path.
+- [Fix] Retain the focused Article fallback when a local longform event has no Article projection, and preserve relay URL path identity in database-backed highlight references.
+- [Fix] Preserve NIP-84 lowercase `e` source IDs in highlight feeds and prefer exact note previews over coordinate lookups when both source tags are present.
+- [Fix] Render exact NIP-84 event sources on highlight event pages through guarded previews and disable shared caching when viewer-specific mute policy applies.
+- [Fix] Resolve `/api/preview/` `npub` and `nprofile` previews from the original Bech32 identity and reuse the existing profile card, avoiding rejected valid payloads and redundant metadata lookups.
+- [Fix] Render local kind-30023 Article API previews through the shared event presentation only after verifying the signed raw envelope and its agreement with the Article projection; retain focused/cold links and metadata-free warnings.
+- [Fix] Render local kind-30818 wiki API previews through the shared event presentation with the focused wiki link, keeping signed-warning fragments metadata-free and cold links unchanged.
+- [Fix] Render local kind-30041 API previews through the shared event presentation with the focused chapter link, while keeping signed-warning fragments metadata-free and cold chapter links intact.
+- [Fix] Defer locally resolved kind-30041 chapter and kind-30818 wiki `naddr` cards so final rendering uses shared coordinate access, warning, and preview policy while retaining focused routes.
+- [Fix] Defer locally resolved kind-30040 publication-index `naddr` cards during conversion so final rendering uses shared coordinate access, warning, and preview policy.
+- [Fix] Defer locally resolved kind-30023 `naddr` Article cards during conversion so final rendering applies shared coordinate access, warning, and preview policy while retaining other specialist cards.
 - [Fix] Deferred locally resolved kind-1 `nevent` cards during article conversion so final rendering uses shared exact-ID access, warning, and preview policy; other reference/kind paths remain unchanged.
 - [Fix] Routed kind-30023 coordinates in the magazine-wizard review list through guarded shared previews, retaining other coordinate component behavior and failing closed on invalid addresses.
 - [Fix] Rendered local kind-30023 address previews from the matching signature- and event-ID-verified raw envelope stored in an Article projection when its Event row is absent, while retaining visibility, warning, and Essayist entitlement checks and failing closed on inconsistent raw data.

@@ -105,6 +105,50 @@ final class EventPreviewTest extends KernelTestCase
         self::assertStringNotContainsString('opaque body', $html);
     }
 
+    public function testApiEventPreviewKeepsOptionalFocusedLinkAndHidesSensitiveMetadata(): void
+    {
+        $twig = self::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+        $presentation = $this->factory()->fromAuthorizedFields(
+            self::EVENT_ID,
+            30041,
+            self::AUTHOR,
+            123,
+            [['d', 'chapter'], ['title', 'Sensitive chapter title'], ['content-warning', 'Private reason']],
+            'Sensitive body',
+        );
+
+        $html = $twig->render('event_workspace/_api_event_preview.html.twig', [
+            'presentation' => $presentation,
+            'href' => '/chapter/naddr1example',
+        ]);
+        $crawler = new Crawler($html);
+
+        self::assertSame(1, $crawler->filter('.event-preview__sensitive')->count());
+        self::assertSame(0, $crawler->filter('.event-preview__id, .event-preview__author, .event-preview__title, a')->count());
+        self::assertStringNotContainsString(self::EVENT_ID, $html);
+        self::assertStringNotContainsString(self::AUTHOR, $html);
+        self::assertStringNotContainsString('Sensitive chapter title', $html);
+        self::assertStringNotContainsString('Private reason', $html);
+        self::assertStringNotContainsString('/chapter/naddr1example', $html);
+
+        $plainPresentation = $this->factory()->fromAuthorizedFields(
+            self::EVENT_ID,
+            30041,
+            self::AUTHOR,
+            123,
+            [['d', 'chapter'], ['title', 'Chapter title']],
+            '',
+        );
+        $linkedHtml = $twig->render('event_workspace/_api_event_preview.html.twig', [
+            'presentation' => $plainPresentation,
+            'href' => '/chapter/naddr1example',
+        ]);
+        $linkedCrawler = new Crawler($linkedHtml);
+
+        self::assertSame('/chapter/naddr1example', $linkedCrawler->filter('.event-footer a')->attr('href'));
+    }
+
     /**
      * @param list<list<string>> $safeTags
      * @dataProvider zapReceiptFallbacks

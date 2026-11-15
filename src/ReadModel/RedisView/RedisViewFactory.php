@@ -486,8 +486,12 @@ class RedisViewFactory
         }
 
         foreach ($rawEvent['tags'] as $tag) {
-            if (is_array($tag) && count($tag) >= 2 && in_array($tag[0], ['e', 'E'])) {
-                return $tag[1] ?? null;
+            if (is_array($tag)
+                && count($tag) >= 2
+                && ($tag[0] ?? null) === 'e'
+                && is_string($tag[1] ?? null)
+                && preg_match('/^[0-9a-f]{64}$/i', $tag[1])) {
+                return strtolower($tag[1]);
             }
         }
 

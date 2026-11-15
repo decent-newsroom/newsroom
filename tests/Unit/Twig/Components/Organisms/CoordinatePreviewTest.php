@@ -8,9 +8,12 @@ use App\Entity\Event;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use App\Service\BooksChapterLookup;
+use App\Service\Nostr\NostrNip19Service;
 use App\Twig\Components\Organisms\ArticleFromCoordinate;
 use App\Twig\Components\Organisms\ChapterFromCoordinate;
+use nostriphant\NIP19\Bech32;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 final class CoordinatePreviewTest extends TestCase
 {
@@ -41,7 +44,7 @@ final class CoordinatePreviewTest extends TestCase
 
         $booksLookup = $this->createMock(BooksChapterLookup::class);
         $booksLookup->expects(self::never())->method('find');
-        $component = new ChapterFromCoordinate($eventRepository, $booksLookup);
+        $component = new ChapterFromCoordinate($eventRepository, $booksLookup, new NostrNip19Service(), new NullLogger());
         $component->mount(
             '30041:' . str_repeat('a', 64) . ':intro',
             ['wss://publication.example/'],
@@ -51,7 +54,38 @@ final class CoordinatePreviewTest extends TestCase
         self::assertSame($chapter, $component->chapter);
         self::assertSame(['wss://publication.example/'], $component->relayHints);
         self::assertSame('weekly', $component->mag);
+        self::assertTrue($component->stored);
+        self::assertFalse($component->useSharedPreview);
+        self::assertNull($component->previewBech);
         self::assertNull($component->error);
+    }
+
+    public function testChapterPreviewUsesSharedPreviewForStoredNonMagazineChapter(): void
+    {
+        $pubkey = str_repeat('d', 64);
+        $chapter = new Event();
+        $chapter->setId(str_repeat('e', 64));
+        $chapter->setKind(30041);
+        $chapter->setPubkey($pubkey);
+        $chapter->setDTag('intro');
+
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository->expects(self::once())->method('findByNaddr')
+            ->with(30041, $pubkey, 'intro')->willReturn($chapter);
+        $booksLookup = $this->createMock(BooksChapterLookup::class);
+        $booksLookup->expects(self::never())->method('find');
+
+        $component = new ChapterFromCoordinate($eventRepository, $booksLookup, new NostrNip19Service(), new NullLogger());
+        $component->mount('30041:' . $pubkey . ':intro', ['wss://publication.example/']);
+
+        self::assertTrue($component->stored);
+        self::assertTrue($component->useSharedPreview);
+        self::assertNotNull($component->previewBech);
+        $decoded = (new Bech32($component->previewBech))->data;
+        self::assertSame(30041, $decoded->kind);
+        self::assertSame($pubkey, $decoded->pubkey);
+        self::assertSame('intro', $decoded->identifier);
+        self::assertSame(['wss://publication.example/'], $decoded->relays);
     }
 
     public function testChapterPreviewUsesBooksApiWithoutLocalCopy(): void
@@ -70,10 +104,13 @@ final class CoordinatePreviewTest extends TestCase
         $booksLookup->expects(self::once())->method('find')
             ->with($pubkey, 'intro')->willReturn($chapter);
 
-        $component = new ChapterFromCoordinate($eventRepository, $booksLookup);
+        $component = new ChapterFromCoordinate($eventRepository, $booksLookup, new NostrNip19Service(), new NullLogger());
         $component->mount('30041:' . $pubkey . ':intro');
 
         self::assertSame($chapter, $component->chapter);
+        self::assertFalse($component->stored);
+        self::assertFalse($component->useSharedPreview);
+        self::assertNull($component->previewBech);
         self::assertNull($component->error);
     }
 }

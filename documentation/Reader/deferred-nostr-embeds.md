@@ -10,7 +10,7 @@ When an article references other Nostr events via `nostr:nevent1…`, `nostr:not
 
 ```
 Phase 1 — Conversion time (Converter)
-  ├─ Local kind-1 nevent card → inert deferred placeholder (exact original nevent)
+  ├─ Local kind-1 nevent / kind-30023, 30040 naddr card → inert placeholder
   ├─ Other locally found cards → existing rich/specialist card HTML
   └─ Event NOT found         → <div class="nostr-deferred-embed" ...></div>
 
@@ -48,23 +48,33 @@ Now the Converter never touches the network. Relay fetching is handled exclusive
 
 This is what gets saved in `processed_html`. It's valid, inert HTML.
 
-### Bounded conversion-time kind-1 nevent slice
+### Bounded conversion-time event-card slices
 
-`Converter::renderNostrLink()` now emits this same placeholder for an already
-batch-resolved kind `1` event when a `nevent` card is requested. The original
-Bech32 reference (including exact ID and hints) is retained, not converted to a
-`note` or a latest coordinate. No target body, author metadata, warning reason,
-or navigation is stored in the placeholder. At final template rendering,
-`resolve_nostr_embeds` mounts the guarded `Molecules:NostrEmbed`; exact-ID
-resolution, access checks, warning-only states, and compact shared presentation
-are therefore applied even when conversion found the target locally.
+`Converter::renderNostrLink()` emits the same placeholder for already
+batch-resolved kind `1` `nevent` cards and kind `30023` or `30040` `naddr`
+cards. Each
+original Bech32 reference is retained, including exact event ID or coordinate
+identity and relay hints; neither is rewritten to a different reference. No
+target body, author metadata, warning reason, or navigation is stored in the
+placeholder. At final template rendering, `resolve_nostr_embeds` mounts the
+guarded `Molecules:NostrEmbed`; exact-ID or coordinate resolution, access
+checks, warning-only states, and compact shared presentation therefore apply
+even when conversion found the target locally. Kind `30023` Article cards use
+the Article projection fallback when the Event row is absent, subject to raw
+envelope verification and the same projection visibility/entitlement policy.
 
 This adds no synchronous relay fetch, persistence, or render-time body
-conversion. Inline `nevent` links, kind-20 `note` picture cards, other `note`
-behavior, all `naddr` specialists/legacy cards, and non-kind-1 `nevent` cards
-are unchanged. Existing rich cards already saved in `processed_html` are not
-rewritten; they need normal HTML regeneration to enter this path. Existing
-async prefetch dispatch and cold client fallback remain separate mechanisms.
+conversion. Inline links, kind-20 `note` picture cards, non-kind-1 `nevent`
+cards, and unsupported addressable kinds remain unchanged. Supported kind `30040`, `30041`, and `30818` cards use the shared generic
+workspace preview; focused chapter/wiki routes remain available. Local
+kind-30023 Article, kind-30041 chapter, and kind-30818 wiki API previews use
+shared event presentations and retain their focused links. Article API
+previews verify the complete signed raw envelope and its agreement with the
+Article projection before building the snapshot; invalid or mismatched data
+fails closed. Cold targets retain their existing fetch/view links. Existing
+rich cards already saved in `processed_html` are not rewritten; they need
+normal HTML regeneration to enter this path. Existing async prefetch dispatch
+and cold client fallback remain separate mechanisms.
 
 Regression coverage is in `tests/Unit/Util/CommonMark/NostrChapterEmbedTest.php`,
 the existing narrow converter card suite; render-time policy coverage remains
@@ -133,7 +143,16 @@ resolve nested references, or fetch metadata.
 Genuinely missing targets keep the previous Stimulus placeholder and API
 fallback. The exact-reference API now enforces equivalent kind, projection,
 entitlement, visibility, and warning gates; a placeholder is not a grant of
-access. Addressable API specialists retain their separate behavior below.
+access. Local Article, chapter, and wiki addressable API previews share the
+event presentation, while retaining their focused routes and existing cold
+links. The address API binds the decoded coordinate to the request's original
+Bech32 `naddr` and rejects conflicting decoded identity fields.
+
+The `/api/preview/` `npub` and `nprofile` branches derive the profile key from
+the original Bech32 identifier, not the client-supplied decoded object, and
+render the existing `UserFromNpub` profile card. Metadata lookup remains in
+that reusable component, so the endpoint does not perform a redundant lookup
+before rendering.
 
 ## NIP-22 comment context
 
@@ -167,6 +186,33 @@ filter and other callers are unchanged. The magazine wizard's review list now
 uses the same guarded shared preview for kind-30023 coordinates only; malformed
 coordinates fail closed, while chapter and other specialist coordinate callers
 remain on their existing components.
+
+The highlight and activity `ChapterFromCoordinate` cards use `NostrEmbed` for
+locally stored chapters when no magazine context is supplied. The original
+coordinate and relay hints are encoded into the reference and the shared
+visibility, warning, and compact-presentation policy applies. Magazine-specific
+links retain `ChapterCard`, Books API transient results retain their existing
+card, and missing targets keep the explicit user-triggered fetch path.
+
+Both highlight source surfaces use `NostrEmbed` for supported kind-30023
+Article, kind-30040 publication-index, and kind-30818 wiki coordinates instead
+of their client-only Nostr preview. The feed service encodes the source
+coordinate with its relay hints; local Articles are checked through the shared
+projection and visibility policy, while cold coordinates retain the deferred
+`/api/preview/` fallback. Highlight text and source order are unchanged.
+Kind-30041 retains its Books-backed chapter component; other coordinate kinds
+retain their prior specialist/link renderers. If a local longform Event has no
+Article projection, the embed does not expose its metadata and retains only the
+focused deferred Article link; projection lookup failures and mismatched or
+unauthorized projections still fail closed. Relay URL paths and trailing
+slashes are preserved in database fallback reference encoding.
+The Essayist activity adapter and highlight event page carry the first valid
+lowercase `e` source ID into the exact-ID embed path; uppercase `E` tags are not
+treated as NIP-84 sources. When both an exact event ID and a coordinate are
+present, the exact event preview takes precedence rather than resolving a newer
+coordinate revision. Highlight event pages with this viewer-dependent preview
+are private and not shared-cacheable, so mute checks cannot be bypassed through
+a cached fragment.
 
 Cold valid addresses use the existing deferred placeholder and DB-only preview
 API; specialist API rendering and explicit navigation retain their existing
@@ -207,19 +253,23 @@ HTML replaces only that occurrence, including local-missing and warning-only
 fragments. Readable public previews remain available anonymously. The endpoint
 does not fetch, persist, convert bodies, or resolve nested references.
 
-Addressable `naddr` previews keep their specialist article, chapter, and wiki
-paths; this bounded exact-reference parity slice does not change those
+Addressable `naddr` previews retain the specialist Article path. Local
+kind-30041 chapter and kind-30818 wiki API fragments use the shared tag-derived
+Event preview with their focused links; signed warning evidence produces the
+metadata-free warning fragment. Genuinely missing targets retain their
+existing focused fetch/view links. These changes do not alter
 coordinate/latest-version semantics.
 
 For `naddr`, kind `30023` retains the Article projection/Card but requires a
 complete matching projection identity (event ID, author, kind, slug, and
 timestamp) before exposure. It checks author suppression, Essayist-exclusive
 entitlement, hidden coordinates, NIP-09 tombstones, and authenticated strict
-NIP-51 mutes. Kinds `30041` and `30818` retain their ChapterCard/WikiPreview
-only after Event visibility checks. A local kind `30040` with no specialist
-preview uses the shared generic Event presentation; other unsupported kinds
-remain unsupported. Cold Article/chapter/wiki fetch/view links are unchanged.
-No naddr relay hints are used for synchronous fetches or persistence.
+NIP-51 mutes. Kinds `30041` and `30818` use the shared generic Event preview
+only after Event visibility checks; chapter and wiki focused links are
+retained. A local kind `30040` with no specialist preview uses the same shared
+presentation; other unsupported kinds remain unsupported. Cold
+Article/chapter/wiki fetch/view links are unchanged. No naddr relay hints are
+used for synchronous fetches or persistence.
 
 For Article projections, the first `d` in the raw signed tags must also be a
 string exactly equal to the requested identifier, independently of the projected
@@ -246,13 +296,17 @@ coordinate-card or event-page rendering was migrated in that API slice.
 
 ## Remaining boundaries
 
-Conversion-time cards already generated by the Converter bypass
-`NostrEmbed`; their authorization and warning handling are not changed here.
+Legacy rich cards already stored by the Converter bypass `NostrEmbed`; their
+authorization and warning handling are not changed here.
 The documented exact-reference client/API payload and access gap is closed.
-Addressable `naddr` API specialists and profile previews remain separate paths;
-this slice does not claim full local-component/API parity for them or migrate
-conversion-time cards. The coordinate
-repository checks its indexed `d_tag` branch before its legacy JSON fallback,
+Local Article `naddr` API previews now use the shared presentation after
+verifying signed-envelope and projection agreement. The `npub`/`nprofile` API
+path derives the key from the original Bech32 identity and reuses the existing
+profile card. Supported
+conversion-time `nevent` and `naddr` cards now defer to `NostrEmbed`, but
+unsupported kinds and rich cards already stored in processed HTML are not
+rewritten by this slice. The coordinate repository checks its indexed `d_tag`
+branch before its legacy JSON fallback,
 so mixed backfilled and unbackfilled revisions are not globally compared.
 The new component preserves that existing selection behavior and independently
 verifies the selected signed identity. Live browser/worker integration has not

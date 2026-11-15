@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Util\CommonMark;
 
-use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Repository\EventRepository;
@@ -125,26 +124,61 @@ final class NostrChapterEmbedTest extends TestCase
 
     public function testOtherLocalNaddrKeepsLegacyCard(): void
     {
-        $event = $this->exactEvent(30040);
-        $reference = (string) Bech32::naddr(kind: 30040, pubkey: $event->pubkey, identifier: 'index');
+        $event = $this->exactEvent(30045);
+        $reference = (string) Bech32::naddr(kind: 30045, pubkey: $event->pubkey, identifier: 'index');
         $twig = $this->createMock(TwigEnvironment::class);
         $twig->expects(self::once())->method('render')
             ->with('components/event_card.html.twig', ['event' => $event, 'author' => null, 'naddr' => $reference])
             ->willReturn('<article>legacy index</article>');
 
         self::assertSame('<article>legacy index</article>', $this->renderNostrLink(
-            $twig, $reference, ['30040:' . $event->pubkey . ':index' => $event],
+            $twig, $reference, ['30045:' . $event->pubkey . ':index' => $event],
         ));
     }
 
-    public function testPublicationContentNaddrRendersChapterCard(): void
+    public function testLocalPublicationIndexNaddrDefersWithOriginalCoordinate(): void
+    {
+        $pubkey = str_repeat('d', 64);
+        $identifier = 'magazine';
+        $relay = 'wss://relay.example.test';
+        $naddr = (string) Bech32::naddr(
+            kind: KindsEnum::PUBLICATION_INDEX->value,
+            pubkey: $pubkey,
+            identifier: $identifier,
+            relays: [$relay],
+        );
+        $event = (object) [
+            'id' => str_repeat('e', 64),
+            'kind' => KindsEnum::PUBLICATION_INDEX->value,
+            'pubkey' => $pubkey,
+            'content' => '',
+            'created_at' => 456,
+            'tags' => [['d', $identifier], ['title', 'Magazine title']],
+            'sig' => str_repeat('f', 128),
+        ];
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $naddr . '" data-nostr-type="naddr"></div>',
+            $this->renderNostrLink(
+                $twig,
+                $naddr,
+                [KindsEnum::PUBLICATION_INDEX->value . ':' . $pubkey . ':' . $identifier => $event],
+            ),
+        );
+    }
+
+    public function testLocalPublicationContentNaddrDefersWithOriginalCoordinate(): void
     {
         $pubkey = str_repeat('a', 64);
         $identifier = 'intro';
+        $relay = 'wss://chapter-relay.example.test';
         $naddr = (string) Bech32::naddr(
             kind: KindsEnum::PUBLICATION_CONTENT->value,
             pubkey: $pubkey,
             identifier: $identifier,
+            relays: [$relay],
         );
         $event = (object) [
             'id' => str_repeat('b', 64),
@@ -157,23 +191,47 @@ final class NostrChapterEmbedTest extends TestCase
         ];
 
         $twig = $this->createMock(TwigEnvironment::class);
-        $twig->expects(self::once())
-            ->method('render')
-            ->with('components/Molecules/ChapterCard.html.twig', self::callback(
-                fn (array $parameters): bool => $parameters['chapter'] === $event
-                    && $parameters['naddr'] === $naddr
-                    && $parameters['link'] === '/chapter/' . $naddr
-                    && $parameters['title'] === 'Intro chapter'
-                    && $parameters['summary'] === 'Chapter summary'
-            ))
-            ->willReturn('<article class="chapter-card"><a href="/chapter/' . $naddr . '">Intro chapter</a></article>');
+        $twig->expects(self::never())->method('render');
 
-        $html = $this->renderNostrLink($twig, $naddr, [
-            KindsEnum::PUBLICATION_CONTENT->value . ':' . $pubkey . ':' . $identifier => $event,
-        ]);
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $naddr . '" data-nostr-type="naddr"></div>',
+            $this->renderNostrLink(
+                $twig,
+                $naddr,
+                [KindsEnum::PUBLICATION_CONTENT->value . ':' . $pubkey . ':' . $identifier => $event],
+            ),
+        );
+    }
 
-        self::assertStringContainsString('chapter-card', $html);
-        self::assertStringContainsString('/chapter/' . $naddr, $html);
+    public function testLocalWikiNaddrDefersToSharedPreview(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $identifier = 'wiki';
+        $naddr = (string) Bech32::naddr(
+            kind: KindsEnum::WIKI->value,
+            pubkey: $pubkey,
+            identifier: $identifier,
+        );
+        $event = (object) [
+            'id' => str_repeat('b', 64),
+            'kind' => KindsEnum::WIKI->value,
+            'pubkey' => $pubkey,
+            'content' => 'Wiki body',
+            'created_at' => 123,
+            'tags' => [['d', $identifier], ['title', 'Wiki title'], ['summary', 'Wiki summary']],
+            'sig' => str_repeat('c', 128),
+        ];
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $naddr . '" data-nostr-type="naddr"></div>',
+            $this->renderNostrLink(
+                $twig,
+                $naddr,
+                [KindsEnum::WIKI->value . ':' . $pubkey . ':' . $identifier => $event],
+            ),
+        );
     }
 
     public function testPublicationContentInlineNaddrLinksToChapterRoute(): void
@@ -197,7 +255,7 @@ final class NostrChapterEmbedTest extends TestCase
         self::assertSame('<a href="/chapter/' . $naddr . '" class="nostr-link">read chapter</a>', $html);
     }
 
-    public function testLongformNaddrStillRendersArticleCard(): void
+    public function testLocalLongformNaddrDefersWithOriginalCoordinateAndRelayHint(): void
     {
         $pubkey = str_repeat('d', 64);
         $identifier = 'article';
@@ -205,6 +263,7 @@ final class NostrChapterEmbedTest extends TestCase
             kind: KindsEnum::LONGFORM->value,
             pubkey: $pubkey,
             identifier: $identifier,
+            relays: ['wss://relay.example.test'],
         );
         $event = (object) [
             'id' => str_repeat('e', 64),
@@ -215,27 +274,48 @@ final class NostrChapterEmbedTest extends TestCase
             'tags' => [['d', $identifier], ['title', 'Article title']],
             'sig' => str_repeat('f', 128),
         ];
-        $article = new Article();
 
         $twig = $this->createMock(TwigEnvironment::class);
-        $twig->expects(self::once())
-            ->method('render')
-            ->with('components/Molecules/Card.html.twig', self::callback(
-                fn (array $parameters): bool => $parameters['article'] === $article
-            ))
-            ->willReturn('<article class="article-card">Article title</article>');
-
         $articleFactory = $this->createMock(ArticleFactory::class);
-        $articleFactory->expects(self::once())
-            ->method('createFromLongFormContentEvent')
-            ->with($event)
-            ->willReturn($article);
+        $articleFactory->expects(self::never())->method('createFromLongFormContentEvent');
+        $twig->expects(self::never())->method('render');
 
-        $html = $this->renderNostrLink($twig, $naddr, [
-            KindsEnum::LONGFORM->value . ':' . $pubkey . ':' . $identifier => $event,
-        ], null, false, $articleFactory);
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $naddr . '" data-nostr-type="naddr"></div>',
+            $this->renderNostrLink(
+                $twig,
+                $naddr,
+                [KindsEnum::LONGFORM->value . ':' . $pubkey . ':' . $identifier => $event],
+                null,
+                false,
+                $articleFactory,
+            ),
+        );
+    }
 
-        self::assertStringContainsString('article-card', $html);
+    public function testLocalLongformInlineNaddrRemainsAnArticleLink(): void
+    {
+        $pubkey = str_repeat('d', 64);
+        $identifier = 'article';
+        $naddr = (string) Bech32::naddr(
+            kind: KindsEnum::LONGFORM->value,
+            pubkey: $pubkey,
+            identifier: $identifier,
+        );
+        $event = $this->exactEvent(KindsEnum::LONGFORM->value);
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<a href="/article/' . $naddr . '" class="nostr-link">read article</a>',
+            $this->renderNostrLink(
+                $twig,
+                $naddr,
+                [KindsEnum::LONGFORM->value . ':' . $pubkey . ':' . $identifier => $event],
+                'read article',
+                true,
+            ),
+        );
     }
 
     private function exactEvent(int $kind): object

@@ -123,6 +123,7 @@ final class EssayistMemberActivityService
         $sourceUrl = null;
         $url = null;
         $articleRef = null;
+        $eventRef = null;
         $articleTitle = null;
         $relayHints = [];
 
@@ -144,6 +145,13 @@ final class EssayistMemberActivityService
                     }
                     if (isset($tag[2]) && is_string($tag[2]) && str_starts_with($tag[2], 'wss://')) {
                         $relayHints[] = $tag[2];
+                    }
+                    break;
+                case 'e':
+                    if ($eventRef === null
+                        && is_string($tag[1] ?? null)
+                        && preg_match('/^[0-9a-f]{64}$/i', $tag[1])) {
+                        $eventRef = strtolower($tag[1]);
                     }
                     break;
                 case 'title':
@@ -180,6 +188,7 @@ final class EssayistMemberActivityService
             'sourceUrl' => $sourceUrl,
             'url' => $url,
             'article_ref' => $articleRef,
+            'event_ref' => $eventRef,
             'article_title' => $articleTitle,
             'naddr' => $naddr,
             'preview' => $preview,
@@ -229,5 +238,3 @@ final class EssayistMemberActivityService
         return null;
     }
 }
-
-

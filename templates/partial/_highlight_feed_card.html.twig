@@ -52,12 +52,18 @@
         {% set sourceParts = highlight.article_ref|default(null) ? highlight.article_ref|split(':', 3) : [] %}
         {% set sourceKind = sourceParts|length == 3 ? sourceParts[0] : null %}
 
-        {% if highlight.article_ref|default(null) and sourceKind == '30041' %}
+        {% if highlight.event_ref is defined and highlight.event_ref %}
+            <twig:Molecules:NostrEmbed :bech="highlight.event_ref|nEncode" type="note" />
+        {% elseif highlight.article_ref|default(null) and sourceKind == '30041' %}
             <div class="article-preview">
                 <twig:Organisms:ChapterFromCoordinate
                     :coordinate="highlight.article_ref"
                     :relayHints="highlight.relayHints|default([])"
                 />
+            </div>
+        {% elseif highlight.article_ref|default(null) and sourceKind in ['30023', '30040', '30818'] and highlight.naddr|default(null) %}
+            <div class="article-preview">
+                <twig:Molecules:NostrEmbed :bech="highlight.naddr" type="naddr" />
             </div>
         {% elseif highlight.preview is defined and highlight.preview %}
             <div class="article-preview">
@@ -95,8 +101,6 @@
                     {% endif %}
                 </span>
             {% endif %}
-        {% elseif highlight.event_ref is defined and highlight.event_ref %}
-            <twig:Molecules:NostrEmbed :bech="highlight.event_ref|nEncode" type="note" />
         {% elseif highlight.url %}
             <a href="{{ highlight.url }}"
                class="article-reference"
