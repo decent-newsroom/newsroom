@@ -940,6 +940,25 @@ not the broader policy/Article-query batching backlog. Narrow Docker coverage
 passes 86 tests / 618 assertions plus Twig/PHP and container lint; see
 [bookmarks](bookmarks.md).
 
+### Bounded Step 5 conversion-time exact nevent note slice
+
+Only locally batch-resolved kind `1` `nevent` cards in
+`Converter::renderNostrLink()` now emit the same inert deferred placeholder as
+missing targets. The original exact Bech32 identity and hints remain intact;
+the final `resolve_nostr_embeds` render uses guarded `NostrEmbed` exact-ID access,
+warning and compact presentation policy instead of caching legacy card metadata.
+Inline links, kind-20 `note` pictures, all `naddr` specialist/legacy cards, and
+non-kind-1 `nevent` paths are unchanged. No synchronous fetch or persistence is
+added. Existing stored rich-card HTML is not backfilled by this slice.
+Focused coverage reuses `NostrChapterEmbedTest`; see
+[deferred embeds](deferred-nostr-embeds.md).
+Docker validation passes 232 tests / 1,158 assertions across CommonMark,
+`NostrEmbedRuntimeTest`, `NostrEmbedTest`, `CommentFeedCardTemplateTest`, and
+`DefaultControllerExactPreviewTest`, plus PHP/Twig and container lint.
+
+The activity bookmark-card partial remains unchanged: its only live activity
+caller selects kinds `9802`, `16`, and `1111`, not kind `1`.
+
 The separate Step 5 comment-feed slice migrates only the address branch of
 `_comment_as_card` to the guarded local `NostrEmbed`. It retains root/parent
 precedence, surrounding callout/card and other reference branches. A narrow

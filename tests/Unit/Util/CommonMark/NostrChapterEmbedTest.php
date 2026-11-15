@@ -16,6 +16,127 @@ use Twig\Environment as TwigEnvironment;
 
 final class NostrChapterEmbedTest extends TestCase
 {
+    public function testLocalKindOneNeventDefersWithOriginalExactReference(): void
+    {
+        $event = $this->exactEvent(1);
+        // Hints do not change the exact target or determine the local kind.
+        $reference = (string) Bech32::nevent(
+            id: $event->id,
+            relays: ['wss://relay.example.test'],
+            author: str_repeat('c', 64),
+            kind: 20,
+        );
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        $html = $this->renderNostrLink($twig, $reference, [], eventsById: [$event->id => $event]);
+
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $reference . '" data-nostr-type="nevent"></div>',
+            $html,
+        );
+        self::assertStringNotContainsString($event->content, $html);
+        self::assertStringNotContainsString('Private title', $html);
+        self::assertStringNotContainsString('private warning', $html);
+        self::assertStringNotContainsString('href=', $html);
+    }
+
+    public function testMissingNeventStillDefers(): void
+    {
+        $reference = (string) Bech32::nevent(id: str_repeat('b', 64), kind: 1);
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $reference . '" data-nostr-type="nevent"></div>',
+            $this->renderNostrLink($twig, $reference, []),
+        );
+    }
+
+    public function testLocalKindOneInlineNeventRemainsAnEscapedLink(): void
+    {
+        $event = $this->exactEvent(1);
+        $reference = (string) Bech32::nevent(id: $event->id, kind: 1);
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<a href="/e/' . $reference . '" class="nostr-link">read &lt;note&gt;</a>',
+            $this->renderNostrLink($twig, $reference, [], 'read <note>', true, eventsById: [$event->id => $event]),
+        );
+    }
+
+    /** @dataProvider legacyNeventKinds */
+    public function testOtherLocalNeventKindsKeepLegacyCard(int $kind): void
+    {
+        $event = $this->exactEvent($kind);
+        $reference = (string) Bech32::nevent(id: $event->id, kind: 1);
+        $author = (object) ['name' => 'Cached author'];
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::once())->method('render')
+            ->with('components/event_card.html.twig', [
+                'event' => $event,
+                'author' => $author,
+                'nevent' => $reference,
+            ])
+            ->willReturn('<article>legacy event card</article>');
+
+        self::assertSame('<article>legacy event card</article>', $this->renderNostrLink(
+            $twig, $reference, [],
+            eventsById: [$event->id => $event],
+            metadataByHex: [$event->pubkey => $author],
+        ));
+    }
+
+    public static function legacyNeventKinds(): iterable
+    {
+        yield 'picture' => [20];
+        yield 'comment' => [1111];
+        yield 'longform' => [30023];
+        yield 'unknown' => [65000];
+    }
+
+    public function testLocalKindTwentyNoteKeepsPictureSpecialist(): void
+    {
+        $event = $this->exactEvent(20);
+        $reference = (string) Bech32::note($event->id);
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::once())->method('render')
+            ->with('/event/_kind20_picture.html.twig', ['event' => $event, 'embed' => true])
+            ->willReturn('<article>picture</article>');
+
+        self::assertSame('<article>picture</article>', $this->renderNostrLink(
+            $twig, $reference, [], eventsById: [$event->id => $event],
+        ));
+    }
+
+    public function testLocalKindOneNoteRemainsALink(): void
+    {
+        $event = $this->exactEvent(1);
+        $reference = (string) Bech32::note($event->id);
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<a href="/e/' . $reference . '" class="nostr-link">' . $reference . '</a>',
+            $this->renderNostrLink($twig, $reference, [], eventsById: [$event->id => $event]),
+        );
+    }
+
+    public function testOtherLocalNaddrKeepsLegacyCard(): void
+    {
+        $event = $this->exactEvent(30040);
+        $reference = (string) Bech32::naddr(kind: 30040, pubkey: $event->pubkey, identifier: 'index');
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::once())->method('render')
+            ->with('components/event_card.html.twig', ['event' => $event, 'author' => null, 'naddr' => $reference])
+            ->willReturn('<article>legacy index</article>');
+
+        self::assertSame('<article>legacy index</article>', $this->renderNostrLink(
+            $twig, $reference, ['30040:' . $event->pubkey . ':index' => $event],
+        ));
+    }
+
     public function testPublicationContentNaddrRendersChapterCard(): void
     {
         $pubkey = str_repeat('a', 64);
@@ -117,9 +238,19 @@ final class NostrChapterEmbedTest extends TestCase
         self::assertStringContainsString('article-card', $html);
     }
 
-    /**
-     * @param array<string, object> $eventsByNaddr
-     */
+    private function exactEvent(int $kind): object
+    {
+        return (object) [
+            'id' => str_repeat('b', 64),
+            'kind' => $kind,
+            'pubkey' => str_repeat('a', 64),
+            'content' => 'Private note body',
+            'created_at' => 123,
+            'tags' => [['title', 'Private title'], ['content-warning', 'private warning']],
+        ];
+    }
+
+    /** @param array<string, object> $eventsByNaddr */
     private function renderNostrLink(
         TwigEnvironment $twig,
         string $naddr,
@@ -127,13 +258,19 @@ final class NostrChapterEmbedTest extends TestCase
         ?string $displayText = null,
         bool $preferInline = false,
         ?ArticleFactory $articleFactory = null,
+        array $eventsById = [],
+        array $metadataByHex = [],
     ): string {
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findById');
+        $events->expects(self::never())->method('findByNaddr');
+        $events->expects(self::never())->method('findByFilter');
         $converter = new Converter(
             $this->createMock(RedisCacheService::class),
             $twig,
             $articleFactory ?? $this->createMock(ArticleFactory::class),
             $this->createMock(\AsciiDocConverter::class),
-            $this->createMock(EventRepository::class),
+            $events,
         );
 
         $method = (new \ReflectionClass(Converter::class))->getMethod('renderNostrLink');
@@ -142,8 +279,8 @@ final class NostrChapterEmbedTest extends TestCase
             $converter,
             new Bech32($naddr),
             $naddr,
-            [],
-            [],
+            $metadataByHex,
+            $eventsById,
             $displayText,
             $preferInline,
             $eventsByNaddr,

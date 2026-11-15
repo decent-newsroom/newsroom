@@ -1316,8 +1316,9 @@ class Converter implements MarkdownConverterInterface
                     return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
                 }
 
-                // Deferred embed if event data is missing
-                if (!$event) {
+                // Kind-1 cards must use the exact-ID access and warning gates
+                // at template render time, even when conversion found the event.
+                if (!$event || (int) $event->kind === 1) {
                     return $this->renderDeferredEmbed($bechEncoded, 'nevent');
                 }
 
@@ -1557,8 +1558,8 @@ class Converter implements MarkdownConverterInterface
 
     /**
      * Render a lightweight deferred embed placeholder for a nostr reference
-     * that couldn't be resolved from local data.  The placeholder is resolved
-     * at template render time by the `resolve_nostr_embeds` Twig filter.
+     * requiring render-time resolution/policy. The inert placeholder is resolved
+     * by the `resolve_nostr_embeds` Twig filter without storing target metadata.
      */
     private function renderDeferredEmbed(string $bech, string $type): string
     {

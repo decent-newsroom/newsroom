@@ -2,7 +2,7 @@
 
 ## Overview
 
-When an article references other Nostr events via `nostr:nevent1…`, `nostr:note1…`, or `nostr:naddr1…` URIs, the Converter resolves what it can from the local database and Redis cache. References that cannot be resolved locally are emitted as **deferred embed placeholders** — lightweight HTML divs that get resolved later.
+When an article references other Nostr events via `nostr:nevent1…`, `nostr:note1…`, or `nostr:naddr1…` URIs, the Converter resolves what it can from the local database and Redis cache. Missing references and locally resolved kind-1 `nevent` cards are emitted as **deferred embed placeholders** — lightweight HTML divs that get resolved later.
 
 ## Architecture
 
@@ -10,7 +10,8 @@ When an article references other Nostr events via `nostr:nevent1…`, `nostr:not
 
 ```
 Phase 1 — Conversion time (Converter)
-  ├─ Event found in local DB → rich card HTML (event_card, Molecules/Card)
+  ├─ Local kind-1 nevent card → inert deferred placeholder (exact original nevent)
+  ├─ Other locally found cards → existing rich/specialist card HTML
   └─ Event NOT found         → <div class="nostr-deferred-embed" ...></div>
 
 Phase 2 — Template render time (resolve_nostr_embeds → Molecules:NostrEmbed)
@@ -46,6 +47,28 @@ Now the Converter never touches the network. Relay fetching is handled exclusive
 ```
 
 This is what gets saved in `processed_html`. It's valid, inert HTML.
+
+### Bounded conversion-time kind-1 nevent slice
+
+`Converter::renderNostrLink()` now emits this same placeholder for an already
+batch-resolved kind `1` event when a `nevent` card is requested. The original
+Bech32 reference (including exact ID and hints) is retained, not converted to a
+`note` or a latest coordinate. No target body, author metadata, warning reason,
+or navigation is stored in the placeholder. At final template rendering,
+`resolve_nostr_embeds` mounts the guarded `Molecules:NostrEmbed`; exact-ID
+resolution, access checks, warning-only states, and compact shared presentation
+are therefore applied even when conversion found the target locally.
+
+This adds no synchronous relay fetch, persistence, or render-time body
+conversion. Inline `nevent` links, kind-20 `note` picture cards, other `note`
+behavior, all `naddr` specialists/legacy cards, and non-kind-1 `nevent` cards
+are unchanged. Existing rich cards already saved in `processed_html` are not
+rewritten; they need normal HTML regeneration to enter this path. Existing
+async prefetch dispatch and cold client fallback remain separate mechanisms.
+
+Regression coverage is in `tests/Unit/Util/CommonMark/NostrChapterEmbedTest.php`,
+the existing narrow converter card suite; render-time policy coverage remains
+in `NostrEmbedTest` and exact-preview API tests.
 
 ## Twig filter: `resolve_nostr_embeds`
 
