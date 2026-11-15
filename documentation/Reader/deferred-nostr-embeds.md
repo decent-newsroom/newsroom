@@ -140,7 +140,10 @@ fall through to a parent. External identities are clickable only when they
 are valid HTTP(S) URLs; other values remain escaped text.
 The installed NIP-19 encoder cannot faithfully encode non-ASCII identifiers,
 so those fail closed rather than changing identity. The legacy coordinate
-filter and other callers are unchanged.
+filter and other callers are unchanged. The magazine wizard's review list now
+uses the same guarded shared preview for kind-30023 coordinates only; malformed
+coordinates fail closed, while chapter and other specialist coordinate callers
+remain on their existing components.
 
 Cold valid addresses use the existing deferred placeholder and DB-only preview
 API; specialist API rendering and explicit navigation retain their existing

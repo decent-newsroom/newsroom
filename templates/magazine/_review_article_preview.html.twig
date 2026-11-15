@@ -1,0 +1,13 @@
+{% set coordinateParts = coordinate|split(':', 3) %}
+{% if coordinateParts|length == 3 and coordinateParts[0] == '30023' %}
+    {% set reference = coordinate|naddrEncodeCoordinateOrNull %}
+    {% if reference %}
+        <twig:Molecules:NostrEmbed :bech="reference" type="naddr" />
+    {% else %}
+        <div class="nostr-placeholder">
+            <span class="nostr-placeholder-label">{{ 'event_workspace.target.restricted'|trans }}</span>
+        </div>
+    {% endif %}
+{% else %}
+    <twig:Organisms:ArticleFromCoordinate :coordinate="coordinate" />
+{% endif %}

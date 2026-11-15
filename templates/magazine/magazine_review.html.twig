@@ -36,7 +36,7 @@
         {% if cat.articles is defined and cat.articles|length %}
           <div class="article-list p-2">
             {% for coordinate in cat.articles %}
-              <twig:Organisms:ArticleFromCoordinate :coordinate="coordinate" />
+              {% include 'magazine/_review_article_preview.html.twig' with {coordinate: coordinate} only %}
             {% endfor %}
           </div>
         {% else %}

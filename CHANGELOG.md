@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Routed kind-30023 coordinates in the magazine-wizard review list through guarded shared previews, retaining other coordinate component behavior and failing closed on invalid addresses.
 - [Fix] Rendered local kind-30023 address previews from the matching signature- and event-ID-verified raw envelope stored in an Article projection when its Event row is absent, while retaining visibility, warning, and Essayist entitlement checks and failing closed on inconsistent raw data.
 - [Fix] Preserve cross-type NIP-22 root precedence and render malformed or unsafe external references as restricted/plain text instead of falling through or creating unsafe links.
 - [Fix] Routed comment-feed address targets through guarded local shared previews, preserving root/parent selection and other branches; malformed or unencodable addresses fail closed and cold targets retain the deferred local preview.

@@ -946,8 +946,15 @@ precedence, surrounding callout/card and other reference branches. A narrow
 round-trip-checked coordinate filter fails closed on malformed or unencodable
 input; valid cold references keep the existing local preview API fallback.
 No synchronous relay fetch or persistence is added. The legacy coordinate
-component, bookmark card, and magazine callers remain unchanged; see
+component, bookmark card, and other magazine callers remain unchanged; see
 [deferred embeds](deferred-nostr-embeds.md).
+
+The magazine-wizard review list separately uses the guarded shared preview for
+kind-30023 article coordinates. It retains list order, fails closed if a
+coordinate cannot be round-trip encoded, and leaves kind-30041 chapters and
+other coordinates on their existing specialist component. Local Event and
+Article projection policy is enforced by `NostrEmbed`; it does not fetch or
+persist a missing event.
 
 Steps 3 and 4 provide bounded discovery and indexing for the shipped surfaces;
 they are not claims of a general resolver or complete graph browser.
