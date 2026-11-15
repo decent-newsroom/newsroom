@@ -901,9 +901,53 @@ media should not autoplay or load merely because a folder was expanded.
 | 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand selected existing collection rows and the Bookshelf directory. | **Complete for the shipped bounded surfaces.** Follow-pack members, bookmarks, bounded kind `30040` local nested indexes, Bookshelf directory disclosures, My Content previews, shared DB-only bookmark/directory target metadata, and lazy chapter previews are delivered behind the existing rollback flag. Kind `3` previews, general recursion, broader article entitlement, and selectable viewers are intentionally outside this milestone and remain future work. |
 | 3. Make discovery resilient | Provide bounded user-triggered discovery, per-occurrence updates, retry/status fallback, and preserved local disclosure state for the supported TOC path. | **Complete for the supported Reading Nook TOC path.** Unpinned public `30040`/`30041` discovery, per-occurrence polling/retry limits, and separately authorized lazy previews for available `30041` chapters are implemented with targeted Docker PHPUnit and Node coverage. Cold exact-pin fetching, general-purpose coordination, and Books/profile adapters are future extensions. Browser/live worker/Redis and deployment-runtime validation remain follow-up checks; failures found there are handled as bugs. |
 | 4. Extend the graph | Add and maintain the bounded typed `p`/`e` parsed-reference representation without changing existing publication/Unfold coordinate behavior. | **Complete for the delivered parsed-reference indexing scope.** Lowercase exact `e` occurrences and source-kind-aware `p` occurrences are indexed with positions/duplicates and carried through migrations, ingestion, rebuild, backfill, and audit writers. General target resolution/traversal, additional version-binding behavior, mixed collection expansion, and full indexed-vs-raw equivalence are future extensions, not blockers for this milestone. |
-| 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | **In progress — first bounded `/api/preview/` event-ID slice shipped.** `note`/`nevent` exact-ID responses now use the shared event presentation and preview template, retaining ordered references and DB-only behavior. Author suppression, NIP-09 tombstones, hidden coordinates, and authenticated strict NIP-51 mutes are checked before presentation; mute/policy lookup failures fail closed. Article, chapter, wiki, profile, and coordinate-address specialists remain unchanged; deferred embeds and other Step 5 surfaces still need separate parity review and migration. |
+| 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | **In progress — bounded `/api/preview/` exact-ID and `naddr` slices, immediate/local `NostrEmbed`, deferred exact-reference client/API parity, NIP-22 parent/root address previews, `BookmarkItemResolver` bookmarks, and the bookmarks-page pre-resolved exact-event caller shipped.** `note`/`nevent` exact-ID responses and local kind `30040` `naddr` API fallbacks use the shared event presentation; exact IDs, coordinate lookup, ordered references, and DB-only rendering remain distinct. Author suppression, NIP-09 tombstones, hidden coordinates, authenticated strict NIP-51 mutes, and Essayist-exclusive Article entitlement are checked before presentation/specialist Article rendering. Article, chapter, and wiki API specialist previews and their cold links remain. Local `NostrEmbed` uses compact shared previews for a public-kind allowlist and exact-projection-authorized longform; warnings hide metadata, denied/failing lookups fail closed, and genuinely missing references retain their deferred fallback. Kind `1111` comment parent/root `a`/`A` tags now use that same local-only compact path, retaining first occurrences, source coordinates, relay hints, and parent/root duplicate suppression; external `i` references and comment content are unchanged. The exact API accepts validated raw browser Bech32 payloads and legacy decoded IDs, applies the same public-kind allowlist and exact matching longform projection/entitlement gates, and returns metadata-free warnings from either signed source; it never falls forward, fetches, persists, or converts bodies. The resolver-only bookmark slice uses shared exact-ID local `e` and relay-preserving `a` previews, keeps missing `e` references on the explicit LiveAction Fetch/error path, retains profile/topic behavior and signed removal, and reuses the list remove control for coordinates because compact previews have no article-card shortcut. Its targeted Docker run passes 230 PHPUnit tests / 1,610 assertions, PHP/Twig lint, and container lint; scope and limits are in [bookmarks](bookmarks.md). The follow-up removes only the bookmarks-page pre-resolved `e` card bypass, using that same resolver and policy with original order, duplicate/exact IDs, row layout, signed removal, and cold/error behavior. Resolver mount inputs are initialized before its local lookup; the controller and global card callers remain unchanged. Earlier exact-reference/comment-context checks, including 4 Node tests, are documented in [deferred embeds](deferred-nostr-embeds.md). Other bookmark implementations, conversion-time cards, naddr specialist parity, profile previews, live browser/worker validation, and other Step 5 surfaces remain separate work. |
 | 6. Promote and stabilize | Enable expansion in the existing workspaces broadly; add drive mounting, saved local workspace state, performance instrumentation, and user-facing documentation. Evaluate package extraction after a second consumer proves the boundary. | Browsing works for cold/partial data, deep/shared/cyclic structures, mobile, keyboard navigation, and restricted content. Existing reader/publisher routes remain intact. |
 | 7. Add selectable viewers (later) | Introduce compatible Generic/Magazine/Book viewers, titles/cards/full-contents controls for indexes, npub/profile-card modes for follow lists, and alternate browser layouts where useful. Reuse shared event resolution and components. | The same event and ordered children/members can be viewed in different ways without changing source events, losing navigation state, or requiring a specialist for generic browsing. |
+
+### Bounded Step 5 event-page note slice
+
+- The existing `/e/{nevent}` route now composes `EventPreview` and the
+ existing full generic body and metadata renderers from an
+ `EventPresentationFactory` snapshot for local kind `1` notes only.
+ The snapshot retains original tags and ordered references; body conversion
+ and existing media, topic, source and reference links remain separate.
+- Before creating the snapshot the controller applies the shared suppression,
+ NIP-09 tombstone and strict reader-mute policy; policy failures deny the page.
+ These viewer-dependent responses are private and `no-store`. The shared
+ factory does not authorize or fetch.
+- Notes with content-warning/sensitive tag evidence, ambiguous/unmarked NIP-10
+ `e` tags, marked roots/replies, `h`/`A` scope or legacy NIP-72 `34550:` `a`
+ coordinates, relay-only results, unknown kinds and specialist branches are
+ excluded from the new preview path. They retain the prior event-page behavior,
+ including its existing access and caching limitations; exclusion is not a new
+ authorization policy for those legacy pages. In particular scoped unknown
+ kinds are not passed to the shared preview without a separate scope policy.
+ Existing Article, chapter, publication and comment routing is unchanged.
+- Explicit standard-slot `mention` references with a valid event ID and an empty
+ or WebSocket-scheme relay hint remain eligible; malformed `a` tags and ambiguous
+ or conflicting `e` markers stay on the legacy page path.
+- This does not address the existing synchronous event/OP relay fetches, expand
+ references, or migrate warning/reveal behavior and private/scoped kinds. Those
+ require separate authorization and page-parity work.
+
+The Step 5 bookmarks-page exact-event caller reuses the controller's existing
+batch-resolved Events through mount-only resolver/embed inputs. Local duplicate
+and distinct occurrences add no Event lookups; exact identity and shared
+access/warning/Article entitlement checks still run. Cold Fetch/error behavior
+is unchanged. This corrects the caller migration's initial redundant reads,
+not the broader policy/Article-query batching backlog. Narrow Docker coverage
+passes 86 tests / 618 assertions plus Twig/PHP and container lint; see
+[bookmarks](bookmarks.md).
+
+The separate Step 5 comment-feed slice migrates only the address branch of
+`_comment_as_card` to the guarded local `NostrEmbed`. It retains root/parent
+precedence, surrounding callout/card and other reference branches. A narrow
+round-trip-checked coordinate filter fails closed on malformed or unencodable
+input; valid cold references keep the existing local preview API fallback.
+No synchronous relay fetch or persistence is added. The legacy coordinate
+component, bookmark card, and magazine callers remain unchanged; see
+[deferred embeds](deferred-nostr-embeds.md).
 
 Steps 3 and 4 provide bounded discovery and indexing for the shipped surfaces;
 they are not claims of a general resolver or complete graph browser.

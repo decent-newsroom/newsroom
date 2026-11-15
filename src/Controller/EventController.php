@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Dto\EventWorkspace\EventPresentation;
 use App\Entity\Event as EventEntity;
 use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrClient;
@@ -206,6 +209,57 @@ class EventController extends AbstractController
         return $kind === KindsEnum::LONGFORM->value || $kind === KindsEnum::LONGFORM_DRAFT->value;
     }
 
+    /** A note with an explicit community/group scope is outside this slice. */
+    private function hasUnsupportedNoteScope(array $tags): bool
+    {
+        foreach ($tags as $tag) {
+            if (!is_array($tag)) {
+                continue;
+            }
+            if (in_array($tag[0] ?? null, ['h', 'A'], true)) {
+                return true;
+            }
+            if (($tag[0] ?? null) === 'a') {
+                $coordinate = $tag[1] ?? null;
+                if (!is_string($coordinate)) {
+                    return true;
+                }
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) !== 3
+                    || !ctype_digit($parts[0])
+                    || preg_match('/^[0-9a-f]{64}$/iD', $parts[1]) !== 1
+                    || (int) $parts[0] === 34550) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Unmarked e tags may be positional NIP-10 roots/replies. Only an
+     * unambiguous standard-slot mention can enter the generic note slice.
+     */
+    private function hasUnsupportedNoteThread(array $tags): bool
+    {
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? null) !== 'e') {
+                continue;
+            }
+            $id = $tag[1] ?? null;
+            $relay = $tag[2] ?? null;
+            $marker = $tag[3] ?? null;
+            if (!is_string($id) || preg_match('/^[0-9a-f]{64}$/iD', $id) !== 1
+                || !is_string($relay) || ($relay !== '' && !Nip10TagParser::isWebSocketSchemeCandidate($relay))
+                || !is_string($marker) || strtolower($marker) !== 'mention') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function npubFromPubkey(string $pubkey): string
     {
         return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32()
@@ -279,11 +333,32 @@ class EventController extends AbstractController
         EventRepository $eventRepository,
         NostrClient $nostrClient,
         GenericEventProjector $genericEventProjector,
+        ?EventEntity $localEvent,
+        ?EventPreviewAccessPolicy $previewAccess,
+        ?EventPresentationFactory $presentations,
     ): Response {
         $this->authorAccess->assertReadable($event->pubkey);
         $publicationRedirect = $this->redirectPublicationIndexIfNeeded($event, $logger);
         if ($publicationRedirect instanceof Response) {
             return $publicationRedirect;
+        }
+
+        // Only an already-local public note without an ambiguous thread
+        // is in this slice. Sensitive content and all other kinds retain their
+        // existing rendering until they have an explicit page policy.
+        $presentation = null;
+        if ($localEvent !== null
+            && $localEvent->getKind() === KindsEnum::TEXT_NOTE->value
+            && !$this->hasUnsupportedNoteThread($localEvent->getTags())
+            && !$this->hasUnsupportedNoteScope($localEvent->getTags())
+            && !EventPresentation::hasSensitiveTagEvidence($localEvent->getTags())) {
+            if ($previewAccess === null || $presentations === null) {
+                throw new \LogicException('Event page preview services are unavailable.');
+            }
+            if (!$previewAccess->isReadable($localEvent)) {
+                throw new NotFoundHttpException('Event not found');
+            }
+            $presentation = $presentations->fromAuthorizedEvent($localEvent);
         }
 
         $nostrLinks = [];
@@ -325,7 +400,15 @@ class EventController extends AbstractController
             'opAuthor' => $opAuthorMetadata,
             'nostrLinks' => $nostrLinks,
             'followPackProfiles' => $followPackProfiles,
+            'eventPresentation' => $presentation,
         ]);
+
+        if ($presentation !== null) {
+            // Mutes are viewer-specific; a shared cache must not bypass policy.
+            $response->setPrivate();
+            $response->headers->addCacheControlDirective('no-store');
+            return $response;
+        }
 
         $response->setPublic();
         $response->setMaxAge(300);
@@ -346,7 +429,9 @@ class EventController extends AbstractController
                           LoggerInterface $logger, EventRepository $eventRepository,
                           MessageBusInterface $messageBus, NostrClient $nostrClient,
                           GenericEventProjector $genericEventProjector,
-                          \App\Service\Nostr\UserRelayListService $userRelayListService): Response
+                          \App\Service\Nostr\UserRelayListService $userRelayListService,
+                          ?EventPreviewAccessPolicy $previewAccess = null,
+                          ?EventPresentationFactory $presentations = null): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
@@ -637,6 +722,9 @@ class EventController extends AbstractController
                             $eventRepository,
                             $nostrClient,
                             $genericEventProjector,
+                            $dbEvent,
+                            $previewAccess,
+                            $presentations,
                         );
                     }
 
@@ -732,6 +820,9 @@ class EventController extends AbstractController
                             $eventRepository,
                             $nostrClient,
                             $genericEventProjector,
+                            null,
+                            $previewAccess,
+                            $presentations,
                         );
                     }
 
@@ -777,6 +868,9 @@ class EventController extends AbstractController
                 $eventRepository,
                 $nostrClient,
                 $genericEventProjector,
+                $dbEvent ?? null,
+                $previewAccess,
+                $presentations,
             );
 
         } catch (Exception $e) {

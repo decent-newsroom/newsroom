@@ -47,21 +47,12 @@
 
                             <div class="bookmark-items-list mt-3" data-ui--bookmark-list-target="items">
                                 {% for item in bookmark.items %}
-                                    {% if item.type == 'e' and item.value and resolvedEvents[item.value] is defined %}
-                                        {# Event already in DB – render directly, no LiveComponent needed #}
-                                        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
-                                            <div class="flex-grow-1">
-                                                {% include 'partial/_bookmark_event_card.html.twig' with {event: resolvedEvents[item.value]} %}
-                                            </div>
-                                            {% include 'partial/_bookmark_remove_button.html.twig' with {type: item.type, value: item.value} only %}
-                                        </div>
-                                    {% else %}
-                                        <twig:Organisms:BookmarkItemResolver
-                                            :type="item.type"
-                                            :value="item.value"
-                                            :relay="item.relay"
-                                        />
-                                    {% endif %}
+                                    <twig:Organisms:BookmarkItemResolver
+                                        :type="item.type"
+                                        :value="item.value"
+                                        :relay="item.relay"
+                                        :resolvedEvent="item.type == 'e' ? resolvedEvents[item.value] ?? null : null"
+                                    />
                                 {% endfor %}
                             </div>
                         {% else %}

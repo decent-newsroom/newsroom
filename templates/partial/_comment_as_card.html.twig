@@ -7,28 +7,51 @@
    For the single-event page (`/e/{nevent}`), use `_kind1111_comment.html.twig`
    instead — that view focuses on the comment itself.
 #}
+{% set hasRootReference = false %}
+{% set rootReferenceType = null %}
+{% set rootReferenceValue = null %}
 {% set parentE = null %}
 {% set parentA = null %}
 {% set parentI = null %}
-{% set rootE = null %}
-{% set rootA = null %}
-{% set rootI = null %}
+{% set hasParentA = false %}
+{% set hasParentE = false %}
+{% set hasParentI = false %}
+{% set parentARelay = null %}
+{% set rootARelay = null %}
 
 {% for tag in event.tags %}
-    {% if tag[0] == 'a' and parentA is null and tag[1] is defined %}{% set parentA = tag[1] %}{% endif %}
-    {% if tag[0] == 'e' and parentE is null and tag[1] is defined %}{% set parentE = tag[1] %}{% endif %}
-    {% if tag[0] == 'i' and parentI is null and tag[1] is defined %}{% set parentI = tag[1] %}{% endif %}
-    {% if tag[0] == 'A' and rootA is null and tag[1] is defined %}{% set rootA = tag[1] %}{% endif %}
-    {% if tag[0] == 'E' and rootE is null and tag[1] is defined %}{% set rootE = tag[1] %}{% endif %}
-    {% if tag[0] == 'I' and rootI is null and tag[1] is defined %}{% set rootI = tag[1] %}{% endif %}
+    {% if tag[0] == 'a' and not hasParentA %}
+        {% set hasParentA = true %}
+        {% set parentA = tag[1] is defined ? tag[1] : null %}
+        {% if tag[2] is defined %}{% set parentARelay = tag[2] %}{% endif %}
+    {% endif %}
+    {% if tag[0] == 'e' and not hasParentE %}
+        {% set hasParentE = true %}
+        {% set parentE = tag[1] is defined ? tag[1] : null %}
+    {% endif %}
+    {% if tag[0] == 'i' and not hasParentI %}
+        {% set hasParentI = true %}
+        {% set parentI = tag[1] is defined ? tag[1] : null %}
+    {% endif %}
+    {% if tag[0] in ['A', 'E', 'I'] %}
+        {% set hasRootReference = true %}
+        {% if rootReferenceType is null %}
+            {% set rootReferenceType = tag[0]|lower %}
+            {% set rootReferenceValue = tag[1] is defined ? tag[1] : null %}
+            {% if tag[0] == 'A' and tag[2] is defined %}{% set rootARelay = tag[2] %}{% endif %}
+        {% endif %}
+    {% endif %}
 {% endfor %}
+
+{% set parentReferenceType = hasParentA ? 'a' : (hasParentE ? 'e' : (hasParentI ? 'i' : null)) %}
+{% set parentReferenceValue = parentReferenceType == 'a' ? parentA : (parentReferenceType == 'e' ? parentE : parentI) %}
 
 {# Prefer the root scope (uppercase) when present — for an expression listing,
    the article that started the conversation is more useful as the headline
    than an intermediate parent. Fall back to the direct parent. #}
-{% set targetA = rootA ?? parentA %}
-{% set targetE = rootE ?? parentE %}
-{% set targetI = rootI ?? parentI %}
+{% set targetType = hasRootReference ? rootReferenceType : parentReferenceType %}
+{% set targetValue = hasRootReference ? rootReferenceValue : parentReferenceValue %}
+{% set targetRelay = hasRootReference ? rootARelay : parentARelay %}
 
 {# Comment author + text, shown as a small callout above the target. #}
 <div class="comment-callout">
@@ -44,18 +67,32 @@
 </div>
 
 {# Resolved target — the actual headline of this list item. #}
-{% if targetA %}
-    <twig:Organisms:ArticleFromCoordinate :coordinate="targetA" />
-{% elseif targetE %}
-    <twig:Molecules:NostrEmbed :bech="targetE|nEncode" type="note" />
-{% elseif targetI %}
-    <div class="comment-callout-external">
-        <a href="{{ targetI }}" target="_blank" rel="noopener noreferrer">{{ targetI }}</a>
+{% if (hasRootReference or targetType is not null) and not (targetValue|isValidNostrReferenceValue) %}
+    <div class="nostr-placeholder">
+        <span class="nostr-placeholder-label">{{ 'event_workspace.target.restricted'|trans }}</span>
     </div>
+{% elseif targetType == 'a' %}
+    {% set targetAddress = targetValue|naddrEncodeCoordinateOrNull(targetRelay) %}
+    {% if targetAddress is not null %}
+        <twig:Molecules:NostrEmbed :bech="targetAddress" type="naddr" />
+    {% else %}
+        <div class="nostr-placeholder">
+            <span class="nostr-placeholder-label">{{ 'event_workspace.target.restricted'|trans }}</span>
+        </div>
+    {% endif %}
+{% elseif targetType == 'e' %}
+    <twig:Molecules:NostrEmbed :bech="targetValue|nEncode" type="note" />
+{% elseif targetType == 'i' %}
+    {% if targetValue|isSafeExternalNostrReference %}
+        <div class="comment-callout-external">
+            <a href="{{ targetValue }}" target="_blank" rel="noopener noreferrer">{{ targetValue }}</a>
+        </div>
+    {% else %}
+        <div class="comment-callout-external">{{ targetValue }}</div>
+    {% endif %}
 {% else %}
     {# Standalone comment with no resolvable target — fall back to plain content #}
     <div class="event-content">
         <twig:Atoms:Content :content="event.content" />
     </div>
 {% endif %}
-

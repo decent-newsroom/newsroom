@@ -1,0 +1,13 @@
+<twig:Molecules:EventPreview :presentation="presentation" />
+{# Body conversion and the established media/reference links remain separate
+   from the shared preview. The controller admits only non-sensitive notes. #}
+{% set genericEvent = {
+    id: presentation.eventId,
+    kind: presentation.kind,
+    pubkey: presentation.authorPubkey,
+    created_at: presentation.createdAt,
+    content: presentation.textContent,
+    tags: presentation.rawTags
+} %}
+{% include 'event/_generic_event_body.html.twig' with {event: genericEvent} %}
+{% include 'event/_event_meta.html.twig' with {event: genericEvent} %}

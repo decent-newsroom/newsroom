@@ -40,7 +40,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 - [Article Preview Cards](Reader/article-preview-cards.md)
 - [Article revision hardening (v0.0.38)](Reader/article-revision-hardening.md)
 - [Async Event Fetching](Reader/async-event-fetch.md)
-- [Bookmarks Feature](Reader/bookmarks.md)
+- [Bookmarks Feature](Reader/bookmarks.md) — signed removal, bounded `BookmarkItemResolver` shared previews, and bookmarks-page exact-event convergence
 - [Bookshelf Android App Links](Reader/bookshelf-android-app.md)
 - [Bookshelf Local Relay and API Fallback](Reader/bookshelf-local-fallback.md)
 - [Bot Traffic Detection & Analytics Differentiation](Reader/bot-detection.md)

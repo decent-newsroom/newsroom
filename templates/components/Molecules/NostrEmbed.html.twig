@@ -1,25 +1,17 @@
-{# Molecules:NostrEmbed — resolves a nostr reference to a rich card at render time #}
-{% if resolved %}
-    {% if article is not null %}
-        {# Longform article card #}
-        <twig:Molecules:Card
-            :article="article"
-            :authors_metadata="authorsMetadata"
-            :is_author_profile="false"
-        />
-    {% elseif isChapter and chapter is not null %}
-        <twig:Molecules:ChapterCard :chapter="chapter" />
-    {% elseif isPicture %}
-        {# Kind 20 picture card #}
-        {% include 'event/_kind20_picture.html.twig' with {event: event, embed: true} %}
-    {% elseif event is not null %}
-        {# Generic event card #}
-        {% include 'components/event_card.html.twig' with {
-            event: event,
-            author: authorMeta,
-            nevent: bech
-        } %}
-    {% endif %}
+{# Local candidates have already been authorized by NostrEmbed. #}
+{% if restricted %}
+    <div class="nostr-placeholder">
+        <span class="nostr-placeholder-label">{{ 'event_workspace.target.restricted'|trans }}</span>
+    </div>
+{% elseif sensitive %}
+    <div class="nostr-event-preview">
+        <p class="event-preview__sensitive">{{ 'event_workspace.preview.sensitive'|trans }}</p>
+    </div>
+{% elseif presentation is not null %}
+    <div class="embedded-event-card">
+        {% include 'components/Molecules/EventPreview.html.twig' with {presentation: presentation} only %}
+        <div class="event-footer"><a href="{{ href }}" class="view-full">{{ 'event.details'|trans }}</a></div>
+    </div>
 {% else %}
     {# Unresolved — show placeholder with client-side fetch #}
     <div class="nostr-placeholder"

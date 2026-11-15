@@ -71,12 +71,124 @@ current list's non-target tags and content, removes the selected `e`, `a`, `p`,
 or `t` tag, asks the user's signer to sign the replacement event, and publishes
 it through the same endpoint. Standard kind 10003 removals also update the
 shared IndexedDB bookmark snapshot and notify article-card bookmark controls.
-Article-coordinate bookmarks rely on the article card's `Bookmarked` shortcut
-for removal, so the bookmarks page does not render a second standalone remove
-control for `a` tags.
+Within `BookmarkItemResolver`, coordinate bookmarks use the same standalone
+signed list-removal control as event/profile/topic bookmarks: the compact
+preview has no article-card `Bookmarked` shortcut. Other article-card surfaces
+retain their existing shortcut.
 `BookmarkItemResolver` remains a Live Component only for lazy event fetching;
 bookmark removal is deliberately not a LiveAction because the server cannot
 sign on the user's behalf.
+
+### Bounded Step 5: BookmarkItemResolver previews
+
+The initial slice migrated only
+`templates/components/Organisms/BookmarkItemResolver.html.twig`:
+
+- A locally resolved `e` reference renders through `Molecules:NostrEmbed` as
+  an exact `note` ID, using the original bookmark value rather than a latest
+  coordinate lookup. This is a compact metadata preview, not body conversion
+  or a kind-specific bookmark card.
+- A coordinate `a` reference uses the existing `naddrEncodeCoordinate(relay)`
+  filter and the shared `naddr` preview. The kind, author, complete identifier
+  (including colons), and optional relay hint survive encoding and navigation.
+  Article, chapter, and other event routes remain distinct. No projection-only
+  or cross-kind Article lookup is used to grant access.
+- The shared component resolves locally (or reuses the resolver's Event) and applies author suppression,
+  NIP-09 tombstones, hidden coordinates, authenticated strict mutes, and its
+  public-kind allowlist before presentation. Longform additionally requires the
+  exact matching Article projection and entitlement. Warnings produce a
+  metadata-free notice; denied/failed targets fail closed.
+- A missing `e` reference **does not mount NostrEmbed**: its existing explicit
+  `fetchEvent` LiveAction button remains. Ordinary mount/render does not fetch
+  or persist it. The action still passes the stored relay hint, persists a
+  successful result, and keeps its existing missing/error messages. Newly
+  resolved events then pass through the same shared preview checks.
+- Cold `a` references retain the shared deferred-placeholder behavior; this
+  does not add synchronous relay work to rendering. Local coordinate selection
+  and deferred API specialist parity retain the limitations documented in
+  [deferred embeds](deferred-nostr-embeds.md).
+- Profile (`p`) previews, topic (`t`) links, and raw removal targets are
+  unchanged. Coordinate rows reuse the existing removal partial and browser
+  signer flow instead of losing removal with the old card shortcut. The
+  authenticated owner inventory and signature/owner validation in the publish
+  endpoint are unchanged; preview props never authorize a bookmark mutation.
+
+#### Follow-up: bookmarks-page pre-resolved exact events
+
+`templates/pages/my-bookmarks.html.twig` now routes its formerly pre-resolved
+`e` branch through the same `Organisms:BookmarkItemResolver` as its other rows.
+The bespoke card bypass is removed from this one caller; the partial and its
+Essayist activity caller remain unchanged. Profile/topic and coordinate paths
+are not redesigned.
+
+The original item loop, order, duplicate occurrences, exact bookmark values,
+relay hints, row layout, count, signed tags/content, removal controls, and
+signer/publish configuration are retained. The resolver explicitly accepts its
+reference inputs in `mount()`, because Twig invokes mount before assigning
+remaining public properties. Thus a local exact event enters the guarded shared
+preview immediately rather than incorrectly showing Fetch. Cold/missing and DB
+error rows keep their existing explicit Fetch/error behavior; rendering adds no
+network or persistence and does not fall forward to a coordinate revision.
+
+The controller, owner inventory, routes, and signed publish endpoint are
+unchanged. The page passes each local `e` target from the controller's existing
+`findByIds()` / `resolvedEvents` batch through the resolver into `NostrEmbed`.
+Both layers validate the target against the original exact ID; a mismatched
+target fails closed without a latest-revision fallback. These are mount-only
+server inputs, not LiveProps or serialized Event snapshots. Live actions still
+perform their own local lookup and do not accept a browser-supplied Event.
+
+Pre-resolved local occurrences, including duplicate IDs, perform **zero**
+additional Event lookups during page rendering. Non-batched/cold `e` rows retain
+their resolver lookup and explicit Fetch/error behavior. A resolver-found Event
+is also reused by the embed instead of being queried twice. Shared access,
+warning, and exact Article projection/entitlement checks still run per preview;
+this is Event lookup reuse, not an authorization cache. Policy and Article
+queries are not batched by this change. LiveAction redesign, other bookmark
+implementations, and global partial replacement remain outside this slice.
+
+#### Validation
+
+`tests/Unit/Twig/Components/Organisms/BookmarkItemResolverTest.php` uses the real
+resolver, compiled Twig component tags, `NostrEmbed`, access policy, and shared
+preview templates with mocked local repositories/network/persistence. Only
+profile markup, icons, and the unrelated content filter are stubbed. Coverage
+includes exact local identity, explicit missing-event fetching and relay
+errors/success, DB errors, cold/local coordinates and relay hints, malformed
+coordinates, unauthorized drafts, absent longform projections, suppression,
+warnings, and profile/topic/removal parity.
+
+Targeted Docker validation passes **230 PHPUnit tests / 1,610 assertions**
+across this suite and the existing shared preview, policy, filter,
+comment-context, deferred runtime, and API suites. PHP syntax, all four reused
+Twig templates, and `lint:container` pass. This is not a live-browser signer,
+Live Component HTTP hydration, live relay, worker, or end-to-end database test.
+The existing LiveAction implementation is intentionally not redesigned here.
+
+The follow-up also renders the actual compiled bookmarks-page body with real
+resolver mounting, shared previews, and policy (only the unrelated layout is
+replaced). It supplies the controller-shaped pre-resolved map and verifies that
+it cannot bypass policy, exact-ID navigation, mixed `e`/`a`/`p`/`t` order and
+duplicates, cold-event Fetch, DB errors, row/removal layout, original signed
+tags/content and signer configuration, suppression, scoped events, missing
+longform projections, public versus exclusive exact Article projections, and
+metadata-free warnings. The component is registered
+as static in this harness to omit Live HTTP transport; its real PHP class,
+mount, and template are used. Existing shared component tests separately cover
+exact Article entitlement and the full preview policy.
+
+Follow-up Docker validation after restoring batch reuse passes
+**86 PHPUnit tests / 618 assertions**:
+28 resolver/page tests, 35 shared `NostrEmbed` tests, and 23 preview-access-policy
+tests. The page, resolver, and shared embed pass Twig lint; the changed PHP
+files pass syntax checks, and `lint:container` passes. Browser signer and Live
+HTTP hydration remain unverified.
+
+Query-count expectations cover 20 local occurrences across distinct and
+duplicate IDs with no Event repository calls, mixed local/cold rows with only
+the cold exact-ID lookup, and denied/warning/Article entitlement cases with no
+Event requery. Mismatched batch entries and supplied `note`/`nevent` targets
+cannot bypass exact identity checks.
 
 ## Files
 
@@ -85,6 +197,9 @@ sign on the user's behalf.
 - `assets/controllers/ui/card_bookmark_controller.js` — bookmark toggles on cards and article pages
 - `templates/components/Molecules/ArticleSocialActions.html.twig` — article-page bookmark button
 - `templates/pages/article.html.twig` — bookmark button placement
+- `templates/pages/my-bookmarks.html.twig` — ordered bookmark rows using the resolver, including formerly pre-resolved exact events
+- `templates/components/Organisms/BookmarkItemResolver.html.twig` — compact shared event/address previews with explicit missing-event Fetch and signed removal controls
+- `tests/Unit/Twig/Components/Organisms/BookmarkItemResolverTest.php` — resolver action and real shared-component template regression coverage
 - `translations/messages.{en,de,es,fr,it,sl}.yaml` — bookmark translations
 
 ## Card shortcuts and pending publication
@@ -133,4 +248,3 @@ If publish fails, the signed event remains in IndexedDB and is retried with expo
 Card bookmark button styling lives in:
 
 - `assets/styles/03-components/card.css`
-

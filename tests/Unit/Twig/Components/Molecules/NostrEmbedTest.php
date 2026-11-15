@@ -4,98 +4,497 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Twig\Components\Molecules;
 
+use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Factory\ArticleFactory;
 use App\Repository\ArticleRepository;
+use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
-use App\Service\Cache\RedisCacheService;
+use App\Repository\HiddenCoordinateRepository;
+use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\NostrIdentityService;
+use App\Service\Nostr\NostrKeyService;
 use App\Service\Nostr\NostrNip19Service;
+use App\Service\Reader\ArticleAccessService;
+use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\UserMuteListService;
 use App\Twig\Components\Molecules\NostrEmbed;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
+use nostriphant\NIP19\Bech32;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Twig\Environment;
+use Twig\Loader\FilesystemLoader;
+use Twig\TwigFilter;
 
 final class NostrEmbedTest extends TestCase
 {
-    public function testLongformWithoutArticleProjectionRemainsAResolvedEventWhenConversionFails(): void
+    private const AUTHOR = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    private const ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+    /** @dataProvider exactReferences */
+    public function testExactIdSharedPreviewRetainsIdentityAndOccurrences(string $type, string $reference): void
     {
-        $pubkey = str_repeat('a', 64);
-        $identifier = 'local-only';
-        $event = new Event();
-        $event->setId(str_repeat('b', 64));
-        $event->setKind(KindsEnum::LONGFORM->value);
-        $event->setPubkey($pubkey);
-        $event->setContent('Original article text');
-        $event->setCreatedAt(123);
-        $event->setTags([['d', $identifier], ['title', 'Local article'], ['summary', 'From tags']]);
-        $event->setSig(str_repeat('c', 128));
-
-        $repository = $this->createMock(EventRepository::class);
-        $repository->expects(self::once())
-            ->method('findByNaddr')
-            ->with(KindsEnum::LONGFORM->value, $pubkey, $identifier)
-            ->willReturn($event);
+        $event = $this->event(30040, [
+            ['d', 'book'], ['title', 'Book'], ['a', '30041:' . self::AUTHOR . ':chapter'],
+            ['a', '30041:' . self::AUTHOR . ':chapter'],
+        ]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findById')->with(self::ID)->willReturn($event);
+        $events->expects(self::never())->method('findByNaddr');
         $articles = $this->createMock(ArticleRepository::class);
-        $articles->expects(self::once())->method('findOneBy')->willReturn(null);
-        $factory = $this->createMock(ArticleFactory::class);
-        $factory->expects(self::once())
-            ->method('createFromLongFormContentEvent')
-            ->willThrowException(new \RuntimeException('Cannot convert body'));
+        $articles->expects(self::never())->method('findOneBy');
+        $component = $this->component($events, $articles);
+        $component->mount($reference, $type);
 
-        $component = new NostrEmbed(
-            $repository,
-            $articles,
-            $factory,
-            $this->createMock(RedisCacheService::class),
-            new NullLogger(),
-        );
-        $naddr = (new NostrNip19Service())->encodeAddr($pubkey, $identifier, KindsEnum::LONGFORM->value);
-
-        $component->mount($naddr, 'naddr');
-
-        self::assertTrue($component->resolved);
-        self::assertTrue($component->isLongform);
-        self::assertNull($component->article);
-        self::assertSame($event->getId(), $component->event->id);
-        self::assertSame($event->getTags(), $component->event->tags);
-        self::assertSame('/article/' . $naddr, $component->href);
+        self::assertSame(self::ID, $component->presentation->eventId);
+        self::assertSame($event->getTags(), $component->presentation->getRawTags());
+        self::assertCount(2, $component->presentation->references);
+        self::assertSame('/e/' . $reference, $component->href);
+        $html = $this->render($component);
+        self::assertStringContainsString('event-preview__title', $html);
+        self::assertStringContainsString('Book', $html);
+        self::assertStringContainsString('href="/e/' . $reference . '"', $html);
+        self::assertStringNotContainsString('data-controller=', $html);
+        self::assertStringNotContainsString('<img', $html);
     }
 
-    public function testResolveNaddrMarksPublicationContentAsChapter(): void
+    public static function exactReferences(): array
     {
-        $pubkey = str_repeat('a', 64);
-        $identifier = 'intro';
-        $event = new Event();
-        $event->setId(str_repeat('b', 64));
-        $event->setKind(KindsEnum::PUBLICATION_CONTENT->value);
-        $event->setPubkey($pubkey);
-        $event->setContent('Chapter body');
-        $event->setCreatedAt(123);
-        $event->setTags([['d', $identifier], ['title', 'Intro']]);
-        $event->setSig(str_repeat('c', 128));
-        $event->setDTag($identifier);
+        return [
+            'note' => ['note', (new NostrNip19Service())->encodeNote(self::ID)],
+            'nevent' => ['nevent', (string) Bech32::nevent(id: self::ID, author: self::AUTHOR, kind: 30040)],
+        ];
+    }
 
-        $repository = $this->createMock(EventRepository::class);
-        $repository->expects(self::once())
-            ->method('findByNaddr')
-            ->with(KindsEnum::PUBLICATION_CONTENT->value, $pubkey, $identifier)
-            ->willReturn($event);
+    /** @dataProvider exactReferences */
+    public function testServerResolvedExactTargetStillValidatesIdentityWithoutEventQueries(string $type, string $reference): void
+    {
+        $event = $this->event(30040, [['d', 'book'], ['title', 'Book']]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findById');
+        $events->expects(self::never())->method('findByNaddr');
+        $component = $this->component($events);
+        $component->mount($reference, $type, $event);
+        self::assertSame(self::ID, $component->presentation->eventId);
 
-        $component = new NostrEmbed(
-            $repository,
-            $this->createMock(ArticleRepository::class),
-            $this->createMock(ArticleFactory::class),
-            $this->createMock(RedisCacheService::class),
-            new NullLogger(),
+        $event->setId(str_repeat('d', 64));
+        $mismatch = $this->component($events);
+        $mismatch->mount($reference, $type, $event);
+        self::assertTrue($mismatch->restricted);
+        self::assertNull($mismatch->presentation);
+        self::assertStringNotContainsString('href=', $this->render($mismatch));
+        self::assertStringNotContainsString('nostr--deferred-embed', $this->render($mismatch));
+    }
+
+    /** @dataProvider addressKinds */
+    public function testAddressUsesLatestLookupAndSafeNavigation(int $kind, string $prefix): void
+    {
+        $event = $this->event($kind, [['d', 'intro'], ['title', 'Intro']]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findByNaddr')->with($kind, self::AUTHOR, 'intro')->willReturn($event);
+        $events->expects(self::never())->method('findById');
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'intro', $kind);
+        $component = $this->component($events);
+        $component->mount($reference, 'naddr');
+        self::assertSame(self::ID, $component->presentation->eventId);
+        self::assertSame($prefix . $reference, $component->href);
+        $html = $this->render($component);
+        self::assertStringContainsString('href="' . $prefix . $reference . '"', $html);
+        self::assertStringNotContainsString('nostr--deferred-embed', $html);
+    }
+
+    public static function addressKinds(): array
+    {
+        return [[30040, '/e/'], [30041, '/chapter/'], [30818, '/e/']];
+    }
+
+    /** @dataProvider invalidAddressTags */
+    public function testAddressFirstDAndAuthorMismatchCannotExposeCandidate(array $tags, string $author): void
+    {
+        $event = $this->event(30040, $tags);
+        $event->setPubkey($author);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn($event);
+        $component = $this->component($events);
+        $component->mount((new NostrNip19Service())->encodeAddr(self::AUTHOR, 'book', 30040), 'naddr');
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public static function invalidAddressTags(): array
+    {
+        return [
+            'duplicate first mismatch' => [[['d', 'wrong'], ['d', 'book']], self::AUTHOR],
+            'malformed first' => [[['d', 42], ['d', 'book']], self::AUTHOR],
+            'wrong author' => [[['d', 'book']], str_repeat('c', 64)],
+        ];
+    }
+
+    public function testMissingKeepsDeferredPlaceholderButErrorsFailClosedAndLog(): void
+    {
+        $reference = (new NostrNip19Service())->encodeNote(self::ID);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn(null);
+        $component = $this->component($events);
+        $component->mount($reference, 'note');
+        $html = $this->render($component);
+        self::assertStringContainsString('data-controller="nostr--deferred-embed"', $html);
+        self::assertStringContainsString('href="/e/' . $reference . '"', $html);
+        self::assertFalse($component->restricted);
+
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willThrowException(new \RuntimeException('db unavailable'));
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with('NostrEmbed: local resolution failed; denying preview', self::anything());
+        $component = $this->component($events, logger: $logger);
+        $component->mount($reference, 'note');
+        self::assertTrue($component->restricted);
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testMissingChapterAddressKeepsDeferredFallbackAndChapterLink(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'chapter', 30041);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findByNaddr')->willReturn(null);
+        $component = $this->component($events);
+        $component->mount($reference, 'naddr');
+        self::assertFalse($component->restricted);
+        self::assertStringContainsString('data-controller="nostr--deferred-embed"', $this->render($component));
+        self::assertSame('/chapter/' . $reference, $component->href);
+    }
+
+    public function testMissingCommentAddressStaysLocalOnlyAndKeepsRelayHintAndCoordinateIdentity(): void
+    {
+        $relay = 'wss://comment-parent.example.test';
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'parent:edition', 30040, [$relay]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findByNaddr')->with(30040, self::AUTHOR, 'parent:edition')->willReturn(null);
+        $events->expects(self::never())->method('findById');
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->expects(self::never())->method('findOneBy');
+
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'naddr');
+        $html = $this->render($component);
+
+        self::assertFalse($component->restricted);
+        self::assertStringContainsString('data-controller="nostr--deferred-embed"', $html);
+        self::assertStringContainsString('href="/e/' . $reference . '"', $html);
+        $decoded = (new NostrNip19Service())->decode($component->bech);
+        self::assertSame([$relay], $decoded['relays']);
+        self::assertSame('parent:edition', $decoded['identifier']);
+    }
+
+    public function testExactIdCannotBeReplacedByAnotherRevision(): void
+    {
+        $event = $this->event(1, [['title', 'other revision']]);
+        $event->setId(str_repeat('d', 64));
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($event);
+        $component = $this->component($events);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+    }
+
+    public function testEventBodyIsEscapedAndNestedReferencesAreNotExpanded(): void
+    {
+        $event = $this->event(1, [['title', '<script>unsafe</script>']]);
+        $event->setContent('Text nostr:nevent1untrusted <img src="https://invalid.test/image">');
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findById')->willReturn($event);
+        $events->expects(self::never())->method('findByNaddr');
+        $component = $this->component($events);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        $html = $this->render($component);
+        self::assertStringContainsString('&lt;script&gt;unsafe&lt;/script&gt;', $html);
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringNotContainsString('<img', $html);
+        self::assertStringNotContainsString('nostr--deferred-embed', $html);
+        self::assertStringNotContainsString('data-controller=', $html);
+    }
+
+    public function testEmptyAddressAndFirstSignedDRemainDistinct(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findByNaddr')->with(30040, self::AUTHOR, '')
+            ->willReturn($this->event(30040, [['d', ''], ['d', 'later']]));
+        $component = $this->component($events);
+        $component->mount((new NostrNip19Service())->encodeAddr(self::AUTHOR, '', 30040), 'naddr');
+        self::assertSame(self::ID, $component->presentation->eventId);
+        self::assertFalse($component->restricted);
+    }
+
+    /** @dataProvider warningTags */
+    public function testWarningsHideAllPreviewMetadata(array $tag): void
+    {
+        $event = $this->event(20, [['title', 'secret-title'], ['summary', 'secret-summary'], ['image', 'https://secret.test/image'], $tag]);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($event);
+        $component = $this->component($events);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->sensitive);
+        self::assertNull($component->presentation);
+        $html = $this->render($component);
+        self::assertStringContainsString('event-preview__sensitive', $html);
+        foreach (['secret', self::ID, self::AUTHOR, '<img', '<a ', 'data-controller='] as $hidden) {
+            self::assertStringNotContainsString($hidden, $html);
+        }
+    }
+
+    public static function warningTags(): array
+    {
+        return [[['content-warning']], [['content-warning', 'secret-reason']], [['L', 'nsfw']], [['l', 'x', 'nsfw']], [['t', 'NSFW']]];
+    }
+
+    /** @dataProvider deniedKinds */
+    public function testUnknownAndScopedKindsAreRestricted(int $kind): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($this->event($kind, [['d', 'x']]));
+        $component = $this->component($events);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+    }
+
+    public static function deniedKinds(): array
+    {
+        return [[4], [30024], [65530]];
+    }
+
+    public function testLongformRequiresExactEntitledProjectionAndUsesArticleRoute(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn($this->event(30023, [['d', 'article'], ['title', 'Article']]));
+        $articles = $this->createMock(ArticleRepository::class);
+        $article = $this->article()->setEssayistExclusive(true);
+        $articles->expects(self::exactly(3))->method('findOneBy')->with(['eventId' => self::ID])->willReturn($article);
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+
+        $anonymous = $this->component($events, $articles);
+        $anonymous->mount($reference, 'naddr');
+        self::assertTrue($anonymous->restricted);
+        self::assertNull($anonymous->presentation);
+
+        $security = $this->viewerSecurity(['ROLE_ESSAYIST_MEMBER']);
+        $member = $this->component($events, $articles, security: $security);
+        $member->mount($reference, 'naddr');
+        self::assertSame(self::ID, $member->presentation->eventId);
+        self::assertSame('/article/' . $reference, $member->href);
+
+        $article->setEventId(str_repeat('d', 64));
+        $mismatch = $this->component($events, $articles, security: $security);
+        $mismatch->mount($reference, 'naddr');
+        self::assertTrue($mismatch->restricted);
+        self::assertNull($mismatch->presentation);
+    }
+
+    public function testLongformMissingProjectionAndProjectionOnlyFailClosed(): void
+    {
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'article', 30023);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn($this->event(30023, [['d', 'article']]));
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn(null);
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'naddr');
+        self::assertTrue($component->restricted);
+
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByNaddr')->willReturn(null);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($this->article());
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'naddr');
+        self::assertTrue($component->restricted);
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testLongformProjectionLookupFailureIsLoggedAndNotDeferred(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($this->event(30023, [['d', 'article']]));
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willThrowException(new \RuntimeException('projection unavailable'));
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')
+            ->with('NostrEmbed: local resolution failed; denying preview', self::anything());
+        $component = $this->component($events, $articles, logger: $logger);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public function testArticleRawWarningCannotBeClearedByEvent(): void
+    {
+        $event = $this->event(30023, [['d', 'article'], ['title', 'secret-title']]);
+        $article = $this->article();
+        $article->setRaw(['tags' => [['d', 'article'], ['content-warning', 'secret-reason']]]);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($event);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($article);
+        $component = $this->component($events, $articles);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->sensitive);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('secret', $this->render($component));
+    }
+
+    public function testEventWarningCannotBeClearedByArticleProjection(): void
+    {
+        $event = $this->event(30023, [['d', 'article'], ['title', 'secret-title'], ['t', 'NSFW']]);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($event);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findOneBy')->willReturn($this->article());
+        $component = $this->component($events, $articles);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->sensitive);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('secret', $this->render($component));
+    }
+
+    public function testLongformExactIdUsesItsOwnAuthorizedProjection(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findById')->with(self::ID)
+            ->willReturn($this->event(30023, [['d', 'article'], ['title', 'Exact']]));
+        $events->expects(self::never())->method('findByNaddr');
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->expects(self::once())->method('findOneBy')->with(['eventId' => self::ID])->willReturn($this->article());
+        $reference = (string) Bech32::nevent(id: self::ID, author: self::AUTHOR, kind: 30023);
+        $component = $this->component($events, $articles);
+        $component->mount($reference, 'nevent');
+        self::assertSame(self::ID, $component->presentation->eventId);
+        self::assertSame('/e/' . $reference, $component->href);
+    }
+
+    /** @dataProvider policyDenials */
+    public function testVisibilityPolicyDeniesWithoutFallingBack(string $stage): void
+    {
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        $deletions = $this->createMock(DeletedEventRepository::class);
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $mutes = $this->createMock(UserMuteListService::class);
+        if ($stage === 'author') {
+            $authors->method('assertReadable')->willThrowException(new NotFoundHttpException());
+        }
+        $deletions->method('isSuppressed')->willReturn($stage === 'tombstone');
+        $hidden->method('isHidden')->willReturn($stage === 'hidden');
+        if ($stage === 'mute') {
+            $mutes->method('getMutedPubkeysStrict')->willReturn([strtoupper(self::AUTHOR)]);
+        }
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($this->event(30040, [['d', 'book'], ['title', 'private']]));
+        $component = $this->component($events, authors: $authors, deletions: $deletions, hidden: $hidden, security: $this->viewerSecurity(), mutes: $mutes);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+        self::assertStringNotContainsString('private', $this->render($component));
+        self::assertStringNotContainsString('data-controller=', $this->render($component));
+    }
+
+    public static function policyDenials(): array
+    {
+        return [['author'], ['tombstone'], ['hidden'], ['mute']];
+    }
+
+    public function testStrictMuteFailureIsLoggedAndDenied(): void
+    {
+        $mutes = $this->createMock(UserMuteListService::class);
+        $mutes->method('getMutedPubkeysStrict')->willThrowException(new \RuntimeException('mute unavailable'));
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            'Event preview access policy failed; denying preview.',
+            self::callback(static fn (array $context): bool => $context['policy_stage'] === 'strict_nip51_mute_list'),
         );
-        $naddr = (new NostrNip19Service())->encodeAddr($pubkey, $identifier, KindsEnum::PUBLICATION_CONTENT->value);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findById')->willReturn($this->event(1, []));
+        $component = $this->component($events, logger: $logger, security: $this->viewerSecurity(), mutes: $mutes);
+        $component->mount((new NostrNip19Service())->encodeNote(self::ID), 'note');
+        self::assertTrue($component->restricted);
+        self::assertNull($component->presentation);
+    }
 
-        $component->mount($naddr, 'naddr');
+    private function component(
+        EventRepository $events,
+        ?ArticleRepository $articles = null,
+        ?LoggerInterface $logger = null,
+        ?ContentAuthorAccessPolicy $authors = null,
+        ?DeletedEventRepository $deletions = null,
+        ?HiddenCoordinateRepository $hidden = null,
+        ?Security $security = null,
+        ?UserMuteListService $mutes = null,
+    ): NostrEmbed {
+        $logger ??= new NullLogger();
+        $policy = new EventPreviewAccessPolicy(
+            $authors ?? $this->createMock(ContentAuthorAccessPolicy::class),
+            $deletions ?? $this->createMock(DeletedEventRepository::class),
+            $hidden ?? $this->createMock(HiddenCoordinateRepository::class),
+            new RecordIdentityService(),
+            $security ?? $this->createMock(Security::class),
+            $mutes ?? $this->createMock(UserMuteListService::class),
+            new NostrKeyService(),
+            $logger,
+            new ArticleAccessService(new NostrIdentityService(
+                $this->createMock(Nip19DecoderInterface::class),
+                $this->createMock(Nip19EncoderInterface::class),
+            )),
+        );
+        return new NostrEmbed(
+            $events, $articles ?? $this->createMock(ArticleRepository::class), $policy,
+            new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()), $logger,
+        );
+    }
 
-        self::assertTrue($component->resolved);
-        self::assertTrue($component->isChapter);
-        self::assertSame($event, $component->chapter);
-        self::assertSame('/chapter/' . $naddr, $component->href);
-        self::assertSame('chapter', $component->label);
+    private function viewerSecurity(array $roles = []): Security
+    {
+        $viewer = $this->createMock(UserInterface::class);
+        $viewer->method('getRoles')->willReturn($roles);
+        $viewer->method('getUserIdentifier')->willReturn((new NostrKeyService())->convertPublicKeyToBech32(str_repeat('c', 64)));
+        $security = $this->createMock(Security::class);
+        $security->method('getUser')->willReturn($viewer);
+        return $security;
+    }
+
+    private function event(int $kind, array $tags): Event
+    {
+        $event = new Event();
+        $event->setId(self::ID);
+        $event->setKind($kind);
+        $event->setPubkey(self::AUTHOR);
+        $event->setCreatedAt(123);
+        $event->setContent('Event body');
+        $event->setTags($tags);
+        $event->setSig(str_repeat('c', 128));
+        return $event;
+    }
+
+    private function article(): Article
+    {
+        $article = (new Article())->setEventId(self::ID)->setKind(KindsEnum::LONGFORM)
+            ->setPubkey(self::AUTHOR)->setSlug('article')->setCreatedAt(123);
+        $article->setRaw(['tags' => [['d', 'article']]]);
+        return $article;
+    }
+
+    private function render(NostrEmbed $component): string
+    {
+        $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 5) . '/templates'), ['strict_variables' => true]);
+        $twig->addFilter(new TwigFilter('trans', static fn (string $key, array $parameters = []): string => strtr($key, $parameters)));
+        return $twig->render('components/Molecules/NostrEmbed.html.twig', get_object_vars($component));
     }
 }

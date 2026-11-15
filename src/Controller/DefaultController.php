@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Dto\UserMetadata;
+use App\Dto\EventWorkspace\EventPresentation;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
@@ -55,6 +56,9 @@ use Pagerfanta\Pagerfanta;
 class DefaultController extends AbstractController
 {
     use NavigationBuilderTrait;
+
+    /** Public event kinds that have no specialist naddr preview yet. */
+    private const API_PREVIEW_GENERIC_NADDR_KINDS = [30040];
 
     /**
      * @throws Exception
@@ -2042,7 +2046,7 @@ class DefaultController extends AbstractController
         $type = $data['type'] ?? null;
         $decoded = $data['decoded'] ?? null;
 
-        if (!$identifier || !$type) {
+        if (!is_string($identifier) || $identifier === '' || !is_string($type) || $type === '') {
             return new Response('<div class="alert alert-warning">Invalid preview request.</div>', 400);
         }
 
@@ -2064,10 +2068,10 @@ class DefaultController extends AbstractController
             // Handle different Nostr identifier types
             switch ($type) {
                 case 'naddr':
-                    return $this->handleNaddrPreview($decoded, $entityManager, $logger);
+                    return $this->handleNaddrPreview($decoded, $entityManager, $logger, $eventPresentations, $eventPreviewAccess);
                 case 'nevent':
                 case 'note':
-                    return $this->handleEventPreview($decoded, $entityManager, $eventPresentations, $eventPreviewAccess);
+                    return $this->handleEventPreview($decoded, $entityManager, $eventPresentations, $eventPreviewAccess, $type, $identifier);
                 case 'npub':
                 case 'nprofile':
                     return $this->handleProfilePreview($decoded, $entityManager, $logger, $redisCacheService);
@@ -2084,7 +2088,13 @@ class DefaultController extends AbstractController
         }
     }
 
-    private function handleNaddrPreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    private function handleNaddrPreview(
+        array $decoded,
+        EntityManagerInterface $entityManager,
+        LoggerInterface $logger,
+        EventPresentationFactory $eventPresentations,
+        EventPreviewAccessPolicy $eventPreviewAccess,
+    ): Response
     {
         $kind = $decoded['kind'] ?? null;
         $pubkey = $decoded['pubkey'] ?? null;
@@ -2107,9 +2117,25 @@ class DefaultController extends AbstractController
         if ($kind === KindsEnum::LONGFORM->value) {
             // Try to find article in database
             $repository = $entityManager->getRepository(Article::class);
-            $article = $repository->findOneBy(['slug' => $identifier, 'pubkey' => $pubkey]);
+            $article = $repository->findOneBy(
+                ['slug' => $identifier, 'pubkey' => $pubkey],
+                ['createdAt' => 'DESC', 'eventId' => 'ASC'],
+            );
 
             if ($article) {
+                if (!$article instanceof Article
+                    || !$eventPreviewAccess->isArticleReadable($article, (string) $pubkey, (string) $identifier)) {
+                    return $this->missingNostrEventPreview();
+                }
+
+                // The projection's derived flags cannot override signed warning
+                // evidence. Do not pass an Article to Card in the warning case:
+                // it exposes title, summary and image independently of EventPreview.
+                $rawTags = $article->getRaw()['tags'] ?? [];
+                if (is_array($rawTags) && EventPresentation::hasSensitiveTagEvidence($rawTags)) {
+                    return $this->render('event_workspace/_api_sensitive_preview.html.twig');
+                }
+
                 return $this->render('components/Molecules/ArticlePreview.html.twig', [
                     'article' => $article,
                 ]);
@@ -2146,7 +2172,9 @@ class DefaultController extends AbstractController
                 ? $repository->findByNaddr(KindsEnum::PUBLICATION_CONTENT->value, (string) $pubkey, (string) $identifier)
                 : null;
 
-            if ($chapter instanceof Event) {
+            if ($chapter instanceof Event
+                && $this->matchesPreviewNaddr($chapter, (int) $kind, (string) $pubkey, (string) $identifier)
+                && $eventPreviewAccess->isReadable($chapter)) {
                 try {
                     $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
                         kind: KindsEnum::PUBLICATION_CONTENT->value,
@@ -2163,6 +2191,9 @@ class DefaultController extends AbstractController
                     'naddr' => $naddr,
                     'link' => $naddr ? $this->generateUrl('chapter', ['naddr' => $naddr]) : '#',
                 ]);
+            }
+            if ($chapter instanceof Event) {
+                return $this->missingNostrEventPreview();
             }
 
             try {
@@ -2194,6 +2225,12 @@ class DefaultController extends AbstractController
                 ? $repository->findByNaddr(KindsEnum::WIKI->value, (string) $pubkey, (string) $identifier)
                 : null;
 
+            if ($wiki instanceof Event
+                && (!$this->matchesPreviewNaddr($wiki, (int) $kind, (string) $pubkey, (string) $identifier)
+                    || !$eventPreviewAccess->isReadable($wiki))) {
+                return $this->missingNostrEventPreview();
+            }
+
             try {
                 $naddr = (string) \nostriphant\NIP19\Bech32::naddr(
                     kind: KindsEnum::WIKI->value,
@@ -2213,7 +2250,6 @@ class DefaultController extends AbstractController
                     'link' => $this->generateUrl('nevent', ['nevent' => $naddr]),
                 ]);
             }
-
             return new Response(
                 '<div class="alert alert-info">
                     <strong>Wiki Preview</strong><br>
@@ -2224,7 +2260,49 @@ class DefaultController extends AbstractController
             );
         }
 
-        return new Response('<div class="alert alert-info">Preview for kind ' . $kind . ' not yet supported.</div>', 200);
+        $event = null;
+        if (in_array((int) $kind, self::API_PREVIEW_GENERIC_NADDR_KINDS, true) && $pubkey && $identifier) {
+            $repository = $entityManager->getRepository(Event::class);
+            $event = $repository instanceof EventRepository
+                ? $repository->findByNaddr((int) $kind, (string) $pubkey, (string) $identifier)
+                : null;
+        }
+        if ($event instanceof Event) {
+            if (!$this->matchesPreviewNaddr($event, (int) $kind, (string) $pubkey, (string) $identifier)
+                || !$eventPreviewAccess->isReadable($event)) {
+                return $this->missingNostrEventPreview();
+            }
+
+            return $this->render('event_workspace/_api_event_preview.html.twig', [
+                'presentation' => $eventPresentations->fromAuthorizedEvent($event),
+            ]);
+        }
+
+        return new Response('<div class="alert alert-info">Preview for kind ' . htmlspecialchars((string) $kind) . ' not yet supported.</div>', 200);
+    }
+
+    /**
+     * Verify the signed fields even when a derived d_tag index selected the
+     * candidate. Only the first d participates; malformed values never fall
+     * through to a later d. This does not authorize the target.
+     */
+    private function matchesPreviewNaddr(Event $event, int $kind, string $pubkey, string $identifier): bool
+    {
+        if ($event->getKind() !== $kind || strtolower($event->getPubkey()) !== strtolower($pubkey)) {
+            return false;
+        }
+        foreach ($event->getTags() as $tag) {
+            if (is_array($tag) && ($tag[0] ?? null) === 'd') {
+                return is_string($tag[1] ?? null) && $tag[1] === $identifier;
+            }
+        }
+
+        return $identifier === '';
+    }
+
+    private function missingNostrEventPreview(): Response
+    {
+        return new Response('<div class="alert alert-info">Event not found locally.</div>', 200);
     }
 
     private function handleEventPreview(
@@ -2232,26 +2310,83 @@ class DefaultController extends AbstractController
         EntityManagerInterface $entityManager,
         EventPresentationFactory $eventPresentations,
         EventPreviewAccessPolicy $eventPreviewAccess,
+        string $type,
+        string $identifier,
     ): Response
     {
         $eventId = $decoded['id'] ?? ($decoded[0] ?? null);
 
-        if (!$eventId) {
+        // The deferred controller sends raw Bech32, while older callers send
+        // decoded IDs. When raw data is present it is authoritative: a supplied
+        // ID, kind, author or relay hint cannot replace its exact identity.
+        if (array_key_exists('bech', $decoded)) {
+            try {
+                if (!is_string($decoded['bech'])
+                    || $decoded['bech'] !== $identifier
+                    || (isset($decoded['type']) && $decoded['type'] !== $type)) {
+                    throw new \InvalidArgumentException('Conflicting exact reference.');
+                }
+                $bech = new \nostriphant\NIP19\Bech32($decoded['bech']);
+                if ($bech->type !== $type) {
+                    throw new \InvalidArgumentException('Unexpected exact reference type.');
+                }
+                $eventId = $type === 'note' ? $bech->data->data : $bech->data->id;
+            } catch (\Throwable) {
+                return new Response('<div class="alert alert-warning">Invalid event identifier.</div>', 200);
+            }
+        }
+
+        if (!is_string($eventId) || preg_match('/^[0-9a-f]{64}$/i', $eventId) !== 1) {
             return new Response('<div class="alert alert-warning">Invalid event identifier.</div>', 200);
         }
+        $eventId = strtolower($eventId);
 
         // note/nevent references identify one exact event, never the latest
         // revision at a replaceable coordinate. Keep this local-only lookup
         // separate from naddr handling above.
         $event = $entityManager->getRepository(Event::class)->findOneBy(['id' => $eventId]);
 
-        if ($event instanceof Event && $eventPreviewAccess->isReadable($event)) {
-            return $this->render('event_workspace/_api_event_preview.html.twig', [
-                'presentation' => $eventPresentations->fromAuthorizedEvent($event),
-            ]);
+        if (!$event instanceof Event
+            || strtolower($event->getId()) !== $eventId
+            || !$eventPreviewAccess->isReadable($event)) {
+            return $this->missingNostrEventPreview();
         }
 
-        return new Response('<div class="alert alert-info">Event not found locally.</div>', 200);
+        $kind = $event->getKind();
+        $dTag = '';
+        if ($kind >= 30000 && $kind <= 39999) {
+            foreach ($event->getTags() as $tag) {
+                if (is_array($tag) && ($tag[0] ?? null) === 'd') {
+                    if (!is_string($tag[1] ?? null)) {
+                        return $this->missingNostrEventPreview();
+                    }
+                    $dTag = $tag[1];
+                    break;
+                }
+            }
+        }
+
+        $articleTags = [];
+        if ($kind === KindsEnum::LONGFORM->value) {
+            $article = $entityManager->getRepository(Article::class)->findOneBy(['eventId' => $eventId]);
+            if (!$article instanceof Article
+                || strtolower((string) $article->getEventId()) !== $eventId
+                || !$eventPreviewAccess->isArticleReadable($article, $event->getPubkey(), $dTag)) {
+                return $this->missingNostrEventPreview();
+            }
+            $articleTags = $article->getRaw()['tags'];
+        } elseif (!in_array($kind, EventPreviewAccessPolicy::PUBLIC_EMBED_KINDS, true)) {
+            return $this->missingNostrEventPreview();
+        }
+
+        if (EventPresentation::hasSensitiveTagEvidence($event->getTags())
+            || EventPresentation::hasSensitiveTagEvidence($articleTags)) {
+            return $this->render('event_workspace/_api_sensitive_preview.html.twig');
+        }
+
+        return $this->render('event_workspace/_api_event_preview.html.twig', [
+            'presentation' => $eventPresentations->fromAuthorizedEvent($event),
+        ]);
     }
 
     private function handleProfilePreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger, RedisCacheService $redisCacheService): Response

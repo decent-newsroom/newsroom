@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Twig;
 
 use App\Twig\Filters;
+use App\Service\Nostr\NostrNip19Service;
 use PHPUnit\Framework\TestCase;
 
 class FiltersTest extends TestCase
@@ -43,5 +44,24 @@ class FiltersTest extends TestCase
         self::assertStringContainsString('href="/p/npub1de3ks5m7pxs9f6wedn3947un3vr7fkhar777y9jszma2x9gfl6ysha93ql"', $result);
         self::assertStringContainsString('href="/p/npub1s07s0h5mwcenfnyagme8shp9trnv964lulgvdmppgenuhtk9p4rsueuk63"', $result);
     }
-}
 
+    public function testAddressCoordinateEncodingPreservesIdentityRelayHintAndColonInIdentifier(): void
+    {
+        $coordinate = '30040:' . str_repeat('A', 64) . ':book:edition';
+        $relay = 'wss://relay.example.test';
+        $encoded = (new Filters())->naddrEncodeCoordinate($coordinate, $relay);
+        $decoded = (new NostrNip19Service())->decode($encoded);
+
+        self::assertSame('30040', (string) $decoded['kind']);
+        self::assertSame(str_repeat('a', 64), $decoded['pubkey']);
+        self::assertSame('book:edition', $decoded['identifier']);
+        self::assertSame([$relay], $decoded['relays']);
+    }
+
+    public function testMalformedAddressCoordinateIsNotConvertedIntoAnotherReference(): void
+    {
+        $coordinate = 'not-a-coordinate';
+
+        self::assertSame($coordinate, (new Filters())->naddrEncodeCoordinate($coordinate, 'wss://relay.example.test'));
+    }
+}

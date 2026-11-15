@@ -464,7 +464,7 @@ class EventRepository extends ServiceEntityRepository
                 WHERE e.kind = :kind
                 AND e.pubkey = :pubkey
                 AND e.d_tag = :identifier
-                ORDER BY e.created_at DESC
+                ORDER BY e.created_at DESC, e.id ASC
                 LIMIT 1";
 
         $result = $conn->executeQuery($sql, [
@@ -473,16 +473,21 @@ class EventRepository extends ServiceEntityRepository
             'identifier' => $identifier,
         ])->fetchAssociative();
 
-        // Fallback: scan JSONB tags for events that predate the d_tag backfill
+        // Fallback for events predating the d_tag backfill. NIP-01 identity
+        // uses the first d, not any matching occurrence. Keep source order and
+        // do not let a malformed first value fall through to a later d.
         if ($result === false) {
             $sql = "SELECT * FROM event e
                     WHERE e.kind = :kind
                     AND e.pubkey = :pubkey
-                    AND EXISTS (
-                        SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-                        WHERE tag->>0 = 'd' AND tag->>1 = :identifier
-                    )
-                    ORDER BY e.created_at DESC
+                    AND (
+                        SELECT CASE WHEN jsonb_typeof(tag->1) = 'string' THEN tag->>1 END
+                        FROM jsonb_array_elements(e.tags) WITH ORDINALITY AS tags(tag, position)
+                        WHERE tag->>0 = 'd'
+                        ORDER BY position
+                        LIMIT 1
+                    ) = :identifier
+                    ORDER BY e.created_at DESC, e.id ASC
                     LIMIT 1";
 
             $result = $conn->executeQuery($sql, [

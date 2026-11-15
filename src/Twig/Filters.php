@@ -23,6 +23,10 @@ class Filters extends AbstractExtension
             new TwigFilter('mentionify', [$this, 'mentionify'], ['is_safe' => ['html']]),
             new TwigFilter('nEncode', [$this, 'nEncode']),
             new TwigFilter('naddrEncode', [$this, 'naddrEncode']),
+            new TwigFilter('naddrEncodeCoordinate', [$this, 'naddrEncodeCoordinate']),
+            new TwigFilter('naddrEncodeCoordinateOrNull', [$this, 'naddrEncodeCoordinateOrNull']),
+            new TwigFilter('isValidNostrReferenceValue', [$this, 'isValidNostrReferenceValue']),
+            new TwigFilter('isSafeExternalNostrReference', [$this, 'isSafeExternalNostrReference']),
             new TwigFilter('toNpub', [$this, 'toNpub']),
             new TwigFilter('toHex', [$this, 'toHex']),
             new TwigFilter('pastelHue', [$this, 'pastelHue']),
@@ -114,6 +118,73 @@ class Filters extends AbstractExtension
         }
 
         return $nip19->encodeAddr($entity->getPubkey(), $entity->getSlug(), $entity->getKind()->value);
+    }
+
+    public function naddrEncodeCoordinate(string $coordinate, ?string $relayHint = null): string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3 || !ctype_digit($parts[0]) || !preg_match('/^[0-9a-f]{64}$/i', $parts[1])) {
+            return $coordinate;
+        }
+
+        return (new NostrNip19Service())->encodeAddr(
+            $parts[1],
+            $parts[2],
+            (int) $parts[0],
+            $relayHint !== null && $relayHint !== '' ? [$relayHint] : [],
+        );
+    }
+
+    /**
+     * Encode only when the NIP-19 result round-trips the requested identity.
+     * Unlike the legacy filter, invalid input never returns the raw coordinate.
+     */
+    public function naddrEncodeCoordinateOrNull(mixed $coordinate, mixed $relayHint = null): ?string
+    {
+        if (!is_string($coordinate)) {
+            return null;
+        }
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3 || !ctype_digit($parts[0])
+            || !preg_match('/^[0-9a-f]{64}$/i', $parts[1])
+            || strlen($parts[2]) > 255
+            // The installed encoder handles each UTF-8 character as one byte.
+            || preg_match('/[^\x00-\x7f]/', $parts[2])) {
+            return null;
+        }
+        $kind = ltrim($parts[0], '0');
+        $kind = $kind === '' ? '0' : $kind;
+        if (strlen($kind) > 10 || (strlen($kind) === 10 && strcmp($kind, '4294967295') > 0)) {
+            return null;
+        }
+
+        try {
+            $encoded = $this->naddrEncodeCoordinate($coordinate, is_string($relayHint) ? $relayHint : null);
+            $decoded = (new NostrNip19Service())->decode($encoded);
+            if (($decoded['kind'] ?? null) !== (int) $kind
+                || ($decoded['pubkey'] ?? null) !== strtolower($parts[1])
+                || ($decoded['identifier'] ?? null) !== $parts[2]) {
+                return null;
+            }
+
+            return $encoded;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function isValidNostrReferenceValue(mixed $value): bool
+    {
+        return is_string($value) && $value !== '';
+    }
+
+    public function isSafeExternalNostrReference(mixed $value): bool
+    {
+        if (!is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+            return false;
+        }
+
+        return in_array(strtolower((string) parse_url($value, PHP_URL_SCHEME)), ['http', 'https'], true);
     }
 
     public function toNpub(string $hexPubKey): string

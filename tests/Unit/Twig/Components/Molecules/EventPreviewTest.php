@@ -70,6 +70,16 @@ final class EventPreviewTest extends KernelTestCase
         self::assertSame(0, $crawler->filter('img, video, audio, picture, source, iframe')->count());
     }
 
+    public function testApiSensitiveArticleFragmentContainsOnlyTranslatedWarning(): void
+    {
+        $html = self::getContainer()->get('twig')->render('event_workspace/_api_sensitive_preview.html.twig');
+        $crawler = new Crawler($html);
+
+        self::assertSame(1, $crawler->filter('.nostr-event-preview .event-preview__sensitive')->count());
+        self::assertSame('Sensitive content', $crawler->filter('.event-preview__sensitive')->text());
+        self::assertSame(0, $crawler->filter('a, img, video, audio, .event-preview__title, .event-preview__description')->count());
+    }
+
     public function testApiEventPreviewAdapterKeepsEmbedWrapperAroundSharedPreview(): void
     {
         $presentation = $this->factory()->fromAuthorizedFields(

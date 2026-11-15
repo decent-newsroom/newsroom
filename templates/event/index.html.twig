@@ -166,13 +166,17 @@
 
             {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
         {% else %}
-            {% include 'event/_generic_event_body.html.twig' %}
+            {% if eventPresentation is defined and eventPresentation %}
+                {% include 'event/_workspace_note_body.html.twig' with {presentation: eventPresentation} %}
+            {% else %}
+                {% include 'event/_generic_event_body.html.twig' %}
+            {% endif %}
         {% endif %}
 
         {# Surface commonly-used but otherwise hidden tags. Kinds with dense
            dedicated list UIs stay excluded to avoid repeating their primary content. #}
         {% set metaExcludedKinds = [10015, 39089] %}
-        {% if event.kind not in metaExcludedKinds %}
+        {% if event.kind not in metaExcludedKinds and not (eventPresentation is defined and eventPresentation) %}
             {% include 'event/_event_meta.html.twig' %}
         {% endif %}
 

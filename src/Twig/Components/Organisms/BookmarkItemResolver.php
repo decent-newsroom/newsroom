@@ -40,9 +40,22 @@ final class BookmarkItemResolver
         private readonly NostrClient $nostrClient,
         private readonly LoggerInterface $logger,
     ) {}
-    public function mount(): void
+    public function mount(?string $type = null, ?string $value = null, ?string $relay = null, ?Event $resolvedEvent = null): void
     {
+        // Twig invokes mount before assigning remaining public props.
+        $this->type = $type ?? $this->type;
+        $this->value = $value ?? $this->value;
+        $this->relay = $relay ?? $this->relay;
         if ($this->type === 'e' && $this->value) {
+            // Server-side batch result, never a LiveProp or an authorization grant.
+            if ($resolvedEvent !== null) {
+                if (strtolower($resolvedEvent->getId()) !== strtolower($this->value)) {
+                    $this->error = 'Failed to load event';
+                    return;
+                }
+                $this->event = $resolvedEvent;
+                return;
+            }
             try {
                 $this->event = $this->eventRepository->findById($this->value);
             } catch (\Throwable $e) {
