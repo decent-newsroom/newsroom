@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Position stream collection covers alongside their details like article covers, without cropping them.
 - [Improvement] Remove the duplicate My Content link from the Newsroom sidebar.
 - [Feature] Include locally stored public book and publication indexes in home and author streams.
 - [Fix] Align My Content metadata labels and values by removing inherited label margins.

@@ -201,6 +201,43 @@ $dispatcher->addListener(KernelEvents::REQUEST, static function (\Symfony\Compon
         ],
     ])));
 }, 100);
+$dispatcher->addListener(KernelEvents::REQUEST, static function (\Symfony\Component\HttpKernel\Event\RequestEvent $event) use ($container, $owner): void {
+    if ($event->getRequest()->getPathInfo() !== '/__stream-collection-fixture') {
+        return;
+    }
+
+    $container->get('router')->getContext()->fromRequest($event->getRequest());
+    $twig = $container->get('twig');
+    $twig->setLoader(new \Twig\Loader\ChainLoader([$twig->getLoader(), new \Twig\Loader\FilesystemLoader(__DIR__)]));
+    $article = (new \App\Entity\Article())
+        ->setPubkey($owner)->setSlug('layout-article')->setTitle('Layout article')
+        ->setKind(\App\Enum\KindsEnum::LONGFORM)->setCreatedAt(1700000000)
+        ->setSummary('Article summary')->setImage('https://stream-covers.example/article.svg');
+    $rows = [[
+        'key' => 'layout-article', 'type' => 'article', 'item' => $article,
+        'labels' => [], 'timestamp' => 1700000000,
+    ]];
+    foreach (['magazine', 'reading_list', 'follow_pack'] as $type) {
+        foreach ([true, false] as $hasImage) {
+            $key = $type . '-' . ($hasImage ? 'image' : 'no-image');
+            $item = [
+                'pubkey' => $owner, 'slug' => $key, 'title' => $key,
+                'description' => 'Collection description', 'memberCount' => 3,
+            ];
+            if ($type === 'magazine') {
+                $item['indexEventId'] = str_repeat('1', 64);
+            }
+            if ($hasImage) {
+                $item['image'] = 'https://stream-covers.example/collection.svg';
+            }
+            $rows[] = [
+                'key' => $key, 'type' => $type, 'item' => $item,
+                'labels' => [], 'timestamp' => 1700000000,
+            ];
+        }
+    }
+    $event->setResponse(new Response($twig->render('stream-collection-layout.html.twig', ['rows' => $rows])));
+}, 100);
 $dispatcher->addListener(KernelEvents::REQUEST, static function () use ($container, $owner): void {
     if (isset($_COOKIE['workspace_fixture_signed_out'])) {
         return;

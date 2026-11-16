@@ -1,0 +1,8 @@
+{% extends 'base.html.twig' %}
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block layout %}
+    <main class="w-container content-stream-page">
+        {% include 'content_stream/_items.html.twig' with {rows: rows, feedBreaks: {}} %}
+    </main>
+{% endblock %}

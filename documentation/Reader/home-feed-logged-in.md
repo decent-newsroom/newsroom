@@ -108,6 +108,9 @@ Nostr-network inventories.
   Turbo snapshot caching; no event bodies are stored in browser feed caches.
 - Pagination URLs survive reload and browser navigation. Home pages carry their
   page into the initial frame URL; profile pagination stays in its own frame.
+- Collection covers use the article card's responsive position beside the text
+  and hide at the same narrow container width. Covers remain uncropped, and
+  collections without an image use the full row width for their text.
 
 The shared navigation keeps Discover, Reading Nook, and Newsroom visible with
 workspace-local links underneath. Existing paper/ink/green tokens, serif headings,

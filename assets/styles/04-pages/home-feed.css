@@ -191,11 +191,18 @@
     font-size: 0.875rem;
 }
 
-.stream-collection > img {
-    max-width: min(100%, 24rem);
-    max-height: 18rem;
+.stream-collection {
+    container-type: inline-size;
+}
+
+.stream-collection .article-card__media {
+    background: transparent;
+}
+
+.stream-collection .article-card__media img {
     object-fit: contain;
-    margin-top: var(--spacing-3);
+    object-position: right center;
+    filter: none;
 }
 
 .stream-collection h2 {

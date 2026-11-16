@@ -72,7 +72,7 @@ figcaption.picture-description .credits {
     gap: var(--spacing-1);
     margin-top: var(--spacing-3);
     padding-bottom: var(--spacing-1);
-    overflow-x: auto;
+    flex-wrap: wrap;
 }
 .gallery-view .thumbnail {
     flex: 0 0 64px;

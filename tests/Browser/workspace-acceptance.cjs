@@ -8,9 +8,11 @@ const rootId = '1'.repeat(64);
 const owner = 'a'.repeat(64);
 const key = `event-workspace-state:v1:${owner}:reading-nook`;
 const failures = [];
+let checksRun = 0;
 
 async function check(name, run) {
   if (process.env.WORKSPACE_CASE && !name.includes(process.env.WORKSPACE_CASE)) return;
+  checksRun += 1;
   try {
     await run();
     console.log(`PASS ${name}`);
@@ -446,6 +448,133 @@ async function mediaGalleries(browser) {
   }
 }
 
+async function collectionCovers(browser) {
+  const { context, page } = await newPage(browser, { width: 1440, height: 900 });
+  await context.route('https://stream-covers.example/**', route => {
+    const article = route.request().url().endsWith('/article.svg');
+    const width = article ? 800 : 600;
+    const height = article ? 600 : 800;
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="teal"/></svg>`,
+    });
+  });
+  const types = ['magazine', 'reading_list', 'follow_pack'];
+  const entry = key => page.locator(`[data-stream-key="${key}"]`);
+  const layout = card => card.locator('.article-card__body').evaluate(body => {
+    const content = body.querySelector(':scope > .article-card__content');
+    const media = body.querySelector(':scope > .article-card__media');
+    const bodyRect = body.getBoundingClientRect();
+    const contentRect = content.getBoundingClientRect();
+    const mediaRect = media?.getBoundingClientRect();
+    return {
+      width: bodyRect.width,
+      contentWidth: contentRect.width,
+      contentRight: contentRect.right - bodyRect.left,
+      visible: !!media && getComputedStyle(media).display !== 'none',
+      mediaLeft: mediaRect ? mediaRect.left - bodyRect.left : null,
+      mediaTop: mediaRect ? mediaRect.top - bodyRect.top : null,
+      mediaWidth: mediaRect?.width,
+      mediaHeight: mediaRect?.height,
+    };
+  });
+  const closeTo = (actual, expected, message) => {
+    assert.ok(Math.abs(actual - expected) < 0.5, `${message}: ${actual} vs ${expected}`);
+  };
+
+  try {
+    await check('stream collection covers match article positioning', async () => {
+      const response = await page.goto(`${base}/__stream-collection-fixture`, { waitUntil: 'networkidle' });
+      assert.equal(response.status(), 200);
+      const article = entry('layout-article').locator('.article-card');
+      assert.equal(await article.count(), 1);
+      for (const key of ['layout-article', ...types.map(type => `${type}-image`)]) {
+        const image = entry(key).locator('.article-card__media img');
+        await entry(key).scrollIntoViewIfNeeded();
+        await page.waitForFunction(value => {
+          const img = document.querySelector(`[data-stream-key="${value}"] .article-card__media img`);
+          return img?.complete && img.naturalWidth > 0;
+        }, key);
+        assert.ok(await image.isVisible(), `${key} cover is not visible at the desktop width`);
+        assert.equal(await image.getAttribute('loading'), 'lazy');
+        assert.equal(await image.getAttribute('decoding'), 'async');
+      }
+
+      for (const type of types) {
+        for (const suffix of ['image', 'no-image']) {
+          const key = `${type}-${suffix}`;
+          const card = entry(key).locator('.stream-collection');
+          const title = card.locator('h2 a');
+          assert.equal(await title.innerText(), key);
+          assert.equal(await title.getAttribute('data-turbo-frame'), '_top');
+          const href = await title.getAttribute('href');
+          if (type === 'magazine') {
+            assert.equal(href, `/bookshelf/index/${rootId}`);
+          } else {
+            assert.ok(href.includes(key), `${key} lost its collection route`);
+          }
+          assert.equal(await card.locator('.metadata time').count(), 1);
+          assert.equal(await card.locator('.lede').innerText(), 'Collection description');
+          if (type === 'follow_pack') {
+            assert.match(await card.locator('.metadata').last().innerText(), /3 writers/);
+          }
+          const image = card.locator('.article-card__media img');
+          assert.equal(await image.count(), suffix === 'image' ? 1 : 0);
+          if (suffix === 'image') {
+            assert.equal(await image.getAttribute('alt'), `Cover image for ${key}`);
+            assert.equal(await image.evaluate(node => getComputedStyle(node).objectFit), 'contain');
+            assert.equal(await image.evaluate(node => getComputedStyle(node).objectPosition), '100% 50%');
+          }
+        }
+      }
+
+      const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+      for (const width of [700, 34 * rem + 1, 34 * rem, 24 * rem + 1, 24 * rem, 24 * rem - 24]) {
+        await page.locator('.content-stream__entry').evaluateAll((nodes, value) => {
+          nodes.forEach(node => { node.style.width = `${value}px`; });
+        }, width);
+        const reference = await layout(article);
+        closeTo(reference.width, width, 'article container width');
+        assert.equal(reference.visible, width > 24 * rem, `article visibility at ${width}px`);
+        for (const type of types) {
+          const card = entry(`${type}-image`).locator('.stream-collection');
+          const actual = await layout(card);
+          closeTo(actual.width, reference.width, `${type} container width`);
+          assert.equal(actual.visible, reference.visible, `${type} visibility at ${width}px`);
+          assert.equal(await card.locator('.lede').isVisible(), true, `${type} description at ${width}px`);
+          if (reference.visible) {
+            for (const field of ['mediaLeft', 'mediaTop', 'mediaWidth', 'mediaHeight']) {
+              closeTo(actual[field], reference[field], `${type} ${field} at ${width}px`);
+            }
+            closeTo(actual.mediaTop, 0, `${type} cover top alignment`);
+            closeTo(actual.mediaLeft + actual.mediaWidth, actual.width, `${type} cover right alignment`);
+            assert.ok(actual.contentRight < actual.mediaLeft, `${type} cover overlaps text`);
+          }
+          const textOnly = await layout(entry(`${type}-no-image`).locator('.stream-collection'));
+          assert.equal(textOnly.visible, false);
+          closeTo(textOnly.contentWidth, textOnly.width, `${type} text-only width at ${width}px`);
+        }
+      }
+
+      await page.locator('.content-stream__entry').evaluateAll(nodes => {
+        nodes.forEach(node => node.style.removeProperty('width'));
+      });
+      for (const width of [360, 480]) {
+        await page.setViewportSize({ width, height: 900 });
+        const reference = await layout(article);
+        for (const type of types) {
+          const actual = await layout(entry(`${type}-image`).locator('.stream-collection'));
+          assert.equal(actual.visible, reference.visible, `${type} visibility at ${width}px viewport`);
+        }
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+          `horizontal overflow at ${width}px viewport`);
+      }
+    });
+  } finally {
+    await context.close();
+  }
+}
+
 async function publicationStreams(browser) {
   const { context, page } = await newPage(browser, { width: 1440, height: 900 });
   try {
@@ -558,6 +687,7 @@ async function snapshotRevocation(browser) {
     await inventoryPresentation(browser);
     await authoredMetadata(browser);
     await mediaGalleries(browser);
+    await collectionCovers(browser);
     await publicationStreams(browser);
     await members(browser);
     await concurrency(browser);
@@ -565,6 +695,9 @@ async function snapshotRevocation(browser) {
     await logout(browser);
   } finally {
     await browser.close();
+  }
+  if (process.env.WORKSPACE_CASE && checksRun === 0) {
+    failures.push(`No scenario matched "${process.env.WORKSPACE_CASE}"`);
   }
   if (failures.length) {
     console.error(`${failures.length} scenario(s) failed: ${failures.join('; ')}`);

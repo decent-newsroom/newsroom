@@ -1,6 +1,7 @@
 {% set title = item.title|default(item.dTag|default('content_stream.untitled'|trans)) %}
 {% set itemPubkey = item.pubkey|default(pubkey|default('')) %}
 {% set slug = item.slug|default(item.dTag|default('')) %}
+{% set image = item.image|default('') %}
 {% if row.type == 'magazine' and item.indexEventId|default(null) %}
     {% set href = path('bookshelf_index', {eventId: item.indexEventId}) %}
 {% elseif row.type == 'follow_pack' %}
@@ -11,18 +12,24 @@
     {% set href = path('magazine-index', {mag: slug}) %}
 {% endif %}
 <article class="stream-collection">
-    <div class="metadata">
-        <span>{{ 'text.by'|trans }} <twig:Molecules:UserFromNpub :ident="itemPubkey" /></span>
-        {% if row.timestamp %}<time datetime="{{ row.timestamp|date('c') }}">{{ row.timestamp|date('M j, Y') }}</time>{% endif %}
+    <div class="article-card__body{% if not image %} article-card__body--text-only{% endif %}">
+        <div class="article-card__content">
+            <div class="metadata">
+                <span>{{ 'text.by'|trans }} <twig:Molecules:UserFromNpub :ident="itemPubkey" /></span>
+                {% if row.timestamp %}<time datetime="{{ row.timestamp|date('c') }}">{{ row.timestamp|date('M j, Y') }}</time>{% endif %}
+            </div>
+            <h2><a href="{{ href }}" data-turbo-frame="_top">{{ title }}</a></h2>
+            {% if item.summary|default(item.description|default('')) %}
+                <p class="lede">{{ item.summary|default(item.description|default('')) }}</p>
+            {% endif %}
+            {% if row.type == 'follow_pack' %}
+                <p class="metadata">{{ item.memberCount }} {{ 'followPacks.writers'|trans }}</p>
+            {% endif %}
+        </div>
+        {% if image %}
+            <figure class="article-card__media">
+                <img src="{{ image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': title}) }}" loading="lazy" decoding="async">
+            </figure>
+        {% endif %}
     </div>
-    <h2><a href="{{ href }}" data-turbo-frame="_top">{{ title }}</a></h2>
-    {% if item.summary|default(item.description|default('')) %}
-        <p class="lede">{{ item.summary|default(item.description|default('')) }}</p>
-    {% endif %}
-    {% if item.image|default('') %}
-        <img src="{{ item.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': title}) }}" loading="lazy" decoding="async">
-    {% endif %}
-    {% if row.type == 'follow_pack' %}
-        <p class="metadata">{{ item.memberCount }} {{ 'followPacks.writers'|trans }}</p>
-    {% endif %}
 </article>

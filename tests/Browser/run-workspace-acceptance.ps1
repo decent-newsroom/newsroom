@@ -1,5 +1,6 @@
 param(
-    [string] $VendorVolume = ''
+    [string] $VendorVolume = '',
+    [string] $Case = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -97,7 +98,7 @@ try {
     Assert-Docker
     docker run --rm --network $network `
         --mount "type=bind,source=$root\tests\Browser\workspace-acceptance.cjs,target=/workspace/workspace-acceptance.cjs,readonly" `
-        -e NODE_PATH=/opt/workspace-browser/node_modules --entrypoint node $browserImage /workspace/workspace-acceptance.cjs
+        -e NODE_PATH=/opt/workspace-browser/node_modules -e "WORKSPACE_CASE=$Case" --entrypoint node $browserImage /workspace/workspace-acceptance.cjs
     Assert-Docker
 } finally {
     foreach ($resource in $resources) { docker rm -f $resource | Out-Null }

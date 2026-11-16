@@ -321,6 +321,7 @@
     background: var(--color-bg-light);
     padding: 1px 4px;
     border-radius: 3px;
+    overflow-wrap: anywhere;
 }
 
 /* ===== Quick Links ===== */

@@ -25,7 +25,8 @@
     align-items: start;
 }
 
-.article-card--text-only .article-card__body {
+.article-card--text-only .article-card__body,
+.article-card__body.article-card__body--text-only {
     grid-template-columns: 1fr;
 }
 
