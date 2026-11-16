@@ -23,7 +23,7 @@ final class CategoryLink
 
     public function mount($coordinate): void
     {
-        if (key_exists(1, $coordinate)) {
+        if (array_key_exists(1, $coordinate)) {
             $parts = explode(':', $coordinate[1], 3);
             // Expect format kind:pubkey:slug
             $this->kind = (int)($parts[0] ?? 0);

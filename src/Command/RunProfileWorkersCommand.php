@@ -156,7 +156,7 @@ class RunProfileWorkersCommand extends Command
         $process->setTimeout(null);
         $process->setIdleTimeout(null);
 
-        $process->start(function ($type, $buffer) use ($name, $io) {
+        $process->start(function ($type, $buffer) use ($name, $io): void {
             if (Process::ERR === $type) {
                 $io->writeln(sprintf('<error>[%s ERROR]</error> %s', strtoupper($name), trim($buffer)));
             } else {

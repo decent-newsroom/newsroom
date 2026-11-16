@@ -90,7 +90,7 @@ class ArticlePostProcessCommand extends Command
                 $process->setTimeout(600); // 10 minutes timeout
 
                 // Run and stream output in real-time
-                $process->run(function ($type, $buffer) use ($output) {
+                $process->run(function ($type, $buffer) use ($output): void {
                     $output->write($buffer);
                 });
 

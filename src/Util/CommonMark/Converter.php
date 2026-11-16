@@ -952,7 +952,7 @@ class Converter implements MarkdownConverterInterface
 
         // Fetch naddr coordinates not already prefetched
         $missingNaddrCoords = [];
-        foreach ($naddrCoords as $bech => $coord) {
+        foreach ($naddrCoords as $coord) {
             $coordKey = $coord['kind'] . ':' . $coord['pubkey'] . ':' . $coord['identifier'];
             if (!isset($eventsByNaddr[$coordKey])) {
                 $missingNaddrCoords[] = $coordKey;

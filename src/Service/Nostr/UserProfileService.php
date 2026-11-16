@@ -75,7 +75,7 @@ class UserProfileService
         // Group by kind, take the latest event for each, and persist
         $latestByKind = KindBundles::latestByKind($events);
 
-        foreach ($latestByKind as $kind => $event) {
+        foreach ($latestByKind as $event) {
             $this->persistEvent($event);
         }
 
@@ -150,7 +150,7 @@ class UserProfileService
         $results = [];
         $missing = $pubkeys;
 
-        $process = function (array $events) use (&$results, &$missing) {
+        $process = function (array $events) use (&$results, &$missing): void {
             foreach ($events as $event) {
                 $pk = $event->pubkey ?? null;
                 if (!$pk) {

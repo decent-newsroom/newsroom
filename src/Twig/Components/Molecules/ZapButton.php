@@ -360,7 +360,7 @@ final class ZapButton
         $totalAmountSats = $this->amount;
         $invoices = [];
 
-        foreach ($this->zapSplits as $index => $split) {
+        foreach ($this->zapSplits as $split) {
             $weight = $split['weight'] ?? 1;
             $recipientPubkey = $split['recipient'];
 

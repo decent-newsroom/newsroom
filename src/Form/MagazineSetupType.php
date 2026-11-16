@@ -84,7 +84,7 @@ class MagazineSetupType extends AbstractType
                 ],
                 'help' => '100% of zaps on this magazine and its new categories will go to this npub.',
                 'constraints' => [
-                    new Assert\Callback(function ($value, $context) {
+                    new Assert\Callback(function ($value, $context): void {
                         if ($value === null || $value === '') {
                             return;
                         }

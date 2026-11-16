@@ -262,7 +262,7 @@ class SettingsController extends AbstractController
 
             $successCount = 0;
             $failCount = 0;
-            foreach ($relayResults as $relayUrl => $result) {
+            foreach ($relayResults as $result) {
                 $isSuccess = RelayPublishResult::isSuccessful($result);
                 if ($isSuccess) {
                     $successCount++;

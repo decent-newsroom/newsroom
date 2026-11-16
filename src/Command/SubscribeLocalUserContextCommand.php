@@ -182,7 +182,7 @@ class SubscribeLocalUserContextCommand extends Command
 
             $this->relayPool->subscribeLocal(
                 self::SUBSCRIBE_KINDS,
-                function (object $event, string $relayUrl) use ($io) {
+                function (object $event, string $relayUrl) use ($io): void {
                     $timestamp = date('Y-m-d H:i:s');
                     $eventId = substr($event->id ?? 'unknown', 0, 16) . '...';
                     $pubkey = substr($event->pubkey ?? 'unknown', 0, 16) . '...';

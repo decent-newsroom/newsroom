@@ -174,7 +174,7 @@ class FollowsRelayPoolService
 
         // 3. Extract write relay URLs from all resolved relay lists
         $relayUrls = [];
-        foreach ($relayLists as $pubkey => $relayList) {
+        foreach ($relayLists as $relayList) {
             foreach ($relayList->getWriteRelays() as $url) {
                 $relayUrls[] = $url;
             }

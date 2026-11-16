@@ -161,7 +161,7 @@ class ZapApiController extends AbstractController
             $invoices = [];
             $key = new NostrKeyService();
 
-            foreach ($zapSplits as $index => $split) {
+            foreach ($zapSplits as $split) {
                 $recipientIdent = $split['recipient'] ?? '';
                 $weight = $split['weight'] ?? 1;
 

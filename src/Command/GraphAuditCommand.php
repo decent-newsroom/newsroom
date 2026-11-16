@@ -86,10 +86,10 @@ class GraphAuditCommand extends Command
 
         // Install PCNTL signal handler for graceful Ctrl+C
         if (\function_exists('pcntl_signal')) {
-            \pcntl_signal(\SIGINT, function () {
+            \pcntl_signal(\SIGINT, function (): void {
                 $this->interrupted = true;
             });
-            \pcntl_signal(\SIGTERM, function () {
+            \pcntl_signal(\SIGTERM, function (): void {
                 $this->interrupted = true;
             });
         }

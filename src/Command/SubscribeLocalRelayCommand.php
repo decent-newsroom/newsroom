@@ -64,7 +64,7 @@ class SubscribeLocalRelayCommand extends Command
             // Start the long-lived subscription
             // This blocks forever and processes events via the callback
             $this->relayPool->subscribeLocalArticles(
-                function (object $event, string $relayUrl) use ($io) {
+                function (object $event, string $relayUrl) use ($io): void {
                     $timestamp = date('Y-m-d H:i:s');
                     $eventId = substr($event->id ?? 'unknown', 0, 16) . '...';
                     $pubkey = substr($event->pubkey ?? 'unknown', 0, 16) . '...';

@@ -135,7 +135,7 @@ class MercureWorkerCommand extends Command
         $process->setTimeout(null);
         $process->setIdleTimeout(null);
 
-        $process->run(function ($type, $buffer) use ($io) {
+        $process->run(function ($type, $buffer) use ($io): void {
             if (Process::ERR === $type) {
                 $io->writeln('<error>' . trim($buffer) . '</error>');
             } else {

@@ -63,7 +63,7 @@ class MediaMetadataNormalizer
             // Kind 20 (Picture): each imeta = one image in the post
             // Return one NormalizedMedia per image but all share the same event context
             $results = [];
-            foreach ($imetaParsed as $i => $parsed) {
+            foreach ($imetaParsed as $parsed) {
                 $results[] = $this->buildFromParsedImeta($parsed, [
                     'sourceType' => 'post',
                     'ownerPubkey' => $pubkey,

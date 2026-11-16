@@ -390,7 +390,7 @@ class MathRenderingTest extends TestCase
 
         $this->assertCount(4, $placeholders);
 
-        foreach ($placeholders as $token => $math) {
+        foreach ($placeholders as $math) {
             $this->assertStringStartsWith('\\(', $math);
             $this->assertStringEndsWith('\\)', $math);
         }

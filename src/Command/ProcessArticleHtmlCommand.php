@@ -89,7 +89,7 @@ class ProcessArticleHtmlCommand extends Command
         // Set up per-article timeout via pcntl_alarm (Linux/Docker).
         $hasPcntl = \function_exists('pcntl_alarm') && \function_exists('pcntl_signal');
         if ($hasPcntl) {
-            pcntl_signal(SIGALRM, static function () {
+            pcntl_signal(SIGALRM, static function (): void {
                 throw new \RuntimeException('Article processing timed out');
             });
             $io->info(sprintf('Per-article timeout: %ds (signal-based)', $timeout));

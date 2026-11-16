@@ -1623,7 +1623,7 @@ class DefaultController extends AbstractController
             // data). Dedupe by slug, newest wins.
             $slugMap = [];
             $needSlugFallback = false;
-            foreach ($parsed as $coord => $info) {
+            foreach ($parsed as $info) {
                 $key = $info['kind'] . ':' . $info['pubkey'] . ':' . $info['slug'];
                 if (!isset($coordMap[$key])) {
                     $needSlugFallback = true;

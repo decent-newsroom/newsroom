@@ -90,7 +90,7 @@ final class KindBundles
         }
 
         // Sort each group newest-first
-        foreach ($grouped as $kind => &$kindEvents) {
+        foreach ($grouped as &$kindEvents) {
             usort($kindEvents, fn($a, $b) => ($b->created_at ?? 0) <=> ($a->created_at ?? 0));
         }
 

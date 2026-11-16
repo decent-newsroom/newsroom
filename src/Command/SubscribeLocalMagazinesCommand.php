@@ -119,7 +119,7 @@ class SubscribeLocalMagazinesCommand extends Command
             // This blocks forever and processes events via the callback
             $this->relayPool->subscribeLocalGenericEvents(
                 $kinds,
-                function (object $event, string $relayUrl) use ($io) {
+                function (object $event, string $relayUrl) use ($io): void {
                     $timestamp = date('Y-m-d H:i:s');
                     $eventId = substr($event->id ?? 'unknown', 0, 16) . '...';
                     $pubkey = substr($event->pubkey ?? 'unknown', 0, 16) . '...';
