@@ -1279,6 +1279,8 @@ reading_nook:
     inventory_retry: 'Intentar de nuevo'
     drive:
         title: 'Mi unidad'
+        my_books: 'Directorio Mis libros'
+        my_books_summary: 'Libros guardados en tu directorio de Bookshelf.'
         directory: 'Directorio'
         read_only: 'Vista de solo lectura'
         back: 'Volver a Reading Nook'

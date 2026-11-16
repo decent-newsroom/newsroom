@@ -1276,6 +1276,8 @@ reading_nook:
     inventory_retry: 'Réessayer'
     drive:
         title: 'Mon disque'
+        my_books: 'Répertoire Mes livres'
+        my_books_summary: 'Livres enregistrés dans votre répertoire Bookshelf.'
         directory: 'Répertoire'
         read_only: 'Consultation seule'
         back: 'Retour à Reading Nook'

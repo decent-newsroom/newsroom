@@ -24,13 +24,14 @@
     data-ui--event-workspace-state-user-value="{{ workspacePubkey|default('') }}"
     data-ui--event-workspace-state-context-value="reading-nook"
 >
-    <twig:Atoms:PageHeading :heading="'reading_nook.title'|trans" :tagline="'reading_nook.subtitle'|trans" />
+    <header class="reading-nook-heading">
+        <h1>{{ 'reading_nook.title'|trans }}</h1>
+        <p>{{ 'reading_nook.subtitle'|trans }}</p>
+    </header>
 
     <div class="reading-nook-shell">
 
         <div class="reading-nook-content">
-            <twig:Molecules:BookshelfDirectoryDisclosure :url="path('bookshelf_directory_references')" />
-
             <nav class="reading-nook-tabs" aria-label="{{ 'reading_nook.filters.section'|trans }}">
                 <a
                     href="{{ path('reading_nook', filterQuery|merge({section: 'all'})) }}"
@@ -88,12 +89,27 @@
                 <button class="btn btn-sm" type="submit">{{ 'reading_nook.filters.apply'|trans }}</button>
 
                 {% if activeFilterCount > 0 %}
-                    <br>
                     <a class="reading-nook-toolbar__clear" href="{{ path('reading_nook') }}">
                         {{ 'reading_nook.filters.reset'|trans }}
                     </a>
                 {% endif %}
             </form>
+
+            {% if topTags is not empty %}
+                <div class="reading-nook-top-tags">
+                    <span>{{ 'reading_nook.aside.top_tags'|trans }}</span>
+                    <div class="reading-nook-aside__tags">
+                        {% for tag in topTags %}
+                            <a href="{{ path('reading_nook', {
+                                q: filters.q,
+                                section: filters.section,
+                                timespan: filters.timespan,
+                                tag: tag,
+                            }) }}">#{{ tag }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
 
             <div class="reading-nook-results">
                 <p>{{ 'reading_nook.results_count'|trans({'%count%': filteredCount}) }}</p>
@@ -116,15 +132,47 @@
                 {% endif %}
             </div>
 
-            <div class="reading-nook-inventory">
-                <div class="reading-nook-row reading-nook-row--head" aria-hidden="true">
-                    <span>{{ 'reading_nook.column.item'|trans }}</span>
-                    <span>{{ 'reading_nook.column.section'|trans }}</span>
-                    <span>{{ 'reading_nook.column.date'|trans }}</span>
-                    <span>{{ 'reading_nook.column.count'|trans }}</span>
-                    <span>&nbsp;</span> {# actions #}
-                </div>
+            {% set directoryDriveIndex = null %}
+            {% for item in items %}
+                {% if directoryDriveIndex is null and item.section == 'drives' %}
+                    {% set directoryDriveIndex = loop.index0 %}
+                {% endif %}
+            {% endfor %}
+            {% set showStandaloneDirectory = event_workspace_expansion_enabled
+                and directoryDriveIndex is null
+                and filters.section in ['all', 'drives']
+                and filters.q is empty
+                and filters.tag is empty
+                and filters.timespan == 'all'
+                and page == 1 %}
 
+            {% if event_workspace_expansion_enabled and (directoryDriveIndex is not null or showStandaloneDirectory) %}
+                {% set directoryEntry %}
+                    <article class="reading-nook-row reading-nook-row--directory" data-nook-section="drives">
+                        <div class="reading-nook-row__main">
+                            <span class="reading-nook-row__icon reading-nook-row__icon--drives" aria-hidden="true">
+                                {{ ux_icon('iconoir:book-stack', {class: 'icon'}) }}
+                            </span>
+                            <div>
+                                <h2><a href="{{ path('bookshelf_my_books_local_fallback') }}">{{ 'reading_nook.drive.my_books'|trans }}</a></h2>
+                                <p>{{ 'reading_nook.drive.my_books_summary'|trans }}</p>
+                                <div class="reading-nook-row__meta">
+                                    <span class="reading-nook-row__status">
+                                        <span class="reading-nook-status">{{ 'reading_nook.section.drives'|trans }}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="reading-nook-row__no-actions" aria-hidden="true">&nbsp;</span>
+                        <twig:Molecules:BookshelfDirectoryDisclosure :url="path('bookshelf_directory_references')" />
+                    </article>
+                {% endset %}
+            {% endif %}
+
+            <div class="reading-nook-inventory">
+                {% if showStandaloneDirectory %}
+                    {{ directoryEntry }}
+                {% endif %}
                 {% for item in items %}
                     {% set title = item.kind == 30042 and item.title == 'My Drive'
                         ? 'reading_nook.drive.title'|trans
@@ -154,7 +202,7 @@
                                 {% elseif item.section == 'follow_packs' %}
                                     {{ ux_icon('iconoir:community', {class: 'icon'}) }}
                                 {% elseif item.section == 'drives' %}
-                                    {{ ux_icon('iconoir:folder', {class: 'icon'}) }}
+                                    {{ ux_icon('iconoir:list-select', {class: 'icon'}) }}
                                 {% elseif item.section == 'subscriptions' %}
                                     {{ ux_icon('iconoir:rss-feed', {class: 'icon'}) }}
                                 {% else %}
@@ -174,6 +222,21 @@
                                     <p>{{ item.summary }}</p>
                                 {% endif %}
 
+                                <div class="reading-nook-row__meta">
+                                    <span class="reading-nook-row__status">
+                                        <span class="reading-nook-status">{{ sectionLabels[item.section]|trans }}</span>
+                                        {% if item.meta.sourceTypeLabel is defined %}
+                                            <small>{{ item.meta.sourceTypeLabel|trans }}</small>
+                                        {% else %}
+                                            <small>{{ 'reading_nook.item.kind'|trans }} {{ item.kind }}</small>
+                                        {% endif %}
+                                    </span>
+                                    <time datetime="{{ rowDate|date('c') }}">{{ rowDate|date('Y-m-d') }}</time>
+                                    {% if countValue is not null %}
+                                        <span class="reading-nook-row__count"><strong>{{ countValue }}</strong> {{ countLabel }}</span>
+                                    {% endif %}
+                                </div>
+
                                 {% if item.tags is not empty %}
                                     <div class="reading-nook-row__tags" aria-label="{{ 'reading_nook.filters.tag'|trans }}">
                                         {% for tag in item.tags|slice(0, 4) %}
@@ -183,30 +246,6 @@
                                 {% endif %}
                             </div>
                         </div>
-
-                        <div class="reading-nook-row__status">
-                            <span class="reading-nook-status reading-nook-status--{{ item.section|replace({'_': '-'}) }}">
-                                {{ sectionLabels[item.section]|trans }}
-                            </span>
-                            {% if item.meta.sourceTypeLabel is defined %}
-                                <small>{{ item.meta.sourceTypeLabel|trans }}</small>
-                            {% else %}
-                                <small>{{ 'reading_nook.item.kind'|trans }} {{ item.kind }}</small>
-                            {% endif %}
-                        </div>
-
-                        <time datetime="{{ rowDate|date('c') }}">
-                            {{ rowDate|date('Y-m-d') }}
-                        </time>
-
-                        <span class="reading-nook-row__count">
-                            {% if countValue is not null %}
-                                <strong>{{ countValue }}</strong>
-                                <small>{{ countLabel }}</small>
-                            {% else %}
-                                &mdash;
-                            {% endif %}
-                        </span>
 
                         {% if item.url or item.manageUrl %}
                             <details class="reading-nook-menu" name="reading-nook-actions">
@@ -253,6 +292,9 @@
                             />
                         {% endif %}
                     </article>
+                    {% if event_workspace_expansion_enabled and directoryDriveIndex is not null and loop.index0 == directoryDriveIndex %}
+                        {{ directoryEntry }}
+                    {% endif %}
                 {% else %}
                     <div class="reading-nook-empty">
                         {{ ux_icon('iconoir:search', {class: 'icon'}) }}
@@ -280,27 +322,4 @@
 </section>
 {% endblock %}
 
-{% block aside %}
-    <div class="reading-nook-aside">
-        {% if topTags is not empty %}
-            <section class="reading-nook-aside__panel">
-                <h2>{{ 'reading_nook.aside.top_tags'|trans }}</h2>
-                <div class="reading-nook-aside__tags">
-                    {% for tag in topTags %}
-                        <a href="{{ path('reading_nook', {
-                            q: filters.q,
-                            section: filters.section,
-                            timespan: filters.timespan,
-                            tag: tag,
-                        }) }}">#{{ tag }}</a>
-                    {% endfor %}
-                </div>
-            </section>
-        {% endif %}
-
-        <section class="reading-nook-aside__panel reading-nook-aside__panel--cta ln-section--reader">
-            <div>{{ 'nav.discoverMoreContent'|trans }}</div>
-            <a class="btn" href="{{ path('discover') }}">{{ 'nav.browseArticles'|trans }}</a>
-        </section>
-    </div>
-{% endblock %}
+{% block aside %}{% endblock %}

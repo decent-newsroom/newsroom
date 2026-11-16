@@ -790,7 +790,12 @@ final class EventMemberDisclosureTest extends KernelTestCase
             new ArrayLoader(['reading-nook-layout.html.twig' => '{% block body %}{% endblock %}']),
             $twig->getLoader(),
         ]));
-        $twig->addFunction(new TwigFunction('ux_icon', static fn (): string => ''));
+        $icons = [];
+        $twig->addFunction(new TwigFunction('ux_icon', static function (string $name) use (&$icons): string {
+            $icons[] = $name;
+
+            return '';
+        }));
         $item = [
             'eventId' => self::ID, 'title' => 'My pack', 'url' => '/open', 'manageUrl' => '/manage',
             'kind' => 39089, 'section' => 'follow_packs', 'createdAt' => new \DateTimeImmutable(),
@@ -802,16 +807,38 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $subscription = array_replace($index, ['section' => 'subscriptions']);
         $bookmarks = array_replace($item, ['eventId' => str_repeat('c', 64), 'kind' => 10003, 'section' => 'bookmarks', 'title' => 'My bookmarks']);
         $bookmarkSet = array_replace($bookmarks, ['eventId' => str_repeat('d', 64), 'kind' => 30003, 'title' => 'Saved articles']);
+        $drive = array_replace($item, ['eventId' => str_repeat('e', 64), 'kind' => 30042, 'section' => 'drives', 'title' => 'My Drive', 'meta' => []]);
+        $otherDrive = array_replace($drive, ['eventId' => str_repeat('f', 64), 'title' => 'Another drive']);
         $crawler = new Crawler($twig->render('reader/reading_nook/index.html.twig', [
             'filters' => ['q' => 'guide', 'section' => 'reading_lists', 'timespan' => '7d', 'tag' => 'rust'],
-            'allTags' => [], 'totalCount' => 2, 'filteredCount' => 2, 'sectionKeys' => [],
-            'sectionLabels' => ['bookmarks' => 'reading_nook.section.bookmarks', 'follow_packs' => 'reading_nook.section.follow_packs', 'reading_lists' => 'reading_nook.section.reading_lists', 'subscriptions' => 'reading_nook.section.subscriptions'],
-            'sectionCounts' => [], 'timespanOptions' => [], 'items' => [$item, $index, $other, $curation, $subscription, $bookmarks, $bookmarkSet],
+            'allTags' => ['rust', 'nostr'], 'totalCount' => 9, 'filteredCount' => 9,
+            'sectionKeys' => ['bookmarks', 'follow_packs', 'reading_lists', 'drives', 'subscriptions'],
+            'sectionLabels' => ['bookmarks' => 'reading_nook.section.bookmarks', 'follow_packs' => 'reading_nook.section.follow_packs', 'reading_lists' => 'reading_nook.section.reading_lists', 'drives' => 'reading_nook.section.drives', 'subscriptions' => 'reading_nook.section.subscriptions'],
+            'sectionCounts' => ['bookmarks' => 2, 'follow_packs' => 2, 'reading_lists' => 2, 'drives' => 2, 'subscriptions' => 1],
+            'timespanOptions' => ['all' => 'reading_nook.timespan.all', '7d' => 'reading_nook.timespan.7d'],
+            'items' => [$item, $index, $other, $curation, $subscription, $drive, $bookmarks, $bookmarkSet, $otherDrive],
             'workspacePubkey' => str_repeat('a', 64),
             'page' => 2, 'totalPages' => 3,
         ]));
         self::assertSame(str_repeat('a', 64), $crawler->filter('.reading-nook-page')->attr('data-ui--event-workspace-state-user-value'));
         self::assertSame('reading-nook', $crawler->filter('.reading-nook-page')->attr('data-ui--event-workspace-state-context-value'));
+        self::assertSame('Reading Nook', trim($crawler->filter('.reading-nook-heading h1')->text()));
+        self::assertCount(1, $crawler->filter('.reading-nook-tabs a[aria-current="page"]'));
+        self::assertStringContainsString('Reading lists', $crawler->filter('.reading-nook-tabs a[aria-current="page"]')->text());
+        self::assertSame('reading_lists', $crawler->filter('form.reading-nook-toolbar input[name="section"]')->attr('value'));
+        self::assertSame('guide', $crawler->filter('#nook-search')->attr('value'));
+        self::assertSame('7d', $crawler->filter('#nook-timespan option[selected]')->attr('value'));
+        self::assertSame('rust', $crawler->filter('#nook-tag option[selected]')->attr('value'));
+        self::assertCount(0, $crawler->filter('.reading-nook-toolbar br'));
+        $tagLink = $crawler->filter('.reading-nook-aside__tags a')->last()->attr('href');
+        parse_str((string) parse_url($tagLink, PHP_URL_QUERY), $tagQuery);
+        self::assertSame(['q' => 'guide', 'section' => 'reading_lists', 'timespan' => '7d', 'tag' => 'nostr'], $tagQuery);
+        self::assertContains('iconoir:list-select', $icons);
+        foreach (array_unique($icons) as $icon) {
+            if (str_starts_with($icon, 'iconoir:')) {
+                self::assertFileExists(self::getContainer()->getParameter('kernel.project_dir') . '/assets/icons/iconoir/' . substr($icon, strlen('iconoir:')) . '.svg');
+            }
+        }
         self::assertCount(1, $crawler->filter('nav.my-content-pagination'));
         self::assertCount(0, $crawler->filter('article nav.my-content-pagination'));
         foreach (['prev' => '1', 'next' => '3'] as $rel => $expectedPage) {
@@ -822,6 +849,8 @@ final class EventMemberDisclosureTest extends KernelTestCase
 
         $row = $crawler->filter('article')->first();
         self::assertSame('/open', $row->filter('h2 a')->attr('href'));
+        self::assertStringContainsString('Follow packs', $row->filter('.reading-nook-row__meta')->text());
+        self::assertStringContainsString('2 Members', $row->filter('.reading-nook-row__meta')->text());
         self::assertSame(['Open', 'Manage'], $row->filter('.reading-nook-menu__panel a')->each(static fn (Crawler $a) => trim($a->text())));
         self::assertSame(['/open', '/manage'], $row->filter('.reading-nook-menu__panel a')->extract(['href']));
         self::assertSame('Actions for My pack', $row->filter('.reading-nook-menu > summary')->attr('aria-label'));
@@ -829,12 +858,15 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertSame($enabled ? 1 : 0, $crawler->filter('.bookshelf-directory-disclosure')->count());
         if (!$enabled) {
             self::assertSame(0, $crawler->filter('turbo-frame, .event-member-disclosure, .event-toc-disclosure, .event-bookmark-disclosure')->count());
-            self::assertCount(7, $crawler->filter('.reading-nook-menu'));
+            self::assertCount(9, $crawler->filter('.reading-nook-menu'));
 
             return;
         }
         self::assertSame('/bookshelf/my-books/references', $crawler->filter('#bookshelf-directory-references')->attr('src'));
-        self::assertCount(0, $crawler->filter('article .bookshelf-directory-disclosure, .reading-nook-menu .bookshelf-directory-disclosure'));
+        self::assertCount(0, $crawler->filter('.reading-nook-row')->eq(5)->filter('.bookshelf-directory-disclosure'));
+        self::assertSame('drives', $crawler->filter('.reading-nook-row')->eq(5)->attr('data-nook-section'));
+        self::assertCount(1, $crawler->filter('.reading-nook-row[data-nook-section="drives"]:not(.reading-nook-row--directory) + .reading-nook-row--directory > .bookshelf-directory-disclosure'));
+        self::assertCount(0, $crawler->filter('.reading-nook-content > .bookshelf-directory-disclosure, .reading-nook-menu .bookshelf-directory-disclosure'));
         self::assertSame(1, $row->filter('details.event-member-disclosure')->count());
         self::assertSame(0, $row->filter('.reading-nook-menu .event-member-disclosure, h2 .event-member-disclosure')->count());
         self::assertSame(0, $crawler->filter('article')->last()->filter('.event-member-disclosure')->count());
@@ -851,6 +883,51 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $ids = $crawler->filter('turbo-frame')->extract(['id']);
         self::assertCount(5, $ids);
         self::assertCount(count($ids), array_unique($ids));
+    }
+
+    /** @return iterable<string, array{bool, string, int, bool, string}> */
+    public static function directoryPlacements(): iterable
+    {
+        yield 'all sections, first page' => [true, 'all', 1, true, ''];
+        yield 'drives section' => [true, 'drives', 1, true, ''];
+        yield 'other section' => [true, 'bookmarks', 1, false, ''];
+        yield 'later page' => [true, 'all', 2, false, ''];
+        yield 'search active' => [true, 'all', 1, false, 'guide'];
+        yield 'rollback' => [false, 'all', 1, false, ''];
+    }
+
+    /** @dataProvider directoryPlacements */
+    public function testDirectoryReferencesSitInDriveSectionWhenNoDriveRowIsShown(bool $enabled, string $section, int $page, bool $expected, string $query): void
+    {
+        self::bootKernel();
+        /** @var Environment $twig */
+        $twig = self::getContainer()->get('twig');
+        $twig->addGlobal('event_workspace_expansion_enabled', $enabled);
+        $twig->setLoader(new ChainLoader([
+            new ArrayLoader(['reading-nook-layout.html.twig' => '{% block body %}{% endblock %}']),
+            $twig->getLoader(),
+        ]));
+        $twig->addFunction(new TwigFunction('ux_icon', static fn (): string => ''));
+        $crawler = new Crawler($twig->render('reader/reading_nook/index.html.twig', [
+            'filters' => ['q' => $query, 'section' => $section, 'timespan' => 'all', 'tag' => ''],
+            'allTags' => [], 'totalCount' => 0, 'filteredCount' => 0,
+            'sectionKeys' => ['bookmarks', 'drives'],
+            'sectionLabels' => ['bookmarks' => 'reading_nook.section.bookmarks', 'drives' => 'reading_nook.section.drives'],
+            'sectionCounts' => ['bookmarks' => 0, 'drives' => 0],
+            'timespanOptions' => ['all' => 'reading_nook.timespan.all'],
+            'items' => [], 'workspacePubkey' => str_repeat('a', 64),
+            'page' => $page, 'totalPages' => 1,
+        ]));
+
+        self::assertCount($expected ? 1 : 0, $crawler->filter('.bookshelf-directory-disclosure'));
+        self::assertCount($expected ? 1 : 0, $crawler->filter('.reading-nook-inventory > .reading-nook-row--directory[data-nook-section="drives"] > .bookshelf-directory-disclosure'));
+        if ($expected) {
+            $row = $crawler->filter('.reading-nook-row--directory');
+            self::assertSame('My Books directory', trim($row->filter('h2')->text()));
+            self::assertSame('/bookshelf/my-books', $row->filter('h2 a')->attr('href'));
+            self::assertSame('/bookshelf/my-books/references', $row->filter('#bookshelf-directory-references')->attr('src'));
+            self::assertCount(0, $row->filter('.reading-nook-menu'));
+        }
     }
 
     /** @return iterable<string, array{bool}> */
@@ -942,6 +1019,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
         $routes->add('magazine-chapter', '/magazine/{mag}/chapter/{slug}');
         $routes->add('bookshelf_directory_publish', '/api/bookshelf/directory');
         $routes->add('bookshelf_directory_references', '/bookshelf/my-books/references');
+        $routes->add('bookshelf_my_books_local_fallback', '/bookshelf/my-books');
         $routes->add('reading_nook_follow_pack_members', '/reading-nook/follow-packs/{eventId}/members');
         $routes->add('reading_nook_bookmark_references', '/reading-nook/bookmarks/{eventId}/references');
         $routes->add('reading_nook_publication_toc', '/reading-nook/publication-indexes/{eventId}/toc');

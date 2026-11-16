@@ -1652,6 +1652,8 @@ reading_nook:
     inventory_retry: 'Try again'
     drive:
         title: 'My Drive'
+        my_books: 'My Books directory'
+        my_books_summary: 'Books saved in your Bookshelf directory.'
         directory: 'Directory'
         read_only: 'Read-only view'
         back: 'Back to Reading Nook'

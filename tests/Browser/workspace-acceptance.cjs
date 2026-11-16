@@ -174,6 +174,63 @@ async function runViewport(browser, label, viewport) {
   }
 }
 
+async function inventoryPresentation(browser) {
+  const { context, page } = await newPage(browser, { width: 1440, height: 900 });
+  try {
+    await check('inventory presentation, filters and responsive themes', async () => {
+      await loadNook(page);
+      assert.equal(await page.locator('.reading-nook-heading h1').innerText(), 'Reading Nook');
+      assert.equal(await page.locator('.reading-nook-row--head').count(), 0);
+      assert.equal(await page.locator('.reading-nook-tabs a[aria-current="page"]').count(), 1);
+      assert.equal(await page.locator('.reading-nook-toolbar br').count(), 0);
+      for (const width of [360, 768, 1024, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const theme of ['light', 'dark', 'space']) {
+          await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+          const dimensions = await page.evaluate(() => {
+            const rect = selector => {
+              const { left, right, width, height } = document.querySelector(selector).getBoundingClientRect();
+              return { left, right, width, height };
+            };
+            return {
+              viewport: document.documentElement.clientWidth,
+              document: document.documentElement.scrollWidth,
+              search: rect('.reading-nook-search'),
+              timespan: rect('#nook-timespan'),
+              tag: rect('#nook-tag'),
+              row: rect('.reading-nook-row'),
+              menu: rect('.reading-nook-menu > summary'),
+            };
+          });
+          assert.ok(dimensions.document <= dimensions.viewport + 1, JSON.stringify(dimensions));
+          for (const name of ['search', 'timespan', 'tag', 'row', 'menu']) {
+            assert.ok(dimensions[name].left >= -1 && dimensions[name].right <= width + 1, JSON.stringify(dimensions));
+          }
+          assert.ok(dimensions.search.height <= 56, JSON.stringify(dimensions));
+          assert.ok(dimensions.row.width >= 240, JSON.stringify(dimensions));
+        }
+      }
+
+      await page.locator('#nook-search').fill('Synthetic root');
+      await page.locator('#nook-tag').selectOption('fixture');
+      await page.locator('.reading-nook-toolbar button[type="submit"]').click();
+      await page.waitForURL(/q=Synthetic\+root/);
+      assert.equal(await page.locator('.reading-nook-row').count(), 1);
+      assert.equal(await page.locator('#nook-tag').inputValue(), 'fixture');
+      await page.locator('.reading-nook-tabs a[href*="section=reading_lists"]').click();
+      await page.waitForURL(/section=reading_lists/);
+      assert.equal(await page.locator('#nook-search').inputValue(), 'Synthetic root');
+      assert.equal(await page.locator('#nook-tag').inputValue(), 'fixture');
+      await page.locator('.reading-nook-toolbar__clear').click();
+      await page.waitForURL(/\/reading-nook$/);
+      assert.equal(await page.locator('#nook-search').inputValue(), '');
+      assert.equal(await page.locator('#nook-tag').inputValue(), '');
+    });
+  } finally {
+    await context.close();
+  }
+}
+
 async function members(browser) {
   const { context, page } = await newPage(browser, { width: 1440, height: 900 });
   try {
@@ -327,6 +384,7 @@ async function snapshotRevocation(browser) {
   try {
     await runViewport(browser, 'desktop', { width: 1440, height: 900 });
     await runViewport(browser, 'mobile', { width: 390, height: 844 });
+    await inventoryPresentation(browser);
     await members(browser);
     await concurrency(browser);
     await snapshotRevocation(browser);

@@ -1278,6 +1278,8 @@ reading_nook:
     inventory_retry: 'Poskusi znova'
     drive:
         title: 'Moj pogon'
+        my_books: 'Imenik Moje knjige'
+        my_books_summary: 'Knjige, shranjene v tvojem imeniku Bookshelf.'
         directory: 'Imenik'
         read_only: 'Pogled samo za branje'
         back: 'Nazaj v Reading Nook'

@@ -122,7 +122,7 @@ if (PHP_SAPI === 'cli') {
             'pubkey' => $author,
             'content' => $kind === 30041 ? 'Synthetic chapter body' : '',
             'created_at' => 1700000000,
-            'tags' => json_encode([['d', $d], ['title', $title], ...$references], JSON_THROW_ON_ERROR),
+            'tags' => json_encode([['d', $d], ['title', $title], ...($id === $root ? [['t', 'fixture']] : []), ...$references], JSON_THROW_ON_ERROR),
             'sig' => str_repeat('0', 128),
             'd_tag' => $d,
         ]);

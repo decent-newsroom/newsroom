@@ -1,7 +1,7 @@
 # Bookshelf Local Relay and API Fallback
 
 The separate directory-reference disclosure uses the shared native lazy shell in
-My Books and, once per page, Reading Nook. Both use the same local-only owner
+My Books and, at most once per page beside drives, Reading Nook. Both use the same local-only owner
 endpoint. `EVENT_WORKSPACE_EXPANSION_ENABLED` defaults to `true`; setting it to
 `false` hides these disclosures and returns 404 from
 `/bookshelf/my-books/references`, without gating My Books, reader, or directory

@@ -1,7 +1,7 @@
 # Reading Nook
 
 The shared lazy disclosure shell also exposes the existing owner-only Bookshelf
-directory references once per Reading Nook page, without adding them to inventory
+directory references at most once per Reading Nook page, without adding them to inventory
 filters/counts or querying them until opened. `EVENT_WORKSPACE_EXPANSION_ENABLED`
 defaults to `true`; setting it to `false` hides workspace disclosures and returns
 404 from their fragment endpoints, including nested TOCs. Ordinary inventory and
@@ -44,18 +44,26 @@ to use the main `/my-interests` editor.
 
 ## UI Layout
 
-- **Section tabs** show counts for all items and each collection type.
-- **Filters** provide search, timespan, and tag controls.
+- **Collection navigation** shows counts for all items and each collection type;
+  search, timespan, and tag filters keep their current values when changing
+  sections. Popular tags are also available beside the filters on every screen
+  size.
 - **Pagination** shows 25 authorized inventory rows per page; section counts
   and tag facets are calculated from the authorized inventory. Access checks
   run in bounded batches; an unavailable policy lookup produces an error
   rather than an incomplete or misleading empty inventory.
-- **Inventory rows** show the section, kind, date, and available counts, with an
-  action menu for opening or managing the item. Kind `39089` follow packs have
-  a separate member disclosure, and kinds `10003`/`30003` have a bookmark
-  disclosure; title links and the Open/Manage menu retain their existing
-  behavior.
-- **Contextual aside** shows totals, section links, and popular tags.
+- **Inventory rows** use a single readable layout rather than a multi-column
+  table, with a title, optional summary and tags, section, kind or subscription
+  type, date, available counts, and an action menu for opening or managing the
+  item. Kind `39089` follow packs, kinds `10003`/`30003` bookmarks, and kind
+  `30040` publication indexes retain their separate lazy disclosures; title
+  links and the Open/Manage menu retain their existing behavior.
+- **Saved directory references** (the owner's Bookshelf "My Books" kind
+  `30045` directory) appear in their own lazy "My Books directory" entry next
+  to the first drive row on the page, or on unfiltered page 1 of the all/drives
+  views when no drive is shown. This separate entry does not imply the
+  directory is mounted in that drive. It appears at most once per page and is
+  not included in inventory counts or filters.
 
 Together with [My Content](../Newsroom/my-content-page.md), this inventory is
 the starting point for the [expandable event workspace](event-workspace-iteration-plan.md).

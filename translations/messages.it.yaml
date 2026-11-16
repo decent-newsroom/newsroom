@@ -912,6 +912,8 @@ reading_nook:
     inventory_retry: 'Riprova'
     drive:
         title: 'Il mio drive'
+        my_books: 'Directory I miei libri'
+        my_books_summary: 'Libri salvati nella tua directory Bookshelf.'
         directory: 'Directory'
         read_only: 'Visualizzazione in sola lettura'
         back: 'Torna a Reading Nook'

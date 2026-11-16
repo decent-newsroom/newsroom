@@ -1289,6 +1289,8 @@ reading_nook:
     inventory_retry: 'Erneut versuchen'
     drive:
         title: 'Mein Laufwerk'
+        my_books: 'Verzeichnis „Meine Bücher“'
+        my_books_summary: 'In deinem Bookshelf-Verzeichnis gespeicherte Bücher.'
         directory: 'Verzeichnis'
         read_only: 'Schreibgeschützte Ansicht'
         back: 'Zurück zum Leseraum'

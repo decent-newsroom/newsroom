@@ -2,6 +2,8 @@
 
 ## v0.1.0
 
+- [Improvement] Redesign Reading Nook as a responsive editorial library with clearer collection rows, filters, and lazy disclosures; fix the missing drive icon.
+- [Improvement] Move Reading Nook's saved directory references from the top of the page into the drives section.
 - [Feature] Show featured follow-pack writers as profile-card carousels between home stream entries.
 - [Feature] Unified public and signed-in home discovery and author profiles into paginated mixed-content streams without tabs, with stable workspace navigation and editorial shared previews.
 - [Improvement] Applied pending Rector cleanups across PHP application and test code.
