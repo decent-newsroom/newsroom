@@ -14,4 +14,8 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 final class EventPreview
 {
     public EventPresentation $presentation;
+    /** Callers hiding this heading must render their own sensitivity-aware label. */
+    public bool $showHeading = true;
+    public bool $showByline = true;
+    public bool $showAuthorDetails = true;
 }

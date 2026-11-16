@@ -1,17 +1,39 @@
 {% extends '@Bookshelf/bookshelf-layout.html.twig' %}
 
-{% block title %}{{ 'bookshelf.publication.index'|trans }} | {{ 'bookshelf.heading'|trans }}{% endblock %}
+{% if presentation.isSensitive or presentation.hasContentWarning %}
+    {% set indexTitle = 'event_workspace.preview.sensitive'|trans %}
+{% elseif presentation.title is null %}
+    {% set indexTitle = 'event_workspace.preview.untitled'|trans %}
+{% else %}
+    {% set indexTitle = presentation.title %}
+{% endif %}
+
+{% block title %}{{ indexTitle }} | {{ 'bookshelf.heading'|trans }}{% endblock %}
 
 {% block body %}
     <section class="bookshelf-publication">
         <a class="bookshelf-publication__back" href="{{ path('bookshelf') }}">{{ 'bookshelf.back'|trans }}</a>
-        <h1>{{ 'bookshelf.publication.index'|trans }}</h1>
-        <twig:Molecules:EventPreview :presentation="presentation" />
+        <h1 class="break-word">{{ indexTitle }}</h1>
+        <p class="bookshelf-publication__publisher">
+            {{ 'text.byline'|trans }}
+            {% if presentation.authorNpub is not null %}
+                <twig:Molecules:UserFromNpub :ident="presentation.authorNpub" :user="authorMetadata" />
+            {% else %}
+                {{ 'text.unknown'|trans }}
+            {% endif %}
+        </p>
+        <twig:Molecules:EventPreview
+            :presentation="presentation"
+            :showHeading="false"
+            :showByline="false"
+            :showAuthorDetails="false"
+        />
         {% if isBook %}
             <a class="btn btn-secondary btn-sm" href="{{ path('bookshelf_read_native_fallback', {id: presentation.eventId}) }}">{{ 'bookshelf.read_this_book'|trans }}</a>
         {% endif %}
+        {% include 'bookshelf/_containing_indexes.html.twig' with {containingIndexes: containingIndexes} only %}
         <section class="bookshelf-publication__chapters" aria-labelledby="bookshelf-index-contents">
-            <h2 id="bookshelf-index-contents">{{ 'bookshelf.publication.chapters'|trans }}</h2>
+            <h2 id="bookshelf-index-contents">{{ tocHeading|trans }}</h2>
             {% include 'reader/reading_nook/_publication_toc.html.twig' %}
         </section>
     </section>

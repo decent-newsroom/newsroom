@@ -419,6 +419,12 @@ bookshelf:
         description: 'Porta il catalogo con te. L''app Android legge le stesse pubblicazioni Nostr sul tuo telefono.'
         zapstore: 'Scaricalo su Zapstore'
         releases: 'Scarica dalle release su GitHub'
+    publication:
+        articles: 'Articoli'
+        contents: 'Contenuti'
+        featured_article: 'Articolo in evidenza'
+        article_reference: 'Riferimento all’articolo: %identifier%'
+        indexes: 'Indici'
 
 # ── Discover / Search page ────────────────────────────────────────
 discover:

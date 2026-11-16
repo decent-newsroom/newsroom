@@ -539,6 +539,11 @@ bookshelf:
     publication:
         details: 'Publication details'
         chapters: 'Chapters'
+        articles: 'Articles'
+        contents: 'Contents'
+        featured_article: 'Featured article'
+        article_reference: 'Article reference: %identifier%'
+        indexes: 'Indexes'
         eyebrow: 'Nostr publication'
         index: 'Publication index'
         index_description: 'Metadata and chapter references published with this book.'

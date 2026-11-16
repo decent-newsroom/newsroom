@@ -24,6 +24,8 @@ final readonly class BookContainingIndexes
     ) {}
 
     /**
+     * Find local parents of any kind-30040 publication index, including books.
+     *
      * @param list<string> $mutedPubkeys
      * @return list<array{title: string, eventId: string}>
      */
@@ -54,16 +56,19 @@ final readonly class BookContainingIndexes
             $parents,
         ))));
         $deleted = $this->deletions->findSuppressedEventIds($parents);
+        $mutedPubkeys = array_map('strtolower', $mutedPubkeys);
         $result = [];
         foreach ($parents as $parent) {
-            if (EventWorkspaceScopePolicy::isScopedTarget($parent->getKind(), $parent->getTags())) {
+            if (preg_match('/^[0-9a-f]{64}$/D', $parent->getId()) !== 1
+                || EventWorkspaceScopePolicy::isScopedTarget($parent->getKind(), $parent->getTags())) {
                 continue;
             }
             $presentation = $this->presentations->fromAuthorizedEvent($parent);
+            $parentPubkey = strtolower($parent->getPubkey());
             if ($presentation->coordinate === null
-                || in_array($parent->getPubkey(), $suppressed, true)
-                || in_array($parent->getPubkey(), $mutedPubkeys, true)
-                || in_array($parent->getId(), $deleted, true)
+                || in_array($parentPubkey, $suppressed, true)
+                || in_array($parentPubkey, $mutedPubkeys, true)
+                || in_array(strtolower($parent->getId()), $deleted, true)
                 || $this->hidden->isHidden($presentation->coordinate)
                 || $presentation->isSensitive) {
                 continue;
@@ -71,7 +76,7 @@ final readonly class BookContainingIndexes
             foreach ($presentation->references as $reference) {
                 if ($reference->tagName !== 'a' || $reference->target !== $identity
                     || $reference->status !== EventReferenceStatus::Unresolved
-                    || ($reference->versionEventId !== null && $reference->versionEventId !== $book->getId())) {
+                    || ($reference->versionEventId !== null && $reference->versionEventId !== strtolower($book->getId()))) {
                     continue;
                 }
                 $result[] = [

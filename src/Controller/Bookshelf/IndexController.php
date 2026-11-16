@@ -4,7 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller\Bookshelf;
 
+use App\Bookshelf\BookContainingIndexes;
 use App\Bookshelf\BookshelfIndexSource;
+use App\Dto\EventWorkspace\EventPresentation;
+use App\Dto\EventWorkspace\EventReferenceRole;
+use App\Dto\UserMetadata;
+use App\Repository\EventRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
@@ -30,6 +36,9 @@ final class IndexController extends AbstractController
         private readonly PublicationTocPage $pages,
         private readonly PublicationTocTraversalSigner $signer,
         private readonly UserMuteListService $muteList,
+        private readonly EventRepository $events,
+        private readonly RedisCacheService $profileCache,
+        private readonly BookContainingIndexes $containingIndexes,
         #[Autowire('%env(bool:EVENT_WORKSPACE_EXPANSION_ENABLED)%')]
         private readonly bool $expansionEnabled = true,
     ) {}
@@ -39,14 +48,26 @@ final class IndexController extends AbstractController
     {
         $muted = $this->mutedPubkeys();
         $event = $this->sources->read($eventId, $muted);
+        $pubkey = strtolower($event->getPubkey());
+        $metadataEvent = $this->events->findLatestMetadataByPubkey($pubkey);
+        $authorMetadata = $metadataEvent === null
+            ? $this->profileCache->getMetadata($pubkey, refreshOnMiss: false)
+            : UserMetadata::fromMetadataEvent($metadataEvent);
+        $presentation = $this->presentations->fromAuthorizedEvent($event);
+        $tocPage = $this->pages->fromAuthorizedEvent(
+            $event, $this->pageNumber($request), routeName: 'bookshelf_index',
+            readerMutedPubkeys: $muted, separateFeaturedArticle: true,
+        );
 
         return $this->render('bookshelf/index.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
-            'presentation' => $this->presentations->fromAuthorizedEvent($event),
+            'presentation' => $presentation,
+            'authorMetadata' => $authorMetadata->toStdClass(),
+            'tocHeading' => $tocPage['featuredEntry'] === null
+                ? $this->tocHeading($presentation) : 'bookshelf.publication.contents',
             'isBook' => $classifier->isBook($event->getTags()),
-            'tocPage' => $this->pages->fromAuthorizedEvent(
-                $event, $this->pageNumber($request), routeName: 'bookshelf_index', readerMutedPubkeys: $muted,
-            ),
+            'containingIndexes' => $this->containingIndexes->forBook($event, $muted),
+            'tocPage' => $tocPage,
             'tocNestedRoute' => 'bookshelf_index_toc',
             'tocBookshelfLinks' => true,
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
@@ -97,6 +118,7 @@ final class IndexController extends AbstractController
         return $this->render('reader/reading_nook/_publication_toc.html.twig', [
             'tocPage' => $this->pages->fromAuthorizedEvent(
                 $event, $page, $path, $occurrence, 'bookshelf_index_toc', $muted,
+                separateFeaturedArticle: true,
             ),
             'tocNestedRoute' => 'bookshelf_index_toc',
             'tocBookshelfLinks' => true,
@@ -113,6 +135,25 @@ final class IndexController extends AbstractController
         }
 
         return $page;
+    }
+
+    private function tocHeading(EventPresentation $presentation): string
+    {
+        $leafKinds = [];
+        foreach ($presentation->references as $reference) {
+            if ($reference->role !== EventReferenceRole::Content
+                || $reference->targetKind === null
+                || $reference->targetKind === 30040) {
+                continue;
+            }
+            $leafKinds[$reference->targetKind] = true;
+        }
+
+        return match (array_keys($leafKinds)) {
+            [30023] => 'bookshelf.publication.articles',
+            [30041], [] => 'bookshelf.publication.chapters',
+            default => 'bookshelf.publication.contents',
+        };
     }
 
     /** @return list<string> */

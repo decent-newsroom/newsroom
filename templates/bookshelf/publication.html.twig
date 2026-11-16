@@ -81,16 +81,7 @@
         </div>
     </header>
 
-    {% if containingIndexes is not empty %}
-        <section class="bookshelf-publication__details" aria-labelledby="publication-containing-indexes">
-            <h2 id="publication-containing-indexes">{{ 'bookshelf.contained_in_index'|trans }}</h2>
-            <ul>
-                {% for index in containingIndexes %}
-                    <li><a href="{{ path('bookshelf_index', {eventId: index.eventId}) }}">{{ index.title }}</a></li>
-                {% endfor %}
-            </ul>
-        </section>
-    {% endif %}
+    {% include 'bookshelf/_containing_indexes.html.twig' with {containingIndexes: containingIndexes} only %}
 
     {% if metadata is not empty %}
         <section class="bookshelf-publication__details" aria-labelledby="publication-details">

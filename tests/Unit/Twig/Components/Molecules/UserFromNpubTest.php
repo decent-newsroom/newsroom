@@ -58,6 +58,21 @@ class UserFromNpubTest extends TestCase
         self::assertSame($this->npub(), $component->npub);
     }
 
+    public function testProvidedMetadataDoesNotFetchOrDispatch(): void
+    {
+        $cache = $this->createMock(RedisCacheService::class);
+        $cache->expects(self::never())->method('getMetadata');
+        $dispatcher = $this->createMock(ProfileUpdateDispatcher::class);
+        $dispatcher->expects(self::never())->method('dispatch');
+        $metadata = (object) ['display_name' => 'Jane'];
+
+        $component = new UserFromNpub($cache, $dispatcher);
+        $component->mount($this->npub(), $metadata);
+
+        self::assertSame($metadata, $component->user);
+        self::assertSame($this->npub(), $component->npub);
+    }
+
     public function testRejectsNprofileIdentifiers(): void
     {
         $component = new UserFromNpub(

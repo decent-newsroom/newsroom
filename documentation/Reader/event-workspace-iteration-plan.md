@@ -134,7 +134,9 @@ Bookshelf containing-index links also compose the existing public-index preview
 and TOC primitives at an exact-ID Bookshelf route, with independently authorized
 public sources/fragments (not the owner-only Reading Nook endpoints). See
 [Book detail navigation](bookshelf-local-fallback.md#book-detail-navigation)
-for the bounded local-only behavior; generic magazine routing is unchanged.
+for the bounded local-only behavior, including the presentation-only featured
+article grouping. It retains signed occurrence identities and does not alter
+Reading Nook's ordered TOC; generic magazine routing is unchanged.
 
 ### Shipped bounded shared target preview slice
 

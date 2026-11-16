@@ -65,10 +65,11 @@ class RedisCacheService
 
     /**
      * @param string $pubkey Hex-encoded public key
+     * @param bool $refreshOnMiss Schedule a profile refresh when local metadata is unavailable
      * @return UserMetadata
      * @throws InvalidArgumentException
      */
-    public function getMetadata(string $pubkey): UserMetadata
+    public function getMetadata(string $pubkey, bool $refreshOnMiss = true): UserMetadata
     {
         if (PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) === null) {
             throw new \InvalidArgumentException('getMetadata expects hex pubkey');
@@ -109,12 +110,14 @@ class RedisCacheService
             $this->logger->error('Error fetching user from database.', ['exception' => $e, 'pubkey' => substr($pubkey, 0, 8)]);
         }
 
-        // No data in cache or database: dispatch async fetch (throttled)
-        try {
-            $this->profileUpdateDispatcher->dispatch($pubkey);
-            $this->logger->debug('Dispatched async profile fetch for cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
-        } catch (\Throwable $e) {
-            $this->logger->error('Error dispatching async profile fetch.', ['exception' => $e]);
+        if ($refreshOnMiss) {
+            // No data in cache or database: dispatch async fetch (throttled)
+            try {
+                $this->profileUpdateDispatcher->dispatch($pubkey);
+                $this->logger->debug('Dispatched async profile fetch for cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
+            } catch (\Throwable $e) {
+                $this->logger->error('Error dispatching async profile fetch.', ['exception' => $e]);
+            }
         }
 
         // Return default metadata immediately (non-blocking)

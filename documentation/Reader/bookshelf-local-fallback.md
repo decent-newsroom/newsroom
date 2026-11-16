@@ -53,28 +53,47 @@ continuous reader for the displayed book's exact event ID. Chapter links remain
 available. A "Contained in index" section lists locally known current kind
 `30040` indexes referencing that book coordinate, excluding mismatched version
 pins, hidden/deleted indexes, suppressed or reader-muted authors, and sensitive
-metadata. Parent discovery inspects at most the 50 newest local referencing
-events (lowest event ID first on timestamp ties), rather than the oldest; no
-remote discovery is added. Links now open `/bookshelf/index/{eventId}` with the
-displayed parent's exact local revision, not the generic NIP-19 route (which
-may classify an index as a magazine). Same-slug authors and old pinned revisions
+metadata. The same section appears on `/bookshelf/index/{eventId}` so readers
+can navigate up through locally known parent indexes. It uses the displayed
+index's exact event ID when checking version pins, and is omitted when no
+readable parent is found. Parent discovery inspects at most the 50 newest local
+referencing events (lowest event ID first on timestamp ties) and checks each
+parent's current local revision; links removed from that revision are not shown.
+No remote discovery is added. Links open `/bookshelf/index/{eventId}` with the
+displayed parent's exact local revision, not the generic NIP-19 route (which may
+classify an index as a magazine). Same-slug authors and old pinned revisions
 remain distinct. Existing magazine classification/routes and slug-based book
 detail chapter/actions are unchanged.
 
-This public Bookshelf index viewer composes the shared tag-only event preview
-and ordered TOC. Books retain the exact-ID continuous-reader link. Each TOC
-page resolves at most 50 local nested-index occurrences; ordinary chapter
-references remain visible without loading bodies. Nested indexes have a
+This public Bookshelf index viewer shows the tag-derived publication title as
+the page heading and links its author to their profile, using locally stored
+kind `0` metadata or cached profile data for the display name and a shortened
+identifier when unavailable. Sensitive titles remain hidden. It composes the
+shared tag-only event preview and ordered TOC. Books retain the exact-ID
+continuous-reader link. TOC headings distinguish Article-only leaves,
+chapter-only leaves, and mixed or other content. Each TOC page resolves at
+most 50 local nested-index occurrences; leaf references remain visible
+without loading bodies. Nested indexes have a
 Bookshelf detail link and an explicit lazy disclosure using
 `/bookshelf/index/{eventId}/toc`, never the owner-only Reading Nook endpoints.
-Source order, duplicates, unresolved references, raw pins, and full coordinates
-are preserved. Exact pins never fall back to latest or a different author.
+When the signed index has exactly one kind `30023` content occurrence and at
+least one kind `30040` occurrence, with no other or malformed content
+addresses, Bookshelf separates that article reference above an Indexes section.
+This also applies inside nested Bookshelf index disclosures. The featured
+reference appears on each page, with at most 49 index occurrences below it,
+so the 50-occurrence limit remains intact even when the article occurs later in
+the signed tags. Non-content tags do not affect the split. Original source
+positions, remaining index order, duplicates, unresolved references, raw pins,
+and full coordinates are preserved; an invalid pin stays visible as invalid.
+Other TOCs, including Reading Nook, retain their original ordering and 50-row
+pages. Exact pins never fall back to latest or a different author.
 
 Every page/fragment allows only locally stored public kind `30040` Events,
 checking hidden coordinates, reader mutes, author suppression, and NIP-09
 deletion before exposing source data. Signed fragment ancestry is also
-re-authorized on each request. No Article/draft lookup, relay fetch, body
-conversion, profile fetch, or write occurs. Sensitive preview metadata stays
+re-authorized on each request. Author metadata is read locally; no
+Article/draft lookup, relay or profile fetch, body conversion, or write occurs.
+Sensitive preview metadata stays
 gated by the shared preview/TOC primitives. Responses are private/no-store.
 Nested state uses the existing HMAC traversal signer, occurrence-specific
 frame IDs, path-local cycle detection, six-level depth limit, and 50-row

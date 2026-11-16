@@ -2,7 +2,7 @@
 {# Reference identity is always the source's original occurrence. #}
 <strong>
     {% if reference.targetIdentifier is not null and reference.targetIdentifier != '' %}
-        {{ (reference.targetKind == 30040 ? 'reading_nook.toc.index_reference' : 'reading_nook.toc.section_reference')|trans({'%identifier%': reference.targetIdentifier}) }}
+        {{ tocEntryLabel|default(reference.targetKind == 30040 ? 'reading_nook.toc.index_reference' : 'reading_nook.toc.section_reference')|trans({'%identifier%': reference.targetIdentifier}) }}
     {% else %}
         {{ 'reading_nook.toc.reference'|trans }}
     {% endif %}

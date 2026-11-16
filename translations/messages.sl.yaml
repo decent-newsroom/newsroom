@@ -506,6 +506,11 @@ bookshelf:
     publication:
         details: 'Podrobnosti publikacije'
         chapters: 'Poglavja'
+        articles: 'Članki'
+        contents: 'Vsebina'
+        featured_article: 'Izpostavljeni članek'
+        article_reference: 'Sklic na članek: %identifier%'
+        indexes: 'Kazala'
         eyebrow: 'Publikacija Nostr'
         index: 'Kazalo publikacije'
         index_description: 'Metapodatki in sklici na poglavja te knjige.'

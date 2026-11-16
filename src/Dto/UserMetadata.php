@@ -163,7 +163,9 @@ class UserMetadata
 
         // Handle array values (from Nostr tags)
         if (is_array($value)) {
-            return !empty($value) ? (string)$value[0] : null;
+            $first = $value[0] ?? null;
+
+            return is_scalar($first) ? (string) $first : null;
         }
 
         // Handle string values

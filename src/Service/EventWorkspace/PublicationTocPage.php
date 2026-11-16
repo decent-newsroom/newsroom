@@ -40,11 +40,14 @@ final readonly class PublicationTocPage
     ) {}
 
     /**
+     * The optional featured split promotes the only 30023 occurrence among
+     * 30040 indexes as a reference and reserves one display slot on every page.
+     *
      * @return array{
      *     eventId: string, page: int, start: int, frameId: string,
      *     path: list<string>, occurrenceId: ?string, routeName: string,
      *     coordinate: string, pageSignatures: array{previous: ?string, next: ?string},
-     *     entries: list<array<string, mixed>>,
+     *     featuredEntry: ?array<string, mixed>, entries: list<array<string, mixed>>,
      *     hasNext: bool, hasPrevious: bool
      * }
      * @param list<string> $ancestorEventIds
@@ -58,6 +61,7 @@ final readonly class PublicationTocPage
         string $routeName = 'reading_nook_publication_toc',
         array $readerMutedPubkeys = [],
         ?int $resolutionPosition = null,
+        bool $separateFeaturedArticle = false,
     ): array
     {
         if ($event->getKind() !== KindsEnum::PUBLICATION_INDEX->value || $page < 1) {
@@ -74,6 +78,15 @@ final readonly class PublicationTocPage
         $source = $this->sources->fromOwnedCollectionEvent($event);
         $eventPath = [...$ancestorEventIds, strtolower($event->getId())];
         $coordinate = $this->coordinateFromEvent($event);
+        $references = $separateFeaturedArticle ? $this->presentations->fromAuthorizedEvent($event)->references : null;
+        $featured = $references === null ? null : $this->featuredArticle($references);
+        $pageSize = self::PAGE_SIZE - ($featured === null ? 0 : 1);
+        $tags = null;
+        $featuredEntry = null;
+        if ($featured !== null) {
+            $tags = array_values($source->getRawTags() ?? []);
+            $featuredEntry = $this->entry($featured, $tags[$featured->position]);
+        }
         $result = [
             'eventId' => $source->eventId,
             'page' => $page,
@@ -95,47 +108,39 @@ final readonly class PublicationTocPage
                     : null,
                 'next' => null,
             ],
+            'featuredEntry' => $featuredEntry,
             'entries' => [],
             'hasNext' => false,
             'hasPrevious' => $page > 1,
         ];
         // Also keep the displayed ordinal within the integer range.
-        if ($page - 1 > intdiv(PHP_INT_MAX - 1, self::PAGE_SIZE)) {
+        if ($page - 1 > intdiv(PHP_INT_MAX - 1, $pageSize)) {
+            if ($featuredEntry !== null) {
+                $status = $featuredEntry['invalidVersionPin'] ? 'invalid' : $featuredEntry['reference']->status->value;
+                $this->metrics?->resolution($status);
+            }
             return $result;
         }
-        $offset = ($page - 1) * self::PAGE_SIZE;
+        $offset = ($page - 1) * $pageSize;
         $result['start'] = $offset + 1;
-        $tags = array_values($source->getRawTags() ?? []);
+        $tags ??= array_values($source->getRawTags() ?? []);
+        $references ??= $this->presentations->fromAuthorizedEvent($event)->references;
         $index = 0;
-        foreach ($this->presentations->fromAuthorizedEvent($event)->references as $reference) {
+        foreach ($references as $reference) {
             // NKBIP-01 ordering belongs to kind 30040 a tags, not e/E/p tags.
-            if ($reference->role !== EventReferenceRole::Content) {
+            if ($reference->role !== EventReferenceRole::Content
+                || ($featured !== null && $reference->position === $featured->position)) {
                 continue;
             }
             if ($index++ < $offset) {
                 continue;
             }
-            if (count($result['entries']) === self::PAGE_SIZE) {
+            if (count($result['entries']) === $pageSize) {
                 $result['hasNext'] = true;
                 break;
             }
 
-            $tag = $tags[$reference->position];
-            $hasPin = array_key_exists(3, $tag) && $tag[3] !== '';
-            $result['entries'][] = [
-                'reference' => $reference,
-                // Retain malformed pins too; never reinterpret one as "latest".
-                'rawVersionPin' => is_string($tag[3] ?? null) ? $tag[3] : null,
-                'invalidVersionPin' => $hasPin && $reference->versionEventId === null,
-                'targetResolution' => null,
-                'target' => null,
-                'chapterPreviewOccurrenceId' => null,
-                'chapterPreviewSignature' => null,
-                'cycle' => false,
-                'depthLimited' => false,
-                'nestedPath' => null,
-                'nestedOccurrenceId' => null,
-            ];
+            $result['entries'][] = $this->entry($reference, $tags[$reference->position]);
         }
 
         $this->resolveNestedIndexes($result['entries'], $eventPath, $occurrenceId, $readerMutedPubkeys, $resolutionPosition);
@@ -156,13 +161,65 @@ final readonly class PublicationTocPage
             );
         }
 
-        foreach ($result['entries'] as $entry) {
+        $displayedEntries = $result['entries'];
+        if ($result['featuredEntry'] !== null) {
+            array_unshift($displayedEntries, $result['featuredEntry']);
+        }
+        foreach ($displayedEntries as $entry) {
             $status = $entry['targetResolution']
                 ?? ($entry['invalidVersionPin'] ? 'invalid' : $entry['reference']->status->value);
             $this->metrics?->resolution($status);
         }
 
         return $result;
+    }
+
+    /** @param list<EventReference> $references */
+    private function featuredArticle(array $references): ?EventReference
+    {
+        $featured = null;
+        $hasIndex = false;
+        foreach ($references as $reference) {
+            if ($reference->role !== EventReferenceRole::Content) {
+                continue;
+            }
+            if ($reference->targetKind === KindsEnum::LONGFORM->value) {
+                if ($featured !== null) {
+                    return null;
+                }
+                $featured = $reference;
+            } elseif ($reference->targetKind === KindsEnum::PUBLICATION_INDEX->value) {
+                $hasIndex = true;
+            } else {
+                return null;
+            }
+        }
+
+        return $hasIndex ? $featured : null;
+    }
+
+    /**
+     * @param array<array-key, mixed> $tag
+     * @return array<string, mixed>
+     */
+    private function entry(EventReference $reference, array $tag): array
+    {
+        $hasPin = array_key_exists(3, $tag) && $tag[3] !== '';
+
+        return [
+            'reference' => $reference,
+            // Retain malformed pins too; never reinterpret one as "latest".
+            'rawVersionPin' => is_string($tag[3] ?? null) ? $tag[3] : null,
+            'invalidVersionPin' => $hasPin && $reference->versionEventId === null,
+            'targetResolution' => null,
+            'target' => null,
+            'chapterPreviewOccurrenceId' => null,
+            'chapterPreviewSignature' => null,
+            'cycle' => false,
+            'depthLimited' => false,
+            'nestedPath' => null,
+            'nestedOccurrenceId' => null,
+        ];
     }
 
     /**

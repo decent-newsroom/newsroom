@@ -21,30 +21,34 @@
             {{ 'event_workspace.preview.kind'|trans({'%kind%': presentation.kind})|e }}
         {% endif %}
     </p>
-    {% if presentation.isSensitive or presentation.hasContentWarning %}
-        <p class="event-preview__sensitive">{{ 'event_workspace.preview.sensitive'|trans|e }}</p>
-    {% else %}
-        <p class="event-preview__title break-word">
-            {% if presentation.title is null %}
-                {{ 'event_workspace.preview.untitled'|trans|e }}
-            {% else %}
-                {{ presentation.title|e }}
-            {% endif %}
-        </p>
+    {% if showHeading is not defined or showHeading %}
+        {% if presentation.isSensitive or presentation.hasContentWarning %}
+            <p class="event-preview__sensitive">{{ 'event_workspace.preview.sensitive'|trans|e }}</p>
+        {% else %}
+            <p class="event-preview__title break-word">
+                {% if presentation.title is null %}
+                    {{ 'event_workspace.preview.untitled'|trans|e }}
+                {% else %}
+                    {{ presentation.title|e }}
+                {% endif %}
+            </p>
+        {% endif %}
     {% endif %}
 
-    <p class="event-preview__byline">
-        <span>{{ 'text.byline'|trans|e }}</span>
-        <span class="event-preview__author-short">
-            {% if author|trim is same as('') %}
-                {{ 'text.unknown'|trans|e }}
-            {% elseif author|length > 24 %}
-                {{ author|slice(0, 12)|e }}…{{ author|slice(-6)|e }}
-            {% else %}
-                {{ author|e }}
-            {% endif %}
-        </span>
-    </p>
+    {% if showByline is not defined or showByline %}
+        <p class="event-preview__byline">
+            <span>{{ 'text.byline'|trans|e }}</span>
+            <span class="event-preview__author-short">
+                {% if author|trim is same as('') %}
+                    {{ 'text.unknown'|trans|e }}
+                {% elseif author|length > 24 %}
+                    {{ author|slice(0, 12)|e }}…{{ author|slice(-6)|e }}
+                {% else %}
+                    {{ author|e }}
+                {% endif %}
+            </span>
+        </p>
+    {% endif %}
 
     {% if not presentation.isSensitive and not presentation.hasContentWarning and presentation.description is not null %}
         <p class="event-preview__description break-word">{{ presentation.description|e }}</p>
@@ -62,10 +66,12 @@
                     {{ presentation.eventId|e }}
                 {% endif %}
             </dd>
-            <dt>{{ 'event_workspace.preview.author'|trans|e }}</dt>
-            <dd class="event-preview__author break-word">
-                {{ author|trim is same as('') ? 'text.unknown'|trans|e : author|e }}
-            </dd>
+            {% if showAuthorDetails is not defined or showAuthorDetails %}
+                <dt>{{ 'event_workspace.preview.author'|trans|e }}</dt>
+                <dd class="event-preview__author break-word">
+                    {{ author|trim is same as('') ? 'text.unknown'|trans|e : author|e }}
+                </dd>
+            {% endif %}
         </dl>
     </details>
 </div>

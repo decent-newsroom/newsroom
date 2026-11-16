@@ -696,14 +696,14 @@ final class EventMemberDisclosureTest extends KernelTestCase
 
         $identities = new RecordIdentityService();
         $events = $this->createMock(EventRepository::class);
-        $events->expects(self::once())
+        $events->expects(self::exactly(2))
             ->method('findPublicationIndexTargets')
             ->with([$coordinate, $coordinate], [])
             ->willReturn(['coordinates' => [$coordinate => $child], 'eventIds' => []]);
         $access = $this->createMock(ContentAuthorAccessPolicy::class);
-        $access->expects(self::once())->method('suppressedPubkeys')->with([$author])->willReturn([]);
+        $access->expects(self::exactly(2))->method('suppressedPubkeys')->with([$author])->willReturn([]);
         $deletions = $this->createMock(DeletedEventRepository::class);
-        $deletions->expects(self::once())->method('findSuppressedEventIds')->with([$child])->willReturn([]);
+        $deletions->expects(self::exactly(2))->method('findSuppressedEventIds')->with([$child])->willReturn([]);
         $pages = new PublicationTocPage(
             new EventWorkspaceSourceAdapter($identities),
             new EventPresentationFactory($identities, new NostrNip19Service()),
@@ -741,7 +741,10 @@ final class EventMemberDisclosureTest extends KernelTestCase
         // Reading Nook's authenticated owner-only fragment URLs.
         $twig = self::getContainer()->get('twig');
         $twig->setLoader(new ChainLoader([
-            new ArrayLoader(['@Bookshelf/bookshelf-layout.html.twig' => '{% block body %}{% endblock %}']),
+            new ArrayLoader([
+                '@Bookshelf/bookshelf-layout.html.twig' => '{% block body %}{% endblock %}',
+                'components/Molecules/UserFromNpub.html.twig' => '{% props ident, user %}<a href="{{ path("author-profile", {npub: ident}) }}">{{ ident }}</a>',
+            ]),
             $twig->getLoader(),
         ]));
         $page['routeName'] = 'bookshelf_index';
@@ -749,6 +752,9 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $factory = new EventPresentationFactory($identities, new NostrNip19Service());
         $parameters = [
             'presentation' => $factory->fromAuthorizedEvent($source), 'isBook' => false,
+            'authorMetadata' => new \stdClass(),
+            'tocHeading' => 'bookshelf.publication.chapters',
+            'containingIndexes' => [],
             'tocPage' => $page, 'tocNestedRoute' => 'bookshelf_index_toc', 'tocBookshelfLinks' => true,
         ];
         $html = $twig->render('bookshelf/index.html.twig', $parameters);
@@ -770,6 +776,34 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $parameters['isBook'] = true;
         $crawler = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
         self::assertSame('/bookshelf/' . self::ID, $crawler->selectLink('Read this book')->attr('href'));
+
+        $source->setTags([
+            ['d', 'parent'], ['a', $coordinate],
+            ['a', '30023:' . $author . ':featured'], ['a', $coordinate],
+        ]);
+        $parameters['presentation'] = $factory->fromAuthorizedEvent($source);
+        $parameters['isBook'] = false;
+        $parameters['tocHeading'] = 'bookshelf.publication.contents';
+        $parameters['tocPage'] = $pages->fromAuthorizedEvent(
+            $source, routeName: 'bookshelf_index', separateFeaturedArticle: true,
+        );
+        $html = $twig->render('bookshelf/index.html.twig', $parameters);
+        $crawler = new Crawler($html);
+
+        self::assertSame(
+            ['Featured article', 'Indexes'],
+            $crawler->filter('.bookshelf-publication__chapters h3')->each(static fn (Crawler $heading): string => $heading->text()),
+        );
+        self::assertSame(['2', '1', '3'], $crawler->filter('.bookshelf-publication__chapters li')->extract(['data-source-tag-position']));
+        self::assertCount(2, $crawler->selectLink('Open in Bookshelf'));
+        self::assertCount($enabled ? 2 : 0, $crawler->filter('turbo-frame[loading="lazy"]'));
+        foreach ($crawler->filter('turbo-frame[loading="lazy"]') as $frame) {
+            self::assertInstanceOf(\DOMElement::class, $frame);
+            self::assertStringStartsWith('/bookshelf/index/' . $childId . '/toc?', $frame->getAttribute('src'));
+            self::assertStringContainsString('signature=', $frame->getAttribute('src'));
+        }
+        self::assertStringNotContainsString('child body must not render', $html);
+        self::assertStringNotContainsString('private.example', $html);
     }
 
     public function testEmptyTocPageKeepsSafePaginationAtMaximumPage(): void

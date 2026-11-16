@@ -70,6 +70,41 @@ final class EventPreviewTest extends KernelTestCase
         self::assertSame(0, $crawler->filter('img, video, audio, picture, source, iframe')->count());
     }
 
+    public function testHeadingAndBylineCanBeOmittedIndependently(): void
+    {
+        $presentation = $this->presentation();
+        foreach ([
+            [false, true, 0, 1],
+            [true, false, 1, 0],
+            [false, false, 0, 0],
+        ] as [$showHeading, $showByline, $titleCount, $bylineCount]) {
+            $crawler = $this->renderTwigComponent('Molecules:EventPreview', [
+                'presentation' => $presentation,
+                'showHeading' => $showHeading,
+                'showByline' => $showByline,
+            ])->crawler();
+
+            self::assertSame($titleCount, $crawler->filter('.event-preview__title')->count());
+            self::assertSame($bylineCount, $crawler->filter('.event-preview__byline')->count());
+            self::assertSame('Description', $crawler->filter('.event-preview__description')->text());
+            self::assertSame('npub-author', $crawler->filter('.event-preview__author')->text());
+        }
+    }
+
+    public function testAuthorDetailsCanBeOmittedWithoutHidingOtherEventDetails(): void
+    {
+        $crawler = $this->renderTwigComponent('Molecules:EventPreview', [
+            'presentation' => $this->presentation(),
+            'showAuthorDetails' => false,
+        ])->crawler();
+
+        self::assertSame(self::EVENT_ID, $crawler->filter('.event-preview__id')->text());
+        self::assertCount(0, $crawler->filter('.event-preview__author'));
+        self::assertSame(['Event ID'], $crawler->filter('.event-preview__details dt')->each(
+            static fn (Crawler $label): string => $label->text(),
+        ));
+    }
+
     public function testApiSensitiveArticleFragmentContainsOnlyTranslatedWarning(): void
     {
         $html = self::getContainer()->get('twig')->render('event_workspace/_api_sensitive_preview.html.twig');

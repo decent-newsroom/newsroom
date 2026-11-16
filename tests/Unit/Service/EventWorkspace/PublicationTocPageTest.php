@@ -11,6 +11,7 @@ use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventWorkspaceSourceAdapter;
+use App\Service\EventWorkspace\Metrics\WorkspaceMetrics;
 use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
 use App\Service\Graph\RecordIdentityService;
@@ -26,6 +27,7 @@ final class PublicationTocPageTest extends TestCase
         ?DeletedEventRepository $deletions = null,
         ?ContentAuthorAccessPolicy $authorAccess = null,
         ?HiddenCoordinateRepository $hiddenCoordinates = null,
+        ?WorkspaceMetrics $metrics = null,
     ): PublicationTocPage
     {
         $identities = new RecordIdentityService();
@@ -43,6 +45,7 @@ final class PublicationTocPageTest extends TestCase
             $authorAccess ?? $this->createMock(ContentAuthorAccessPolicy::class),
             $hiddenCoordinates ?? $this->createMock(HiddenCoordinateRepository::class),
             new PublicationTocTraversalSigner('test-framework-secret'),
+            $metrics,
         );
     }
 
@@ -508,6 +511,7 @@ final class PublicationTocPageTest extends TestCase
         }
     }
 
+    /** @return iterable<array{int, int, int, bool}> */
     public static function pageCases(): iterable
     {
         yield [0, 1, 0, false];
@@ -523,6 +527,257 @@ final class PublicationTocPageTest extends TestCase
         yield [1, PHP_INT_MAX, 0, false];
     }
 
+    /**
+     * @dataProvider featuredArticleCases
+     * @param list<list<mixed>> $tags
+     * @param list<int> $remainingPositions
+     */
+    public function testFeaturedSplitRequiresOneArticleAndOnlyIndexes(
+        array $tags,
+        ?int $featuredPosition,
+        array $remainingPositions,
+    ): void {
+        $page = $this->pages()->fromAuthorizedEvent($this->event($tags), separateFeaturedArticle: true);
+
+        self::assertSame($featuredPosition, $page['featuredEntry']['reference']->position ?? null);
+        self::assertSame($remainingPositions, array_column(array_column($page['entries'], 'reference'), 'position'));
+    }
+
+    /** @return iterable<string, array{list<list<mixed>>, ?int, list<int>}> */
+    public static function featuredArticleCases(): iterable
+    {
+        $article = '30023:' . str_repeat('b', 64) . ':featured';
+        $index = '30040:' . str_repeat('c', 64) . ':section';
+
+        yield 'article first' => [[['d', 'parent'], ['a', $article], ['a', $index]], 1, [2]];
+        yield 'article after indexes, with non-content tags' => [[
+            ['d', 'parent'], ['e', str_repeat('d', 64)], ['a', $index], ['p', str_repeat('e', 64)],
+            ['a', $article], ['E', str_repeat('f', 64)], ['a', $index],
+        ], 4, [2, 6]];
+        yield 'duplicate articles' => [[['d', 'parent'], ['a', $article], ['a', $index], ['a', $article]], null, [1, 2, 3]];
+        yield 'different articles' => [[
+            ['d', 'parent'], ['a', $article], ['a', $index], ['a', '30023:' . str_repeat('b', 64) . ':other'],
+        ], null, [1, 2, 3]];
+        yield 'article only' => [[['d', 'parent'], ['a', $article]], null, [1]];
+        yield 'indexes only' => [[['d', 'parent'], ['a', $index]], null, [1]];
+        yield 'no content' => [[['d', 'parent'], ['e', str_repeat('d', 64)]], null, []];
+        yield 'chapter also present' => [[
+            ['d', 'parent'], ['a', $article], ['a', $index], ['a', '30041:' . str_repeat('c', 64) . ':chapter'],
+        ], null, [1, 2, 3]];
+        yield 'another kind' => [[
+            ['d', 'parent'], ['a', $article], ['a', $index], ['a', '30045:' . str_repeat('c', 64) . ':directory'],
+        ], null, [1, 2, 3]];
+        yield 'malformed address' => [[['d', 'parent'], ['a', $article], ['a', $index], ['a', 'bad']], null, [1, 2, 3]];
+        yield 'missing address' => [[['d', 'parent'], ['a', $article], ['a', $index], ['a']], null, [1, 2, 3]];
+        yield 'malformed article' => [[['d', 'parent'], ['a', '30023:bad:featured'], ['a', $index]], null, [1, 2]];
+    }
+
+    /**
+     * @dataProvider featuredPinCases
+     */
+    public function testFeaturedReferenceKeepsPinsAndDoesNotResolveArticleTargets(
+        mixed $pin,
+        ?string $expectedRawPin,
+        ?string $expectedVersion,
+        EventReferenceStatus $expectedStatus,
+        bool $invalid,
+    ): void {
+        $coordinate = '30040:' . str_repeat('c', 64) . ':section';
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findPublicationIndexTargets')
+            ->with([$coordinate], [])->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $events->expects(self::never())->method('findWorkspaceDriveArticleTargets');
+        $events->expects(self::never())->method('findWorkspacePreviewTargets');
+        $source = $this->event([
+            ['d', 'parent'], ['a', $coordinate],
+            ['a', '30023:' . str_repeat('b', 64) . ':featured', 'wss://hint.example', $pin],
+        ]);
+        $before = serialize($source);
+
+        $page = $this->pages($events)->fromAuthorizedEvent($source, separateFeaturedArticle: true);
+        $featured = $page['featuredEntry'];
+
+        self::assertNotNull($featured);
+        self::assertSame(2, $featured['reference']->position);
+        self::assertSame('wss://hint.example', $featured['reference']->relayHint);
+        self::assertSame($expectedRawPin, $featured['rawVersionPin']);
+        self::assertSame($expectedVersion, $featured['reference']->versionEventId);
+        self::assertSame($expectedStatus, $featured['reference']->status);
+        self::assertSame($invalid, $featured['invalidVersionPin']);
+        self::assertNull($featured['targetResolution']);
+        self::assertNull($featured['target']);
+        self::assertSame($before, serialize($source));
+    }
+
+    /** @return iterable<string, array{mixed, ?string, ?string, EventReferenceStatus, bool}> */
+    public static function featuredPinCases(): iterable
+    {
+        $pin = str_repeat('c', 64);
+        yield 'exact pin' => [strtoupper($pin), strtoupper($pin), $pin, EventReferenceStatus::Unresolved, false];
+        yield 'empty pin' => ['', '', null, EventReferenceStatus::Unresolved, false];
+        yield 'ambiguous pin' => ['not-an-id', 'not-an-id', null, EventReferenceStatus::AmbiguousVersion, true];
+        yield 'non-string pin' => [['bad'], null, null, EventReferenceStatus::Invalid, true];
+    }
+
+    public function testMalformedIndexPinRemainsInvalidWhenArticleIsFeatured(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findPublicationIndexTargets');
+        $source = $this->event([
+            ['d', 'parent'],
+            ['a', '30040:' . str_repeat('c', 64) . ':section', '', 'bad-pin'],
+            ['a', '30023:' . str_repeat('b', 64) . ':featured'],
+        ]);
+
+        $page = $this->pages($events)->fromAuthorizedEvent($source, separateFeaturedArticle: true);
+
+        self::assertSame(2, $page['featuredEntry']['reference']->position);
+        self::assertSame(1, $page['entries'][0]['reference']->position);
+        self::assertSame('bad-pin', $page['entries'][0]['rawVersionPin']);
+        self::assertTrue($page['entries'][0]['invalidVersionPin']);
+        self::assertSame(EventReferenceStatus::AmbiguousVersion, $page['entries'][0]['reference']->status);
+        self::assertNull($page['entries'][0]['target']);
+    }
+
+    public function testFeaturedAfterFirstPageIsPromotedWithoutLosingOrReorderingIndexes(): void
+    {
+        $tags = [['d', 'parent']];
+        $positions = [];
+        $featuredPosition = null;
+        for ($i = 0; $i < 100; ++$i) {
+            if ($i === 70) {
+                $featuredPosition = count($tags);
+                $tags[] = ['a', '30023:' . str_repeat('b', 64) . ':featured', '', str_repeat('d', 64)];
+            }
+            $tags[] = ['e', str_repeat('e', 64)];
+            $positions[] = count($tags);
+            $tags[] = ['a', '30040:' . str_repeat('c', 64) . ':section-' . intdiv($i, 2)];
+        }
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::exactly(3))->method('findPublicationIndexTargets')
+            ->with(self::callback(static fn (array $coordinates): bool => count($coordinates) <= 49), [])
+            ->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $service = $this->pages($events);
+        $allPositions = [];
+        foreach ([1 => 49, 2 => 49, 3 => 2] as $pageNumber => $expectedCount) {
+            $page = $service->fromAuthorizedEvent($this->event($tags), $pageNumber, separateFeaturedArticle: true);
+            self::assertCount($expectedCount, $page['entries']);
+            self::assertSame(($pageNumber - 1) * 49 + 1, $page['start']);
+            self::assertSame($pageNumber < 3, $page['hasNext']);
+            self::assertSame($pageNumber > 1, $page['hasPrevious']);
+            self::assertSame($featuredPosition, $page['featuredEntry']['reference']->position);
+            self::assertSame(str_repeat('d', 64), $page['featuredEntry']['reference']->versionEventId);
+            array_push($allPositions, ...array_column(array_column($page['entries'], 'reference'), 'position'));
+        }
+
+        self::assertSame($positions, $allPositions);
+    }
+
+    /**
+     * @dataProvider lateNonIndexCases
+     * @param list<mixed> $lastTag
+     */
+    public function testLateNonIndexOccurrencePreventsFeaturedSplit(array $lastTag): void
+    {
+        $tags = [
+            ['d', 'parent'], ['a', '30023:' . str_repeat('b', 64) . ':first'],
+            ...array_fill(0, 60, ['a', '30040:' . str_repeat('c', 64) . ':section']),
+            $lastTag,
+        ];
+        $service = $this->pages();
+        $source = $this->event($tags);
+        $firstPage = $service->fromAuthorizedEvent($source, separateFeaturedArticle: true);
+        $secondPage = $service->fromAuthorizedEvent($source, 2, separateFeaturedArticle: true);
+
+        self::assertNull($firstPage['featuredEntry']);
+        self::assertNull($secondPage['featuredEntry']);
+        self::assertCount(50, $firstPage['entries']);
+        self::assertCount(12, $secondPage['entries']);
+        self::assertTrue($firstPage['hasNext']);
+        self::assertFalse($secondPage['hasNext']);
+        self::assertSame(
+            range(1, 62),
+            array_column(array_column([...$firstPage['entries'], ...$secondPage['entries']], 'reference'), 'position'),
+        );
+    }
+
+    /** @return iterable<string, array{list<mixed>}> */
+    public static function lateNonIndexCases(): iterable
+    {
+        yield 'duplicate article' => [['a', '30023:' . str_repeat('b', 64) . ':first']];
+        yield 'different article' => [['a', '30023:' . str_repeat('b', 64) . ':second']];
+        yield 'chapter' => [['a', '30041:' . str_repeat('c', 64) . ':chapter']];
+        yield 'unknown kind' => [['a', '30045:' . str_repeat('c', 64) . ':directory']];
+        yield 'malformed address' => [['a', 'bad']];
+        yield 'missing address' => [['a']];
+    }
+
+    /** @dataProvider featuredPageCases */
+    public function testFeaturedPaginationKeepsTheTotalPageBound(
+        int $indexCount,
+        int $pageNumber,
+        int $expectedCount,
+        bool $hasNext,
+    ): void {
+        $tags = [
+            ['d', 'parent'], ['a', '30023:' . str_repeat('b', 64) . ':featured'],
+            ...array_fill(0, $indexCount, ['a', '30040:' . str_repeat('c', 64) . ':section']),
+        ];
+        $page = $this->pages()->fromAuthorizedEvent($this->event($tags), $pageNumber, separateFeaturedArticle: true);
+
+        self::assertNotNull($page['featuredEntry']);
+        self::assertCount($expectedCount, $page['entries']);
+        self::assertLessThanOrEqual(PublicationTocPage::PAGE_SIZE, count($page['entries']) + 1);
+        self::assertSame($hasNext, $page['hasNext']);
+        self::assertSame($pageNumber > 1, $page['hasPrevious']);
+    }
+
+    /** @return iterable<string, array{int, int, int, bool}> */
+    public static function featuredPageCases(): iterable
+    {
+        yield 'one index' => [1, 1, 1, false];
+        yield 'exactly one page' => [49, 1, 49, false];
+        yield 'overflow first page' => [50, 1, 49, true];
+        yield 'overflow second page' => [50, 2, 1, false];
+        yield 'exactly two pages' => [98, 2, 49, false];
+        yield 'third page needed' => [99, 2, 49, true];
+        yield 'third page' => [99, 3, 1, false];
+        yield 'out-of-range page' => [1, 2, 0, false];
+        yield 'integer overflow' => [1, PHP_INT_MAX, 0, false];
+    }
+
+    public function testFeaturedReferenceIsIncludedInResolutionMetricsOnNormalAndOverflowPages(): void
+    {
+        $source = $this->event([
+            ['d', 'parent'], ['a', '30040:' . str_repeat('c', 64) . ':section'],
+            ['a', '30023:' . str_repeat('b', 64) . ':article', '', 'bad-pin'],
+        ]);
+        $metrics = new WorkspaceMetrics(true);
+        $service = $this->pages(metrics: $metrics);
+        foreach ([1 => 1, PHP_INT_MAX => 0] as $pageNumber => $expectedUnavailable) {
+            $metrics->begin();
+            $service->fromAuthorizedEvent($source, $pageNumber, separateFeaturedArticle: true);
+            $sample = $metrics->finish(200);
+
+            self::assertSame(1, $sample['resolution_invalid']);
+            self::assertSame($expectedUnavailable, $sample['resolution_unavailable']);
+        }
+    }
+
+    public function testDefaultTocKeepsOriginalOrderForTheSameArticleAndIndexes(): void
+    {
+        $source = $this->event([
+            ['d', 'parent'], ['a', '30040:' . str_repeat('c', 64) . ':first'],
+            ['a', '30023:' . str_repeat('b', 64) . ':article'],
+            ['a', '30040:' . str_repeat('c', 64) . ':second'],
+        ]);
+
+        $page = $this->pages()->fromAuthorizedEvent($source);
+
+        self::assertNull($page['featuredEntry']);
+        self::assertSame([1, 2, 3], array_column(array_column($page['entries'], 'reference'), 'position'));
+    }
+
     /** @dataProvider invalidInputs */
     public function testRejectsWrongKindAndNonPositivePages(int $kind, int $page): void
     {
@@ -532,6 +787,7 @@ final class PublicationTocPageTest extends TestCase
         $this->pages()->fromAuthorizedEvent($event, $page);
     }
 
+    /** @return iterable<array{int, int}> */
     public static function invalidInputs(): iterable
     {
         yield [3, 1];
@@ -542,6 +798,7 @@ final class PublicationTocPageTest extends TestCase
         yield [30040, PHP_INT_MIN];
     }
 
+    /** @param array<array-key, mixed> $tags */
     private function event(array $tags): Event
     {
         $event = new Event();
@@ -554,6 +811,7 @@ final class PublicationTocPageTest extends TestCase
         return $event;
     }
 
+    /** @param array<array-key, mixed> $tags */
     private function index(string $id, string $pubkey, string $dTag, array $tags, string $content = ''): Event
     {
         $event = new Event();

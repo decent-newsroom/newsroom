@@ -30,6 +30,20 @@ class UserMetadataTest extends TestCase
         $this->assertSame(['alice@example.com', 'bob@example.com', 'carol@example.com'], $metadata->nip05);
     }
 
+    public function testFromStdClassIgnoresNonScalarArrayMetadata(): void
+    {
+        $raw = new \stdClass();
+        $raw->display_name = [new \stdClass()];
+        $raw->name = ['Fallback name'];
+        $raw->about = [[]];
+
+        $metadata = UserMetadata::fromStdClass($raw);
+
+        self::assertNull($metadata->displayName);
+        self::assertSame('Fallback name', $metadata->name);
+        self::assertNull($metadata->about);
+    }
+
     public function testFromUserEntitySplitsCommaSeparatedWebsites(): void
     {
         $user = new User();
@@ -41,4 +55,3 @@ class UserMetadataTest extends TestCase
         $this->assertSame(['https://example.com', 'https://blog.example.com'], $metadata->website);
     }
 }
-

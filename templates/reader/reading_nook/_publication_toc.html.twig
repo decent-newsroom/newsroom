@@ -1,4 +1,18 @@
-<turbo-frame id="{{ tocPage.frameId|default('nook-toc-' ~ tocPage.eventId) }}">
+{% set tocFrameId = tocPage.frameId|default('nook-toc-' ~ tocPage.eventId) %}
+<turbo-frame id="{{ tocFrameId }}">
+    {% if tocPage.featuredEntry|default(null) is not null %}
+        <section aria-labelledby="{{ tocFrameId }}-featured">
+            <h3 id="{{ tocFrameId }}-featured">{{ 'bookshelf.publication.featured_article'|trans }}</h3>
+            <ul class="event-toc-list">
+                <li data-source-tag-position="{{ tocPage.featuredEntry.reference.position }}">
+                    {% include 'reader/reading_nook/_publication_toc_entry.html.twig' with {
+                        entry: tocPage.featuredEntry, tocEntryLabel: 'bookshelf.publication.article_reference'
+                    } %}
+                </li>
+            </ul>
+        </section>
+        <h3>{{ 'bookshelf.publication.indexes'|trans }}</h3>
+    {% endif %}
     {% if tocPage.entries is not empty %}
         <ol class="event-toc-list" start="{{ tocPage.start }}">
             {% for entry in tocPage.entries %}

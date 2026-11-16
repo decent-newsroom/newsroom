@@ -2,6 +2,9 @@
 
 ## v0.1.0
 
+- [Feature] Separate the sole featured article above index entries in Bookshelf publication tables of contents, including nested indexes.
+- [Feature] Add containing-index links to Bookshelf index pages for navigating to parent publications.
+- [Fix] Show publication titles and locally resolved author profile links on Bookshelf index pages, and label Article-only leaves as Articles while keeping sensitive titles hidden.
 - [Fix] Position stream collection covers alongside their details like article covers, without cropping them.
 - [Improvement] Remove the duplicate My Content link from the Newsroom sidebar.
 - [Feature] Include locally stored public book and publication indexes in home and author streams.
