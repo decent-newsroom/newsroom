@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Controller;
 use App\Controller\AuthorController;
 use App\Dto\UserMetadata;
 use App\Entity\Article;
+use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\ArticleRepository;
@@ -15,6 +16,18 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\PublicationIndexStream;
+use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrIdentityService;
+use App\Service\Reader\ArticleAccessService;
+use App\Service\UserMuteListService;
+use App\Repository\DeletedEventRepository;
+use App\Repository\HiddenCoordinateRepository;
+use Symfony\Bundle\SecurityBundle\Security;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
 use App\Service\VanityNameService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -45,7 +58,11 @@ final class AuthorStreamTest extends TestCase
             'isCached' => true,
             'isStale' => false,
             'data' => $section === 'overview' ? [
-                'authorReadingLists' => [['pubkey' => $pubkey, 'slug' => 'reading', 'title' => 'Reading', 'createdAt' => 300]],
+                'authorMagazines' => [['pubkey' => $pubkey, 'slug' => 'book', 'title' => 'Stale cached book', 'createdAt' => 999]],
+                'authorReadingLists' => [
+                    ['pubkey' => $pubkey, 'slug' => 'reading', 'title' => 'Reading', 'createdAt' => 300],
+                    ['pubkey' => $pubkey, 'slug' => 'private', 'title' => 'Stale private', 'createdAt' => 999],
+                ],
                 'featuredInFollowPacks' => [['pubkey' => str_repeat('b', 64), 'dTag' => 'people', 'title' => 'People', 'createdAt' => 50]],
             ] : [],
         ]);
@@ -57,6 +74,38 @@ final class AuthorStreamTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::never())->method('dispatch');
         $logger = new NullLogger();
+        $security = $this->createMock(Security::class);
+        $keys = new NostrKeyService();
+        $mutes = $this->createMock(UserMuteListService::class);
+        $indexEvents = $this->createMock(EventRepository::class);
+        $index = new Event();
+        $index->setId(str_repeat('b', 64));
+        $index->setPubkey($pubkey);
+        $index->setKind(30040);
+        $index->setCreatedAt(400);
+        $index->setTags([['d', 'book'], ['title', 'Signed book']]);
+        $private = new Event();
+        $private->setId(str_repeat('c', 64));
+        $private->setPubkey($pubkey);
+        $private->setKind(30040);
+        $private->setCreatedAt(500);
+        $private->setTags([['d', 'private'], ['s', 'restricted'], ['title', 'Private index']]);
+        $indexEvents->expects(self::once())->method('findBy')
+            ->with(['kind' => 30040, 'pubkey' => $pubkey], ['created_at' => 'DESC', 'id' => 'ASC'], 200)
+            ->willReturn([$private, $index]);
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        $authors->method('suppressedPubkeys')->willReturn([]);
+        $deleted = $this->createMock(DeletedEventRepository::class);
+        $deleted->method('findSuppressedEventIds')->willReturn([]);
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->method('findHiddenCoordinates')->willReturn([]);
+        $access = new EventPreviewAccessPolicy(
+            $authors, $deleted, $hidden,
+            new RecordIdentityService(), $security, $mutes, $keys, $logger,
+            new ArticleAccessService(new NostrIdentityService(
+                $this->createMock(Nip19DecoderInterface::class), $this->createMock(Nip19EncoderInterface::class),
+            )),
+        );
         $controller = new AuthorController(
             $logger,
             new NostrLinkParser($logger),
@@ -68,11 +117,16 @@ final class AuthorStreamTest extends TestCase
         $data = (new \ReflectionMethod($controller, 'getProfileStreamData'))->invoke(
             $controller, $pubkey, $owner, Request::create('/profile/stream'), $cache, $views,
             new RedisViewFactory($cache, $logger), $em, $bus,
+            new PublicationIndexStream($indexEvents, $access, $security, $keys),
         );
         self::assertSame(
-            $owner ? ['reading_list', 'draft', 'article', 'follow_pack'] : ['reading_list', 'article', 'follow_pack'],
+            $owner ? ['magazine', 'reading_list', 'draft', 'article', 'follow_pack'] : ['magazine', 'reading_list', 'article', 'follow_pack'],
             array_column($data['rows'], 'type'),
         );
+        self::assertSame('Signed book', $data['rows'][0]['item']['title']);
+        self::assertSame(str_repeat('b', 64), $data['rows'][0]['item']['indexEventId']);
+        self::assertStringNotContainsString('Stale', serialize($data['rows']));
+        self::assertStringNotContainsString('Private index', serialize($data['rows']));
         self::assertFalse($data['editorialPending']);
         if (!$owner) {
             self::assertStringNotContainsString('secret', serialize($data['rows']));

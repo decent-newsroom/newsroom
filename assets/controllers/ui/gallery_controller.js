@@ -1,14 +1,12 @@
 import { Controller } from "@hotwired/stimulus";
 
-// Connects to data-controller="gallery"
 export default class extends Controller {
-    static targets = ["mainImage", "thumbnail"];
+    static targets = ["mainImage", "thumbnail", "annotations", "warning", "content", "error"];
 
     connect() {
         this._onKeyDown = this._onKeyDown.bind(this);
         this.element.addEventListener('keydown', this._onKeyDown);
-        // Make the gallery focusable for keyboard events
-        this.element.setAttribute('tabindex', '0');
+        this.prepare();
     }
 
     disconnect() {
@@ -16,17 +14,54 @@ export default class extends Controller {
     }
 
     switch(event) {
-        const index = event.currentTarget.dataset.galleryIndex;
-        this.showImageAtIndex(Number(index));
+        event.preventDefault();
+        this.showImageAtIndex(Number(event.currentTarget.dataset.galleryIndex));
+    }
+
+    reveal() {
+        if (!this.hasContentTarget) return;
+        const content = this.contentTarget;
+        content.replaceWith(content.content.cloneNode(true));
+        if (this.hasWarningTarget) this.warningTarget.remove();
+        this.prepare();
+        this.element.focus();
+    }
+
+    prepare() {
+        this.element.setAttribute('tabindex', '0');
+        this.element.querySelectorAll('[data-gallery-annotation]').forEach(annotation => {
+            annotation.style.left = `${annotation.dataset.left}%`;
+            annotation.style.top = `${annotation.dataset.top}%`;
+        });
+        this.element.querySelectorAll('img[data-fallbacks]').forEach(image => {
+            if (image.complete && image.naturalWidth === 0) this.fallback({ target: image });
+        });
+    }
+
+    fallback(event) {
+        const image = event.target;
+        const fallbacks = JSON.parse(image.dataset.fallbacks || '[]');
+        const index = Number(image.dataset.fallbackIndex || 0);
+        if (index < fallbacks.length) {
+            image.dataset.fallbackIndex = String(index + 1);
+            image.src = fallbacks[index];
+            return;
+        }
+        console.warn('Gallery image could not be loaded.', image.currentSrc || image.src);
+        if (this.hasMainImageTarget && image === this.mainImageTarget && this.hasErrorTarget) {
+            this.errorTarget.hidden = false;
+        }
     }
 
     showImageAtIndex(index) {
         const thumbnails = this.thumbnailTargets;
-        if (!thumbnails[index]) return;
+        if (!Number.isInteger(index) || !thumbnails[index] || !this.hasMainImageTarget) return;
         const thumbnail = thumbnails[index];
         const main = this.mainImageTarget;
-        main.src = thumbnail.src;
-        main.alt = thumbnail.alt;
+        main.dataset.fallbacks = thumbnail.dataset.fallbacks;
+        main.dataset.fallbackIndex = '0';
+        main.src = thumbnail.dataset.url;
+        main.alt = thumbnail.dataset.alt;
         if (thumbnail.dataset.dimensions) {
             main.setAttribute('data-dimensions', thumbnail.dataset.dimensions);
         } else {
@@ -37,9 +72,16 @@ export default class extends Controller {
         } else {
             main.removeAttribute('data-blurhash');
         }
-        thumbnails.forEach(t => t.classList.remove('selected'));
+        thumbnails.forEach(t => {
+            t.classList.remove('selected');
+            t.setAttribute('aria-pressed', 'false');
+        });
         thumbnail.classList.add('selected');
-        // Store current index for keyboard navigation
+        thumbnail.setAttribute('aria-pressed', 'true');
+        this.annotationsTargets.forEach(group => {
+            group.hidden = Number(group.dataset.galleryIndex) !== index;
+        });
+        if (this.hasErrorTarget) this.errorTarget.hidden = true;
         this.currentIndex = index;
     }
 
@@ -58,6 +100,12 @@ export default class extends Controller {
             event.preventDefault();
             const prev = (current - 1 + this.thumbnailTargets.length) % this.thumbnailTargets.length;
             this.showImageAtIndex(prev);
+        } else if (event.key === 'Home') {
+            event.preventDefault();
+            this.showImageAtIndex(0);
+        } else if (event.key === 'End') {
+            event.preventDefault();
+            this.showImageAtIndex(this.thumbnailTargets.length - 1);
         }
     }
 }

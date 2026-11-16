@@ -140,7 +140,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
     }
 
     /** @dataProvider expansionFlags */
-    public function testMyContentDisclosurePreservesAuthoringActionsAndIsSeparateAndLazy(bool $enabled): void
+    public function testMyContentInlineMetadataReplacesDisclosureAndPreservesAuthoringActions(bool $enabled): void
     {
         self::bootKernel();
         $twig = self::getContainer()->get('twig');
@@ -161,6 +161,13 @@ final class EventMemberDisclosureTest extends KernelTestCase
             $items[] = [
                 'article' => $source, 'category' => $source === $article ? 'published' : 'drafts',
                 'title' => 'Title <script>', 'summary' => null, 'updatedAt' => null,
+                'metadata' => $source === $local ? null : [
+                    'sensitive' => $source === $draft,
+                    'hashtags' => ['nostr', '<script>topic</script>'],
+                    'mentions' => ['npub-mention'],
+                    'sources' => ['https://example.com/source?title=<script>'],
+                    'language' => 'sl', 'client' => '<script>client</script>',
+                ],
             ];
         }
         $crawler = new Crawler($twig->render('my_content/index.html.twig', [
@@ -173,16 +180,18 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertSame('my-content', $crawler->filter('.my-content-page')->attr('data-ui--event-workspace-state-context-value'));
         self::assertCount(3, $crawler->filter('article.my-content-row'));
         self::assertCount(3, $crawler->filter('details.my-content-menu[name="my-content-actions"]'));
-        self::assertCount($enabled ? 2 : 0, $crawler->filter('details.my-content-row__preview'));
-        self::assertCount(0, $crawler->filter('.my-content-menu .my-content-row__preview, .my-content-row__preview[name], script'));
-        if ($enabled) {
-            self::assertSame('my-content-preview-' . self::ID, $crawler->filter('.my-content-row__preview')->first()->attr('data-event-workspace-disclosure'));
-            self::assertSame('lazy', $crawler->filter('.my-content-row__preview turbo-frame')->first()->attr('loading'));
-            self::assertSame('/my-content/preview/' . self::ID, $crawler->filter('.my-content-row__preview turbo-frame')->first()->attr('src'));
-            self::assertSame('/my-content/preview/' . self::ID, $crawler->filter('.my-content-row__preview a')->first()->attr('href'));
-        } else {
-            self::assertCount(0, $crawler->filter('turbo-frame'));
-        }
+        self::assertCount(0, $crawler->filter('.my-content-row__preview, turbo-frame, script'));
+        self::assertSame(['#nostr', '#<script>topic</script>'], $crawler->filter('.my-content-row__tags a')->each(static fn (Crawler $link): string => $link->text()));
+        self::assertSame('/topics?tag=nostr', $crawler->filter('.my-content-row__tags a')->first()->attr('href'));
+        self::assertSame('/p/npub-mention', $crawler->filter('.my-content-row__mentions a')->attr('href'));
+        self::assertSame('https://example.com/source?title=<script>', $crawler->filter('.my-content-row__metadata a')->attr('href'));
+        self::assertSame('noopener noreferrer', $crawler->filter('.my-content-row__metadata a')->attr('rel'));
+        self::assertSame(['Language', 'Client', 'Source'], $crawler->filter('.my-content-row__metadata dt')->each(static fn (Crawler $label): string => $label->text()));
+        self::assertSame('sl', $crawler->filter('.my-content-row__metadata dd')->first()->text());
+        self::assertSame('<script>client</script>', $crawler->filter('.my-content-row__metadata dd')->eq(1)->text());
+        self::assertCount(1, $crawler->filter('.my-content-row__sensitive'));
+        self::assertCount(0, $crawler->filter('article')->eq(1)->filter('.my-content-row__tags, .my-content-row__mentions, .my-content-row__metadata'));
+        self::assertCount(0, $crawler->filter('article')->last()->filter('.my-content-row__tags, .my-content-row__mentions, .my-content-row__metadata'));
         self::assertSame('/editor/article', $crawler->filter('.my-content-row h2 a')->first()->attr('href'));
         self::assertSame('/editor/draft/draft', $crawler->filter('.my-content-row h2 a')->eq(1)->attr('href'));
         self::assertCount(1, $crawler->filter('button[data-event-id="' . self::ID . '"]'));
@@ -823,6 +832,17 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertSame(str_repeat('a', 64), $crawler->filter('.reading-nook-page')->attr('data-ui--event-workspace-state-user-value'));
         self::assertSame('reading-nook', $crawler->filter('.reading-nook-page')->attr('data-ui--event-workspace-state-context-value'));
         self::assertSame('Reading Nook', trim($crawler->filter('.reading-nook-heading h1')->text()));
+        self::assertSame('Create & organize', $crawler->filter('.reading-nook-actions')->attr('aria-label'));
+        self::assertSame([
+            '/settings/follow-pack?new=1',
+            '/reading-list/wizard/new',
+            '/magazine/wizard/new',
+            '/my-interests',
+        ], $crawler->filter('.reading-nook-actions__links a')->extract(['href']));
+        self::assertSame([
+            'New follow pack', 'New reading list', 'Combine lists into a magazine', 'Manage interests',
+        ], $crawler->filter('.reading-nook-actions__links a')->each(static fn (Crawler $link): string => trim($link->text())));
+        self::assertCount(2, $crawler->filter('.reading-nook-actions a[data-turbo-prefetch="false"]'));
         self::assertCount(1, $crawler->filter('.reading-nook-tabs a[aria-current="page"]'));
         self::assertStringContainsString('Reading lists', $crawler->filter('.reading-nook-tabs a[aria-current="page"]')->text());
         self::assertSame('reading_lists', $crawler->filter('form.reading-nook-toolbar input[name="section"]')->attr('value'));
@@ -1003,7 +1023,13 @@ final class EventMemberDisclosureTestKernel extends Kernel
     private function configureRoutes(RoutingConfigurator $routes): void
     {
         $routes->add('reading_nook', '/reading-nook');
+        $routes->add('follow_pack_setup', '/settings/follow-pack');
+        $routes->add('read_wizard_new', '/reading-list/wizard/new');
+        $routes->add('mag_wizard_new', '/magazine/wizard/new');
+        $routes->add('my_interests', '/my-interests');
         $routes->add('my_content', '/my-content');
+        $routes->add('topics', '/topics');
+        $routes->add('author-profile', '/p/{npub}');
         $routes->add('my_content_preview', '/my-content/preview/{eventId}');
         $routes->add('editor-create', '/editor/create');
         $routes->add('editor-edit-slug', '/editor/{slug}');

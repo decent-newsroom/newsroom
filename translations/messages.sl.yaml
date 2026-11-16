@@ -897,6 +897,8 @@ feedback:
 
 # ── Moja vsebina ──────────────────────────────────────────────────
 my_content:
+    metadata:
+        language: 'Jezik'
     preview:
         label: 'Predogled in povezave'
         load: 'Naloži predogled dogodka'
@@ -1273,7 +1275,21 @@ updates:
         invalidInput: 'Neprepoznan format.'
         alreadySubscribed: 'Že prijavljen.'
 
+media_gallery:
+    picture: 'Slika'
+    thumbnails: 'Slike v galeriji'
+    select_image: 'Prikaži sliko %index% od %count%'
+    unavailable: 'Te slike ni bilo mogoče naložiti.'
+    empty: 'V galeriji ni slik.'
+    reveal: 'Prikaži galerijo'
 reading_nook:
+    shortcuts:
+        title: 'Ustvari in organiziraj'
+        follow_pack: 'Nov paket sledenja'
+        reading_list: 'Nov bralni seznam'
+        magazine: 'Združi sezname v revijo'
+        interests: 'Upravljaj zanimanja'
+        magazine_hint: 'V čarovniku za revijo izberi obstoječe bralne sezname kot rubrike. Izvirni seznami ostanejo nespremenjeni.'
     inventory_unavailable: 'Bralni kotiček trenutno ni na voljo. Poskusite znova.'
     inventory_retry: 'Poskusi znova'
     drive:

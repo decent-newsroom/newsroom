@@ -44,6 +44,13 @@ to use the main `/my-interests` editor.
 
 ## UI Layout
 
+- **Create & organize** shortcuts above the inventory open a new follow pack,
+  a new reading list, the magazine wizard, or interest management. The magazine
+  wizard can combine existing reading lists as sections without modifying the
+  source lists. New reading-list and magazine actions start fresh drafts;
+  Turbo hover prefetch is disabled for these draft-resetting links.
+  The follow-pack shortcut uses `?new=1` to open an empty form while preserving
+  the currently selected recommendation pack and access to existing packs.
 - **Collection navigation** shows counts for all items and each collection type;
   search, timespan, and tag filters keep their current values when changing
   sections. Popular tags are also available beside the filters on every screen

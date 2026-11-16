@@ -20,12 +20,19 @@
                 {% endif %}
             {% elseif row.type == 'media' %}
                 <article class="stream-media">
-                    <a href="{{ path('nevent', {nevent: item.noteId}) }}" data-turbo-frame="_top">
-                        {{ 'content_stream.open_media'|trans }}
-                    </a>
-                    <time datetime="{{ row.timestamp|date('c') }}">{{ row.timestamp|date('M j, Y') }}</time>
-                    {% include 'partial/_masonry.html.twig' with {mediaEvents: [item]} %}
-                    {% if item.content %}<p>{{ item.content }}</p>{% endif %}
+                    {% if item.kind == 20 %}
+                        <twig:Molecules:PictureGallery :tags="item.tags" :content="item.content|default('')"
+                            :eventUrl="path('nevent', {nevent: item.noteId})" :creditPubkey="item.pubkey" />
+                    {% else %}
+                        <figure class="media">
+                            {% include 'partial/_masonry.html.twig' with {mediaEvents: [item]} %}
+                            {% if item.content %}<figcaption class="picture-description"><twig:Atoms:Content :content="item.content" :renderMedia="false" /></figcaption>{% endif %}
+                        </figure>
+                    {% endif %}
+                    <footer class="stream-media__meta">
+                        <a href="{{ path('nevent', {nevent: item.noteId}) }}" data-turbo-frame="_top">{{ 'content_stream.open_media'|trans }}</a>
+                        <time datetime="{{ row.timestamp|date('c') }}">{{ row.timestamp|date('M j, Y') }}</time>
+                    </footer>
                 </article>
             {% elseif row.type == 'update' %}
                 {% include 'partial/_update_items.html.twig' with {updates: [item]} %}

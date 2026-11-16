@@ -897,6 +897,8 @@ feedback:
 
 # ── Mon contenu ──────────────────────────────────────────────────────
 my_content:
+    metadata:
+        language: 'Langue'
     preview:
         label: 'Aperçu et connexions'
         load: 'Charger l’aperçu de l’événement'
@@ -1271,7 +1273,21 @@ updates:
         invalidInput: 'Could not recognize that identifier.'
         alreadySubscribed: 'You are already subscribed to that source.'
 
+media_gallery:
+    picture: 'Image'
+    thumbnails: 'Images de la galerie'
+    select_image: 'Afficher l’image %index% sur %count%'
+    unavailable: 'Cette image n’a pas pu être chargée.'
+    empty: 'Aucune image disponible dans la galerie.'
+    reveal: 'Afficher la galerie'
 reading_nook:
+    shortcuts:
+        title: 'Créer et organiser'
+        follow_pack: 'Nouveau pack de suivi'
+        reading_list: 'Nouvelle liste de lecture'
+        magazine: 'Réunir des listes dans un magazine'
+        interests: 'Gérer les centres d’intérêt'
+        magazine_hint: 'Dans l’assistant de création de magazine, choisissez vos listes de lecture existantes comme rubriques. Les listes originales sont conservées.'
     inventory_unavailable: 'Votre coin lecture est temporairement indisponible. Veuillez réessayer.'
     inventory_retry: 'Réessayer'
     drive:

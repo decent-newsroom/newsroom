@@ -11,6 +11,8 @@ The app uses three sidebar layouts so global discovery, private reading, and pub
 | `newsroom-layout.html.twig` | Authored/publishing pages: my content, magazines, media manager. | `buildNewsroomNav()` |
 
 The layouts render the shared `SidebarNav` Twig component.
+The primary **Newsroom** destination opens `/my-content`; the Newsroom
+sidebar does not repeat that destination as a separate My Content entry.
 
 ## Core Files
 

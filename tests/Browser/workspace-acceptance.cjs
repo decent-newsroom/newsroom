@@ -183,6 +183,12 @@ async function inventoryPresentation(browser) {
       assert.equal(await page.locator('.reading-nook-row--head').count(), 0);
       assert.equal(await page.locator('.reading-nook-tabs a[aria-current="page"]').count(), 1);
       assert.equal(await page.locator('.reading-nook-toolbar br').count(), 0);
+      assert.deepEqual(await page.locator('.reading-nook-actions__links a').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
+        '/settings/follow-pack?new=1',
+        '/reading-list/wizard/new',
+        '/magazine/wizard/new',
+        '/my-interests',
+      ]);
       for (const width of [360, 768, 1024, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         for (const theme of ['light', 'dark', 'space']) {
@@ -200,6 +206,10 @@ async function inventoryPresentation(browser) {
               tag: rect('#nook-tag'),
               row: rect('.reading-nook-row'),
               menu: rect('.reading-nook-menu > summary'),
+              shortcuts: [...document.querySelectorAll('.reading-nook-actions__links a')].map(link => {
+                const { left, right, height } = link.getBoundingClientRect();
+                return { left, right, height };
+              }),
             };
           });
           assert.ok(dimensions.document <= dimensions.viewport + 1, JSON.stringify(dimensions));
@@ -208,6 +218,10 @@ async function inventoryPresentation(browser) {
           }
           assert.ok(dimensions.search.height <= 56, JSON.stringify(dimensions));
           assert.ok(dimensions.row.width >= 240, JSON.stringify(dimensions));
+          for (const shortcut of dimensions.shortcuts) {
+            assert.ok(shortcut.left >= -1 && shortcut.right <= width + 1, JSON.stringify(dimensions));
+            assert.ok(shortcut.height >= 44, JSON.stringify(dimensions));
+          }
         }
       }
 
@@ -225,6 +239,62 @@ async function inventoryPresentation(browser) {
       await page.waitForURL(/\/reading-nook$/);
       assert.equal(await page.locator('#nook-search').inputValue(), '');
       assert.equal(await page.locator('#nook-tag').inputValue(), '');
+    });
+  } finally {
+    await context.close();
+  }
+}
+
+async function authoredMetadata(browser) {
+  const { context, page } = await newPage(browser, { width: 1440, height: 900 });
+  const previewRequests = [];
+  page.on('request', request => {
+    if (request.url().includes('/my-content/preview/')) previewRequests.push(request.url());
+  });
+  try {
+    await check('My Content: inline signed tags, actions and responsive themes', async () => {
+      const response = await page.goto(`${base}/my-content`, { waitUntil: 'networkidle' });
+      assert.equal(response.status(), 200);
+      assert.equal(await page.locator('#leftNav a[href="/my-content"]').count(), 1);
+      assert.equal(await page.locator('#leftNav a[href="/my-content"]').getAttribute('aria-current'), 'page');
+      assert.equal(await page.locator('article.my-content-row').count(), 3);
+      assert.equal(await page.locator('.my-content-row__preview, .my-content-inventory turbo-frame').count(), 0);
+      assert.deepEqual(await page.locator('.my-content-row__tags a').allTextContents(), ['#nostr', '#fixture', '#draft-topic']);
+      assert.equal(await page.locator('.my-content-row__mentions a').count(), 1);
+      assert.match(await page.locator('.my-content-row__mentions a').getAttribute('href'), /^\/p\/npub1/);
+      assert.match(await page.locator('.my-content-row__metadata').innerText(), /Newsroom/);
+      assert.equal(await page.locator('.my-content-row__sensitive').count(), 1);
+      assert.doesNotMatch(await page.locator('.my-content-inventory').innerText(), /NEVER-EXPOSE-SENSITIVE-TOPIC/);
+      assert.equal(await page.locator('.my-content-menu').count(), 3);
+      assert.equal(await page.locator('button[data-event-id]').count(), 2);
+      for (const width of [360, 768, 1024, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const theme of ['light', 'dark', 'space']) {
+          await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+          const dimensions = await page.evaluate(() => ({
+            viewport: document.documentElement.clientWidth,
+            document: document.documentElement.scrollWidth,
+            links: [...document.querySelectorAll('.my-content-row__tags a, .my-content-row__mentions a, .my-content-row__metadata a')].map(link => {
+              const { left, right } = link.getBoundingClientRect();
+              return { left, right };
+            }),
+          }));
+          assert.ok(dimensions.document <= dimensions.viewport + 1, JSON.stringify(dimensions));
+          assert.ok(dimensions.links.every(link => link.left >= -1 && link.right <= width + 1), JSON.stringify(dimensions));
+          const alignment = await page.locator('.my-content-row__metadata > div').evaluateAll(groups => groups.map(group => {
+            const label = group.querySelector('dt'), value = group.querySelector('dd');
+            return { margin: getComputedStyle(label).marginTop, delta: Math.abs(label.getBoundingClientRect().top - value.getBoundingClientRect().top) };
+          }));
+          assert.ok(alignment.every(item => item.margin === '0px' && item.delta <= 1), JSON.stringify(alignment));
+        }
+      }
+      assert.deepEqual(previewRequests, []);
+      await page.locator('.my-content-tabs a[href*="type=drafts"]').click();
+      await page.waitForURL(/type=drafts/);
+      assert.equal(await page.locator('article.my-content-row').count(), 1);
+      assert.deepEqual(await page.locator('.my-content-row__tags a').allTextContents(), ['#draft-topic']);
+      assert.equal(await page.locator('.my-content-menu__panel a[href="/article-editor/edit/draft/draft"]').count(), 1);
+      assert.equal(await page.locator('button[data-event-id]').count(), 0);
     });
   } finally {
     await context.close();
@@ -302,6 +372,107 @@ async function concurrency(browser) {
   } finally {
     releaseAll = true;
     held.forEach(item => item.resolve());
+    await context.close();
+  }
+}
+
+async function mediaGalleries(browser) {
+  for (const width of [360, 1440]) {
+    const { context, page } = await newPage(browser, { width, height: 900 });
+    const imageRequests = [];
+    await context.route('https://gallery.example/**', async route => {
+      imageRequests.push(route.request().url());
+      const missing = /broken|unavailable/.test(route.request().url());
+      await route.fulfill({
+        status: missing ? 404 : 200,
+        contentType: 'image/svg+xml',
+        body: missing ? '' : '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="teal"/></svg>',
+      });
+    });
+    try {
+      await check(`media galleries: shared polaroid, caption links and thumbnails at ${width}px`, async () => {
+        const response = await page.goto(`${base}/__media-gallery-fixture`, { waitUntil: 'networkidle' });
+        assert.equal(response.status(), 200);
+        for (const id of ['stream-gallery', 'single-gallery']) {
+          const gallery = page.locator(`#${id} .picture-gallery`);
+          assert.equal(await gallery.count(), 1, `${id} not rendered: ${(await page.content()).slice(-9000)}`);
+          const main = gallery.locator('.main-image');
+          await main.scrollIntoViewIfNeeded();
+          await page.waitForFunction(selector => document.querySelector(selector)?.naturalWidth === 800, `#${id} .main-image`);
+          assert.equal(await gallery.locator('.thumbnails button').count(), 3);
+          await page.waitForFunction(selector => document.querySelector(selector)?.naturalWidth === 800, `#${id} .thumbnail:nth-child(2) img`);
+          assert.equal(await gallery.locator('a .thumbnail').count(), 0);
+          assert.equal(await gallery.locator('figcaption > div img, figcaption > div iframe, figcaption > div video').count(), 0);
+          assert.deepEqual(await gallery.locator('figcaption > div a').evaluateAll(links => links.map(link => link.href)), [
+            'https://gallery.example/one.png', 'https://gallery.example/two.png',
+          ]);
+          await gallery.locator('.thumbnail').nth(1).click();
+          await page.waitForFunction(selector => document.querySelector(selector)?.src.endsWith('/two.png'), `#${id} .main-image`);
+          assert.equal(await main.getAttribute('alt'), 'Second photo');
+          assert.equal(await main.getAttribute('data-dimensions'), null);
+          assert.equal(await gallery.locator('.thumbnail[aria-pressed="true"]').getAttribute('data-gallery-index'), '1');
+          assert.ok(page.url().endsWith('/__media-gallery-fixture'), 'thumbnail navigated away');
+          await gallery.locator('.thumbnail').nth(1).focus();
+          await page.keyboard.press('End');
+          await gallery.locator('.gallery-error:not([hidden])').waitFor();
+          await page.keyboard.press('Home');
+          assert.equal(await main.getAttribute('alt'), 'First photo');
+          assert.equal(await main.getAttribute('data-dimensions'), '800x600');
+          assert.equal(await gallery.locator('.gallery-error').isVisible(), false);
+          await page.keyboard.press('ArrowRight');
+          assert.equal(await gallery.locator('.thumbnail[aria-pressed="true"]').getAttribute('data-gallery-index'), '1');
+        }
+        assert.equal(await page.locator('#empty-gallery .gallery-empty').count(), 1);
+        assert.ok(!imageRequests.some(url => url.includes('sensitive.png')), 'sensitive image loaded before reveal');
+        const sensitive = page.locator('#sensitive-gallery');
+        assert.equal(await sensitive.locator('img').count(), 0);
+        await sensitive.locator('button').click();
+        await sensitive.locator('img').waitFor();
+        await page.waitForFunction(() => document.querySelector('#sensitive-gallery img')?.naturalWidth === 800);
+        assert.equal(await sensitive.locator('.content-warning').count(), 0);
+        for (const theme of ['light', 'dark', 'space']) {
+          await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `horizontal overflow in ${theme}`);
+          const style = await page.locator('#stream-gallery figure.media').evaluate(node => ({
+            radius: getComputedStyle(node).borderRadius, shadow: getComputedStyle(node).boxShadow,
+          }));
+          assert.equal(style.radius, '0px');
+          assert.equal(style.shadow, 'none');
+        }
+      });
+    } finally {
+      await context.close();
+    }
+  }
+}
+
+async function publicationStreams(browser) {
+  const { context, page } = await newPage(browser, { width: 1440, height: 900 });
+  try {
+    await check('home and profile streams include locally stored publication indexes', async () => {
+      for (const signedIn of [true, false]) {
+        if (!signedIn) await context.addCookies([{ name: 'workspace_fixture_signed_out', value: '1', url: base }]);
+        const response = await page.goto(`${base}/home/stream`, { waitUntil: 'networkidle' });
+        assert.equal(response.status(), 200);
+        const book = page.locator(`.stream-collection h2 a[href="/bookshelf/index/${rootId}"]`);
+        assert.equal(await book.count(), 1);
+        assert.equal(await book.innerText(), 'Synthetic root');
+        assert.equal(await page.getByText('Synthetic book', { exact: true }).count(), 1);
+        assert.equal(await page.getByText('Synthetic magazine', { exact: true }).count(), 1);
+        assert.doesNotMatch(await page.locator('.content-stream').innerText(), /NEVER (SCOPED|OLD SCOPED|HIDDEN|SENSITIVE)/);
+      }
+      await context.clearCookies();
+      const ownerNpub = 'npub1424242424242424242424242424242424242424242424242424qamrcaj';
+      const response = await page.goto(`${base}/p/${ownerNpub}/stream`, { waitUntil: 'networkidle' });
+      assert.equal(response.status(), 200);
+      const book = page.locator(`.stream-collection h2 a[href="/bookshelf/index/${rootId}"]`);
+      assert.equal(await book.count(), 1);
+      assert.equal(await book.innerText(), 'Synthetic root');
+      await book.click();
+      await page.waitForURL(`**/bookshelf/index/${rootId}`);
+      assert.equal(await page.locator('.bookshelf-publication').count(), 1);
+    });
+  } finally {
     await context.close();
   }
 }
@@ -385,6 +556,9 @@ async function snapshotRevocation(browser) {
     await runViewport(browser, 'desktop', { width: 1440, height: 900 });
     await runViewport(browser, 'mobile', { width: 390, height: 844 });
     await inventoryPresentation(browser);
+    await authoredMetadata(browser);
+    await mediaGalleries(browser);
+    await publicationStreams(browser);
     await members(browser);
     await concurrency(browser);
     await snapshotRevocation(browser);

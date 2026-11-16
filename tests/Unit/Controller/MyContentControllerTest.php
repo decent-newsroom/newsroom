@@ -12,6 +12,14 @@ use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use App\Repository\PublicationSubdomainSubscriptionRepository;
 use App\Service\NewsroomUnfoldNavigationService;
+use App\Service\EventWorkspace\AuthoredArticleMetadata;
+use App\Service\EventWorkspace\AuthoredArticlePreview;
+use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\NostrNip19Service;
+use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Repository\DeletedEventRepository;
+use App\Repository\HiddenCoordinateRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use PHPUnit\Framework\TestCase;
@@ -340,6 +348,23 @@ final class MyContentControllerTest extends TestCase
         self::assertSame('Article 25', $parameters['contentItems'][24]['title']);
     }
 
+    public function testOriginalTagMetadataIsIncludedInInitialRows(): void
+    {
+        $owner = str_repeat('a', 64);
+        $article = $this->article('1', 'Article', 'article', 'Summary', '2024-01-01', $owner);
+        $article->setRaw([
+            'id' => $article->getEventId(), 'pubkey' => $owner, 'kind' => 30023,
+            'created_at' => $article->getCreatedAt()->getTimestamp(),
+            'tags' => [['d', 'article'], ['t', 'nostr'], ['client', 'Newsroom']],
+            'content' => 'Original body',
+        ]);
+        $parameters = $this->renderInventory([$article], [], [], $owner);
+
+        self::assertSame(['nostr'], $parameters['contentItems'][0]['metadata']['hashtags']);
+        self::assertSame('Newsroom', $parameters['contentItems'][0]['metadata']['client']);
+        self::assertSame('Article', $parameters['contentItems'][0]['title']);
+    }
+
     private function article(
         string $idDigit,
         ?string $title,
@@ -415,7 +440,21 @@ final class MyContentControllerTest extends TestCase
         $controller = new MyContentController();
         $controller->setContainer($container);
 
-        $response = $controller->index($em, new Request($query), $navigation);
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findBy')->willReturnCallback(static function (array $criteria) use ($ownerHex): array {
+            self::assertLessThanOrEqual(25, count($criteria['id']));
+            self::assertSame($ownerHex, $criteria['pubkey']);
+            self::assertSame([30023, 30024], $criteria['kind']);
+
+            return [];
+        });
+        $metadata = new AuthoredArticleMetadata(
+            new AuthoredArticlePreview(new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service())),
+            $events, $this->createMock(ContentAuthorAccessPolicy::class),
+            $this->createMock(DeletedEventRepository::class),
+            $this->createMock(HiddenCoordinateRepository::class), new NostrNip19Service(),
+        );
+        $response = $controller->index($em, new Request($query), $navigation, $metadata);
         self::assertSame('my-content-rendered', $response->getContent());
         self::assertEqualsCanonicalizing(
             [[$ownerHex, KindsEnum::LONGFORM], [$ownerHex, KindsEnum::LONGFORM_DRAFT]],

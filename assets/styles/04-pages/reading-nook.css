@@ -21,6 +21,63 @@
     font-size: var(--font-size-base);
 }
 
+.reading-nook-actions {
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.reading-nook-actions h2 {
+    margin: 0 0 var(--spacing-3);
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.reading-nook-actions__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+}
+
+.reading-nook-actions__links a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    max-width: 100%;
+    min-height: 2.75rem;
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.reading-nook-actions__links a:hover,
+.reading-nook-actions__links a:focus-visible {
+    border-color: var(--color-primary-link);
+    color: var(--color-primary-link);
+}
+
+.reading-nook-actions__links a:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 3px;
+}
+
+.reading-nook-actions__links .icon {
+    flex: 0 0 auto;
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+.reading-nook-actions p {
+    margin: var(--spacing-3) 0 0;
+    color: var(--color-text-mid);
+    font-size: var(--font-size-sm);
+    overflow-wrap: anywhere;
+}
+
 .reading-nook-shell,
 .reading-nook-content {
     min-width: 0;

@@ -190,17 +190,21 @@ for the bounded local-only behavior; generic magazine routing is unchanged.
   TOC traversal is unchanged; this shell does not implement a general browser.
   Bookshelf freshness and containing-index lookup are unchanged.
 
-### Shipped Step 2 subset: My Content article previews
+### Shipped Step 2 subset: My Content article metadata
 
 - Article and draft rows retain their existing title/editor, public view,
-  coordinate-copy, and signed-delete actions, with a separate native lazy
-  preview disclosure for rows with an exact event ID.
-- Each fragment queries the Article by exact event ID and authenticated owner,
+  coordinate-copy, and signed-delete actions. Inline hashtags, profile mentions,
+  source links, language, and client metadata now replace the redundant preview
+  disclosure. Metadata is derived only for the visible page, uses the shared
+  exact-original adapter, and checks owner/kind, suppression, hidden coordinates,
+  and deletion. Sensitive originals expose only a warning label.
+- The retained direct preview fragment queries the Article by exact event ID and authenticated owner,
   rechecks article kind, author suppression, hidden coordinate, and NIP-09
   deletion, and returns private/no-store content. Drafts never become public.
 - A matching local Event supplies the presentation; a complete matching raw
-  Article event is the fallback. Without either, the disclosure explicitly
-  reports the original as unavailable, without fabricating tags from projections.
+  Article event is the fallback. Without either, rows add no tag metadata and
+  direct fragments report the original as unavailable, without fabricating tags
+  from projections.
 - Shared tag-based previews do not depend on processed HTML. Outgoing references
   retain signed order, duplicates, invalid occurrences, and source positions,
   in 50-reference pages pinned to the same event. Sensitive text and references

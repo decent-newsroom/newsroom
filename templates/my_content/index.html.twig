@@ -94,7 +94,6 @@
     <div class="my-content-inventory">
         <div class="my-content-row my-content-row--head" aria-hidden="true">
             <span>{{ 'my_content.column.content'|trans }}</span>
-            <span>{{ 'my_content.column.status'|trans }}</span>
             <span>{{ 'my_content.column.updated'|trans }}</span>
             <span>&nbsp;</span> {# actions #}
         </div>
@@ -123,15 +122,47 @@
                         {% else %}
                             <p class="my-content-row__slug">{{ item.article.slug }}</p>
                         {% endif %}
+                        {% if item.metadata|default(null) %}
+                            {% if item.metadata.sensitive %}
+                                <span class="my-content-row__sensitive">{{ 'event.preview.sensitive'|trans }}</span>
+                            {% else %}
+                                {% if item.metadata.hashtags is not empty %}
+                                    <ul class="my-content-row__tags" aria-label="{{ 'nav.topics'|trans }}">
+                                        {% for hashtag in item.metadata.hashtags %}
+                                            <li><a href="{{ path('topics', {tag: hashtag}) }}">#{{ hashtag }}</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                                {% if item.metadata.mentions is not empty %}
+                                    <ul class="my-content-row__mentions" aria-label="{{ 'event.mentions'|trans }}">
+                                        {% for npub in item.metadata.mentions %}
+                                            <li><a href="{{ path('author-profile', {npub: npub}) }}" title="{{ npub }}">@{{ npub|slice(0, 12) }}…{{ npub|slice(-6) }}</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                                {% if item.metadata.sources is not empty or item.metadata.language or item.metadata.client %}
+                                    <dl class="my-content-row__metadata">
+                                        {% if item.metadata.language %}
+                                            <div><dt>{{ 'my_content.metadata.language'|trans }}</dt><dd>{{ item.metadata.language }}</dd></div>
+                                        {% endif %}
+                                        {% if item.metadata.client %}
+                                            <div><dt>{{ 'event.client'|trans }}</dt><dd>{{ item.metadata.client }}</dd></div>
+                                        {% endif %}
+                                        {% if item.metadata.sources is not empty %}
+                                            <div>
+                                                <dt>{{ 'text.source'|trans }}</dt>
+                                                <dd>
+                                                    {% for source in item.metadata.sources %}
+                                                        <a href="{{ source }}" target="_blank" rel="noopener noreferrer">{{ source }}</a>
+                                                    {% endfor %}
+                                                </dd>
+                                            </div>
+                                        {% endif %}
+                                    </dl>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
                     </div>
-                </div>
-
-                <div class="my-content-row__status">
-                    {% if item.category == 'published' %}
-                        <span class="my-content-status my-content-status--published">{{ 'my_content.status.published'|trans }}</span>
-                    {% else %}
-                        <span class="my-content-status my-content-status--draft">{{ 'my_content.status.draft'|trans }}</span>
-                    {% endif %}
                 </div>
 
                 <time datetime="{{ item.updatedAt ? item.updatedAt|date('c') : '' }}">
@@ -197,15 +228,6 @@
                         {% endif %}
                     </div>
                 </details>
-                {% if item.article.eventId %}
-                    <twig:Molecules:LazyDisclosure
-                        disclosureClass="my-content-row__preview"
-                        :frameId="'my-content-preview-' ~ item.article.eventId"
-                        :url="path('my_content_preview', {eventId: item.article.eventId})"
-                        :summary="'my_content.preview.label'|trans"
-                        :loadLabel="'my_content.preview.load'|trans"
-                    />
-                {% endif %}
             </article>
         {% else %}
             <div class="my-content-empty">

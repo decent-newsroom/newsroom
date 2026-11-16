@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block layout %}
+    <main class="container">
+        <section id="stream-gallery">
+            {% include 'content_stream/_items.html.twig' with {
+                rows: [{key: 'picture', type: 'media', item: media, labels: [], timestamp: 1700000000}],
+                feedBreaks: {}
+            } %}
+        </section>
+        <section id="single-gallery">
+            {% include 'partial/_gallery.html.twig' with {event: media} %}
+        </section>
+        <section id="sensitive-gallery">
+            <twig:Molecules:PictureGallery :tags="[
+                ['content-warning'],
+                ['imeta', 'url https://gallery.example/sensitive.png', 'alt Sensitive photo']
+            ]" />
+        </section>
+        <section id="empty-gallery"><twig:Molecules:PictureGallery :tags="[]" /></section>
+    </main>
+{% endblock %}

@@ -11,6 +11,7 @@ use App\Repository\ArticleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\NewsroomUnfoldNavigationService;
+use App\Service\EventWorkspace\AuthoredArticleMetadata;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,6 +32,7 @@ class MyContentController extends AbstractController
         EntityManagerInterface $em,
         Request $request,
         NewsroomUnfoldNavigationService $unfoldNavigation,
+        AuthoredArticleMetadata $articleMetadata,
     ): Response
     {
         $key = new NostrKeyService();
@@ -119,6 +121,11 @@ class MyContentController extends AbstractController
         $totalPages = max(1, (int) ceil($filteredCount / $pageSize));
         $page = min(max(1, $request->query->getInt('page', 1)), $totalPages);
         $visibleItems = array_slice($filteredItems, ($page - 1) * $pageSize, $pageSize);
+        $metadata = $articleMetadata->forArticles(array_column($visibleItems, 'article'), $pubkeyHex);
+        foreach ($visibleItems as &$item) {
+            $item['metadata'] = $metadata[$item['article']->getEventId()] ?? null;
+        }
+        unset($item);
 
         return $this->render('my_content/index.html.twig', [
             'newsroomNav' => $this->buildNewsroomNav($unfoldNavigation->forOwner($this->getUser()?->getUserIdentifier())),

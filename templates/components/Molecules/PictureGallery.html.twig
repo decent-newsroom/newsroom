@@ -1,0 +1,73 @@
+<div {{ attributes.defaults({class: 'picture-gallery', 'data-controller': 'ui--gallery'}) }}>
+    {% set gallery %}
+        <div class="gallery-view">
+            <figure class="media">
+                {% if images is not empty %}
+                    {% set main = images[0] %}
+                    <div class="main-image-wrapper">
+                        {% if eventUrl %}<a class="gallery-event-link" href="{{ eventUrl }}" data-turbo-frame="_top" aria-label="{{ 'content_stream.open_media'|trans }}">{% endif %}
+                        <img src="{{ main.url }}"
+                             alt="{{ main.alt ?? 'media_gallery.picture'|trans }}"
+                             class="picture-image main-image"
+                             loading="lazy"
+                             data-ui--gallery-target="mainImage"
+                             data-fallbacks="{{ main.fallbacks|json_encode }}"
+                             data-action="error->ui--gallery#fallback"
+                             {% if main.dimensions %}data-dimensions="{{ main.dimensions }}"{% endif %}
+                             {% if main.blurhash %}data-blurhash="{{ main.blurhash }}"{% endif %}>
+                        {% if eventUrl %}</a>{% endif %}
+                        {% for image in images %}
+                            {% if image.annotations is not empty %}
+                                <div class="annotated-users" data-ui--gallery-target="annotations" data-gallery-index="{{ loop.index0 }}"{% if not loop.first %} hidden{% endif %}>
+                                    {% for annotation in image.annotations %}
+                                        <div class="user-tag" data-gallery-annotation data-left="{{ annotation.x }}" data-top="{{ annotation.y }}">
+                                            <twig:Molecules:UserFromNpub :ident="annotation.ident" />
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <p class="gallery-error" data-ui--gallery-target="error" role="status" hidden>{{ 'media_gallery.unavailable'|trans }}</p>
+                    {% if images|length > 1 %}
+                        <div class="thumbnails" role="group" aria-label="{{ 'media_gallery.thumbnails'|trans }}">
+                            {% for image in images %}
+                                <button type="button" class="thumbnail{% if loop.first %} selected{% endif %}"
+                                        data-ui--gallery-target="thumbnail"
+                                        data-action="click->ui--gallery#switch"
+                                        data-gallery-index="{{ loop.index0 }}"
+                                        data-url="{{ image.url }}"
+                                        data-alt="{{ image.alt ?? 'media_gallery.picture'|trans }}"
+                                        data-fallbacks="{{ image.fallbacks|json_encode }}"
+                                        {% if image.dimensions %}data-dimensions="{{ image.dimensions }}"{% endif %}
+                                        {% if image.blurhash %}data-blurhash="{{ image.blurhash }}"{% endif %}
+                                        aria-label="{{ 'media_gallery.select_image'|trans({'%index%': loop.index, '%count%': images|length}) }}"
+                                        aria-pressed="{{ loop.first ? 'true' : 'false' }}">
+                                    <img src="{{ image.url }}" alt="" loading="lazy" data-fallbacks="{{ image.fallbacks|json_encode }}" data-action="error->ui--gallery#fallback">
+                                </button>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <p class="gallery-empty">{{ 'media_gallery.empty'|trans }}</p>
+                {% endif %}
+                {% if content is not empty or creditPubkey %}
+                    <figcaption class="picture-description">
+                        {% if content is not empty %}<twig:Atoms:Content :content="content" :renderMedia="false" />{% endif %}
+                        {% if creditPubkey %}<span class="credits">{{ 'text.byline'|trans }} <twig:Molecules:UserFromNpub :ident="creditPubkey" /></span>{% endif %}
+                    </figcaption>
+                {% endif %}
+            </figure>
+        </div>
+    {% endset %}
+    {% if sensitive %}
+        <div class="content-warning" data-ui--gallery-target="warning">
+            <strong>{{ 'event.preview.sensitive'|trans }}</strong>
+            {% if warning %}<p>{{ warning }}</p>{% endif %}
+            <button type="button" data-action="ui--gallery#reveal">{{ 'media_gallery.reveal'|trans }}</button>
+        </div>
+        <template data-ui--gallery-target="content">{{ gallery }}</template>
+    {% else %}
+        {{ gallery }}
+    {% endif %}
+</div>

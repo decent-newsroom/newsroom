@@ -743,7 +743,7 @@ class SettingsController extends AbstractController
      */
     #[Route('/settings/follow-pack', name: 'follow_pack_setup')]
     #[IsGranted('ROLE_USER')]
-    public function followPackSetup(): Response
+    public function followPackSetup(Request $request): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -844,7 +844,7 @@ class SettingsController extends AbstractController
         $existingPackImage = '';
         $existingPackDescription = '';
 
-        if ($selectedCoordinate) {
+        if ($selectedCoordinate && !$request->query->getBoolean('new')) {
             foreach ($existingFollowPacks as $pack) {
                 $packCoord = KindsEnum::FOLLOW_PACK->value . ':' . $pubkey . ':' . $pack['dTag'];
                 if ($packCoord === $selectedCoordinate) {

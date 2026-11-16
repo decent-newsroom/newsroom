@@ -908,6 +908,8 @@ feedback:
 
 # ── Meine Inhalte ────────────────────────────────────────────────────────
 my_content:
+    metadata:
+        language: 'Sprache'
     preview:
         label: 'Vorschau und Verbindungen'
         load: 'Ereignisvorschau laden'
@@ -1284,7 +1286,21 @@ updates:
         invalidInput: 'Could not recognize that identifier.'
         alreadySubscribed: 'You are already subscribed to that source.'
 
+media_gallery:
+    picture: 'Bild'
+    thumbnails: 'Galeriebilder'
+    select_image: 'Bild %index% von %count% anzeigen'
+    unavailable: 'Dieses Bild konnte nicht geladen werden.'
+    empty: 'Keine Galeriebilder verfügbar.'
+    reveal: 'Galerie anzeigen'
 reading_nook:
+    shortcuts:
+        title: 'Erstellen & organisieren'
+        follow_pack: 'Neues Follow-Pack'
+        reading_list: 'Neue Leseliste'
+        magazine: 'Listen zu einem Magazin zusammenstellen'
+        interests: 'Interessen verwalten'
+        magazine_hint: 'Wähle im Magazin-Assistenten deine bestehenden Leselisten als Rubriken aus. Die ursprünglichen Listen bleiben erhalten.'
     inventory_unavailable: 'Deine Leseecke ist vorübergehend nicht verfügbar. Bitte versuche es erneut.'
     inventory_retry: 'Erneut versuchen'
     drive:

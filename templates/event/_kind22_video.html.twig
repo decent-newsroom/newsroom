@@ -94,7 +94,7 @@
     {# Description from content #}
     {% if event.content %}
         <div class="video-description">
-            <twig:Atoms:Content :content="event.content" />
+            <twig:Atoms:Content :content="event.content" :renderMedia="false" />
         </div>
     {% endif %}
 

@@ -16,6 +16,33 @@ Database-backed media discovery system for NIP-68 (images, kind 20) and NIP-71 (
 
 Route: `/media-manager` — allows users to browse and manage their uploaded media. Integrates with Blossom and NIP-96 media providers.
 
+## Picture galleries in streams and event views
+
+Kind-20 posts in home and author streams share the single-event polaroid gallery,
+implemented by `Molecules:PictureGallery`. Signed `imeta` tags determine the
+images and their order; caption URLs do not add images to the gallery. The main
+image opens the event from a stream, while separate thumbnail buttons select
+images without navigating away. Arrow keys, Home, and End also change selection.
+
+The shared parser preserves repeated images, per-image alt text, fallback URLs,
+dimensions, blurhash metadata, and valid user annotations. Explicit non-image
+MIME types and non-HTTP(S) URLs are excluded. Content warnings and sensitive
+labels keep gallery markup inert until the reader explicitly reveals it.
+Failed images try their signed fallback URLs before showing an unavailable
+message.
+
+Picture captions and video descriptions use `Atoms:Content` with
+`renderMedia=false`. Image URLs remain links, including extensionless trusted
+image URLs and Markdown image syntax, rather than duplicating gallery images
+inside the text. This mode renders link-only Markdown, escapes raw HTML, and
+disables automatic external media embeds. Ordinary article rendering is
+unchanged.
+
+The single-event adapter remains `templates/partial/_gallery.html.twig`;
+stream rows use the same component directly. Gallery interaction lives in
+`assets/controllers/ui/gallery_controller.js`, with shared styling in
+`assets/styles/03-components/picture-event.css`.
+
 ### Key Files
 
 | Component | File |
@@ -157,4 +184,3 @@ All new user-facing text is under the `media:` namespace in `translations/messag
 - `media.follows.*` — sign-in required, no follows, fallback banner
 - `media.interests.*` — sign-in required, no interests, configure link
 - `media.collections.*` — heading, videos, pictures, empty state, item count label
-

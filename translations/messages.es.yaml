@@ -897,6 +897,8 @@ feedback:
 
 # ── Mi contenido ────────────────────────────────────────────────────────────
 my_content:
+    metadata:
+        language: 'Idioma'
     preview:
         label: 'Vista previa y conexiones'
         load: 'Cargar vista previa del evento'
@@ -1274,7 +1276,21 @@ updates:
         invalidInput: 'Could not recognize that identifier.'
         alreadySubscribed: 'You are already subscribed to that source.'
 
+media_gallery:
+    picture: 'Imagen'
+    thumbnails: 'Imágenes de la galería'
+    select_image: 'Mostrar imagen %index% de %count%'
+    unavailable: 'No se ha podido cargar esta imagen.'
+    empty: 'No hay imágenes disponibles en la galería.'
+    reveal: 'Mostrar galería'
 reading_nook:
+    shortcuts:
+        title: 'Crear y organizar'
+        follow_pack: 'Nuevo paquete de seguidos'
+        reading_list: 'Nueva lista de lectura'
+        magazine: 'Combinar listas en una revista'
+        interests: 'Gestionar intereses'
+        magazine_hint: 'En el asistente de revistas, elige tus listas de lectura existentes como secciones. Las listas originales se conservan.'
     inventory_unavailable: 'Tu rincón de lectura no está disponible temporalmente. Inténtalo de nuevo.'
     inventory_retry: 'Intentar de nuevo'
     drive:

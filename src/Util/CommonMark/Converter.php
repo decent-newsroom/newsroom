@@ -27,6 +27,9 @@ use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\Extension\TableOfContents\TableOfContentsExtension;
 use League\CommonMark\MarkdownConverter;
 use League\CommonMark\Renderer\HtmlDecorator;
+use League\CommonMark\Event\DocumentParsedEvent;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use nostriphant\NIP19\Data\NEvent;
@@ -65,9 +68,10 @@ class Converter implements MarkdownConverterInterface
      * @param string|null $format  Optional format specification ('markdown', 'asciidoc', or null for auto-detect)
      * @param int|null    $kind    Optional Nostr event kind used for deterministic format mapping
      * @param array|null  $tags    Optional Nostr event tags (e.g. from raw JSON) to seed the prefetch
+     * @param bool $renderMedia False selects link-only Markdown for gallery captions.
      * @throws CommonMarkException
      */
-    public function convertToHTML(string $content, ?string $format = null, ?int $kind = null, ?array $tags = null): string
+    public function convertToHTML(string $content, ?string $format = null, ?int $kind = null, ?array $tags = null, bool $renderMedia = true): string
     {
         // Normalize bare bech32 entities (nevent1..., naddr1..., etc.) to nostr: URI
         // form so that all downstream parsers recognise them.
@@ -88,6 +92,9 @@ class Converter implements MarkdownConverterInterface
         $this->prefetchedData = $this->prefetchNostrData($content, $tags);
 
         $resolvedFormat = $format ?? $this->resolveFormatByKind($kind);
+        if (!$renderMedia) {
+            $resolvedFormat = 'markdown';
+        }
 
         try {
             // Explicit format (or kind mapping) always wins over heuristic detection.
@@ -99,7 +106,7 @@ class Converter implements MarkdownConverterInterface
             }
 
             if ($resolvedFormat === 'markdown') {
-                return $this->convertMarkdownToHTML($content);
+                return $this->convertMarkdownToHTML($content, $renderMedia);
             }
 
             // Otherwise, auto-detect if content is AsciiDoc or Markdown
@@ -111,7 +118,7 @@ class Converter implements MarkdownConverterInterface
             }
 
             // Default to Markdown
-            return $this->convertMarkdownToHTML($content);
+            return $this->convertMarkdownToHTML($content, $renderMedia);
         } finally {
             // Clear per-run state so no stale data leaks between calls.
             $this->prefetchedData = null;
@@ -794,7 +801,7 @@ class Converter implements MarkdownConverterInterface
      * Convert Markdown to HTML (original method)
      * @throws CommonMarkException
      */
-    private function convertMarkdownToHTML(string $markdown): string
+    private function convertMarkdownToHTML(string $markdown, bool $renderMedia = true): string
     {
         // Some Nostr clients publish content with backslash-escaped markdown
         // punctuation (e.g. \*\*bold\*\*, \#\# heading, \- list item).
@@ -865,10 +872,37 @@ class Converter implements MarkdownConverterInterface
         $env->addExtension(new TableExtension());
         $env->addExtension(new StrikethroughExtension());
         $env->addExtension(new SmartPunctExtension());
-        $env->addExtension(new EmbedExtension());
-        $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
+        if ($renderMedia) {
+            $env->addExtension(new EmbedExtension());
+            $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
+            $env->addExtension(new RawImageLinkExtension());
+        } else {
+            $env->mergeConfig(['html_input' => 'escape', 'allow_unsafe_links' => false]);
+            $env->addEventListener(DocumentParsedEvent::class, static function (DocumentParsedEvent $event): void {
+                $images = [];
+                $walker = $event->getDocument()->walker();
+                while ($walk = $walker->next()) {
+                    if ($walk->isEntering() && $walk->getNode() instanceof Image) {
+                        $images[] = $walk->getNode();
+                    }
+                }
+                foreach ($images as $image) {
+                    if ($image->parent() instanceof Link) {
+                        while ($child = $image->firstChild()) {
+                            $image->insertBefore($child);
+                        }
+                        $image->detach();
+                        continue;
+                    }
+                    $link = new Link($image->getUrl(), $image->getTitle());
+                    while ($child = $image->firstChild()) {
+                        $link->appendChild($child);
+                    }
+                    $image->replaceWith($link);
+                }
+            });
+        }
         $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->prefetchedData));
-        $env->addExtension(new RawImageLinkExtension());
         $env->addExtension(new AutolinkExtension());
 
         if ($headingsCount > 3) {
@@ -886,7 +920,9 @@ class Converter implements MarkdownConverterInterface
         // escaping is no longer a concern.
         $html = $this->restoreMathPlaceholders($html);
 
-        $html = $this->processTrustedImageLinks($html);
+        if ($renderMedia) {
+            $html = $this->processTrustedImageLinks($html);
+        }
 
         return $this->processNostrLinks($html);
     }

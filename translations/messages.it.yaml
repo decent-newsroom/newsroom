@@ -897,6 +897,8 @@ newsroom:
         media_manager: 'Gestore media'
 
 my_content:
+    metadata:
+        language: 'Lingua'
     description: 'Scrivi, rivedi e gestisci i tuoi articoli e le tue bozze.'
     preview:
         label: 'Anteprima e collegamenti'
@@ -907,7 +909,21 @@ my_content:
         invalid: 'Riferimento non valido'
         empty: 'Nessun riferimento evento.'
 
+media_gallery:
+    picture: 'Immagine'
+    thumbnails: 'Immagini della galleria'
+    select_image: 'Mostra immagine %index% di %count%'
+    unavailable: 'Impossibile caricare questa immagine.'
+    empty: 'Nessuna immagine disponibile nella galleria.'
+    reveal: 'Mostra galleria'
 reading_nook:
+    shortcuts:
+        title: 'Crea e organizza'
+        follow_pack: 'Nuovo pacchetto di profili'
+        reading_list: 'Nuova lista di lettura'
+        magazine: 'Riunisci le liste in una rivista'
+        interests: 'Gestisci interessi'
+        magazine_hint: 'Nella procedura guidata della rivista, scegli le liste di lettura esistenti come sezioni. Le liste originali rimangono intatte.'
     inventory_unavailable: 'Il tuo angolo di lettura non è temporaneamente disponibile. Riprova.'
     inventory_retry: 'Riprova'
     drive:

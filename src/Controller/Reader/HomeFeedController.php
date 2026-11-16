@@ -25,6 +25,7 @@ use App\Service\UserMuteListService;
 use App\Service\HighlightFeedService;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\Reader\ContentStreamBuilder;
+use App\Service\Reader\PublicationIndexStream;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\FeaturedWritersFeed;
 use App\Service\Reader\FeaturedWritersRecommendations;
@@ -63,6 +64,7 @@ class HomeFeedController extends AbstractController
         FeaturedWritersRecommendations $recommendations,
         ContentStreamBuilder $streamBuilder,
         ContentAuthorAccessPolicy $authorAccess,
+        PublicationIndexStream $publicationIndexes,
     ): Response {
         $latest = $this->latestArticlesData($viewStore, $exclusionPolicy, $contentSearch, $userMuteListService, $eventRepository);
         $featured = $featuredWriters->load();
@@ -75,6 +77,7 @@ class HomeFeedController extends AbstractController
             ['type' => 'article', 'items' => $latest['articles']],
             ['type' => 'article', 'items' => $featured['articles'], 'label' => 'content_stream.source.featured'],
             ['type' => 'highlight', 'items' => $highlights],
+            ['type' => 'magazine', 'items' => $publicationIndexes->load()['items']],
             ['type' => 'article', 'items' => $articles['articles']],
             ['type' => 'article', 'items' => $pack['articles'], 'label' => 'content_stream.source.pack'],
             ['type' => 'activity', 'items' => $activity['activityItems']],

@@ -22,6 +22,7 @@ use App\Repository\ArticleRepository;
 use App\Service\VanityNameService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\ContentStreamBuilder;
+use App\Service\Reader\PublicationIndexStream;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -840,6 +841,7 @@ class AuthorController extends AbstractController
         RedisViewStore $viewStore,
         RedisViewFactory $viewFactory,
         EntityManagerInterface $em,
+        PublicationIndexStream $publicationIndexes,
         ?string $npub = null,
         ?string $vanity = null
     ): Response {
@@ -873,7 +875,7 @@ class AuthorController extends AbstractController
         }
 
         if ($tab === 'stream') {
-            $data = $this->getProfileStreamData($pubkey, $isOwner, $request, $redisCacheService, $viewStore, $viewFactory, $em, $messageBus);
+            $data = $this->getProfileStreamData($pubkey, $isOwner, $request, $redisCacheService, $viewStore, $viewFactory, $em, $messageBus, $publicationIndexes);
             $response = $this->render(
                 $request->headers->get('Turbo-Frame') === 'profile-stream-content'
                     ? 'profile/_stream.html.twig' : 'profile/author-tabs.html.twig',
@@ -1117,6 +1119,7 @@ class AuthorController extends AbstractController
         RedisViewFactory $factory,
         EntityManagerInterface $em,
         MessageBusInterface $bus,
+        PublicationIndexStream $publicationIndexes,
     ): array {
         $sources = [
             ['type' => 'article', 'items' => $this->getAuthorArticles($pubkey, $isOwner, $views, $factory)],
@@ -1126,6 +1129,9 @@ class AuthorController extends AbstractController
         if ($isOwner) {
             $sources[] = ['type' => 'draft', 'items' => $this->getDraftsTabData($pubkey, $factory, $cache->getMetadata($pubkey))['drafts']];
         }
+
+        $indexes = $publicationIndexes->load($pubkey);
+        $sources[] = ['type' => 'magazine', 'items' => $indexes['items'], 'label' => 'content_stream.source.authored'];
 
         // Relationship inventories remain worker-built; a cold profile must not
         // synchronously scan every publication just to render its stream.
@@ -1141,7 +1147,10 @@ class AuthorController extends AbstractController
         ] as $key => $type) {
             $sources[] = [
                 'type' => $type,
-                'items' => $editorial[$key] ?? [],
+                'items' => in_array($type, ['magazine', 'reading_list'], true)
+                    ? array_values(array_filter($editorial[$key] ?? [], static fn ($item): bool =>
+                        !PublicationIndexStream::isSuperseded($item, $indexes['seen'])))
+                    : ($editorial[$key] ?? []),
                 'label' => str_starts_with($key, 'featured')
                     ? 'content_stream.source.featured_in' : 'content_stream.source.authored',
             ];

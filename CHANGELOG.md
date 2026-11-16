@@ -2,6 +2,12 @@
 
 ## v0.1.0
 
+- [Improvement] Remove the duplicate My Content link from the Newsroom sidebar.
+- [Feature] Include locally stored public book and publication indexes in home and author streams.
+- [Fix] Align My Content metadata labels and values by removing inherited label margins.
+- [Improvement] Unify stream images and single-media views with polaroid galleries and selectable thumbnails; keep caption image links as text links instead of duplicate inline images.
+- [Improvement] Replace My Content's redundant preview disclosure with inline article hashtags, mentions, source links, language, and publishing-client metadata.
+- [Improvement] Add Reading Nook shortcuts for new follow packs, reading lists, combining lists into a magazine, and managing interests.
 - [Improvement] Redesign Reading Nook as a responsive editorial library with clearer collection rows, filters, and lazy disclosures; fix the missing drive icon.
 - [Improvement] Move Reading Nook's saved directory references from the top of the page into the drives section.
 - [Feature] Show featured follow-pack writers as profile-card carousels between home stream entries.

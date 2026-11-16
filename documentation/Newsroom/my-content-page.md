@@ -1,13 +1,15 @@
 # My Content Publishing Inventory
 
+Inline signed-tag metadata labels and values share a baseline and consistent
+spacing, including when source links wrap on narrow screens. Publishing Inventory
+
 ## Summary
 
-Event previews use the shared native lazy disclosure shell. The rollback flag
-`EVENT_WORKSPACE_EXPANSION_ENABLED` defaults to `true`; setting it to `false`
-hides previews and makes `/my-content/preview/{eventId}` return 404, without
-disabling inventory, editor, public reader, or authoring actions. See the
-[workspace iteration plan](../Reader/event-workspace-iteration-plan.md#shared-step-2-disclosure-shell-and-rollback)
-for the shared rollout boundary and deferred Step 3+ work.
+Useful signed article tags appear directly in each inventory row, without a
+second preview or connections disclosure. This metadata does not depend on
+`EVENT_WORKSPACE_EXPANSION_ENABLED`. The existing owner-only preview endpoint
+remains available to direct callers and retains its expansion flag and access
+checks; it is no longer requested by inventory rows.
 
 `/my-content` is the authenticated author's publishing workspace. It brings
 published articles and drafts into one compact inventory. Reading lists and
@@ -29,6 +31,8 @@ Search and sort controls use query parameters so filtered views can be bookmarke
 The inventory uses a consistent row model:
 
 - Title and summary or protocol identifier.
+- Linked hashtags, linked profile mentions, HTTP(S) source links, language,
+  and publishing-client metadata when present in the matching signed original.
 - Published or draft status.
 - A display date: publication date when available for published articles,
   otherwise the event creation date.
@@ -36,31 +40,29 @@ The inventory uses a consistent row model:
 
 Article and draft titles open the editor. Published articles also offer a public
 view, while protocol coordinates are available from the overflow menu. The
-menu remains distinct from the event preview disclosure.
+menu remains separate from the inline metadata.
 
-## Event preview disclosure
+## Inline tag metadata
 
-Rows with an exact event ID now offer a separate **Event preview and references**
-disclosure, independent of the action menu. It lazily loads the owner-only
-`GET /my-content/preview/{eventId}` fragment; its Load link also works without
-JavaScript. Published articles and drafts use the same shared escaped
-`EventPreview` presentation, without loading images, converting Markdown, or
-requiring generated HTML.
+After filtering and 25-row pagination, `AuthoredArticleMetadata` batch-loads
+exact local Events for the visible owner's articles and drafts. The shared
+`AuthoredArticlePreview` adapter prefers an exact matching Event; a complete
+Article raw event matching ID, author, kind, creation time, and coordinate is
+the fallback. Missing or inconsistent originals add no metadata; projected
+topics and processed HTML are never substituted for signed tags.
 
-The fragment rechecks the authenticated owner, article kind, author suppression,
-hidden coordinate, and NIP-09 tombstones on every request. It returns
-`Cache-Control: private, no-store`. The exact locally stored Event is preferred;
-otherwise a complete Article raw event with matching ID, author, kind, and
-coordinate can supply the signed fields. Missing or inconsistent originals show
-an explicit unavailable notice, never a fabricated event from projection fields.
-Rows without an event ID retain their existing actions without a disclosure.
+The enrichment checks ownership, article kind, author suppression, hidden
+coordinates, and NIP-09 tombstones. Sensitive originals show a warning label
+instead of tag metadata. No target data is resolved or fetched, and no images
+or article bodies are loaded or rendered. Mentions link to profiles using
+abbreviated npubs, with the full key available in the link title. Only
+validated HTTP(S) source URLs become external links.
 
-References are listed in signed tag order, at most 50 per page, retaining
-duplicates, malformed occurrences, and source positions. Targets remain
-unchecked; no target data, network fetch, persistence, full body rendering, or
-recursive expansion is introduced. Sensitive event text and references stay
-hidden. The existing inventory filters, counts, 25-row pagination, editor links,
-coordinate copy, and signed deletion are unchanged.
+Display facets are deduplicated in first-occurrence order; original tags and
+ordered references are not rewritten. All values remain escaped text. Existing
+filters, counts, sorting, editor links, coordinate copying, and signed deletion
+are unchanged. Hashtags navigate to topic discovery rather than introducing a
+second article-filtering mechanism.
 
 The controller displays 25 filtered items per page. Article revision
 deduplication is performed in PostgreSQL with `DISTINCT ON (slug)` through
@@ -96,6 +98,7 @@ foundation for the proposed [expandable event workspace](../Reader/event-workspa
 | File | Responsibility |
 |---|---|
 | `src/Controller/Newsroom/MyContentController.php` | Builds, filters, sorts, and paginates the inventory |
+| `src/Service/EventWorkspace/AuthoredArticleMetadata.php` | Authorizes original sources and derives inline signed-tag facets |
 | `src/Repository/ArticleRepository.php` | Fetches the newest article revision per slug |
 | `templates/my_content/index.html.twig` | Inventory, controls, menus, and delete dialog |
 | `assets/styles/04-pages/my-content.css` | Flat responsive page styling |

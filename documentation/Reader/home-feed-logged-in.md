@@ -11,9 +11,9 @@ single-stream behavior taking precedence over its older profile-tab suggestion.
 
 | Surface | Retained sources |
 |---|---|
-| Public home | Recent articles, featured writers' articles, public highlights |
+| Public home | Recent articles, featured writers' articles, public highlights, recent public publication indexes |
 | Signed-in home | Public discovery plus discussed/followed/interest articles, the selected follow pack's articles, followed authors' highlights and long-form comments, local subscription updates |
-| Author profile | Public articles, existing media kinds, highlights, authored/featured publications, reading lists and follow packs |
+| Author profile | Public articles, existing media kinds, highlights, locally stored authored publication indexes, authored/featured publications, reading lists and follow packs |
 | Own profile | The public profile sources plus owner-only drafts |
 
 No new event kinds, entitlements, payment terms, or relay discovery mechanisms
@@ -22,6 +22,17 @@ focused reading/editing routes remain available. Subscription notifications are
 labeled as local updates; visiting home never marks them seen or read.
 Recent public articles retain the persisted kind-0 author eligibility check;
 the recent source does not queue missing profile metadata to fill its list.
+
+Both streams also read up to 200 recent locally stored kind `30040` events
+(globally on home, per author on profiles), including books, magazines, and
+other publication indexes. They keep the latest locally selected revision per
+author and case-sensitive identifier before applying suppression, deletion,
+hidden-coordinate and viewer-mute checks. Scoped and sensitive indexes are
+withheld; their metadata is never used as a fallback. Profile snapshots for
+coordinates covered by this local window cannot replace a denied or newer
+signed event. Rows link to the exact-event Bookshelf index viewer rather than
+a slug-only magazine route. There is no synchronous relay fetch or child
+resolution. The bounded window may omit older or heavily duplicated entries.
 
 `ContentStreamBuilder` merges the selected records by descending source date.
 Coordinate-backed article/collection revisions are deduplicated without folding

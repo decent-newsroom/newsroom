@@ -127,11 +127,80 @@ if (PHP_SAPI === 'cli') {
             'd_tag' => $d,
         ]);
     }
+    $connection->insert('event', [
+        'id' => str_repeat('0', 64), 'event_id' => str_repeat('0', 64),
+        'pubkey' => $owner, 'kind' => 3, 'created_at' => 1700000000,
+        'content' => '', 'tags' => '[]', 'sig' => str_repeat('0', 128), 'd_tag' => null,
+    ]);
+    $writer = str_repeat('b', 64);
+    foreach ([
+        ['e1', 'book', 'Synthetic book', [], 1800000005],
+        ['e2', 'magazine', 'Synthetic magazine', [['a', '30040:' . $writer . ':section']], 1800000004],
+        ['e3', 'scoped', 'NEVER SCOPED', [['s', 'private']], 1800000003],
+        ['e4', 'scoped', 'NEVER OLD SCOPED', [], 1800000002],
+        ['e5', 'hidden', 'NEVER HIDDEN', [], 1800000001],
+        ['e6', 'sensitive', 'NEVER SENSITIVE', [['content-warning']], 1800000000],
+    ] as [$suffix, $slug, $title, $extraTags, $created]) {
+        $id = str_pad($suffix, 64, '0', STR_PAD_LEFT);
+        $connection->insert('event', [
+            'id' => $id, 'event_id' => $id, 'pubkey' => $writer, 'kind' => 30040,
+            'created_at' => $created, 'content' => '',
+            'tags' => json_encode([['d', $slug], ['title', $title], ...$extraTags], JSON_THROW_ON_ERROR),
+            'sig' => str_repeat('0', 128), 'd_tag' => $slug,
+        ]);
+    }
+    $connection->insert('hidden_coordinate', [
+        'coordinate' => '30040:' . $writer . ':hidden', 'reason' => 'fixture',
+        'created_at' => '2026-01-01 00:00:00',
+    ]);
+    foreach ([
+        [str_repeat('d', 64), 30023, 'article', 'Synthetic article', [
+            ['t', 'nostr'], ['t', 'fixture'], ['p', $owner],
+            ['r', 'https://example.com/' . str_repeat('long-source-', 20)],
+            ['lang', 'sl'], ['client', 'Newsroom'],
+        ]],
+        [str_repeat('f', 64), 30024, 'draft', 'Synthetic draft', [['t', 'draft-topic']]],
+        [str_pad('f1', 64, '0', STR_PAD_LEFT), 30023, 'sensitive', 'Synthetic sensitive article', [
+            ['t', 'NEVER-EXPOSE-SENSITIVE-TOPIC'], ['content-warning', 'Sensitive reason'],
+        ]],
+    ] as [$id, $kind, $slug, $title, $metadataTags]) {
+        $raw = [
+            'id' => $id, 'pubkey' => $owner, 'kind' => $kind, 'created_at' => 1700000000,
+            'tags' => [['d', $slug], ['title', $title], ...$metadataTags], 'content' => 'Synthetic article body',
+        ];
+        $connection->insert('article', [
+            'event_id' => $id, 'pubkey' => $owner, 'kind' => $kind, 'slug' => $slug,
+            'title' => $title, 'summary' => 'Synthetic article summary',
+            'created_at' => gmdate('Y-m-d H:i:s', 1700000000),
+            'sig' => str_repeat('0', 128), 'content' => 'Synthetic article body',
+            'raw' => json_encode($raw, JSON_THROW_ON_ERROR),
+        ]);
+    }
     echo "Synthetic schema and events created.\n";
     exit(0);
 }
 
 $dispatcher = $container->get('event_dispatcher');
+$dispatcher->addListener(KernelEvents::REQUEST, static function (\Symfony\Component\HttpKernel\Event\RequestEvent $event) use ($container, $owner): void {
+    if ($event->getRequest()->getPathInfo() !== '/__media-gallery-fixture') {
+        return;
+    }
+    $twig = $container->get('twig');
+    $twig->setLoader(new \Twig\Loader\ChainLoader([$twig->getLoader(), new \Twig\Loader\FilesystemLoader(__DIR__)]));
+    $event->setResponse(new Response($twig->render('media-gallery.html.twig', [
+        'media' => (object) [
+            'id' => str_repeat('9', 64),
+            'noteId' => $container->get(\App\Service\Nostr\NostrNip19Service::class)->encodeNote(str_repeat('9', 64)),
+            'pubkey' => $owner, 'kind' => 20,
+            'content' => "A **photo** mentioned in the text: https://gallery.example/one.png\n\n![Second photo](https://gallery.example/two.png)",
+            'tags' => [
+                ['imeta', 'url https://gallery.example/one.png', 'alt First photo', 'dim 800x600'],
+                ['imeta', 'url https://gallery.example/broken.png', 'alt Second photo', 'fallback https://gallery.example/two.png'],
+                ['imeta', 'url https://gallery.example/unavailable.png', 'alt Unavailable photo'],
+            ],
+        ],
+    ])));
+}, 100);
 $dispatcher->addListener(KernelEvents::REQUEST, static function () use ($container, $owner): void {
     if (isset($_COOKIE['workspace_fixture_signed_out'])) {
         return;

@@ -110,12 +110,6 @@ trait NavigationBuilderTrait
         $sections = [
             $this->buildWorkspaceDestinations(),
             [
-                'label' => 'newsroom.nav.overview',
-                'items' => [
-                    ['label' => 'newsroom.nav.my_content', 'route' => 'my_content', 'icon' => 'iconoir:home'],
-                ],
-            ],
-            [
                 'label' => 'newsroom.nav.publications',
                 'items' => [
                     ['label' => 'newsroom.nav.magazines', 'route' => 'my_magazines', 'icon' => 'iconoir:book-stack'],

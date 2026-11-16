@@ -5,15 +5,6 @@
     gap: var(--spacing-4);
 }
 
-.my-content-row__preview {
-    grid-column: 1 / -1;
-    min-width: 0;
-}
-
-.my-content-row__preview > summary {
-    cursor: pointer;
-}
-
 .my-content-header {
     display: flex;
     align-items: end;
@@ -249,7 +240,7 @@
 .my-content-row {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 9.5rem 7rem 2.75rem;
+    grid-template-columns: minmax(0, 1fr) 9.5rem 2.75rem;
     align-items: center;
     min-height: 5rem;
     border-bottom: 1px solid var(--color-border);
@@ -344,6 +335,71 @@
 
 .my-content-row__main .my-content-row__slug {
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-size: var(--font-size-xs);
+}
+
+.my-content-row__tags,
+.my-content-row__mentions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-1) var(--spacing-3);
+    margin: var(--spacing-2) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--font-size-sm);
+}
+
+.my-content-row__tags li,
+.my-content-row__mentions li {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.my-content-row__tags a,
+.my-content-row__mentions a,
+.my-content-row__metadata a {
+    color: var(--color-primary-link);
+    overflow-wrap: anywhere;
+    text-underline-offset: 0.15em;
+}
+
+.my-content-row__metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-1) var(--spacing-4);
+    margin: var(--spacing-2) 0 0;
+    color: var(--color-text-mid);
+    font-size: var(--font-size-xs);
+}
+
+.my-content-row__metadata > div {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-2);
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.my-content-row__metadata dt {
+    flex-shrink: 0;
+    margin: 0;
+    font-weight: 600;
+}
+
+.my-content-row__metadata dd {
+    min-width: 0;
+    margin: 0;
+}
+
+.my-content-row__metadata dd a {
+    display: block;
+}
+
+.my-content-row__sensitive {
+    display: inline-block;
+    margin-top: var(--spacing-2);
+    color: var(--color-text-mid);
     font-size: var(--font-size-xs);
 }
 

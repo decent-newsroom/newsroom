@@ -162,14 +162,32 @@
     max-width: 32rem;
 }
 
-.stream-media > p {
-    max-width: 70ch;
-    white-space: pre-wrap;
+.stream-media {
+    max-width: 44rem;
+    min-width: 0;
 }
 
-.stream-media > time {
-    display: block;
-    margin-block: var(--spacing-2);
+.stream-media .main-image {
+    max-height: 36rem;
+}
+
+.stream-media .picture-description {
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.stream-media .masonry-item,
+.stream-media .masonry-image-container {
+    max-width: 100%;
+}
+
+.stream-media__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--spacing-2) var(--spacing-4);
+    margin-top: var(--spacing-3);
+    color: var(--color-text-mid);
     font-size: 0.875rem;
 }
 

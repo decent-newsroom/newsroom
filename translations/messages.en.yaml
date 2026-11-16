@@ -1092,6 +1092,8 @@ feedback:
 
 # ── My Content ───────────────────────────────────────────────────
 my_content:
+    metadata:
+        language: 'Language'
     preview:
         label: 'Preview and connections'
         load: 'Load event preview'
@@ -1647,7 +1649,21 @@ relay_feed:
         message_placeholder: "I'd like to suggest adding this relay: wss://relay.example.com"
         submit: 'Send suggestion'
 
+media_gallery:
+    picture: 'Picture'
+    thumbnails: 'Gallery images'
+    select_image: 'Show image %index% of %count%'
+    unavailable: 'This image could not be loaded.'
+    empty: 'No gallery images are available.'
+    reveal: 'Show gallery'
 reading_nook:
+    shortcuts:
+        title: 'Create & organize'
+        follow_pack: 'New follow pack'
+        reading_list: 'New reading list'
+        magazine: 'Combine lists into a magazine'
+        interests: 'Manage interests'
+        magazine_hint: 'In the magazine wizard, choose your existing reading lists as sections. The original lists stay intact.'
     inventory_unavailable: 'Your Reading Nook is temporarily unavailable. Please try again.'
     inventory_retry: 'Try again'
     drive:

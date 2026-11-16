@@ -29,6 +29,29 @@
         <p>{{ 'reading_nook.subtitle'|trans }}</p>
     </header>
 
+    <nav class="reading-nook-actions" aria-label="{{ 'reading_nook.shortcuts.title'|trans }}">
+        <h2>{{ 'reading_nook.shortcuts.title'|trans }}</h2>
+        <div class="reading-nook-actions__links">
+            <a href="{{ path('follow_pack_setup', {new: 1}) }}">
+                {{ ux_icon('iconoir:community', {class: 'icon', 'aria-hidden': 'true'}) }}
+                {{ 'reading_nook.shortcuts.follow_pack'|trans }}
+            </a>
+            <a href="{{ path('read_wizard_new') }}" data-turbo-prefetch="false">
+                {{ ux_icon('iconoir:plus', {class: 'icon', 'aria-hidden': 'true'}) }}
+                {{ 'reading_nook.shortcuts.reading_list'|trans }}
+            </a>
+            <a href="{{ path('mag_wizard_new') }}" data-turbo-prefetch="false">
+                {{ ux_icon('iconoir:book-stack', {class: 'icon', 'aria-hidden': 'true'}) }}
+                {{ 'reading_nook.shortcuts.magazine'|trans }}
+            </a>
+            <a href="{{ path('my_interests') }}">
+                {{ ux_icon('iconoir:compass', {class: 'icon', 'aria-hidden': 'true'}) }}
+                {{ 'reading_nook.shortcuts.interests'|trans }}
+            </a>
+        </div>
+        <p>{{ 'reading_nook.shortcuts.magazine_hint'|trans }}</p>
+    </nav>
+
     <div class="reading-nook-shell">
 
         <div class="reading-nook-content">

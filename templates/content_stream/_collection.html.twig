@@ -1,7 +1,9 @@
 {% set title = item.title|default(item.dTag|default('content_stream.untitled'|trans)) %}
 {% set itemPubkey = item.pubkey|default(pubkey|default('')) %}
 {% set slug = item.slug|default(item.dTag|default('')) %}
-{% if row.type == 'follow_pack' %}
+{% if row.type == 'magazine' and item.indexEventId|default(null) %}
+    {% set href = path('bookshelf_index', {eventId: item.indexEventId}) %}
+{% elseif row.type == 'follow_pack' %}
     {% set href = path('follow_pack_view', {npub: itemPubkey|hex_to_npub, dtag: slug}) %}
 {% elseif row.type == 'reading_list' %}
     {% set href = path('reading-list', {npub: itemPubkey|hex_to_npub, slug: slug}) %}
