@@ -1,0 +1,121 @@
+{% extends 'reading-nook-layout.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
+{% block body %}
+    {% set pageHeading = mountTitle %}
+    {% if pageHeading is empty %}
+        {% set pageHeading = (directory is not null ? 'reading_nook.drive.directory' : 'reading_nook.drive.title')|trans %}
+    {% endif %}
+    <section class="reading-nook-page">
+        <twig:Atoms:PageHeading
+            :heading="pageHeading"
+            :tagline="description|default('reading_nook.drive.read_only'|trans)"
+        />
+        <div class="reading-nook-shell">
+            <div class="reading-nook-content">
+                <p>
+                    <a href="{{ path('reading_nook') }}">{{ 'reading_nook.drive.back'|trans }}</a>
+                    {% if directory is not null %}
+                        <span aria-hidden="true">/</span>
+                        <a href="{{ path('reading_nook_drive_mount', {driveId: driveId}) }}">{{ 'reading_nook.drive.title'|trans }}</a>
+                    {% endif %}
+                    <span>{{ 'reading_nook.drive.read_only'|trans }}</span>
+                </p>
+                {% if description is not empty %}
+                    <p>{{ description }}</p>
+                {% endif %}
+
+                {% if mountPage.entries is not empty %}
+                    <ol class="event-member-list" start="{{ mountPage.start }}">
+                        {% for entry in mountPage.entries %}
+                            {% set reference = entry.reference %}
+                            <li data-source-tag-position="{{ reference.position }}">
+                                <span>{{ (reference.tagName == 'a' ? 'reading_nook.bookmarks.type.address' : 'reading_nook.bookmarks.type.event')|trans }}</span>
+                                {% if reference.rawValue is not null %}
+                                    <code>{{ reference.rawValue }}</code>
+                                {% endif %}
+                                {% if reference.status.value == 'invalid' %}
+                                    <span>{{ 'reading_nook.drive.invalid'|trans }}</span>
+                                {% endif %}
+                                {% include 'event_workspace/_target_preview.html.twig' with {resolution: entry.targetResolution|default(null)} only %}
+                                {% if entry.openEvent is defined %}
+                                    <a href="{{ path('reading_nook_drive_event', {
+                                        driveId: driveId,
+                                        targetId: entry.openEvent.targetId,
+                                        path: entry.openEvent.path,
+                                        position: entry.openEvent.position,
+                                        occurrenceId: entry.openEvent.occurrenceId,
+                                        signature: entry.openEvent.signature
+                                    }) }}">{{ 'reading_nook.drive.open_event'|trans }}</a>
+                                {% elseif entry.targetUnavailable|default(false) %}
+                                    <span>{{ 'reading_nook.drive.target_unavailable'|trans }}</span>
+                                {% endif %}
+                                {% if entry.rawVersionPin is not null %}
+                                    {% if entry.invalidVersionPin %}
+                                        <span>{{ 'reading_nook.toc.invalid_pin'|trans }}: <code>{{ entry.rawVersionPin }}</code></span>
+                                    {% else %}
+                                        <span>{{ 'reading_nook.toc.pinned_version'|trans }}: <code>{{ entry.rawVersionPin }}</code></span>
+                                    {% endif %}
+                                {% endif %}
+                                {% if entry.directory is not null %}
+                                    {% if entry.cycle %}
+                                        <span>{{ 'reading_nook.drive.cycle'|trans }}</span>
+                                    {% elseif entry.depthLimited %}
+                                        <span>{{ 'reading_nook.drive.depth_limit'|trans }}</span>
+                                    {% elseif entry.nestedSignature is not null %}
+                                        <a href="{{ path('reading_nook_drive_directory', {
+                                            driveId: driveId,
+                                            directoryId: entry.directory.eventId,
+                                            page: 1,
+                                            path: entry.nestedPath,
+                                            occurrenceId: entry.nestedOccurrenceId,
+                                            signature: entry.nestedSignature
+                                        }) }}">{{ 'reading_nook.drive.open_directory'|trans }}</a>
+                                    {% endif %}
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <p>{{ 'reading_nook.drive.empty'|trans }}</p>
+                {% endif %}
+
+                {% if mountPage.isDrive %}
+                    {% if mountPage.hasPrevious %}
+                        <a rel="prev" href="{{ path('reading_nook_drive_mount', {driveId: driveId, page: mountPage.page - 1}) }}">{{ 'reading_nook.toc.previous'|trans }}</a>
+                    {% endif %}
+                    <span>{{ 'reading_nook.toc.page'|trans({'%page%': mountPage.page}) }}</span>
+                    {% if mountPage.hasNext %}
+                        <a rel="next" href="{{ path('reading_nook_drive_mount', {driveId: driveId, page: mountPage.page + 1}) }}">{{ 'reading_nook.toc.next'|trans }}</a>
+                    {% endif %}
+                {% elseif mountPage.occurrenceId is not null %}
+                    {% if mountPage.hasPrevious and mountPage.pageSignatures.previous %}
+                        <a rel="prev" href="{{ path('reading_nook_drive_directory', {
+                            driveId: driveId,
+                            directoryId: mountPage.eventId,
+                            page: mountPage.page - 1,
+                            path: directoryPath,
+                            occurrenceId: directoryOccurrenceId,
+                            signature: mountPage.pageSignatures.previous
+                        }) }}">{{ 'reading_nook.toc.previous'|trans }}</a>
+                    {% endif %}
+                    <span>{{ 'reading_nook.toc.page'|trans({'%page%': mountPage.page}) }}</span>
+                    {% if mountPage.hasNext and mountPage.pageSignatures.next %}
+                        <a rel="next" href="{{ path('reading_nook_drive_directory', {
+                            driveId: driveId,
+                            directoryId: mountPage.eventId,
+                            page: mountPage.page + 1,
+                            path: directoryPath,
+                            occurrenceId: directoryOccurrenceId,
+                            signature: mountPage.pageSignatures.next
+                        }) }}">{{ 'reading_nook.toc.next'|trans }}</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </section>
+{% endblock %}

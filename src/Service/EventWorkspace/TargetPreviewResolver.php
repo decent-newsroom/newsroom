@@ -17,6 +17,7 @@ use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\UserMuteListService;
+use App\Service\EventWorkspace\Metrics\WorkspaceMetrics;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Symfony\Bundle\SecurityBundle\Security;
 
@@ -38,6 +39,7 @@ final readonly class TargetPreviewResolver
         private EventPresentationFactory $presentations,
         private Security $security,
         private UserMuteListService $mutes,
+        private ?WorkspaceMetrics $metrics = null,
     ) {}
 
     /**
@@ -49,6 +51,52 @@ final readonly class TargetPreviewResolver
      * @return array<int, EventWorkspaceResolutionResult>
      */
     public function resolvePage(array $references, array $invalidPinPositions = []): array
+    {
+        return $this->observeResolution(fn (): array => $this->resolveForKinds($references, $invalidPinPositions, self::PUBLIC_KINDS, false));
+    }
+
+    /**
+     * Resolve only local, empty-content NKBIP-04 directories. Keeping this
+     * allowlist separate prevents generic previews from widening directory
+     * access to arbitrary event kinds.
+     *
+     * @param list<EventReference> $references
+     * @param list<int> $invalidPinPositions
+     * @return array<int, EventWorkspaceResolutionResult>
+     */
+    public function resolveDirectoryPage(array $references, array $invalidPinPositions = []): array
+    {
+        return $this->observeResolution(fn (): array => $this->resolveForKinds($references, $invalidPinPositions, [30045], true));
+    }
+
+    /** @param callable(): array<int, EventWorkspaceResolutionResult> $resolve @return array<int, EventWorkspaceResolutionResult> */
+    private function observeResolution(callable $resolve): array
+    {
+        try {
+            $results = $resolve();
+        } catch (\Throwable $error) {
+            $this->metrics?->resolution('failed');
+            throw $error;
+        }
+        foreach ($results as $result) {
+            $this->metrics?->resolution($result->status->value);
+        }
+
+        return $results;
+    }
+
+    /**
+     * @param list<EventReference> $references
+     * @param list<int> $invalidPinPositions
+     * @param list<int> $allowedKinds
+     * @return array<int, EventWorkspaceResolutionResult>
+     */
+    private function resolveForKinds(
+        array $references,
+        array $invalidPinPositions,
+        array $allowedKinds,
+        bool $directoriesOnly,
+    ): array
     {
         if (count($references) > 50) {
             throw new \InvalidArgumentException('Target previews are limited to one page.');
@@ -77,7 +125,7 @@ final readonly class TargetPreviewResolver
                 continue;
             }
             if ($identity->type === EventWorkspaceIdentityType::Address
-                && !in_array($reference->targetKind, self::PUBLIC_KINDS, true)) {
+                && !in_array($reference->targetKind, $allowedKinds, true)) {
                 $results[$reference->position] = EventWorkspaceResolutionResult::restricted($identity);
                 continue;
             }
@@ -103,9 +151,13 @@ final readonly class TargetPreviewResolver
         }
         // Strict lookup propagates failures rather than silently dropping mutes.
         $muted = array_fill_keys(array_map('strtolower', $this->mutes->getMutedPubkeysStrict($reader)), true);
-        $targets = $this->events->findWorkspacePreviewTargets(
-            array_values(array_unique($coordinates)), array_values(array_unique($ids)),
-        );
+        $targets = $directoriesOnly
+            ? $this->events->findWorkspaceDirectoryTargets(
+                array_values(array_unique($coordinates)), array_values(array_unique($ids)),
+            )
+            : $this->events->findWorkspacePreviewTargets(
+                array_values(array_unique($coordinates)), array_values(array_unique($ids)),
+            );
         $byId = $targets['eventIds'];
         foreach ($targets['coordinates'] as $event) {
             $byId[strtolower($event->getId())] = $event;
@@ -119,13 +171,22 @@ final readonly class TargetPreviewResolver
         $targetCoordinates = [];
         foreach ($events as $event) {
             // Metadata is constructed only after public-kind and author policy.
-            if (!in_array($event->getKind(), self::PUBLIC_KINDS, true)
+            if (!in_array($event->getKind(), $allowedKinds, true)
                 || isset($suppressedIds[strtolower($event->getId())])
                 || isset($suppressedAuthors[strtolower($event->getPubkey())])
-                || isset($muted[strtolower($event->getPubkey())])) {
+                || isset($muted[strtolower($event->getPubkey())])
+                || ($event->getKind() === 30045
+                    ? EventWorkspaceScopePolicy::isScopedDirectory($event->getTags())
+                    : EventWorkspaceScopePolicy::isScopedTarget($event->getKind(), $event->getTags()))
+                || ($directoriesOnly
+                    && $event->getKind() === 30045
+                    && !$this->hasStringDTag($event))) {
                 continue;
             }
             $preview = $this->presentations->fromAuthorizedTargetMetadata($event);
+            if ($directoriesOnly && $preview->isSensitive) {
+                continue;
+            }
             $metadata[strtolower($event->getId())] = $preview;
             if ($preview->coordinate !== null) {
                 $targetCoordinates[] = $preview->coordinate;
@@ -153,5 +214,22 @@ final readonly class TargetPreviewResolver
         }
 
         return $results;
+    }
+
+    /**
+     * Directory targets use the first raw d tag as their replaceable identity.
+     * An explicit empty string is valid; absent and malformed values are not.
+     */
+    private function hasStringDTag(Event $event): bool
+    {
+        foreach ($event->getTags() as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? null) !== 'd') {
+                continue;
+            }
+
+            return is_string($tag[1] ?? null);
+        }
+
+        return false;
     }
 }

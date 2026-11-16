@@ -1241,6 +1241,21 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
+    inventory_unavailable: 'Deine Leseecke ist vorübergehend nicht verfügbar. Bitte versuche es erneut.'
+    inventory_retry: 'Erneut versuchen'
+    drive:
+        title: 'Mein Laufwerk'
+        directory: 'Verzeichnis'
+        read_only: 'Schreibgeschützte Ansicht'
+        back: 'Zurück zum Leseraum'
+        open_directory: 'Verzeichnis öffnen'
+        open_event: 'Ereignis öffnen'
+        target_unavailable: 'Dieses Ziel ist in der schreibgeschützten Ansicht nicht verfügbar.'
+        body_unavailable: 'Dieses Ereignis hat in der schreibgeschützten Ansicht keinen lesbaren Textinhalt.'
+        empty: 'Dieses Laufwerk oder Verzeichnis ist leer.'
+        invalid: 'Ungültiger Verweis'
+        cycle: 'Verzeichniszyklus auf diesem Pfad erkannt.'
+        depth_limit: 'Maximale Verschachtelungstiefe erreicht.'
     bookmarks:
         disclosure: 'Lesezeichen in %title%'
         load: 'Lesezeichen laden'
@@ -1360,6 +1375,7 @@ reading_nook:
         subscriptions: 'Subscriptions' # TODO: translate
         my_content: 'My content' # TODO: translate
         magazines: 'Magazines' # TODO: translate
+        drives: 'Laufwerke'
     timespan:
         all: 'All time' # TODO: translate
         7d: 'Last 7 days' # TODO: translate

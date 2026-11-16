@@ -1,13 +1,14 @@
 # Event Workspace and Composable Previews
 
-Status: **Steps 1–4 are complete for the bounded implementation delivered so
-far.** Completion means the current supported surfaces and graph slices are
-implemented and covered by their targeted tests; it does not mean every
+Status: **Steps 1–5 are complete for the bounded implementations delivered so
+far; Step 6 has bounded stabilization slices.** Completion means the current
+supported surfaces and graph slices are implemented and covered by their
+targeted tests; it does not mean every
 capability in the longer-term workspace proposal is implemented. Treat any
 defect found in later or broader testing as a bug to fix, not as a reason to
-reopen these milestone statuses. Browser/live worker/Redis verification and
-deployment-runtime acceptance remain follow-up validation, not claims made by
-this status.
+reopen these milestone statuses. Browser and Redis/Messenger fixtures use
+synthetic authentication and data; live Nostr/relay and deployment-runtime
+acceptance are not claims made by this status.
 
 The signed-event presentation and reference snapshot, typed source
 records, and resolution-result contracts are implemented. Five bounded Step 2
@@ -126,7 +127,8 @@ future extensions.
   assertions** across chapter preview service/controller/Twig, TOC page and
   discovery, expansion rollback, and disclosure regression tests. Translation
   YAML and both changed Twig templates pass their Symfony lint commands.
-  Browser, worker, and Redis integration checks remain pending.
+  These original slice checks did not include browser, worker, or Redis
+  integration; see the Step 6 notes for the later synthetic fixtures.
 
 Bookshelf containing-index links also compose the existing public-index preview
 and TOC primitives at an exact-ID Bookshelf route, with independently authorized
@@ -899,11 +901,57 @@ media should not autoplay or load merely because a folder was expanded.
 |---|---|---|
 | 1. Capture the contract | Characterize both existing inventories, their filters, access rules, actions, and previews. Introduce typed source/reference/result adapters, reusing current identities. | **Complete for the current contract foundation.** A readable raw event produces a generic presentation without Article storage, body HTML, or network access; typed source/reference/result contracts exist, and the characterized Reading Nook and My Content routes retain their behavior. Broader PostgreSQL/firewall coverage is follow-up hardening; defects found there are bugs. |
 | 2. Ship the vertical slice | Add shared row/preview and expandable-node components to Reading Nook and My Content behind a rollout flag. Expand selected existing collection rows and the Bookshelf directory. | **Complete for the shipped bounded surfaces.** Follow-pack members, bookmarks, bounded kind `30040` local nested indexes, Bookshelf directory disclosures, My Content previews, shared DB-only bookmark/directory target metadata, and lazy chapter previews are delivered behind the existing rollback flag. Kind `3` previews, general recursion, broader article entitlement, and selectable viewers are intentionally outside this milestone and remain future work. |
-| 3. Make discovery resilient | Provide bounded user-triggered discovery, per-occurrence updates, retry/status fallback, and preserved local disclosure state for the supported TOC path. | **Complete for the supported Reading Nook TOC path.** Unpinned public `30040`/`30041` discovery, per-occurrence polling/retry limits, and separately authorized lazy previews for available `30041` chapters are implemented with targeted Docker PHPUnit and Node coverage. Cold exact-pin fetching, general-purpose coordination, and Books/profile adapters are future extensions. Browser/live worker/Redis and deployment-runtime validation remain follow-up checks; failures found there are handled as bugs. |
+| 3. Make discovery resilient | Provide bounded user-triggered discovery, per-occurrence updates, retry/status fallback, and preserved local disclosure state for the supported TOC path. | **Complete for the supported Reading Nook TOC path.** Unpinned public `30040`/`30041` discovery, per-occurrence polling/retry limits, and separately authorized lazy previews for available `30041` chapters are implemented with targeted Docker PHPUnit and Node coverage. Cold exact-pin fetching, general-purpose coordination, and Books/profile adapters are future extensions. Later Step 6 fixtures exercise browser and Redis/Messenger integration with synthetic data; live relay and deployment-runtime validation remain follow-up checks. |
 | 4. Extend the graph | Add and maintain the bounded typed `p`/`e` parsed-reference representation without changing existing publication/Unfold coordinate behavior. | **Complete for the delivered parsed-reference indexing scope.** Lowercase exact `e` occurrences and source-kind-aware `p` occurrences are indexed with positions/duplicates and carried through migrations, ingestion, rebuild, backfill, and audit writers. General target resolution/traversal, additional version-binding behavior, mixed collection expansion, and full indexed-vs-raw equivalence are future extensions, not blockers for this milestone. |
 | 5. Converge existing surfaces | Route `/api/preview/`, deferred embeds, coordinate cards, bookmarks, comment context, and event pages through the common contracts. Separate body conversion from embedded event rendering. | **Complete for the delivered bounded migration targets.** `/api/preview/` exact-ID and `naddr` slices, immediate/local `NostrEmbed`, deferred exact-reference client/API parity, NIP-22 parent/root address previews, `BookmarkItemResolver` and bookmarks-page exact-event previews, local non-magazine chapter coordinate cards, and supported highlight coordinate previews are shipped. `note`/`nevent` exact-ID responses and local kind `30040` `naddr` API fallbacks use the shared event presentation; exact IDs, coordinate lookup, ordered references, and DB-only rendering remain distinct. Author suppression, NIP-09 tombstones, hidden coordinates, authenticated strict NIP-51 mutes, and Essayist-exclusive Article entitlement are checked before presentation or Article adaptation. Local kind `30023` Article, kind `30041` chapter, and kind `30818` wiki API previews use shared event presentations, retain focused links and cold fetch/view links, and return metadata-free warning fragments. Local Article API previews verify the complete signed raw envelope and its agreement with the Article projection before adaptation; invalid or mismatched envelopes fail closed. Their decoded coordinate is bound to the request's original Bech32 `naddr`, and conflicting identity fields are rejected. The `npub`/`nprofile` API path derives identity from the original Bech32 reference and reuses the existing profile card, rather than trusting decoded browser fields. Local `NostrEmbed` uses compact shared previews for a public-kind allowlist and exact-projection-authorized longform; when an Event row is absent, a complete signature- and event-ID-verified raw Article envelope with matching projection identity and timestamp can supply the Article snapshot only after the same visibility and entitlement checks, without fabricating an Event or rendering processed HTML. A matching local longform Event without its Article projection exposes no metadata and retains only the focused deferred link; projection lookup failures and mismatches fail closed. Warnings hide metadata, denied/failing lookups fail closed, and genuinely missing references retain their deferred fallback. Kind `1111` comment parent/root `a`/`A` tags use that same local-only compact path, retaining first occurrences, source coordinates, relay hints, and parent/root duplicate suppression; external `i` references and comment content are unchanged. Both highlight feed surfaces use guarded embeds for kind `30023`, `30040`, and `30818` source coordinates; kind `30041` retains its Books-backed chapter path. Highlight source IDs use valid lowercase NIP-84 `e` tags, and exact event references take precedence over coordinate lookup when both are present. Highlight detail pages also route exact event sources through that guarded path and disable shared caching for viewer-specific mute checks. The feed service carries coordinate relay hints into the encoded address without changing relay path identity. The exact API accepts validated raw browser Bech32 payloads and legacy decoded IDs, applies the same public-kind allowlist and exact matching longform projection/entitlement gates, and returns metadata-free warnings from either signed source; it never falls forward, fetches, persists, or converts bodies. Bookmark previews preserve exact local `e` and relay-preserving `a` identity, missing-event Fetch/error behavior, profile/topic behavior, signed removal, order, and duplicates; see [bookmarks](bookmarks.md). These are explicit boundaries, not claims that every specialist card or profile inventory has migrated: unsupported conversion-time card kinds, other bookmark callers, broader profile inventory surfaces, and browser/live-worker/deployment validation remain independent follow-up work. Targeted coverage and verification records are linked in [bookmarks](bookmarks.md) and [deferred embeds](deferred-nostr-embeds.md). |
-| 6. Promote and stabilize | Enable expansion in the existing workspaces broadly; add drive mounting, saved local workspace state, performance instrumentation, and user-facing documentation. Evaluate package extraction after a second consumer proves the boundary. | Browsing works for cold/partial data, deep/shared/cyclic structures, mobile, keyboard navigation, and restricted content. Existing reader/publisher routes remain intact. |
+| 6. Promote and stabilize | Enable expansion in the existing workspaces broadly; add drive mounting, saved local workspace state, performance instrumentation, and user-facing documentation. Evaluate package extraction after a second consumer proves the boundary. | **Bounded stabilization implemented.** Existing expansion controls remain default-enabled behind the rollback flag. Account/workspace-scoped tab-local disclosure state, paginated inventory, bounded read-only NKBIP-04 drive browsing and authorized exact-target opening, user documentation, opt-in aggregate runtime metrics, and a synthetic Docker baseline are implemented. Package extraction was evaluated and deferred. Isolated browser and Redis/Messenger fixtures use synthetic data; they do not prove live Nostr/relay or deployment-runtime behavior. The baseline is not end-to-end or a production budget. |
 | 7. Add selectable viewers (later) | Introduce compatible Generic/Magazine/Book viewers, titles/cards/full-contents controls for indexes, npub/profile-card modes for follow lists, and alternate browser layouts where useful. Reuse shared event resolution and components. | The same event and ordered children/members can be viewed in different ways without changing source events, losing navigation state, or requiring a specialist for generic browsing. |
+
+### Bounded Step 6 slices: stabilization and boundary review
+
+- Reading Nook and My Content keep expanded disclosure IDs and scroll position
+  in the current tab's `sessionStorage`, scoped by the signed-in public key and
+  workspace. Disclosure IDs may contain event identifiers, but event bodies,
+  tags, fragments, and resolution results are not stored. State for other
+  accounts is cleared when a workspace opens, and the logout action clears all
+  event-workspace state.
+- Restoring is optional when browser storage is unavailable and restores at
+  most four currently-rendered disclosures to avoid reopening an unbounded set
+  of lazy fragments. Nested disclosures that have not been rendered are not
+  discovered or loaded to restore state. Disclosure IDs are page-local component
+  identities; state is account/workspace scoped and is not synchronized between
+  tabs. Existing URLs, filters, routes, source events, and actions are unchanged.
+  The existing expansion
+  rollback flag remains default-enabled for shipped controls and continues to
+  gate their fragment endpoints.
+- Package extraction was evaluated and deferred. The components have several
+  consumers inside Newsroom, but there is not yet an independent host consumer
+  validating a package API; access policy, Article entitlement, and relay
+  behavior also remain application-specific. Extracting now would risk moving
+  those policies into a generic package or duplicating them.
+- NKBIP-04 drive mounting is local-only and read-only. Reading Nook inventories
+  the current revision for each owned drive coordinate after its access checks;
+  a direct exact-ID mount can also show an independently authorized drive by
+  another author. Each directory, target, and signed traversal edge is checked
+  independently, and missing and unauthorized targets share an unavailable
+  presentation. Ordered occurrences, version pins, and path-local cycle checks
+  are retained, with 50 occurrences per page and a six-level depth limit.
+  Supported local targets can be opened through a signed, reauthorized
+  exact-event view. Articles additionally require a matching projection and
+  entitlement; legacy links that could bypass reauthorization or fall forward
+  are omitted. Generic arbitrary-kind opening remains outside this mount; see
+  [Reading Nook](reading-nook.md#nkbip-04-drives).
+- The inventory paginates authorized entries in 25-row pages. Lazy workspace
+  fragments share a four-request browser concurrency limit. Optional local
+  runtime metrics, disabled by default, retain bounded numeric aggregates
+  without event identifiers or request data.
+- The opt-in [Docker performance fixture](event-workspace-performance.md)
+  records aggregate query counts, simulated queued fetches, resolution outcomes,
+  and direct-controller fragment timing on synthetic data without production
+  telemetry. The recorded baseline is not an end-to-end latency measurement or
+  a production budget, and no performance improvement is claimed. Isolated
+  browser and Redis/Messenger fixtures exercise synthetic scenarios; live relay,
+  sign-in, and deployment-runtime acceptance remain separate follow-up work.
 
 ### Bounded Step 5 event-page note slice
 

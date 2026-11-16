@@ -1,11 +1,18 @@
 {% extends 'newsroom-layout.html.twig' %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% set currentQuery = {type: activeType, q: searchQuery, sort: sort} %}
 
 {% block body %}
 <section
     class="my-content-page"
-    data-controller="content--my-content-delete"
+    data-controller="content--my-content-delete ui--event-workspace-state"
+    data-ui--event-workspace-state-user-value="{{ workspacePubkey|default('') }}"
+    data-ui--event-workspace-state-context-value="my-content"
     data-content--my-content-delete-publish-url-value="{{ path('api_settings_event_publish') }}"
     data-content--my-content-delete-missing-event-message-value="{{ 'my_content.delete.missing_event'|trans }}"
     data-content--my-content-delete-confirm-template-value="{{ 'my_content.delete.confirm_description'|trans({'%title%': '__TITLE__'}) }}"

@@ -9,6 +9,7 @@ use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\ArticleEventProjector;
 use App\Service\BooksChapterLookup;
+use App\Service\EventWorkspace\EventWorkspaceScopePolicy;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrClient;
@@ -177,7 +178,9 @@ final class FetchEventFromRelaysHandler
             }
             if (($raw->kind ?? null) !== $message->kind
                 || strtolower($raw->pubkey ?? '') !== $message->pubkey
-                || $identifier !== $message->identifier) {
+                || $identifier !== $message->identifier
+                || !is_array($raw->tags ?? null)
+                || EventWorkspaceScopePolicy::isScopedTarget($message->kind, $raw->tags)) {
                 return;
             }
             $this->genericEventProjector->projectEventFromNostrEvent($raw, $relays[0]);

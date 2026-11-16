@@ -17,6 +17,7 @@ use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class PublicationTocPageTest extends TestCase
 {
@@ -229,6 +230,47 @@ final class PublicationTocPageTest extends TestCase
         self::assertSame('Pinned chapter', $page['entries'][0]['target']['title']);
         self::assertSame('Pinned summary', $page['entries'][0]['target']['summary']);
         self::assertStringNotContainsString('chapter body must not leak', serialize($page));
+    }
+
+    public function testScopedIndexAndPinnedChapterRemainOrderedUnavailableOccurrences(): void
+    {
+        $author = str_repeat('c', 64);
+        $indexId = str_repeat('3', 64);
+        $chapterId = str_repeat('4', 64);
+        $indexCoordinate = '30040:' . $author . ':nested';
+        $chapterCoordinate = '30041:' . $author . ':chapter';
+        $index = $this->index($indexId, $author, 'nested', [['s', 'members'], ['title', 'Secret index']]);
+        $chapter = $this->index($chapterId, $author, 'chapter', [['s'], ['title', 'Secret chapter']]);
+        $chapter->setKind(30041);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findPublicationIndexTargets')
+            ->with([$indexCoordinate], [$indexId])
+            ->willReturn(['coordinates' => [$indexCoordinate => $index], 'eventIds' => [$indexId => $index]]);
+        $events->expects(self::once())->method('findWorkspacePreviewTargets')
+            ->with([], [$chapterId])
+            ->willReturn(['coordinates' => [], 'eventIds' => [$chapterId => $chapter]]);
+        $source = $this->event([
+            ['d', 'parent'], ['a', $indexCoordinate], ['a', $chapterCoordinate, '', $chapterId],
+            ['a', $indexCoordinate, '', $indexId],
+        ]);
+        $page = $this->pages($events)->fromAuthorizedEvent($source);
+
+        self::assertSame([1, 2, 3], array_column(array_column($page['entries'], 'reference'), 'position'));
+        self::assertSame(['unavailable', 'unavailable', 'unavailable'], array_column($page['entries'], 'targetResolution'));
+        self::assertSame([null, null, null], array_column($page['entries'], 'target'));
+        self::assertNull($page['entries'][1]['chapterPreviewSignature']);
+        self::assertSame($chapterId, $page['entries'][1]['reference']->versionEventId);
+        self::assertSame($indexId, $page['entries'][2]['reference']->versionEventId);
+        self::assertStringNotContainsString('Secret', serialize($page));
+    }
+
+    public function testScopedSourceCannotProduceTocOrResolveChildren(): void
+    {
+        $source = $this->event([['d', 'private'], ['s', 'members'], ['a', '30040:' . str_repeat('c', 64) . ':child']]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findPublicationIndexTargets');
+        $this->expectException(NotFoundHttpException::class);
+        $this->pages($events)->fromAuthorizedEvent($source);
     }
 
     public function testSuppressionAndTombstonesKeepOccurrencesButHideAllTargetFields(): void

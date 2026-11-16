@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Reader;
 
 use App\Entity\Event;
-use App\Entity\Magazine;
+use App\Dto\EventWorkspace\EventPresentation;
 use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Enum\UpdateSourceTypeEnum;
@@ -16,6 +16,10 @@ use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\BookmarkReferencePage;
+use App\Service\EventWorkspace\DriveMountAccess;
+use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\EventWorkspace\EventWorkspaceScopePolicy;
+use App\Service\EventWorkspace\InventoryPolicyException;
 use App\Service\EventWorkspace\FollowPackMemberPage;
 use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\EventWorkspace\PublicationChapterPreview;
@@ -51,6 +55,7 @@ final class ReadingNookController extends AbstractController
     private const SECTION_INTERESTS = 'interests';
     private const SECTION_READING_LISTS = 'reading_lists';
     private const SECTION_FOLLOW_PACKS = 'follow_packs';
+    private const SECTION_DRIVES = 'drives';
     private const SECTION_SUBSCRIPTIONS = 'subscriptions';
 
     /**
@@ -61,6 +66,7 @@ final class ReadingNookController extends AbstractController
         self::SECTION_INTERESTS => 'reading_nook.section.interests',
         self::SECTION_READING_LISTS => 'reading_nook.section.reading_lists',
         self::SECTION_FOLLOW_PACKS => 'reading_nook.section.follow_packs',
+        self::SECTION_DRIVES => 'reading_nook.section.drives',
         self::SECTION_SUBSCRIPTIONS => 'reading_nook.section.subscriptions',
     ];
 
@@ -85,7 +91,9 @@ final class ReadingNookController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         EventRepository $eventRepository,
+        DriveMountAccess $driveAccess,
         UpdateSubscriptionRepository $subscriptionRepository,
+        EventPreviewAccessPolicy $eventAccess,
     ): Response {
         $user = $this->getUser();
         if ($user === null) {
@@ -95,13 +103,6 @@ final class ReadingNookController extends AbstractController
         /** @var User $user */
 
         $pubkeyHex = $this->userPubkeyHex($user);
-        $events = $this->loadOwnedEvents($em, $pubkeyHex);
-
-        $items = [
-            ...$this->buildEntriesFromEvents($events),
-            ...$this->buildSubscriptionEntries($user, $subscriptionRepository, $eventRepository, $em),
-        ];
-
         $filters = [
             'q' => trim((string) $request->query->get('q', '')),
             'section' => (string) $request->query->get('section', 'all'),
@@ -109,22 +110,56 @@ final class ReadingNookController extends AbstractController
             'tag' => strtolower(trim((string) $request->query->get('tag', ''))),
         ];
 
-        $filteredItems = $this->applyFilters($items, $filters);
+        $requestedPage = filter_var($request->query->get('page', '1'), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => intdiv(PHP_INT_MAX, 25)],
+        ]) ?: 1;
+        try {
+            $muted = $eventAccess->inventoryMuteSet($pubkeyHex);
+            $subscriptions = $this->buildSubscriptionEntries($user, $subscriptionRepository, $eventRepository, $eventAccess, $muted);
+            $eventItems = (function () use ($eventRepository, $pubkeyHex, $driveAccess, $eventAccess, $muted): \Generator {
+                $batch = [];
+                foreach ($eventRepository->iterateReadingNookEvents($pubkeyHex, self::OWNED_LIST_KINDS, $this->expansionEnabled) as $event) {
+                    if ($event->getKind() === KindsEnum::DRIVE->value
+                        ? !$driveAccess->hasReadableDriveStructure($event)
+                        : !$this->isSafeInventoryEvent($event)) {
+                        continue;
+                    }
+                    $batch[] = $event;
+                    if (count($batch) === EventPreviewAccessPolicy::INVENTORY_BATCH_SIZE) {
+                        foreach ($eventAccess->readableInventoryEvents($batch, $muted) as $readable) {
+                            yield $this->buildEntriesFromEvents([$readable])[0];
+                        }
+                        $batch = [];
+                    }
+                }
+                foreach ($eventAccess->readableInventoryEvents($batch, $muted) as $readable) {
+                    yield $this->buildEntriesFromEvents([$readable])[0];
+                }
+            })();
+            $inventory = $this->paginateInventory($eventItems, $subscriptions, $filters, $requestedPage);
+        } catch (InventoryPolicyException) {
+            return $this->render('reader/reading_nook/inventory_error.html.twig', [
+                'readingNookNav' => $this->buildReadingNookNav(),
+            ], new Response(status: Response::HTTP_SERVICE_UNAVAILABLE, headers: ['Cache-Control' => 'private, no-store']));
+        }
 
         return $this->render('reader/reading_nook/index.html.twig', [
             'readingNookNav' => $this->buildReadingNookNav(),
+            'workspacePubkey' => $pubkeyHex,
             'filters' => $filters,
-            'items' => $filteredItems,
-            'itemsBySection' => $this->groupItemsBySection($filteredItems),
+            'items' => $inventory['items'],
+            'itemsBySection' => $this->groupItemsBySection($inventory['items']),
             'sectionKeys' => array_keys(self::SECTION_LABELS),
             'sectionLabels' => self::SECTION_LABELS,
-            'sectionCounts' => $this->countBySection($items),
-            'filteredSectionCounts' => $this->countBySection($filteredItems),
-            'allTags' => $this->buildTagFacets($items),
+            'sectionCounts' => $inventory['sectionCounts'],
+            'filteredSectionCounts' => $inventory['filteredSectionCounts'],
+            'allTags' => $inventory['allTags'],
             'timespanOptions' => $this->timespanOptions(),
-            'totalCount' => count($items),
-            'filteredCount' => count($filteredItems),
-        ]);
+            'totalCount' => $inventory['totalCount'],
+            'filteredCount' => $inventory['filteredCount'],
+            'page' => $inventory['page'],
+            'totalPages' => $inventory['totalPages'],
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
     #[Route('/reading-nook/bookmarks/{eventId}/references', name: 'reading_nook_bookmark_references', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'])]
@@ -266,7 +301,9 @@ final class ReadingNookController extends AbstractController
             'pubkey' => $pubkey,
             'kind' => KindsEnum::PUBLICATION_INDEX->value,
         ]);
-        if (!$event instanceof Event || $deletions->isSuppressed(
+        if (!$event instanceof Event
+            || EventWorkspaceScopePolicy::isScopedInventoryList($event->getKind(), $event->getTags())
+            || $deletions->isSuppressed(
             $event->getId(),
             $event->getKind(),
             $event->getPubkey(),
@@ -417,6 +454,7 @@ final class ReadingNookController extends AbstractController
         HiddenCoordinateRepository $hiddenCoordinates,
         UserMuteListService $userMuteList,
         PublicationTocTraversalSigner $traversalSigner,
+        PublicationTocSourceAccess $sourceAccess,
     ): Response {
         if (!$this->expansionEnabled) {
             throw $this->createNotFoundException();
@@ -453,6 +491,7 @@ final class ReadingNookController extends AbstractController
             'kind' => KindsEnum::PUBLICATION_INDEX->value,
         ]);
         if (!$event instanceof Event
+            || EventWorkspaceScopePolicy::isScopedInventoryList($event->getKind(), $event->getTags())
             || in_array(strtolower($event->getId()), array_map('strtolower', $path), true)
             || $this->publicationCoordinate($event) !== $coordinate) {
             throw $this->createNotFoundException();
@@ -466,6 +505,12 @@ final class ReadingNookController extends AbstractController
             $event->getSlug(),
             $event->getCreatedAt(),
         )) {
+            throw $this->createNotFoundException();
+        }
+        // A signed path is not a lasting grant. Re-read the owner root and
+        // every exact edge, including their current scope, on each fragment.
+        $event = $sourceAccess->authorize($readerPubkey, $eventId, $path, $mutedPubkeys);
+        if ($this->publicationCoordinate($event) !== $coordinate) {
             throw $this->createNotFoundException();
         }
 
@@ -718,26 +763,6 @@ final class ReadingNookController extends AbstractController
     }
 
     /**
-     * @return Event[]
-     */
-    private function loadOwnedEvents(EntityManagerInterface $em, string $pubkeyHex): array
-    {
-        /** @var Event[] $events */
-        $events = $em->getRepository(Event::class)
-            ->createQueryBuilder('e')
-            ->where('e.pubkey = :pubkey')
-            ->andWhere('e.kind IN (:kinds)')
-            ->setParameter('pubkey', $pubkeyHex)
-            ->setParameter('kinds', self::OWNED_LIST_KINDS)
-            ->orderBy('e.created_at', \SortDirection::Descending)
-            ->setMaxResults(400)
-            ->getQuery()
-            ->getResult();
-
-        return $events;
-    }
-
-    /**
      * @param Event[] $events
      * @return array<int, array<string, mixed>>
      */
@@ -748,6 +773,9 @@ final class ReadingNookController extends AbstractController
 
         foreach ($events as $event) {
             $kind = $event->getKind();
+            if ($kind === KindsEnum::DRIVE->value && !$this->expansionEnabled) {
+                continue;
+            }
             $section = $this->resolveEventSection($kind);
             if ($section === null) {
                 continue;
@@ -760,8 +788,11 @@ final class ReadingNookController extends AbstractController
             $dedupe[$dedupeKey] = true;
 
             $tags = $event->getTags();
-            $slug = $event->getSlug();
-            $title = $this->firstTagValue($tags, ['title', 'name']) ?? $slug ?? $this->defaultTitleForKind($kind);
+            $slug = $this->inventorySlug($tags);
+            $title = $this->firstTagValue($tags, ['title', 'name'])
+                ?? ($kind === KindsEnum::DRIVE->value ? $this->firstTagValue($tags, ['description']) : null)
+                ?? $slug
+                ?? $this->defaultTitleForKind($kind);
             $summary = $this->firstTagValue($tags, ['summary', 'description']) ?? $this->contentSnippet($event->getContent(), 220);
             $topicTags = $this->extractTagValues($tags, 't');
 
@@ -774,9 +805,9 @@ final class ReadingNookController extends AbstractController
                 'tags' => $topicTags,
                 'createdAt' => (new \DateTimeImmutable())->setTimestamp($event->getCreatedAt()),
                 'updatedAt' => null,
-                'url' => $this->buildEventUrl($section, $kind, $event->getPubkey(), $slug),
+                'url' => $this->buildEventUrl($section, $kind, $event->getPubkey(), $slug, $event->getId()),
                 'manageUrl' => $this->buildManageUrl($section, $kind, $slug),
-                'meta' => $this->buildEventMeta($event, $section),
+                'meta' => $this->buildEventMeta($event, $section, $slug),
                 'search' => $this->buildSearchBlob([
                     $title,
                     $summary,
@@ -791,47 +822,88 @@ final class ReadingNookController extends AbstractController
     }
 
     /**
-     * @param array<int, array<string, mixed>> $items
+     * Merge subscriptions into the ordered event stream. Only the requested
+     * page and the last page are retained; all authorized items still contribute
+     * to counts and unfiltered tag facets.
+     *
+     * @param \Generator<int, array<string, mixed>> $events
+     * @param list<array<string, mixed>> $subscriptions
      * @param array{q:string, section:string, timespan:string, tag:string} $filters
-     * @return array<int, array<string, mixed>>
+     * @return array<string, mixed>
      */
-    private function applyFilters(array $items, array $filters): array
+    private function paginateInventory(\Generator $events, array $subscriptions, array $filters, int $requestedPage): array
     {
+        $pageSize = 25;
+        $offset = ($requestedPage - 1) * $pageSize;
+        $sectionCounts = $this->countBySection([]);
+        $filteredSectionCounts = $sectionCounts;
         $query = mb_strtolower($filters['q']);
-        $selectedSection = $filters['section'];
-        $selectedTag = $filters['tag'];
         $cutoff = $this->resolveTimespanCutoff($filters['timespan']);
+        $total = $filtered = $subscriptionIndex = $sequence = 0;
+        $items = $tail = $tags = [];
 
-        $filtered = array_filter($items, function (array $item) use ($query, $selectedSection, $selectedTag, $cutoff): bool {
-            if ($selectedSection !== 'all' && $item['section'] !== $selectedSection) {
-                return false;
+        while ($events->valid() || isset($subscriptions[$subscriptionIndex])) {
+            $subscription = $subscriptions[$subscriptionIndex] ?? null;
+            if ($events->valid() && ($subscription === null || $events->current()['createdAt'] >= $subscription['createdAt'])) {
+                $item = $events->current();
+                $source = $item['section'] === self::SECTION_DRIVES ? 1 : 0;
+                $events->next();
+            } else {
+                $item = $subscription;
+                $source = 2;
+                ++$subscriptionIndex;
             }
-
-            if ($selectedTag !== '' && !in_array($selectedTag, $item['tags'], true)) {
-                return false;
+            ++$total;
+            ++$sectionCounts[$item['section']];
+            foreach ($item['tags'] as $tag) {
+                if ($tag === '') {
+                    continue;
+                }
+                if (!isset($tags[$tag])) {
+                    $tags[$tag] = ['count' => 0, 'source' => $source, 'position' => $sequence];
+                } elseif ($source < $tags[$tag]['source']) {
+                    $tags[$tag]['source'] = $source;
+                    $tags[$tag]['position'] = $sequence;
+                }
+                ++$tags[$tag]['count'];
             }
-
-            if ($cutoff !== null && $item['createdAt'] < $cutoff) {
-                return false;
+            ++$sequence;
+            if (($filters['section'] !== 'all' && $item['section'] !== $filters['section'])
+                || ($filters['tag'] !== '' && !in_array($filters['tag'], $item['tags'], true))
+                || ($cutoff !== null && $item['createdAt'] < $cutoff)
+                || ($query !== '' && !str_contains((string) $item['search'], $query))) {
+                continue;
             }
-
-            if ($query !== '' && !str_contains((string) $item['search'], $query)) {
-                return false;
+            ++$filteredSectionCounts[$item['section']];
+            if ($filtered >= $offset && $filtered - $offset < $pageSize) {
+                $items[] = $item;
             }
+            $tail[] = $item;
+            if (count($tail) > $pageSize) {
+                array_shift($tail);
+            }
+            ++$filtered;
+        }
 
-            return true;
-        });
+        uasort($tags, static fn (array $a, array $b): int => ($b['count'] <=> $a['count'])
+            ?: ($a['source'] <=> $b['source']) ?: ($a['position'] <=> $b['position']));
+        $totalPages = max(1, (int) ceil($filtered / $pageSize));
+        $page = min($requestedPage, $totalPages);
+        if ($page !== $requestedPage) {
+            $lastPageSize = $filtered % $pageSize ?: min($pageSize, $filtered);
+            $items = $lastPageSize === 0 ? [] : array_slice($tail, -$lastPageSize);
+        }
 
-        usort($filtered, static function (array $a, array $b): int {
-            /** @var \DateTimeImmutable $left */
-            $left = $a['createdAt'];
-            /** @var \DateTimeImmutable $right */
-            $right = $b['createdAt'];
-
-            return $right <=> $left;
-        });
-
-        return array_values($filtered);
+        return [
+            'items' => $items,
+            'sectionCounts' => $sectionCounts,
+            'filteredSectionCounts' => $filteredSectionCounts,
+            'allTags' => array_keys($tags),
+            'totalCount' => $total,
+            'filteredCount' => $filtered,
+            'page' => $page,
+            'totalPages' => $totalPages,
+        ];
     }
 
     /**
@@ -871,28 +943,6 @@ final class ReadingNookController extends AbstractController
     }
 
     /**
-     * @param array<int, array<string, mixed>> $items
-     * @return array<int, string>
-     */
-    private function buildTagFacets(array $items): array
-    {
-        $weights = [];
-
-        foreach ($items as $item) {
-            foreach ($item['tags'] as $tag) {
-                if ($tag === '') {
-                    continue;
-                }
-                $weights[$tag] = ($weights[$tag] ?? 0) + 1;
-            }
-        }
-
-        arsort($weights);
-
-        return array_keys($weights);
-    }
-
-    /**
      * @return array<string, string>
      */
     private function timespanOptions(): array
@@ -925,6 +975,7 @@ final class ReadingNookController extends AbstractController
             KindsEnum::BOOKMARKS->value, KindsEnum::BOOKMARK_SETS->value => self::SECTION_BOOKMARKS,
             KindsEnum::INTERESTS->value, KindsEnum::INTEREST_SETS->value => self::SECTION_INTERESTS,
             KindsEnum::FOLLOW_PACK->value => self::SECTION_FOLLOW_PACKS,
+            KindsEnum::DRIVE->value => self::SECTION_DRIVES,
             KindsEnum::PUBLICATION_INDEX->value,
             KindsEnum::CURATION_SET->value,
             KindsEnum::CURATION_VIDEOS->value,
@@ -937,6 +988,16 @@ final class ReadingNookController extends AbstractController
     {
         $kind = $event->getKind();
 
+        if ($kind === KindsEnum::DRIVE->value) {
+            foreach ($event->getTags() as $tag) {
+                if (is_array($tag) && ($tag[0] ?? null) === 'd') {
+                    return sprintf('%d:%s:%s', $kind, $event->getPubkey(), is_string($tag[1] ?? null) ? $tag[1] : '');
+                }
+            }
+
+            return sprintf('%d:%s:', $kind, $event->getPubkey());
+        }
+
         if ($kind >= 10000 && $kind <= 19999) {
             return sprintf('%d:%s', $kind, $event->getPubkey());
         }
@@ -948,8 +1009,11 @@ final class ReadingNookController extends AbstractController
         return $event->getId();
     }
 
-    private function buildEventUrl(string $section, int $kind, string $pubkey, ?string $slug): ?string
+    private function buildEventUrl(string $section, int $kind, string $pubkey, ?string $slug, string $eventId): ?string
     {
+        if ($kind === KindsEnum::DRIVE->value) {
+            return $this->generateUrl('reading_nook_drive_mount', ['driveId' => strtolower($eventId)]);
+        }
         if ($slug === null || $slug === '') {
             return null;
         }
@@ -1005,105 +1069,122 @@ final class ReadingNookController extends AbstractController
         User $user,
         UpdateSubscriptionRepository $subscriptionRepository,
         EventRepository $eventRepository,
-        EntityManagerInterface $em,
+        EventPreviewAccessPolicy $eventAccess,
+        array $muted,
     ): array
     {
         $entries = [];
 
-        foreach ($subscriptionRepository->findActiveForUser($user) as $subscription) {
-            $type = $subscription->getSourceType();
-            $sourceValue = $subscription->getSourceValue();
-            $title = $this->resolveSubscriptionTitle($type, $sourceValue, $eventRepository, $em)
-                ?? $subscription->getLabel()
-                ?? $this->subscriptionFallbackTitle($type, $sourceValue);
-            $summary = $this->subscriptionSummary($type);
+        foreach (array_chunk($subscriptionRepository->findActiveForUser($user), EventPreviewAccessPolicy::INVENTORY_BATCH_SIZE) as $chunk) {
+            $identities = $keys = [];
+            foreach ($chunk as $index => $subscription) {
+                $identity = $this->subscriptionIdentity($subscription->getSourceType(), $subscription->getSourceValue());
+                if ($identity !== null) {
+                    $keys[$index] = $identity['key'];
+                    unset($identity['key']);
+                    $identities[] = $identity;
+                }
+            }
+            $targets = $eventRepository->findReadingNookSubscriptionTargets($identities);
+            $eligible = [];
+            foreach ($targets as $target) {
+                if ($this->isSafeInventoryEvent($target)) {
+                    $eligible[] = $target;
+                }
+            }
+            $readable = [];
+            foreach ($eventAccess->readableInventoryEvents($eligible, $muted) as $event) {
+                $readable[strtolower($event->getId())] = true;
+            }
+            foreach ($chunk as $index => $subscription) {
+                $type = $subscription->getSourceType();
+                $sourceValue = $subscription->getSourceValue();
+                $target = isset($keys[$index]) ? ($targets[$keys[$index]] ?? null) : null;
+                $title = $target instanceof Event && isset($readable[strtolower($target->getId())])
+                    ? $this->subscriptionTitleFromEvent($type, $target)
+                    : null;
+                $title ??= $subscription->getLabel() ?? $this->subscriptionFallbackTitle($type, $sourceValue);
+                $summary = $this->subscriptionSummary($type);
 
-            $entries[] = [
-                'section' => self::SECTION_SUBSCRIPTIONS,
-                'kind' => $type->value,
-                'title' => $title,
-                'summary' => $summary,
-                'tags' => ['subscription', $type->value],
-                'createdAt' => $subscription->getCreatedAt(),
-                'updatedAt' => null,
-                'url' => $this->generateUrl('updates_subscriptions'),
-                'manageUrl' => $this->generateUrl('updates_subscriptions'),
-                'meta' => [
-                    'sourceTypeLabel' => $type->label(),
-                ],
-                'search' => $this->buildSearchBlob([
-                    $title,
-                    $summary,
-                    $sourceValue,
-                    $type->value,
-                ]),
-            ];
+                $entries[] = [
+                    'section' => self::SECTION_SUBSCRIPTIONS,
+                    'kind' => $type->value,
+                    'title' => $title,
+                    'summary' => $summary,
+                    'tags' => ['subscription', $type->value],
+                    'createdAt' => $subscription->getCreatedAt(),
+                    'updatedAt' => null,
+                    'url' => $this->generateUrl('updates_subscriptions'),
+                    'manageUrl' => $this->generateUrl('updates_subscriptions'),
+                    'meta' => [
+                        'sourceTypeLabel' => $type->label(),
+                    ],
+                    'search' => $this->buildSearchBlob([$title, $summary, $sourceValue, $type->value]),
+                ];
+            }
         }
 
         return $entries;
     }
 
-    private function resolveSubscriptionTitle(
-        UpdateSourceTypeEnum $type,
-        string $sourceValue,
-        EventRepository $eventRepository,
-        EntityManagerInterface $em,
-    ): ?string {
+    /** @return array{kind:int, pubkey:string, dTag:?string, key:string}|null */
+    private function subscriptionIdentity(UpdateSourceTypeEnum $type, string $sourceValue): ?array
+    {
         if ($type === UpdateSourceTypeEnum::NPUB) {
-            try {
-                $pubkey = str_starts_with(strtolower(trim((string) ($sourceValue))), 'npub1')
-                    ? (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($sourceValue))
-                    : $sourceValue;
-
-                if (PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) === null) {
-                    return null;
-                }
-
-                $metadata = $this->redisCacheService->getMetadata($pubkey);
-                foreach ([$metadata->displayName, $metadata->name] as $name) {
-                    if (is_string($name) && trim($name) !== '') {
-                        return trim($name);
-                    }
-                }
-            } catch (\Throwable) {
+            $value = strtolower(trim($sourceValue));
+            if (str_starts_with($value, 'nostr:')) {
+                $value = substr($value, 6);
+            }
+            $pubkey = str_starts_with($value, 'npub1')
+                ? PublicKey::fromBech32($value)?->toHex()
+                : PublicKey::fromHex($value)?->toHex();
+            if ($pubkey === null || PublicKey::fromHex($pubkey) === null) {
                 return null;
             }
-
-            return null;
+            return ['kind' => 0, 'pubkey' => $pubkey, 'dTag' => null, 'key' => '0:' . $pubkey];
         }
-
         $parts = explode(':', $sourceValue, 3);
         if (count($parts) !== 3) {
             return null;
         }
-
         [$kindRaw, $pubkey, $dTag] = $parts;
-        $kind = (int) $kindRaw;
-
-        if ($type === UpdateSourceTypeEnum::PUBLICATION) {
-            $magazine = $em->getRepository(Magazine::class)->findOneBy(['pubkey' => $pubkey, 'slug' => $dTag]);
-            if ($magazine instanceof Magazine && $magazine->getTitle() !== null) {
-                return $magazine->getTitle();
-            }
-        }
-
-        $event = $eventRepository->findByNaddr($kind, $pubkey, $dTag);
-        if ($event === null) {
+        $pubkey = strtolower($pubkey);
+        $kind = ctype_digit($kindRaw) ? (int) $kindRaw : 0;
+        $allowedKind = match ($type) {
+            UpdateSourceTypeEnum::PUBLICATION => $kind === 30040,
+            UpdateSourceTypeEnum::NIP51_SET => in_array($kind, [30000, 30003, 30004, 30005, 30015, 39089], true),
+            default => false,
+        };
+        if (!$allowedKind || PublicKey::fromHex($pubkey) === null) {
             return null;
         }
+        return ['kind' => $kind, 'pubkey' => $pubkey, 'dTag' => $dTag, 'key' => $kind . ':' . $pubkey . ':' . $dTag];
+    }
 
-        $title = $event->getTitle();
-        if ($title !== null) {
-            return $title;
+    private function subscriptionTitleFromEvent(UpdateSourceTypeEnum $type, Event $event): ?string
+    {
+        if ($type !== UpdateSourceTypeEnum::NPUB) {
+            return $this->firstTagValue($event->getTags(), ['title', 'name']);
         }
-
-        foreach ($event->getTags() as $tag) {
-            if (is_array($tag) && ($tag[0] ?? '') === 'name' && isset($tag[1])) {
-                return (string) $tag[1];
+        $metadata = json_decode($event->getContent(), true);
+        if (is_array($metadata)) {
+            foreach ([$metadata['display_name'] ?? $metadata['displayName'] ?? null, $metadata['name'] ?? null] as $name) {
+                if (is_string($name) && trim($name) !== '') {
+                    return trim($name);
+                }
             }
         }
-
         return null;
+    }
+
+    private function isSafeInventoryEvent(Event $event): bool
+    {
+        $tags = $event->getTags();
+        $scoped = in_array($event->getKind(), self::OWNED_LIST_KINDS, true)
+            ? EventWorkspaceScopePolicy::isScopedInventoryList($event->getKind(), $tags)
+            : EventWorkspaceScopePolicy::isScopedTarget($event->getKind(), $tags);
+
+        return !$scoped && !EventPresentation::hasSensitiveTagEvidence($tags);
     }
 
     private function subscriptionFallbackTitle(UpdateSourceTypeEnum $type, string $sourceValue): string
@@ -1129,10 +1210,10 @@ final class ReadingNookController extends AbstractController
     /**
      * @return array<string, mixed>
      */
-    private function buildEventMeta(Event $event, string $section): array
+    private function buildEventMeta(Event $event, string $section, ?string $slug): array
     {
         $meta = [
-            'slug' => $event->getSlug(),
+            'slug' => $slug,
         ];
 
         $tags = $event->getTags();
@@ -1184,15 +1265,27 @@ final class ReadingNookController extends AbstractController
     private function firstTagValue(array $tags, array $names): ?string
     {
         foreach ($tags as $tag) {
-            if (!is_array($tag) || !isset($tag[0], $tag[1])) {
+            if (!is_array($tag) || !is_string($tag[0] ?? null) || !is_string($tag[1] ?? null)) {
                 continue;
             }
 
-            if (in_array((string) $tag[0], $names, true)) {
-                $value = trim((string) $tag[1]);
+            if (in_array($tag[0], $names, true)) {
+                $value = trim($tag[1]);
                 if ($value !== '') {
                     return $value;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<array-key, mixed> $tags */
+    private function inventorySlug(array $tags): ?string
+    {
+        foreach ($tags as $tag) {
+            if (is_array($tag) && ($tag[0] ?? null) === 'd') {
+                return is_string($tag[1] ?? null) ? $tag[1] : null;
             }
         }
 
@@ -1219,6 +1312,7 @@ final class ReadingNookController extends AbstractController
         return match ($kind) {
             KindsEnum::BOOKMARKS->value => 'Bookmarks',
             KindsEnum::INTERESTS->value => 'My interests',
+            KindsEnum::DRIVE->value => 'My Drive',
             default => 'Untitled',
         };
     }

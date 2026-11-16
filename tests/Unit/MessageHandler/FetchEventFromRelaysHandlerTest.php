@@ -366,6 +366,8 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
         if ($outcome === 'wrong-author') $raw->pubkey = str_repeat('f', 64);
         if ($outcome === 'wrong-address') $raw->tags = [['d', 'different']];
         if ($outcome === 'empty-d') $raw->tags = [['d', '']];
+        if ($outcome === 'scoped') $raw->tags[] = ['s', 'members'];
+        if ($outcome === 'malformed-scope') $raw->tags[] = ['s'];
         $identifier = $outcome === 'empty-d' ? '' : 'section:one';
         $repository = $this->createMock(EventRepository::class);
         $repository->expects(self::once())->method('findByNaddr')
@@ -404,6 +406,8 @@ final class FetchEventFromRelaysHandlerTest extends TestCase
     {
         foreach ([30040, 30041] as $kind) {
             yield 'latest-' . $kind => [$kind, 'found', true];
+            yield 'scoped-' . $kind => [$kind, 'scoped', false];
+            yield 'malformed-scope-' . $kind => [$kind, 'malformed-scope', false];
         }
         yield 'empty identifier' => [30041, 'empty-d', true];
         foreach (['wrong-kind', 'wrong-author', 'wrong-address', 'missing'] as $outcome) {

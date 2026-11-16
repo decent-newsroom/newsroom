@@ -122,6 +122,7 @@ class MyContentController extends AbstractController
 
         return $this->render('my_content/index.html.twig', [
             'newsroomNav' => $this->buildNewsroomNav($unfoldNavigation->forOwner($this->getUser()?->getUserIdentifier())),
+            'workspacePubkey' => $pubkeyHex,
             'contentItems' => $visibleItems,
             'counts' => $counts,
             'activeType' => $activeType,

@@ -48,6 +48,8 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 - [Web Preview for NIP-22 Comment External References](Reader/comment-web-preview.md)
 - [Deferred Nostr Embeds](Reader/deferred-nostr-embeds.md)
 - [Event workspace and composable previews (foundation and follow-pack npub slice)](Reader/event-workspace-iteration-plan.md)
+- [Graph product, interface, and positioning plan (proposal)](Reader/graph-product-design-plan.md)
+- [Event workspace local performance fixture](Reader/event-workspace-performance.md)
 - [Discover Page](Reader/discover-page.md)
 - [Featured Unfold Sites](Reader/featured-unfold-sites.md)
 - [Follow Packs Page](Reader/follow-packs-page.md)

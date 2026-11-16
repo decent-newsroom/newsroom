@@ -33,6 +33,7 @@ final readonly class PublicationTocSourceAccess
         foreach ($path as $index => $id) {
             $event = $this->events->findById($id);
             if (!$event instanceof Event || $event->getKind() !== 30040
+                || EventWorkspaceScopePolicy::isScopedInventoryList($event->getKind(), $event->getTags())
                 || ($index === 0 && strtolower($event->getPubkey()) !== $reader)) {
                 throw new NotFoundHttpException();
             }

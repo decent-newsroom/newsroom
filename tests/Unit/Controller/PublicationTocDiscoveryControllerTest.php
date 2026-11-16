@@ -146,6 +146,56 @@ final class PublicationTocDiscoveryControllerTest extends TestCase
         $this->invoke([$child], '1', 'GET', $query, sourceId: self::CHILD);
     }
 
+    /** @dataProvider scopedDiscoveryCases */
+    public function testScopedSourceOrLocalPublicationTargetCannotPollOrQueue(string $case, string $method): void
+    {
+        $kind = $case === 'chapter target' ? 30041 : 30040;
+        $source = $this->event(self::SOURCE, self::OWNER, [
+            ['d', 'book'], ['a', $kind . ':' . self::AUTHOR . ':restricted'],
+            ...($case === 'source' ? [['s', 'members']] : []),
+        ]);
+        $target = $case === 'source' ? null : $this->event(
+            self::CHILD, self::AUTHOR, [['d', 'restricted'], ['s', 'members'], ['title', 'Secret title']], $kind,
+        );
+        try {
+            $this->invoke([$source], '1', $method, target: $target);
+            self::fail('Scoped discovery must fail closed.');
+        } catch (NotFoundHttpException) {
+            self::assertSame([], $this->queued);
+            self::assertNull($this->rendered);
+        }
+    }
+
+    public static function scopedDiscoveryCases(): iterable
+    {
+        foreach (['source', 'index target', 'chapter target'] as $case) {
+            foreach (['GET', 'POST'] as $method) {
+                yield $case . ' ' . $method => [$case, $method];
+            }
+        }
+    }
+
+    public function testScopedAncestorCannotPollOrQueueNestedDiscovery(): void
+    {
+        $root = $this->event(self::SOURCE, self::OWNER, [
+            ['d', 'book'], ['s', 'members'], ['a', '30040:' . self::AUTHOR . ':index', '', self::CHILD],
+        ]);
+        $child = $this->event(self::CHILD, self::AUTHOR, [['d', 'index'], ['a', '30041:' . self::AUTHOR . ':section']]);
+        $occurrence = str_repeat('f', 64);
+        try {
+            $this->invoke([$root, $child], '1', 'POST', [
+                'path' => self::SOURCE, 'occurrence' => $occurrence,
+                'signature' => (new PublicationTocTraversalSigner('secret'))->sign(
+                    self::CHILD, 1, [self::SOURCE], $occurrence, '30040:' . self::AUTHOR . ':index',
+                ),
+            ], sourceId: self::CHILD);
+            self::fail('A scoped ancestor must block discovery.');
+        } catch (NotFoundHttpException) {
+            self::assertSame([], $this->queued);
+            self::assertNull($this->rendered);
+        }
+    }
+
     /** @dataProvider blockedPolicies */
     public function testEveryPollAndActionRechecksSourceAndTargetPolicy(string $policy, string $method): void
     {

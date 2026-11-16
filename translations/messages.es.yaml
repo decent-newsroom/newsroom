@@ -1231,6 +1231,21 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
+    inventory_unavailable: 'Tu rincón de lectura no está disponible temporalmente. Inténtalo de nuevo.'
+    inventory_retry: 'Intentar de nuevo'
+    drive:
+        title: 'Mi unidad'
+        directory: 'Directorio'
+        read_only: 'Vista de solo lectura'
+        back: 'Volver a Reading Nook'
+        open_directory: 'Abrir directorio'
+        open_event: 'Abrir evento'
+        target_unavailable: 'Este destino no está disponible en la vista de solo lectura.'
+        body_unavailable: 'Este evento no tiene un cuerpo de texto legible en la vista de solo lectura.'
+        empty: 'Esta unidad o directorio está vacío.'
+        invalid: 'Referencia no válida'
+        cycle: 'Se detectó un ciclo de directorios en esta ruta.'
+        depth_limit: 'Se alcanzó la profundidad máxima de directorios anidados.'
     bookmarks:
         disclosure: 'Marcadores de %title%'
         load: 'Cargar marcadores'
@@ -1350,6 +1365,7 @@ reading_nook:
         subscriptions: 'Subscriptions' # TODO: translate
         my_content: 'My content' # TODO: translate
         magazines: 'Magazines' # TODO: translate
+        drives: 'Unidades'
     timespan:
         all: 'All time' # TODO: translate
         7d: 'Last 7 days' # TODO: translate

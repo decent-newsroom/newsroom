@@ -76,6 +76,8 @@ final class BookContainingIndexesTest extends TestCase
         yield 'hidden' => [[$ref], false, false, true, false, false, false];
         yield 'muted' => [[$ref], false, false, false, true, false, false];
         yield 'sensitive' => [[$ref], false, false, false, false, true, false];
+        yield 'scoped audience' => [[$ref, ['s', 'members']], false, false, false, false, false, false];
+        yield 'malformed scope marker' => [[$ref, ['s']], false, false, false, false, false, false];
     }
 
     public function testNoLocalParentsDoesNotResolveTargets(): void
@@ -92,6 +94,21 @@ final class BookContainingIndexesTest extends TestCase
         );
         self::assertSame([], $service->forBook($this->event(
             str_repeat('b', 64), str_repeat('a', 64), [['d', 'book']],
+        )));
+    }
+
+    public function testScopedBookDoesNotEnumerateContainingIndexes(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findReferencingEvents');
+        $service = new BookContainingIndexes(
+            $events, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $this->createMock(ContentAuthorAccessPolicy::class),
+            $this->createMock(DeletedEventRepository::class),
+            $this->createMock(HiddenCoordinateRepository::class),
+        );
+        self::assertSame([], $service->forBook($this->event(
+            str_repeat('b', 64), str_repeat('a', 64), [['d', 'book'], ['s', 'members']],
         )));
     }
 

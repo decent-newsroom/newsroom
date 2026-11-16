@@ -20,6 +20,68 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Load only the fields needed for exact Article access decisions.
+     *
+     * In particular, this workspace read must not hydrate processed HTML or
+     * Article body content just to check the existing membership entitlement.
+     * The returned transient Article is an access-policy input, not a complete
+     * Article projection for rendering or persistence.
+     */
+    public function findWorkspaceEntitlementByEventId(string $eventId): ?Article
+    {
+        if (preg_match('/^[0-9a-f]{64}$/iD', $eventId) !== 1) {
+            return null;
+        }
+        $row = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT event_id, pubkey, slug, kind, created_at, raw, essayist_exclusive
+             FROM article
+             WHERE lower(event_id) = :event_id AND kind = :kind
+             ORDER BY id ASC
+             LIMIT 1',
+            [
+                'event_id' => strtolower($eventId),
+                'kind' => KindsEnum::LONGFORM->value,
+            ],
+        )->fetchAssociative();
+        if ($row === false
+            || !is_string($row['event_id'] ?? null)
+            || !is_string($row['pubkey'] ?? null)
+            || !is_string($row['slug'] ?? null)
+            || !is_numeric($row['kind'] ?? null)
+            || !is_string($row['created_at'] ?? null)) {
+            return null;
+        }
+        try {
+            $raw = is_array($row['raw'] ?? null)
+                ? $row['raw']
+                : json_decode((string) ($row['raw'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($raw)) {
+                return null;
+            }
+            $createdAt = new \DateTimeImmutable($row['created_at']);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $article = new Article();
+        $article->setEventId(strtolower($row['event_id']));
+        $article->setPubkey(strtolower($row['pubkey']));
+        $article->setSlug($row['slug']);
+        $article->setKind((int) $row['kind']);
+        $article->setCreatedAt($createdAt);
+        $article->setRaw($raw);
+        // PostgreSQL drivers may return booleans as "t"/"f" strings; an
+        // unknown representation is treated as exclusive (fail closed).
+        $article->setEssayistExclusive(!in_array(
+            $row['essayist_exclusive'] ?? null,
+            [false, 0, '0', 'f', 'false'],
+            true,
+        ));
+
+        return $article;
+    }
+
+    /**
      * Return the newest revision of each slug for one author and event kind.
      *
      * The DISTINCT ON query keeps revision collapsing in PostgreSQL instead of

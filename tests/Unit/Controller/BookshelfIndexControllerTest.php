@@ -161,6 +161,8 @@ final class BookshelfIndexControllerTest extends TestCase
         ]);
         if ($restriction === 'draft') {
             $child->setKind(30024);
+        } elseif ($restriction === 'scoped') {
+            $child->setTags([['d', 'child'], ['title', 'Must not leak'], ['s', 'members']]);
         }
         $this->stored = [
             self::ROOT => $this->event(self::ROOT, self::AUTHOR, [['d', 'root'], ['a', $coordinate, '', self::CHILD]]),
@@ -188,7 +190,7 @@ final class BookshelfIndexControllerTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function restrictedChildren(): iterable
     {
-        foreach (['hidden', 'suppressed', 'deleted', 'muted', 'draft', 'missing', 'mismatched pin'] as $restriction) {
+        foreach (['hidden', 'suppressed', 'deleted', 'muted', 'draft', 'missing', 'mismatched pin', 'scoped'] as $restriction) {
             yield $restriction => [$restriction];
         }
     }
@@ -199,8 +201,12 @@ final class BookshelfIndexControllerTest extends TestCase
         $event = $this->event(self::CHILD, self::FOREIGN, [['d', 'child']]);
         if ($restriction === 'draft') {
             $event->setKind(30024);
+        } elseif ($restriction === 'scoped') {
+            $event->setTags([['d', 'child'], ['s', 'members']]);
         }
-        $this->stored = [self::CHILD => $event, self::ROOT => $this->event(self::ROOT, self::AUTHOR, [['d', 'root']])];
+        $this->stored = [self::CHILD => $event, self::ROOT => $this->event(self::ROOT, self::AUTHOR, [
+            ['d', 'root'], ...($restriction === 'scoped ancestor' ? [['s']] : []),
+        ])];
         $this->hidden->method('isHidden')->willReturnCallback(
             static fn (string $coordinate): bool => $restriction === 'hidden'
                 || ($restriction === 'ancestor' && $coordinate === '30040:' . self::AUTHOR . ':root'),
@@ -223,11 +229,12 @@ final class BookshelfIndexControllerTest extends TestCase
     /** @return iterable<string, array{string, bool}> */
     public static function restrictedSources(): iterable
     {
-        foreach (['draft', 'hidden', 'deleted', 'suppressed', 'muted'] as $restriction) {
+        foreach (['draft', 'hidden', 'deleted', 'suppressed', 'muted', 'scoped'] as $restriction) {
             yield $restriction . ' detail' => [$restriction, false];
             yield $restriction . ' fragment' => [$restriction, true];
         }
         yield 'ancestor policy changed' => ['ancestor', true];
+        yield 'scoped ancestor' => ['scoped ancestor', true];
     }
 
     /**

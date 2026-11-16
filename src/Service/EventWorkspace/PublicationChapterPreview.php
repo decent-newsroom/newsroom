@@ -48,6 +48,7 @@ final readonly class PublicationChapterPreview
     ): array {
         $resolvedTargetEventId = strtolower($resolvedTargetEventId);
         if ($source->getKind() !== KindsEnum::PUBLICATION_INDEX->value
+            || EventWorkspaceScopePolicy::isScopedInventoryList($source->getKind(), $source->getTags())
             || $position < 0
             || preg_match('/^[0-9a-f]{64}$/', $resolvedTargetEventId) !== 1) {
             throw new NotFoundHttpException();
@@ -83,6 +84,7 @@ final readonly class PublicationChapterPreview
             : ($targets['eventIds'][$reference->versionEventId] ?? null);
         if (!$metadataTarget instanceof Event
             || strtolower($metadataTarget->getId()) !== $resolvedTargetEventId
+            || EventWorkspaceScopePolicy::isScopedTarget($metadataTarget->getKind(), $metadataTarget->getTags())
             || !$this->matchesAddress($metadataTarget, $reference)) {
             throw new NotFoundHttpException();
         }
@@ -103,6 +105,7 @@ final readonly class PublicationChapterPreview
         if (!$chapter instanceof Event
             || strtolower($chapter->getId()) !== strtolower($metadataTarget->getId())
             || $chapter->getCreatedAt() !== $metadataTarget->getCreatedAt()
+            || EventWorkspaceScopePolicy::isScopedTarget($chapter->getKind(), $chapter->getTags())
             || !$this->matchesAddress($chapter, $reference)) {
             throw new NotFoundHttpException();
         }

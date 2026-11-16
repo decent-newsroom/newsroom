@@ -85,7 +85,12 @@ class DeletedEventRepository extends ServiceEntityRepository
         $tombstones = $this->findBy(['targetRef' => $references]);
         $byReference = [];
         foreach ($tombstones as $tombstone) {
-            $byReference[strtolower($tombstone->getTargetRef())][] = $tombstone;
+            // Event IDs are hex, but coordinate identifiers are case-sensitive
+            // and may contain colons. Keep the queried coordinate intact.
+            $reference = $tombstone->getRefType() === DeletedEvent::REF_EVENT_ID
+                ? strtolower($tombstone->getTargetRef())
+                : $tombstone->getTargetRef();
+            $byReference[$reference][] = $tombstone;
         }
 
         $suppressedIds = [];
@@ -104,7 +109,7 @@ class DeletedEventRepository extends ServiceEntityRepository
                 continue;
             }
             $coordinate = $event->getKind() . ':' . $pubkey . ':' . $this->dTagFromEvent($event);
-            foreach ($byReference[strtolower($coordinate)] ?? [] as $tombstone) {
+            foreach ($byReference[$coordinate] ?? [] as $tombstone) {
                 if ($tombstone->getRefType() === DeletedEvent::REF_COORDINATE
                     && strtolower($tombstone->getPubkey()) === $pubkey
                     && $event->getCreatedAt() <= $tombstone->getDeletionCreatedAt()) {
@@ -120,12 +125,12 @@ class DeletedEventRepository extends ServiceEntityRepository
     private function dTagFromEvent(Event $event): string
     {
         foreach ($event->getTags() as $tag) {
-            if (($tag[0] ?? null) === 'd' && is_string($tag[1] ?? null)) {
-                return $tag[1];
+            if (is_array($tag) && ($tag[0] ?? null) === 'd') {
+                return is_string($tag[1] ?? null) ? $tag[1] : '';
             }
         }
 
-        return $event->getDTag() ?? '';
+        return '';
     }
 
     public function save(DeletedEvent $deletedEvent, bool $flush = true): void

@@ -8,6 +8,7 @@ use App\Dto\EventWorkspace\EventReference;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\RelayRegistry;
+use App\Service\EventWorkspace\Metrics\WorkspaceMetrics;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -26,10 +27,17 @@ final readonly class PublicationTocDiscovery
         private LoggerInterface $logger,
         #[Autowire('%kernel.environment%')]
         private string $environment = 'prod',
+        private ?WorkspaceMetrics $metrics = null,
     ) {}
 
     /** @return array{status: string, retryAfter: int} */
     public function status(string $reader, EventReference $reference): array
+    {
+        return $this->observe(fn (): array => $this->statusInternal($reader, $reference));
+    }
+
+    /** @return array{status: string, retryAfter: int} */
+    private function statusInternal(string $reader, EventReference $reference): array
     {
         if ($reference->versionEventId !== null) {
             return ['status' => 'unavailable', 'retryAfter' => 0];
@@ -41,6 +49,12 @@ final readonly class PublicationTocDiscovery
 
     /** @return array{status: string, retryAfter: int} */
     public function request(string $reader, EventReference $reference): array
+    {
+        return $this->observe(fn (): array => $this->requestInternal($reader, $reference));
+    }
+
+    /** @return array{status: string, retryAfter: int} */
+    private function requestInternal(string $reader, EventReference $reference): array
     {
         if ($reference->type->value !== 'address'
             || !in_array($reference->targetKind, [30040, 30041], true)
@@ -109,6 +123,20 @@ LUA, [...$this->keys($reader, $reference), $reservationToken], 3);
             }
         }
         return ['status' => $result[0] < 0 ? 'limited' : 'loading', 'retryAfter' => (int) $result[1]];
+    }
+
+    /** @param callable(): array{status: string, retryAfter: int} $operation @return array{status: string, retryAfter: int} */
+    private function observe(callable $operation): array
+    {
+        try {
+            $result = $operation();
+        } catch (\Throwable $error) {
+            $this->metrics?->resolution('failed');
+            throw $error;
+        }
+        $this->metrics?->resolution($result['status']);
+
+        return $result;
     }
 
     /** @return list<string> */

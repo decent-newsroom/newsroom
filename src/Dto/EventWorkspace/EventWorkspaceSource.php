@@ -10,4 +10,5 @@ enum EventWorkspaceSource: string
     case AuthoredArticle = 'authored_article';
     case LocalSubscription = 'local_subscription';
     case BookshelfDirectory = 'bookshelf_directory';
+    case NkbipDrive = 'nkbip_drive';
 }

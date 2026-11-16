@@ -863,6 +863,21 @@ my_content:
         empty: 'Nessun riferimento evento.'
 
 reading_nook:
+    inventory_unavailable: 'Il tuo angolo di lettura non è temporaneamente disponibile. Riprova.'
+    inventory_retry: 'Riprova'
+    drive:
+        title: 'Il mio drive'
+        directory: 'Directory'
+        read_only: 'Visualizzazione in sola lettura'
+        back: 'Torna a Reading Nook'
+        open_directory: 'Apri directory'
+        open_event: 'Apri evento'
+        target_unavailable: 'Questa destinazione non è disponibile nella vista di sola lettura.'
+        body_unavailable: 'Questo evento non contiene testo leggibile nella vista di sola lettura.'
+        empty: 'Questo drive o questa directory è vuoto.'
+        invalid: 'Riferimento non valido'
+        cycle: 'Rilevato un ciclo di directory in questo percorso.'
+        depth_limit: 'Raggiunta la profondità massima delle directory annidate.'
     bookmarks:
         disclosure: 'Segnalibri di %title%'
         load: 'Carica i segnalibri'
@@ -931,6 +946,8 @@ reading_nook:
         collections: 'Collezioni'
         reading_lists: 'Liste di lettura'
         follow_packs: 'Follow pack'
+    section:
+        drives: 'Drive'
     title: 'Reading Nook'
     subtitle: 'Cerca e filtra le tue raccolte in un unico posto.'
     empty: 'Nessun elemento corrisponde ai filtri correnti.'

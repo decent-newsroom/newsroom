@@ -10,6 +10,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\EventWorkspace\EventWorkspaceScopePolicy;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 
 final readonly class BookContainingIndexes
@@ -28,6 +29,9 @@ final readonly class BookContainingIndexes
      */
     public function forBook(Event $book, array $mutedPubkeys = []): array
     {
+        if (EventWorkspaceScopePolicy::isScopedInventoryList($book->getKind(), $book->getTags())) {
+            return [];
+        }
         $identity = $this->presentations->fromAuthorizedEvent($book)->coordinate;
         if ($identity === null) {
             return [];
@@ -52,6 +56,9 @@ final readonly class BookContainingIndexes
         $deleted = $this->deletions->findSuppressedEventIds($parents);
         $result = [];
         foreach ($parents as $parent) {
+            if (EventWorkspaceScopePolicy::isScopedTarget($parent->getKind(), $parent->getTags())) {
+                continue;
+            }
             $presentation = $this->presentations->fromAuthorizedEvent($parent);
             if ($presentation->coordinate === null
                 || in_array($parent->getPubkey(), $suppressed, true)

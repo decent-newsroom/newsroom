@@ -30,6 +30,7 @@ class UpdateSubscriptionRepository extends ServiceEntityRepository
             ->andWhere('s.active = true')
             ->setParameter('user', $user)
             ->orderBy('s.createdAt', 'DESC')
+            ->addOrderBy('s.id', 'ASC')
             ->getQuery()
             ->getResult();
     }
@@ -120,4 +121,3 @@ class UpdateSubscriptionRepository extends ServiceEntityRepository
         ];
     }
 }
-

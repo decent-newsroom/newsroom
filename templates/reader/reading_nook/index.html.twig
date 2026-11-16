@@ -1,5 +1,10 @@
 {% extends 'reading-nook-layout.html.twig' %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% set activeFilterCount = 0 %}
 {% if filters.q is not empty %}{% set activeFilterCount = activeFilterCount + 1 %}{% endif %}
 {% if filters.section != 'all' %}{% set activeFilterCount = activeFilterCount + 1 %}{% endif %}
@@ -13,7 +18,12 @@
 } %}
 
 {% block body %}
-<section class="reading-nook-page">
+<section
+    class="reading-nook-page"
+    data-controller="ui--event-workspace-state"
+    data-ui--event-workspace-state-user-value="{{ workspacePubkey|default('') }}"
+    data-ui--event-workspace-state-context-value="reading-nook"
+>
     <twig:Atoms:PageHeading :heading="'reading_nook.title'|trans" :tagline="'reading_nook.subtitle'|trans" />
 
     <div class="reading-nook-shell">
@@ -116,7 +126,9 @@
                 </div>
 
                 {% for item in items %}
-                    {% set title = item.title %}
+                    {% set title = item.kind == 30042 and item.title == 'My Drive'
+                        ? 'reading_nook.drive.title'|trans
+                        : item.title %}
                     {% set titleUrl = item.url ?: item.manageUrl %}
                     {% set rowDate = item.updatedAt ? item.updatedAt : item.createdAt %}
                     {% set countValue = null %}
@@ -141,6 +153,8 @@
                                     {{ ux_icon('iconoir:compass', {class: 'icon'}) }}
                                 {% elseif item.section == 'follow_packs' %}
                                     {{ ux_icon('iconoir:community', {class: 'icon'}) }}
+                                {% elseif item.section == 'drives' %}
+                                    {{ ux_icon('iconoir:folder', {class: 'icon'}) }}
                                 {% elseif item.section == 'subscriptions' %}
                                     {{ ux_icon('iconoir:rss-feed', {class: 'icon'}) }}
                                 {% else %}
@@ -249,6 +263,18 @@
                     </div>
                 {% endfor %}
             </div>
+            {% if totalPages > 1 %}
+                <nav class="my-content-pagination" aria-label="{{ 'my_content.pagination.label'|trans }}">
+                    {% set pageQuery = filterQuery|merge({section: filters.section}) %}
+                    {% if page > 1 %}
+                        <a rel="prev" class="btn btn-secondary btn-sm" href="{{ path('reading_nook', pageQuery|merge({page: page - 1})) }}">{{ 'my_content.pagination.previous'|trans }}</a>
+                    {% endif %}
+                    <span>{{ 'my_content.pagination.page'|trans({'%current%': page, '%total%': totalPages}) }}</span>
+                    {% if page < totalPages %}
+                        <a rel="next" class="btn btn-secondary btn-sm" href="{{ path('reading_nook', pageQuery|merge({page: page + 1})) }}">{{ 'my_content.pagination.next'|trans }}</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
         </div>
     </div>
 </section>

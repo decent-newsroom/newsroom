@@ -450,7 +450,9 @@ final readonly class EventPresentationFactory
         if ($kind === KindsEnum::FOLLOW_PACK->value && $name === 'p') {
             return EventReferenceRole::FollowPackMember;
         }
-        if (($kind === 30040 && $name === 'a') || ($kind === 30045 && in_array($name, ['a', 'e'], true))) {
+        if (($kind === 30040 && $name === 'a')
+            || ($kind === KindsEnum::DRIVE->value && $name === 'a')
+            || ($kind === KindsEnum::DIRECTORY->value && in_array($name, ['a', 'e'], true))) {
             return EventReferenceRole::Content;
         }
         if ($kind === KindsEnum::COMMENTS->value) {

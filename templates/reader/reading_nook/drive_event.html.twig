@@ -1,0 +1,40 @@
+{% extends 'reading-nook-layout.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
+{% block body %}
+    {% set pageHeading = presentation.title|default('reading_nook.drive.open_event'|trans) %}
+    <section class="reading-nook-page">
+        <twig:Atoms:PageHeading
+            :heading="pageHeading"
+            :tagline="'reading_nook.drive.read_only'|trans"
+        />
+        <div class="reading-nook-shell">
+            <div class="reading-nook-content">
+                <p>
+                    <a href="{{ path('reading_nook_drive_mount', {driveId: driveId}) }}">{{ 'reading_nook.drive.back'|trans }}</a>
+                    <span>{{ 'reading_nook.drive.read_only'|trans }}</span>
+                </p>
+                <twig:Molecules:EventPreview :presentation="presentation" />
+                {% if mediaMetadata is not empty %}
+                    <ul>
+                        {% for metadata in mediaMetadata %}
+                            <li><code>{{ metadata|e }}</code></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                {% set bodyText = mediaTextContent ?? presentation.textContent %}
+                {% if bodyText is not null %}
+                    <div class="event-content">
+                        <pre class="event-content__plain-text">{{ bodyText|e }}</pre>
+                    </div>
+                {% else %}
+                    <p>{{ 'reading_nook.drive.body_unavailable'|trans }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+{% endblock %}

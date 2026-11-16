@@ -15,6 +15,68 @@ use PHPUnit\Framework\TestCase;
 
 final class EventPublicationIndexTargetRepositoryTest extends TestCase
 {
+    public function testDirectoryPinsStayExactAndInvalidLatestDriveRevisionsNeverFallBack(): void
+    {
+        if (!extension_loaded('pdo_sqlite')) {
+            self::markTestSkipped('The isolated repository query requires pdo_sqlite.');
+        }
+
+        $config = ORMSetup::createAttributeMetadataConfig([dirname(__DIR__, 3) . '/src/Entity'], true);
+        $config->setNamingStrategy(new \Doctrine\ORM\Mapping\UnderscoreNamingStrategy(CASE_LOWER));
+        if (PHP_VERSION_ID >= 80400) {
+            $config->enableNativeLazyObjects(true);
+        } else {
+            $config->setProxyDir(sys_get_temp_dir());
+            $config->setProxyNamespace('Tests\DoctrineProxies');
+        }
+        $entityManager = new EntityManager(
+            DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]),
+            $config,
+        );
+        (new SchemaTool($entityManager))->createSchema([$entityManager->getClassMetadata(Event::class)]);
+
+        $author = str_repeat('a', 64);
+        $validOld = $this->event(str_repeat('b', 64), $author, 'valid', 100, 30045);
+        $validCurrent = $this->event(str_repeat('c', 64), $author, 'valid', 200, 30045);
+        $invalidOld = $this->event(str_repeat('d', 64), $author, 'invalid', 100, 30045);
+        $invalidCurrent = $this->event(str_repeat('e', 64), $author, 'invalid', 200, 30045, 'body');
+
+        $driveOldOne = $this->event(str_repeat('1', 64), $author, 'one', 100, 30042);
+        $driveCurrentOne = $this->event(str_repeat('2', 64), $author, 'one', 200, 30042);
+        $driveTwo = $this->event(str_repeat('3', 64), $author, 'two', 150, 30042);
+        $driveOldDenied = $this->event(str_repeat('4', 64), $author, 'denied', 100, 30042);
+        $driveCurrentDenied = $this->event(str_repeat('5', 64), $author, 'denied', 200, 30042, 'not empty');
+        foreach ([
+            $validOld, $validCurrent, $invalidOld, $invalidCurrent,
+            $driveOldOne, $driveCurrentOne, $driveTwo, $driveOldDenied, $driveCurrentDenied,
+        ] as $event) {
+            $entityManager->persist($event);
+        }
+        $entityManager->flush();
+        $entityManager->clear();
+
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagerForClass')->with(Event::class)->willReturn($entityManager);
+        $repository = new EventRepository($registry);
+        $directoryResults = $repository->findWorkspaceDirectoryTargets(
+            ['30045:' . $author . ':valid', '30045:' . $author . ':invalid'],
+            [str_repeat('b', 64), str_repeat('d', 64)],
+        );
+        self::assertSame(str_repeat('c', 64), $directoryResults['coordinates']['30045:' . $author . ':valid']->getId());
+        self::assertArrayNotHasKey('30045:' . $author . ':invalid', $directoryResults['coordinates']);
+        self::assertSame(str_repeat('b', 64), $directoryResults['eventIds'][str_repeat('b', 64)]->getId());
+        self::assertSame(str_repeat('d', 64), $directoryResults['eventIds'][str_repeat('d', 64)]->getId());
+
+        $drives = $repository->findWorkspaceCurrentDrives($author);
+        self::assertSame(
+            [str_repeat('2', 64), str_repeat('3', 64)],
+            array_map(static fn (Event $event): string => $event->getId(), $drives),
+            'Each current d-coordinate is retained; invalid latest content does not fall back to an older revision.',
+        );
+
+        $entityManager->close();
+    }
+
     public function testOneBatchedQueryReturnsCurrentCoordinatesAndExactPins(): void
     {
         if (!extension_loaded('pdo_sqlite')) {
@@ -103,7 +165,14 @@ final class EventPublicationIndexTargetRepositoryTest extends TestCase
         $repository->findWorkspacePreviewTargets([], array_fill(0, 51, str_repeat('a', 64)));
     }
 
-    private function event(string $id, string $pubkey, string $dTag, int $createdAt, int $kind = 30040): Event
+    private function event(
+        string $id,
+        string $pubkey,
+        string $dTag,
+        int $createdAt,
+        int $kind = 30040,
+        string $content = '',
+    ): Event
     {
         $event = new Event();
         $event->setId($id);
@@ -112,7 +181,7 @@ final class EventPublicationIndexTargetRepositoryTest extends TestCase
         $event->setDTag($dTag);
         $event->setCreatedAt($createdAt);
         $event->setTags([['d', $dTag]]);
-        $event->setContent('');
+        $event->setContent($content);
         $event->setSig('');
 
         return $event;

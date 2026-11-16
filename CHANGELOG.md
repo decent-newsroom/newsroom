@@ -2,6 +2,18 @@
 
 ## v0.1.0
 
+- [Fix] Prevent viewer-specific workspace pages and drive event views from being restored from stale Turbo snapshots after access changes.
+- [Fix] Preserve paging and safe exact-event opening for large read-only drive directories, including picture and video descriptions without automatic media loading.
+- [Fix] Withhold scoped publication metadata and bodies from Reading Nook inventories, shared previews, drive views, and TOC discovery.
+- [Fix] Select equal-time profile and mute-list revisions deterministically and tolerate malformed list identifiers in Reading Nook.
+- [Fix] Batch Reading Nook inventory authorization and report policy lookup failures without exposing partial results.
+- [Fix] Preserve case-sensitive identifiers when matching NIP-09 coordinate tombstones in batched visibility checks.
+- [Feature] Added optional local aggregate runtime metrics for event-workspace requests without recording event or user identifiers.
+- [Feature] Paginated the complete Reading Nook inventory without truncating older collections or filter counts.
+- [Improvement] Bounded concurrent lazy workspace fragment requests and canceled pending requests when disclosures disconnect.
+- [Feature] Added bounded, read-only NKBIP-04 drive and directory browsing in Reading Nook, with independently enforced content access checks.
+- [Feature] Added an opt-in, privacy-safe Docker performance fixture for event-workspace fragments and discovery.
+- [Feature] Remembered Reading Nook and My Content disclosure state and scroll position per signed-in account and browser tab, without persisting event content; logout clears the saved UI state.
 - [Fix] Bind API `naddr` previews to the original requested Bech32 coordinate and reject conflicting decoded identity fields, preventing the preview request from being redirected to a different Article.
 - [Fix] Route locally stored chapter coordinate cards through guarded shared previews outside magazine-specific contexts, preserving Books API cards, magazine links, relay hints, and explicit cold-fetch behavior.
 - [Fix] Render supported highlight address coordinates through guarded shared previews in both highlight surfaces, preserving ordered source context, relay hints, and deferred cold-reference behavior while retaining the Books-backed chapter path.

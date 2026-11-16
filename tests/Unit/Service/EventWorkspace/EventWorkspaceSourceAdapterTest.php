@@ -77,6 +77,21 @@ final class EventWorkspaceSourceAdapterTest extends TestCase
         self::assertSame('30045:' . str_repeat('a', 64) . ':books', $record->identity->value);
     }
 
+    public function testNkbipDriveIsAdaptedAsAnAddressableOrderedSource(): void
+    {
+        $event = $this->event(KindsEnum::DRIVE->value, [
+            ['d', 'main'],
+            ['a', '30045:' . str_repeat('b', 64) . ':root'],
+            ['a', '30045:' . str_repeat('b', 64) . ':root'],
+        ]);
+        $record = $this->adapter->fromNkbipDrive($event);
+
+        self::assertSame(EventWorkspaceSource::NkbipDrive, $record->source);
+        self::assertSame(EventWorkspaceIdentityType::Address, $record->identity->type);
+        self::assertSame('30042:' . str_repeat('a', 64) . ':main', $record->identity->value);
+        self::assertSame($event->getTags(), $record->getRawTags());
+    }
+
     public function testLocalSubscriptionTargetsAnIdentityWithoutInventingAnEvent(): void
     {
         $user = new User();

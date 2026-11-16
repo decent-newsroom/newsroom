@@ -25,6 +25,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class EventPreviewAccessPolicy
 {
+    public const INVENTORY_BATCH_SIZE = 128;
     /** Public embed kinds; longform additionally requires its exact Article projection. */
     public const PUBLIC_EMBED_KINDS = [1, 20, 21, 22, 30040, 30041, 30818];
 
@@ -39,6 +40,83 @@ final readonly class EventPreviewAccessPolicy
         private LoggerInterface $logger,
         private ArticleAccessService $articleAccess,
     ) {}
+
+    /** @return array<string, true> Lowercase muted pubkeys as a lookup set. */
+    public function inventoryMuteSet(string $readerPubkey): array
+    {
+        try {
+            return array_fill_keys(array_map('strtolower', $this->mutes->getMutedPubkeysStrict($readerPubkey)), true);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Reading Nook inventory policy lookup failed.', [
+                'policy_stage' => 'strict_mutes',
+                'exception' => $exception,
+            ]);
+            throw new InventoryPolicyException('Inventory mute lookup failed.', 0, $exception);
+        }
+    }
+
+    /**
+     * Batch only the common identity policy. The caller must separately check
+     * kind-specific scope, warning and drive structure before presenting data.
+     * Unlike the single-preview API, lookup errors are propagated so an
+     * incomplete inventory cannot be mistaken for an authorized empty one.
+     *
+     * @param list<Event> $events At most INVENTORY_BATCH_SIZE eligible events
+     * @param array<string, true> $muted
+     * @return list<Event> Readable events in original order
+     */
+    public function readableInventoryEvents(array $events, array $muted): array
+    {
+        if (count($events) > self::INVENTORY_BATCH_SIZE) {
+            throw new \InvalidArgumentException('Inventory policy batch is too large.');
+        }
+        $candidates = $coordinates = $authors = [];
+        foreach ($events as $event) {
+            $author = strtolower($event->getPubkey());
+            if (preg_match('/^[0-9a-f]{64}$/D', $author) !== 1 || isset($muted[$author])) {
+                continue;
+            }
+            if ($this->identities->isParameterizedReplaceable($event->getKind())) {
+                $dTag = '';
+                foreach ($event->getTags() as $tag) {
+                    if (is_array($tag) && ($tag[0] ?? null) === 'd') {
+                        $dTag = is_string($tag[1] ?? null) ? $tag[1] : null;
+                        break;
+                    }
+                }
+                if ($dTag === null) {
+                    continue;
+                }
+                $coordinates[strtolower($event->getId())] = $this->identities->deriveCoordinate($event->getKind(), $author, $dTag);
+            }
+            $authors[] = $author;
+            $candidates[] = $event;
+        }
+        if ($candidates === []) {
+            return [];
+        }
+
+        try {
+            $suppressedAuthors = array_fill_keys($this->authors->suppressedPubkeys($authors), true);
+            $suppressedEvents = array_fill_keys($this->deletions->findSuppressedEventIds($candidates), true);
+            $hidden = array_fill_keys($this->hiddenCoordinates->findHiddenCoordinates(array_values($coordinates)), true);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Reading Nook inventory policy lookup failed.', [
+                'policy_stage' => 'batch_access',
+                'exception' => $exception,
+            ]);
+            throw new InventoryPolicyException('Inventory access lookup failed.', 0, $exception);
+        }
+
+        return array_values(array_filter($candidates, static function (Event $event) use ($suppressedAuthors, $suppressedEvents, $hidden, $coordinates): bool {
+            $id = strtolower($event->getId());
+            $coordinate = $coordinates[$id] ?? null;
+
+            return !isset($suppressedAuthors[strtolower($event->getPubkey())])
+                && !isset($suppressedEvents[$id])
+                && ($coordinate === null || !isset($hidden[$coordinate]));
+        }));
+    }
 
     public function isReadable(Event $event): bool
     {

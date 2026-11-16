@@ -137,13 +137,43 @@ final class TargetPreviewResolverTest extends TestCase
         $page = $this->page($this->event('f', 10003, [
             ['a', '30024:' . self::AUTHOR . ':private'],
             ['a', '30023:' . self::AUTHOR . ':article'],
+            ['a', '30045:' . self::AUTHOR . ':directory'],
             ['p', self::AUTHOR], ['t', 'topic'], ['e', 'bad-id'],
         ]));
         self::assertSame('restricted', $page['entries'][0]['targetResolution']->status->value);
         self::assertSame('restricted', $page['entries'][1]['targetResolution']->status->value);
-        self::assertNull($page['entries'][2]['targetResolution']);
+        self::assertSame('restricted', $page['entries'][2]['targetResolution']->status->value);
         self::assertNull($page['entries'][3]['targetResolution']);
         self::assertNull($page['entries'][4]['targetResolution']);
+        self::assertNull($page['entries'][5]['targetResolution']);
+    }
+
+    public function testAudienceScopesAreKindAwareBeforeGenericTargetMetadata(): void
+    {
+        $index = $this->event('a', 30040, [['d', 'index'], ['s', 'members'], ['title', 'Secret index']]);
+        $chapter = $this->event('b', 30041, [['d', 'chapter'], ['s'], ['title', 'Secret chapter']]);
+        $note = $this->event('c', 1, [['s', 'not-an-audience'], ['title', 'Public note']]);
+        $publicIndex = $this->event('d', 30040, [['d', 'public'], ['title', 'Public index']]);
+        $targets = [$index, $chapter, $note, $publicIndex];
+        $byId = [];
+        foreach ($targets as $target) {
+            $byId[$target->getId()] = $target;
+        }
+        $this->events->expects(self::once())->method('findWorkspacePreviewTargets')
+            ->willReturn(['coordinates' => [], 'eventIds' => $byId]);
+        $source = $this->event('f', 10003, array_map(
+            static fn (Event $target): array => ['e', $target->getId()],
+            $targets,
+        ));
+        $entries = $this->page($source)['entries'];
+        self::assertSame(['restricted', 'restricted', 'available', 'available'], array_map(
+            static fn (array $entry): string => $entry['targetResolution']->status->value,
+            $entries,
+        ));
+        self::assertNull($entries[0]['targetResolution']->presentation);
+        self::assertNull($entries[1]['targetResolution']->presentation);
+        self::assertSame('Public note', $entries[2]['targetResolution']->presentation->title);
+        self::assertStringNotContainsString('Secret', serialize($entries));
     }
 
     /** @dataProvider targetPolicies */
@@ -247,6 +277,136 @@ final class TargetPreviewResolverTest extends TestCase
         $this->events->expects(self::never())->method('findWorkspacePreviewTargets');
         $this->expectException(\RuntimeException::class);
         $this->page($this->event('f', 10003, [['e', str_repeat('c', 64)]]));
+    }
+
+    public function testDirectoryTargetLookupIsSeparateAndScopedDirectoriesStayRestricted(): void
+    {
+        $coordinate = '30045:' . self::AUTHOR . ':private-folder';
+        $directory = $this->event('c', 30045, [
+            ['d', 'private-folder'],
+            ['title', 'Must not be exposed'],
+            ['h', 'private-scope'],
+        ]);
+        $directory->setContent('');
+        $this->events->expects(self::once())->method('findWorkspaceDirectoryTargets')
+            ->with([$coordinate], [])
+            ->willReturn(['coordinates' => [$coordinate => $directory], 'eventIds' => []]);
+        $this->deletions->method('findSuppressedEventIds')->willReturn([]);
+        $this->authors->method('suppressedPubkeys')->willReturn([]);
+        $this->hidden->method('findHiddenCoordinates')->willReturn([]);
+        $this->mutes->method('getMutedPubkeysStrict')->with(self::READER)->willReturn([]);
+        $reference = $this->factory->fromAuthorizedEvent($this->event('f', 30045, [
+            ['d', 'parent'],
+            ['a', $coordinate],
+        ]))->references[0];
+
+        $result = $this->resolver->resolveDirectoryPage([$reference]);
+
+        self::assertSame('restricted', $result[$reference->position]->status->value);
+        self::assertNull($result[$reference->position]->presentation);
+        self::assertStringNotContainsString('Must not be exposed', serialize($result));
+    }
+
+    /**
+     * @dataProvider directoryChildReferenceProvider
+     * @param list<array<mixed>> $targetTags
+     */
+    public function testDirectoryChildReferencesDoNotScopeDirectoryMetadata(array $targetTags): void
+    {
+        $coordinate = '30045:' . self::AUTHOR . ':folder-with-children';
+        $directory = $this->event('c', 30045, [
+            ['d', 'folder-with-children'],
+            ['title', 'Directory remains mountable'],
+            ...$targetTags,
+        ]);
+        $directory->setContent('');
+        $this->events->expects(self::once())->method('findWorkspaceDirectoryTargets')
+            ->with([$coordinate], [])
+            ->willReturn(['coordinates' => [$coordinate => $directory], 'eventIds' => []]);
+        $this->deletions->method('findSuppressedEventIds')->willReturn([]);
+        $this->authors->method('suppressedPubkeys')->willReturn([]);
+        $this->hidden->method('findHiddenCoordinates')->willReturn([]);
+        $this->mutes->method('getMutedPubkeysStrict')->with(self::READER)->willReturn([]);
+        $reference = $this->factory->fromAuthorizedEvent($this->event('f', 30045, [
+            ['d', 'parent'],
+            ['a', $coordinate],
+        ]))->references[0];
+
+        $result = $this->resolver->resolveDirectoryPage([$reference]);
+
+        self::assertSame('available', $result[$reference->position]->status->value);
+        self::assertSame('Directory remains mountable', $result[$reference->position]->presentation->title);
+    }
+
+    /** @return iterable<string, array{list<array<mixed>>}> */
+    public static function directoryChildReferenceProvider(): iterable
+    {
+        yield 'malformed string child' => [[['a', 'not-an-address']]];
+        yield 'missing child value' => [[['a']]];
+        yield 'non-string child value' => [[['a', 123]]];
+        yield 'community child' => [[['a', '34550:' . self::AUTHOR . ':community']]];
+    }
+
+    /**
+     * @dataProvider directoryIdentityProvider
+     * @param list<array<mixed>> $directoryTags
+     */
+    public function testDirectoryTargetMetadataRequiresAValidRawDTag(
+        string $referenceKind,
+        array $directoryTags,
+        string $expectedStatus,
+    ): void {
+        $directoryId = str_repeat('c', 64);
+        $coordinate = '30045:' . self::AUTHOR . ':';
+        $directory = $this->event('c', 30045, [
+            ...$directoryTags,
+            ['title', 'Directory identity test'],
+        ]);
+        $directory->setId($directoryId);
+        $directory->setContent('');
+        // A projected d_tag cannot replace the signed raw first d tag.
+        $directory->setDTag('folder');
+        $sourceTag = $referenceKind === 'exact'
+            ? ['e', $directoryId]
+            : ['a', $coordinate];
+        $source = $this->event('f', 30045, [['d', 'parent'], $sourceTag]);
+        $reference = $this->factory->fromAuthorizedEvent($source)->references[0];
+        $requestedCoordinates = $referenceKind === 'address' ? [$coordinate] : [];
+        $requestedIds = $referenceKind === 'exact' ? [$directoryId] : [];
+        $this->events->expects(self::once())->method('findWorkspaceDirectoryTargets')
+            ->with($requestedCoordinates, $requestedIds)
+            ->willReturn([
+                'coordinates' => $requestedCoordinates === [] ? [] : [$coordinate => $directory],
+                'eventIds' => $requestedIds === [] ? [] : [$directoryId => $directory],
+            ]);
+        $this->deletions->method('findSuppressedEventIds')->willReturn([]);
+        $this->authors->method('suppressedPubkeys')->willReturn([]);
+        $this->hidden->method('findHiddenCoordinates')->willReturn([]);
+        $this->mutes->method('getMutedPubkeysStrict')->with(self::READER)->willReturn([]);
+
+        $result = $this->resolver->resolveDirectoryPage([$reference]);
+
+        self::assertSame($expectedStatus, $result[$reference->position]->status->value);
+        if ($expectedStatus === 'available') {
+            self::assertSame(
+                '30045:' . self::AUTHOR . ':',
+                $result[$reference->position]->presentation->coordinate,
+            );
+        } else {
+            self::assertNull($result[$reference->position]->presentation);
+            self::assertStringNotContainsString('Directory identity test', serialize($result));
+        }
+    }
+
+    /** @return iterable<string, array{string, list<array<mixed>>, string}> */
+    public static function directoryIdentityProvider(): iterable
+    {
+        yield 'address missing d' => ['address', [], 'restricted'];
+        yield 'address malformed d' => ['address', [['d', 42]], 'restricted'];
+        yield 'address explicit empty d' => ['address', [['d', '']], 'available'];
+        yield 'exact id missing d' => ['exact', [], 'restricted'];
+        yield 'exact id malformed d' => ['exact', [['d', 42]], 'restricted'];
+        yield 'exact id explicit empty d' => ['exact', [['d', '']], 'available'];
     }
 
     public function testOversizedBatchIsRejected(): void

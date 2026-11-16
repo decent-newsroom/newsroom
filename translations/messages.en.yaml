@@ -1604,6 +1604,21 @@ relay_feed:
         submit: 'Send suggestion'
 
 reading_nook:
+    inventory_unavailable: 'Your Reading Nook is temporarily unavailable. Please try again.'
+    inventory_retry: 'Try again'
+    drive:
+        title: 'My Drive'
+        directory: 'Directory'
+        read_only: 'Read-only view'
+        back: 'Back to Reading Nook'
+        open_directory: 'Open directory'
+        open_event: 'Open event'
+        target_unavailable: 'This target is not available in the read-only viewer.'
+        body_unavailable: 'This event has no readable text body in the read-only viewer.'
+        empty: 'This drive or directory is empty.'
+        invalid: 'Invalid reference'
+        cycle: 'Directory cycle detected on this path.'
+        depth_limit: 'Maximum nested directory depth reached.'
     bookmarks:
         disclosure: 'Bookmarks in %title%'
         load: 'Load bookmarks'
@@ -1672,6 +1687,7 @@ reading_nook:
         collections: 'Collections'
         reading_lists: 'Reading lists'
         follow_packs: 'Follow packs'
+        drives: 'Drives'
     title: 'Reading Nook'
     subtitle: 'Search and filter your own collections in one place.'
     create_article: 'New article'
@@ -1723,6 +1739,7 @@ reading_nook:
         subscriptions: 'Subscriptions'
         my_content: 'My content'
         magazines: 'Magazines'
+        drives: 'Drives'
     timespan:
         all: 'All time'
         7d: 'Last 7 days'

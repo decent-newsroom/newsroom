@@ -102,6 +102,38 @@ final class PublicationChapterPreviewTest extends TestCase
         );
     }
 
+    /** @dataProvider scopedChapterCases */
+    public function testScopedSourceOrChapterFailsBeforeReturningBody(string $scopeLocation): void
+    {
+        $source = $this->source([['a', self::COORDINATE, '', self::CHAPTER_ID]]);
+        $metadata = $this->chapter('', [['d', 'chapter-one']]);
+        $chapter = $this->chapter('secret body', [['d', 'chapter-one']]);
+        if ($scopeLocation === 'source') {
+            $source->setTags([['d', 'index'], ['a', self::COORDINATE, '', self::CHAPTER_ID], ['s', 'members']]);
+        } elseif ($scopeLocation === 'metadata') {
+            $metadata->setTags([['d', 'chapter-one'], ['s']]);
+        } else {
+            $chapter->setTags([['d', 'chapter-one'], ['s', 'members']]);
+        }
+        $events = $this->createMock(EventRepository::class);
+        $events->expects($scopeLocation === 'source' ? self::never() : self::once())
+            ->method('findWorkspacePreviewTargets')
+            ->willReturn(['coordinates' => [], 'eventIds' => [self::CHAPTER_ID => $metadata]]);
+        $events->expects($scopeLocation === 'body' ? self::once() : self::never())
+            ->method('findById')->willReturn($chapter);
+        $this->expectException(NotFoundHttpException::class);
+        $this->preview($events, $this->accessWithoutTargetPolicy($events))->fromAuthorizedIndexOccurrence(
+            $source, 1, self::CHAPTER_ID, self::COORDINATE, [],
+        );
+    }
+
+    public static function scopedChapterCases(): iterable
+    {
+        yield 'scoped source' => ['source'];
+        yield 'scoped metadata' => ['metadata'];
+        yield 'scope changed before body read' => ['body'];
+    }
+
     public function testChangedUnpinnedLocalRevisionInvalidatesPreviewProof(): void
     {
         $source = $this->source([['a', self::COORDINATE]]);

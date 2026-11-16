@@ -14,6 +14,8 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\EventWorkspace\Metrics\WorkspaceMetrics;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Bounded TOC pages for an authorized root index or locally available nested
@@ -34,6 +36,7 @@ final readonly class PublicationTocPage
         private ContentAuthorAccessPolicy $authorAccess,
         private HiddenCoordinateRepository $hiddenCoordinates,
         private PublicationTocTraversalSigner $traversalSigner,
+        private ?WorkspaceMetrics $metrics = null,
     ) {}
 
     /**
@@ -59,6 +62,9 @@ final readonly class PublicationTocPage
     {
         if ($event->getKind() !== KindsEnum::PUBLICATION_INDEX->value || $page < 1) {
             throw new \InvalidArgumentException('TOC pages require kind 30040 and a positive page number.');
+        }
+        if (EventWorkspaceScopePolicy::isScopedInventoryList($event->getKind(), $event->getTags())) {
+            throw new NotFoundHttpException();
         }
         if (count($ancestorEventIds) >= self::MAX_EXPANSION_DEPTH
             || ($occurrenceId !== null && preg_match('/^[0-9a-f]{64}$/', $occurrenceId) !== 1)) {
@@ -150,6 +156,12 @@ final readonly class PublicationTocPage
             );
         }
 
+        foreach ($result['entries'] as $entry) {
+            $status = $entry['targetResolution']
+                ?? ($entry['invalidVersionPin'] ? 'invalid' : $entry['reference']->status->value);
+            $this->metrics?->resolution($status);
+        }
+
         return $result;
     }
 
@@ -212,7 +224,8 @@ final readonly class PublicationTocPage
                 continue;
             }
 
-            if (!$this->matchesAddress($target, $reference)) {
+            if (!$this->matchesAddress($target, $reference)
+                || EventWorkspaceScopePolicy::isScopedTarget($target->getKind(), $target->getTags())) {
                 // In particular, never fall back from an invalid exact pin to
                 // whichever revision is current at the coordinate. The generic
                 // status also avoids disclosing whether the pin exists.
@@ -362,7 +375,8 @@ final readonly class PublicationTocPage
             if (!$target instanceof Event) {
                 continue;
             }
-            if (!$this->matchesAddress($target, $reference)) {
+            if (!$this->matchesAddress($target, $reference)
+                || EventWorkspaceScopePolicy::isScopedTarget($target->getKind(), $target->getTags())) {
                 $entries[$index]['targetResolution'] = 'unavailable';
                 continue;
             }

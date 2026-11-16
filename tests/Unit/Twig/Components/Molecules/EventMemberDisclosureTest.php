@@ -135,6 +135,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertSame(0, $crawler->filter('details[open], details[name]')->count());
         self::assertSame('lazy', $crawler->filter('turbo-frame')->attr('loading'));
         self::assertSame('bookshelf-directory-references', $crawler->filter('turbo-frame')->attr('id'));
+        self::assertSame('bookshelf-directory-references', $crawler->filter('details')->attr('data-event-workspace-disclosure'));
         self::assertSame('/bookshelf/my-books/references', $crawler->filter('turbo-frame a')->attr('href'));
     }
 
@@ -166,12 +167,16 @@ final class EventMemberDisclosureTest extends KernelTestCase
             'contentItems' => $items, 'activeType' => 'all', 'searchQuery' => 'search',
             'sort' => 'title', 'counts' => ['all' => 3, 'published' => 1, 'drafts' => 2],
             'filteredCount' => 3, 'page' => 1, 'totalPages' => 1,
+            'workspacePubkey' => str_repeat('a', 64),
         ]));
+        self::assertSame(str_repeat('a', 64), $crawler->filter('.my-content-page')->attr('data-ui--event-workspace-state-user-value'));
+        self::assertSame('my-content', $crawler->filter('.my-content-page')->attr('data-ui--event-workspace-state-context-value'));
         self::assertCount(3, $crawler->filter('article.my-content-row'));
         self::assertCount(3, $crawler->filter('details.my-content-menu[name="my-content-actions"]'));
         self::assertCount($enabled ? 2 : 0, $crawler->filter('details.my-content-row__preview'));
         self::assertCount(0, $crawler->filter('.my-content-menu .my-content-row__preview, .my-content-row__preview[name], script'));
         if ($enabled) {
+            self::assertSame('my-content-preview-' . self::ID, $crawler->filter('.my-content-row__preview')->first()->attr('data-event-workspace-disclosure'));
             self::assertSame('lazy', $crawler->filter('.my-content-row__preview turbo-frame')->first()->attr('loading'));
             self::assertSame('/my-content/preview/' . self::ID, $crawler->filter('.my-content-row__preview turbo-frame')->first()->attr('src'));
             self::assertSame('/my-content/preview/' . self::ID, $crawler->filter('.my-content-row__preview a')->first()->attr('href'));
@@ -798,11 +803,22 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $bookmarks = array_replace($item, ['eventId' => str_repeat('c', 64), 'kind' => 10003, 'section' => 'bookmarks', 'title' => 'My bookmarks']);
         $bookmarkSet = array_replace($bookmarks, ['eventId' => str_repeat('d', 64), 'kind' => 30003, 'title' => 'Saved articles']);
         $crawler = new Crawler($twig->render('reader/reading_nook/index.html.twig', [
-            'filters' => ['q' => '', 'section' => 'all', 'timespan' => 'all', 'tag' => ''],
+            'filters' => ['q' => 'guide', 'section' => 'reading_lists', 'timespan' => '7d', 'tag' => 'rust'],
             'allTags' => [], 'totalCount' => 2, 'filteredCount' => 2, 'sectionKeys' => [],
             'sectionLabels' => ['bookmarks' => 'reading_nook.section.bookmarks', 'follow_packs' => 'reading_nook.section.follow_packs', 'reading_lists' => 'reading_nook.section.reading_lists', 'subscriptions' => 'reading_nook.section.subscriptions'],
             'sectionCounts' => [], 'timespanOptions' => [], 'items' => [$item, $index, $other, $curation, $subscription, $bookmarks, $bookmarkSet],
+            'workspacePubkey' => str_repeat('a', 64),
+            'page' => 2, 'totalPages' => 3,
         ]));
+        self::assertSame(str_repeat('a', 64), $crawler->filter('.reading-nook-page')->attr('data-ui--event-workspace-state-user-value'));
+        self::assertSame('reading-nook', $crawler->filter('.reading-nook-page')->attr('data-ui--event-workspace-state-context-value'));
+        self::assertCount(1, $crawler->filter('nav.my-content-pagination'));
+        self::assertCount(0, $crawler->filter('article nav.my-content-pagination'));
+        foreach (['prev' => '1', 'next' => '3'] as $rel => $expectedPage) {
+            $href = $crawler->filter('a[rel="' . $rel . '"]')->attr('href');
+            parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
+            self::assertSame(['q' => 'guide', 'timespan' => '7d', 'tag' => 'rust', 'section' => 'reading_lists', 'page' => $expectedPage], $query);
+        }
 
         $row = $crawler->filter('article')->first();
         self::assertSame('/open', $row->filter('h2 a')->attr('href'));

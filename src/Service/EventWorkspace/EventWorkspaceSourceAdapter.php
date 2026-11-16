@@ -38,6 +38,15 @@ final readonly class EventWorkspaceSourceAdapter
         return $this->fromEvent($event, EventWorkspaceSource::BookshelfDirectory);
     }
 
+    public function fromNkbipDrive(Event $event): EventWorkspaceSourceRecord
+    {
+        if ($event->getKind() !== KindsEnum::DRIVE->value) {
+            throw new \InvalidArgumentException('NKBIP drive source records must be kind 30042.');
+        }
+
+        return $this->fromEvent($event, EventWorkspaceSource::NkbipDrive);
+    }
+
     public function fromAuthoredArticle(Article $article): EventWorkspaceSourceRecord
     {
         $kind = $article->getKind()?->value;

@@ -1,0 +1,14 @@
+{% extends 'reading-nook-layout.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
+{% block body %}
+    <section class="reading-nook-page">
+        <twig:Atoms:PageHeading :heading="'reading_nook.title'|trans" :tagline="'reading_nook.subtitle'|trans" />
+        <p role="alert">{{ 'reading_nook.inventory_unavailable'|trans }}</p>
+        <a href="{{ path('reading_nook') }}">{{ 'reading_nook.inventory_retry'|trans }}</a>
+    </section>
+{% endblock %}

@@ -1230,6 +1230,21 @@ updates:
         alreadySubscribed: 'Že prijavljen.'
 
 reading_nook:
+    inventory_unavailable: 'Bralni kotiček trenutno ni na voljo. Poskusite znova.'
+    inventory_retry: 'Poskusi znova'
+    drive:
+        title: 'Moj pogon'
+        directory: 'Imenik'
+        read_only: 'Pogled samo za branje'
+        back: 'Nazaj v Reading Nook'
+        open_directory: 'Odpri imenik'
+        open_event: 'Odpri dogodek'
+        target_unavailable: 'Ta cilj v pogledu samo za branje ni na voljo.'
+        body_unavailable: 'Ta dogodek v pogledu samo za branje nima berljivega besedila.'
+        empty: 'Ta pogon ali imenik je prazen.'
+        invalid: 'Neveljaven sklic'
+        cycle: 'Na tej poti je zaznan cikel imenikov.'
+        depth_limit: 'Dosežena je največja globina gnezdenja imenikov.'
     bookmarks:
         disclosure: 'Zaznamki: %title%'
         load: 'Naloži zaznamke'
@@ -1349,6 +1364,7 @@ reading_nook:
         subscriptions: 'Subscriptions' # TODO: translate
         my_content: 'My content' # TODO: translate
         magazines: 'Magazines' # TODO: translate
+        drives: 'Pogoni'
     timespan:
         all: 'All time' # TODO: translate
         7d: 'Last 7 days' # TODO: translate

@@ -611,12 +611,358 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Metadata-only Article candidates for the separately entitled,
+     * read-only NKBIP drive opener. Exact IDs are still checked against their
+     * source occurrence and Article projection by the caller.
+     *
+     * @param list<string> $coordinates
+     * @param list<string> $eventIds
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    public function findWorkspaceDriveArticleTargets(array $coordinates, array $eventIds): array
+    {
+        if (count($coordinates) + count($eventIds) > 50) {
+            throw new \InvalidArgumentException('Drive Article lookup is limited to one directory page.');
+        }
+
+        return $this->findBoundedReferenceTargets($coordinates, $eventIds, [30023], metadataOnly: true);
+    }
+
+    /**
+     * Load one exact-event opening target from the local database. Address
+     * winners use the same current-revision ordering as page previews; an
+     * explicit version pin is passed in the exact-ID list and is never
+     * replaced by a coordinate winner.
+     *
+     * @param list<string> $coordinates
+     * @param list<string> $eventIds
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    public function findWorkspaceDriveOpenTargets(array $coordinates, array $eventIds): array
+    {
+        if (count($coordinates) + count($eventIds) > 1) {
+            throw new \InvalidArgumentException('Drive event opening resolves one local target at a time.');
+        }
+
+        return $this->findBoundedReferenceTargets(
+            $coordinates,
+            $eventIds,
+            [30023, 30040, 30041],
+        );
+    }
+
+    /**
+     * Resolve only empty-content NKBIP-04 directory targets without selecting
+     * their body or signature. Current-coordinate selection happens before
+     * the empty-content filter so an invalid latest revision never falls back.
+     *
+     * @param list<string> $coordinates
+     * @param list<string> $eventIds
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    public function findWorkspaceDirectoryTargets(array $coordinates, array $eventIds): array
+    {
+        if (count($coordinates) + count($eventIds) > 50) {
+            throw new \InvalidArgumentException('Workspace directory lookup is limited to one page.');
+        }
+
+        return $this->findBoundedReferenceTargets(
+            $coordinates,
+            $eventIds,
+            [30045],
+            metadataOnly: true,
+            requireEmptyContent: true,
+        );
+    }
+
+    /**
+     * Return the current local drive revision for each owner's d-coordinate.
+     * A non-empty current revision is omitted after winner selection; older
+     * revisions are never substituted. The result is bounded for inventory use.
+     *
+     * @return list<Event>
+     */
+    public function findWorkspaceCurrentDrives(string $pubkey, int $limit = 400): array
+    {
+        $pubkey = strtolower($pubkey);
+        if (preg_match('/^[0-9a-f]{64}$/', $pubkey) !== 1 || $limit < 1) {
+            return [];
+        }
+        $limit = min($limit, 400);
+
+        $connection = $this->getEntityManager()->getConnection();
+        $platform = $connection->getDatabasePlatform();
+        $dTagExpression = match (true) {
+            $platform instanceof PostgreSQLPlatform => "COALESCE(
+                (SELECT tag.value->>1
+                 FROM jsonb_array_elements(e.tags) WITH ORDINALITY AS tag(value, ordinality)
+                 WHERE tag.value->>0 = 'd'
+                 ORDER BY tag.ordinality
+                 LIMIT 1),
+                e.d_tag,
+                ''
+            )",
+            $platform instanceof SQLitePlatform => "COALESCE(
+                (SELECT json_extract(tag.value, '$[1]')
+                 FROM json_each(e.tags) AS tag
+                 WHERE json_extract(tag.value, '$[0]') = 'd'
+                 ORDER BY CAST(tag.key AS INTEGER)
+                 LIMIT 1),
+                e.d_tag,
+                ''
+            )",
+            default => "COALESCE(e.d_tag, '')",
+        };
+        $sql = "SELECT e.id, e.kind, e.pubkey, e.created_at, e.tags, e.d_tag,
+                       '' AS content, '' AS sig
+                FROM event e
+                INNER JOIN (
+                    SELECT id FROM (
+                        SELECT e.id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY lower(e.pubkey), {$dTagExpression}
+                                   ORDER BY e.created_at DESC, lower(e.id) ASC
+                               ) AS revision_rank
+                        FROM event e
+                        WHERE e.kind = :kind AND lower(e.pubkey) = :pubkey
+                    ) current_revisions
+                    WHERE revision_rank = 1
+                ) winners ON lower(e.id) = lower(winners.id)
+                WHERE e.content = ''
+                ORDER BY e.created_at DESC, lower(e.id) ASC
+                LIMIT :limit";
+        $rows = $connection->executeQuery($sql, [
+            'kind' => 30042,
+            'pubkey' => $pubkey,
+            'limit' => $limit,
+        ], [
+            'kind' => \Doctrine\DBAL\ParameterType::INTEGER,
+            'pubkey' => \Doctrine\DBAL\ParameterType::STRING,
+            'limit' => \Doctrine\DBAL\ParameterType::INTEGER,
+        ])->fetchAllAssociative();
+
+        return array_map(fn (array $row): Event => $this->mapRowToEvent($row), $rows);
+    }
+
+    /**
+     * Iterate current inventory revisions in bounded batches. Parameterized
+     * identities use the first signed d tag, never the derived column.
+     *
+     * @param list<int> $listKinds
+     * @return \Generator<int, Event>
+     */
+    public function iterateReadingNookEvents(string $pubkey, array $listKinds, bool $includeDrives): \Generator
+    {
+        if (preg_match('/^[0-9a-f]{64}$/D', $pubkey) !== 1 || $listKinds === []) {
+            return;
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+        $platform = $connection->getDatabasePlatform();
+        [$firstDTag, $tagsAreArray, $identifier] = $this->readingNookIdentitySql($platform);
+        $kinds = array_unique(array_map('intval', $listKinds));
+        if ($includeDrives) {
+            $kinds[] = 30042;
+        }
+        $kindList = implode(',', $kinds);
+        $sql = "WITH raw AS (
+                SELECT e.*, CASE WHEN e.kind >= 30000 AND e.kind <= 39999 THEN {$firstDTag} END AS first_d
+                FROM event e
+                WHERE e.kind IN ({$kindList})
+                    AND {$tagsAreArray}
+                    AND ((e.kind = 30042 AND lower(e.pubkey) = :pubkey)
+                        OR (e.kind <> 30042 AND e.pubkey = :pubkey))
+            ), identities AS (
+                SELECT e.*, {$identifier} AS signed_identifier FROM raw e
+            ), ranked AS (
+                SELECT e.*,
+                    CASE WHEN e.kind = 30042 THEN 1 ELSE 0 END AS source_rank,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY e.kind, CASE
+                            WHEN e.kind >= 30000 AND e.kind <= 39999 THEN e.signed_identifier
+                            ELSE '' END
+                        ORDER BY e.created_at DESC, lower(e.id) ASC, e.id ASC
+                    ) AS revision_rank
+                FROM identities e
+                WHERE (e.kind < 30000 OR e.kind > 39999 OR e.signed_identifier IS NOT NULL)
+            )
+            SELECT e.* FROM ranked e
+            WHERE e.revision_rank = 1
+            ORDER BY e.created_at DESC, e.source_rank ASC, lower(e.id) ASC, e.id ASC";
+        $toEvent = function (array $row): Event {
+            $event = $this->mapRowToEvent($row);
+            if ($event->getKind() !== 30042) {
+                $event->setDTag($row['d_tag'] === null ? null : (string) $row['d_tag']);
+            }
+
+            return $event;
+        };
+        if ($platform instanceof SQLitePlatform) {
+            $result = $connection->executeQuery($sql, ['pubkey' => $pubkey]);
+            while (($row = $result->fetchAssociative()) !== false) {
+                yield $toEvent($row);
+            }
+
+            return;
+        }
+
+        // A server-side cursor avoids buffering the complete winner set in PDO
+        // and evaluates the revision window only once.
+        $cursor = 'nook_' . bin2hex(random_bytes(8));
+        $connection->beginTransaction();
+        $completed = false;
+        try {
+            $connection->executeStatement("DECLARE {$cursor} NO SCROLL CURSOR FOR {$sql}", ['pubkey' => $pubkey]);
+            do {
+                $rows = $connection->executeQuery("FETCH FORWARD 128 FROM {$cursor}")->fetchAllAssociative();
+                foreach ($rows as $row) {
+                    yield $toEvent($row);
+                }
+            } while (count($rows) === 128);
+            $connection->executeStatement("CLOSE {$cursor}");
+            $completed = true;
+        } finally {
+            if ($completed) {
+                $connection->commit();
+            } else {
+                $connection->rollBack();
+            }
+        }
+    }
+
+    /**
+     * Resolve subscription metadata from the newest signed coordinate, without
+     * trusting a possibly stale d_tag projection.
+     */
+    public function findReadingNookSubscriptionTarget(int $kind, string $pubkey, string $dTag): ?Event
+    {
+        if ($kind < 30000 || $kind > 39999 || preg_match('/^[0-9a-f]{64}$/D', $pubkey) !== 1) {
+            return null;
+        }
+        $connection = $this->getEntityManager()->getConnection();
+        [$firstDTag, $tagsAreArray, $identifier] = $this->readingNookIdentitySql($connection->getDatabasePlatform());
+        $sql = "WITH raw AS (
+                    SELECT e.*, {$firstDTag} AS first_d FROM event e
+                    WHERE e.kind = :kind AND e.pubkey = :pubkey AND {$tagsAreArray}
+                ), identities AS (
+                    SELECT e.*, {$identifier} AS signed_identifier FROM raw e
+                )
+                SELECT * FROM identities WHERE signed_identifier = :identifier
+                ORDER BY created_at DESC, lower(id) ASC, id ASC LIMIT 1";
+        $row = $connection->executeQuery($sql, [
+            'kind' => $kind, 'pubkey' => $pubkey, 'identifier' => $dTag,
+        ])->fetchAssociative();
+
+        return $row === false ? null : $this->mapRowToEvent($row);
+    }
+
+    /**
+     * Resolve one bounded page of subscription identities, including metadata,
+     * using signed first-d identities and deterministic revision ordering.
+     *
+     * @param list<array{kind: int, pubkey: string, dTag: ?string}> $identities
+     * @return array<string, Event> keyed by `0:pubkey` or `kind:pubkey:d`
+     */
+    public function findReadingNookSubscriptionTargets(array $identities): array
+    {
+        if (count($identities) > 128) {
+            throw new \InvalidArgumentException('Subscription target batch is too large.');
+        }
+        $rawConditions = $identityConditions = $params = [];
+        foreach ($identities as $i => $identity) {
+            $kind = $identity['kind'];
+            $pubkey = $identity['pubkey'];
+            if (preg_match('/^[0-9a-f]{64}$/D', $pubkey) !== 1
+                || ($kind !== 0 && ($kind < 30000 || $kind > 39999 || !is_string($identity['dTag'])))) {
+                continue;
+            }
+            $pair = "(e.kind = :kind{$i} AND e.pubkey = :pubkey{$i})";
+            $rawConditions[] = $pair;
+            $identityConditions[] = $kind === 0 ? $pair : "({$pair} AND e.signed_identifier = :d{$i})";
+            $params["kind{$i}"] = $kind;
+            $params["pubkey{$i}"] = $pubkey;
+            if ($kind !== 0) {
+                $params["d{$i}"] = $identity['dTag'];
+            }
+        }
+        if ($rawConditions === []) {
+            return [];
+        }
+        $connection = $this->getEntityManager()->getConnection();
+        [$firstDTag, $tagsAreArray, $identifier] = $this->readingNookIdentitySql($connection->getDatabasePlatform());
+        $sql = 'WITH raw AS (
+                    SELECT e.*, CASE WHEN ' . $tagsAreArray . ' THEN 1 ELSE 0 END AS valid_tags,
+                        CASE WHEN e.kind = 0 THEN NULL ELSE ' . $firstDTag . ' END AS first_d
+                    FROM event e WHERE (e.kind = 0 OR ' . $tagsAreArray . ') AND (' . implode(' OR ', $rawConditions) . ')
+                ), identities AS (
+                    SELECT e.*, CASE WHEN e.kind = 0 THEN NULL ELSE ' . $identifier . ' END AS signed_identifier FROM raw e
+                ), ranked AS (
+                    SELECT e.*, ROW_NUMBER() OVER (
+                        PARTITION BY e.kind, e.pubkey, e.signed_identifier
+                        ORDER BY e.created_at DESC, lower(e.id) ASC, e.id ASC
+                    ) AS revision_rank
+                    FROM identities e WHERE ' . implode(' OR ', $identityConditions) . '
+                ) SELECT * FROM ranked WHERE revision_rank = 1';
+        $result = [];
+        foreach ($connection->executeQuery($sql, $params)->fetchAllAssociative() as $row) {
+            if ((int) $row['valid_tags'] !== 1) {
+                // A malformed current metadata event must not expose an older
+                // revision as though it were the current signed profile.
+                continue;
+            }
+            $key = $row['kind'] . ':' . $row['pubkey'];
+            if ((int) $row['kind'] !== 0) {
+                $key .= ':' . $row['signed_identifier'];
+            }
+            $result[$key] = $this->mapRowToEvent($row);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{string, string, string} First d-tag SQL, valid tag-array
+     *         predicate, and signed identifier SQL over the raw CTE alias e.
+     */
+    private function readingNookIdentitySql(\Doctrine\DBAL\Platforms\AbstractPlatform $platform): array
+    {
+        return match (true) {
+            $platform instanceof PostgreSQLPlatform => [
+                "(SELECT tag.value FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(e.tags) = 'array' THEN e.tags ELSE '[]'::jsonb END
+                ) WITH ORDINALITY AS tag(value, ordinality)
+                WHERE jsonb_typeof(tag.value) = 'array' AND tag.value->>0 = 'd'
+                ORDER BY tag.ordinality LIMIT 1)",
+                "jsonb_typeof(e.tags) = 'array'",
+                "CASE WHEN e.first_d IS NULL THEN CASE WHEN e.kind = 30042 THEN NULL ELSE '' END
+                    WHEN jsonb_typeof(e.first_d->1) = 'string' THEN e.first_d->>1 ELSE NULL END",
+            ],
+            $platform instanceof SQLitePlatform => [
+                "(SELECT tag.value FROM json_each(
+                    CASE WHEN json_valid(e.tags) AND json_type(e.tags) = 'array' THEN e.tags ELSE '[]' END
+                ) AS tag WHERE CASE WHEN tag.type = 'array' THEN json_extract(tag.value, '$[0]') END = 'd'
+                ORDER BY CAST(tag.key AS INTEGER) LIMIT 1)",
+                "CASE WHEN json_valid(e.tags) THEN json_type(e.tags) = 'array' ELSE 0 END",
+                "CASE WHEN e.first_d IS NULL THEN CASE WHEN e.kind = 30042 THEN NULL ELSE '' END
+                    WHEN json_type(e.first_d, '$[1]') = 'text' THEN json_extract(e.first_d, '$[1]') ELSE NULL END",
+            ],
+            default => throw new \LogicException('Reading Nook inventory requires PostgreSQL or SQLite.'),
+        };
+    }
+
+    /**
      * @param list<string> $coordinates
      * @param list<string> $eventIds
      * @param list<int> $kinds
      * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
      */
-    private function findBoundedReferenceTargets(array $coordinates, array $eventIds, array $kinds, bool $metadataOnly = false): array
+    private function findBoundedReferenceTargets(
+        array $coordinates,
+        array $eventIds,
+        array $kinds,
+        bool $metadataOnly = false,
+        bool $requireEmptyContent = false,
+    ): array
     {
         $coordinates = array_values(array_unique(array_filter(
             $coordinates,
@@ -679,7 +1025,7 @@ class EventRepository extends ServiceEntityRepository
         $selected = [];
         if ($coordinateSql !== []) {
             $selected[] = sprintf(
-                "SELECT id FROM (
+                "SELECT id, 'coordinate' AS target_type FROM (
                     SELECT e.id,
                            ROW_NUMBER() OVER (
                                PARTITION BY e.kind, lower(e.pubkey), %s
@@ -704,7 +1050,7 @@ class EventRepository extends ServiceEntityRepository
             // Exact pins are fetched by ID first, then the caller validates
             // their declared kind/pubkey/d-tag. A wrong-kind pin is a mismatch,
             // not a reason to fall back to the current coordinate revision.
-            $selected[] = 'SELECT e.id FROM event e WHERE lower(e.id) IN ('
+            $selected[] = "SELECT e.id, 'exact' AS target_type FROM event e WHERE lower(e.id) IN ("
                 . implode(', ', $idPlaceholders) . ')';
         }
 
@@ -713,22 +1059,29 @@ class EventRepository extends ServiceEntityRepository
         $columns = $metadataOnly
             ? "e.id, e.kind, e.pubkey, e.created_at, e.tags, e.d_tag, '' AS content, '' AS sig"
             : 'e.*';
-        $sql = 'SELECT ' . $columns . ' FROM event e INNER JOIN ('
-            . implode(' UNION ', $selected)
+        $sql = 'SELECT ' . $columns . ', requested_targets.target_type FROM event e INNER JOIN ('
+            . implode(' UNION ALL ', $selected)
             . ') requested_targets ON lower(e.id) = lower(requested_targets.id)'
-            . ' ORDER BY e.created_at DESC, lower(e.id) ASC';
+            . ($requireEmptyContent ? " WHERE e.content = ''" : '')
+            . ' ORDER BY e.created_at DESC, lower(e.id) ASC, requested_targets.target_type';
         $rows = $connection->executeQuery($sql, $params)->fetchAllAssociative();
 
-        $byId = [];
+        $coordinateCandidates = [];
+        $exactCandidates = [];
         foreach ($rows as $row) {
             $event = $this->mapRowToEvent($row);
-            $byId[strtolower($event->getId())] = $event;
+            $id = strtolower($event->getId());
+            if (($row['target_type'] ?? null) === 'coordinate') {
+                $coordinateCandidates[$id] = $event;
+            } elseif (($row['target_type'] ?? null) === 'exact') {
+                $exactCandidates[$id] = $event;
+            }
         }
 
         $byCoordinate = [];
         foreach ($coordinates as $coordinate) {
             [$kind, $pubkey, $identifier] = explode(':', $coordinate, 3);
-            foreach ($byId as $event) {
+            foreach ($coordinateCandidates as $event) {
                 if ($event->getKind() !== (int) $kind
                     || strtolower($event->getPubkey()) !== $pubkey
                     || $this->dTagFromEvent($event) !== $identifier) {
@@ -741,8 +1094,8 @@ class EventRepository extends ServiceEntityRepository
 
         $byExactId = [];
         foreach ($eventIds as $eventId) {
-            if (isset($byId[$eventId])) {
-                $byExactId[$eventId] = $byId[$eventId];
+            if (isset($exactCandidates[$eventId])) {
+                $byExactId[$eventId] = $exactCandidates[$eventId];
             }
         }
 
@@ -820,6 +1173,7 @@ class EventRepository extends ServiceEntityRepository
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', 0)
             ->orderBy('e.created_at', \SortDirection::Descending)
+            ->addOrderBy('e.id', \SortDirection::Ascending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -849,7 +1203,7 @@ class EventRepository extends ServiceEntityRepository
                 FROM event
                 WHERE kind = :kind
                   AND pubkey IN (:pubkeys)
-                ORDER BY pubkey, created_at DESC, id DESC
+                ORDER BY pubkey, created_at DESC, id ASC
                 SQL,
             [
                 'kind' => KindsEnum::METADATA->value,
@@ -899,6 +1253,7 @@ class EventRepository extends ServiceEntityRepository
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', $kind)
             ->orderBy('e.created_at', \SortDirection::Descending)
+            ->addOrderBy('e.id', \SortDirection::Ascending)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

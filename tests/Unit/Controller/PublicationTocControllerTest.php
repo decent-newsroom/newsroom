@@ -153,6 +153,38 @@ final class PublicationTocControllerTest extends TestCase
         self::assertSame('nook-chapter-' . self::ID . '-1', $captured['frameId']);
     }
 
+    public function testScopedChapterIsDeniedAtTheFragmentBeforeBodyLookup(): void
+    {
+        $source = $this->event();
+        $author = str_repeat('d', 64);
+        $coordinate = '30041:' . $author . ':chapter';
+        $source->setTags([['d', 'book'], ['a', $coordinate, '', self::PIN]]);
+        $target = $this->event($author, 30041);
+        $target->setId(self::PIN);
+        $target->setDTag('chapter');
+        $target->setTags([['d', 'chapter'], ['s', 'members'], ['title', 'Secret title']]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findById')->with(self::ID)->willReturn($source);
+        $events->expects(self::once())->method('findWorkspacePreviewTargets')->with([], [self::PIN])
+            ->willReturn(['coordinates' => [], 'eventIds' => [self::PIN => $target]]);
+        $presentations = new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service());
+        $access = new PublicationTocSourceAccess(
+            $events, $presentations, $this->createStub(DeletedEventRepository::class),
+            $this->createStub(HiddenCoordinateRepository::class), $this->createStub(ContentAuthorAccessPolicy::class),
+        );
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $targetOccurrence = hash('sha256', 'root:' . self::ID . ':chapter:1:' . self::PIN);
+        $captured = null;
+        $this->expectException(NotFoundHttpException::class);
+        $this->controller($captured, false)->publicationTocChapterPreview(
+            self::ID, '1', new Request([
+                'target' => self::PIN, 'targetOccurrence' => $targetOccurrence, 'targetCoordinate' => $coordinate,
+                'targetSignature' => $signer->sign(self::PIN, 1, [self::ID], $targetOccurrence, $coordinate),
+            ]), $access, new PublicationChapterPreview($events, $presentations, $access), $signer,
+            $this->mutedList(), new AsciiDocConverter(), $this->createMock(LoggerInterface::class),
+        );
+    }
+
     public function testTamperedNestedChapterPreviewSignatureFailsBeforeSourceLookup(): void
     {
         $events = $this->createMock(EventRepository::class);
@@ -259,6 +291,8 @@ final class PublicationTocControllerTest extends TestCase
         $muted->expects(self::once())->method('getMutedPubkeysStrict')->with(self::OWNER)->willReturn([]);
         $hidden = $this->createMock(HiddenCoordinateRepository::class);
         $hidden->expects(self::once())->method('findHiddenCoordinates')->with([$coordinate])->willReturn([]);
+        $root = $this->event();
+        $root->setTags([['d', 'book'], ['a', $coordinate, '', self::PIN]]);
 
         try {
             $response = $controller->nestedPublicationToc(
@@ -277,6 +311,7 @@ final class PublicationTocControllerTest extends TestCase
                 $hidden,
                 $muted,
                 $signer,
+                $this->sourceAccess([$root, $child]),
             );
             self::assertTrue($response->headers->hasCacheControlDirective('private'));
             self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
@@ -324,6 +359,7 @@ final class PublicationTocControllerTest extends TestCase
                     $this->createStub(HiddenCoordinateRepository::class),
                     $this->mutedList(),
                     $signer,
+                    $this->sourceAccess(),
                 );
                 self::fail('Tampered traversal state must be rejected.');
             } catch (BadRequestHttpException) {
@@ -359,6 +395,7 @@ final class PublicationTocControllerTest extends TestCase
             $hidden,
             $this->mutedList(),
             $signer,
+            $this->sourceAccess(),
         );
     }
 
@@ -391,6 +428,7 @@ final class PublicationTocControllerTest extends TestCase
             $hidden,
             $muted,
             $signer,
+            $this->sourceAccess(),
         );
     }
 
@@ -486,6 +524,68 @@ final class PublicationTocControllerTest extends TestCase
         } finally {
             $database->close();
         }
+    }
+
+    public function testScopedOwnedRootCannotRenderToc(): void
+    {
+        $root = $this->event();
+        $root->setTags([['d', 'book'], ['s', 'members'], ['title', 'Secret title']]);
+        $database = $this->database([$root]);
+        $captured = null;
+        try {
+            $this->controller($captured, false)->publicationToc(
+                self::ID, new Request(), $database, $this->pages(),
+                $this->createMock(DeletedEventRepository::class),
+                $this->createMock(ContentAuthorAccessPolicy::class), $this->mutedList(),
+            );
+            self::fail('A scoped root must not render.');
+        } catch (NotFoundHttpException) {
+            self::assertNull($captured);
+        } finally {
+            $database->close();
+        }
+    }
+
+    /** @dataProvider scopedNestedSources */
+    public function testNestedTocRechecksEverySourceAndExactEdge(string $scopedSource): void
+    {
+        $coordinate = '30040:' . str_repeat('d', 64) . ':nested';
+        $root = $this->event();
+        $root->setTags([['d', 'book'],
+            ...($scopedSource === 'removed edge' ? [] : [['a', $coordinate, '', $scopedSource === 'changed pin' ? str_repeat('9', 64) : self::PIN]]),
+            ...($scopedSource === 'root' ? [['s', 'members']] : [])]);
+        $child = $this->event();
+        $child->setId(self::PIN);
+        $child->setPubkey(str_repeat('d', 64));
+        $child->setDTag('nested');
+        $child->setTags([['d', 'nested'], ...($scopedSource === 'child' ? [['s']] : [])]);
+        $database = $this->database([$root, $child]);
+        $signer = new PublicationTocTraversalSigner('test-framework-secret');
+        $captured = null;
+        try {
+            $this->controller($captured, false)->nestedPublicationToc(
+                self::PIN,
+                new Request(['path' => self::ID, 'occurrence' => str_repeat('f', 64), 'coordinate' => $coordinate,
+                    'signature' => $signer->sign(self::PIN, 1, [self::ID], str_repeat('f', 64), $coordinate)]),
+                $database, $this->pages(), $this->createStub(DeletedEventRepository::class),
+                $this->createStub(ContentAuthorAccessPolicy::class),
+                $this->createStub(HiddenCoordinateRepository::class), $this->mutedList(), $signer,
+                $this->sourceAccess([$root, $child]),
+            );
+            self::fail('Every source and exact edge in a signed path must remain readable.');
+        } catch (NotFoundHttpException) {
+            self::assertNull($captured);
+        } finally {
+            $database->close();
+        }
+    }
+
+    public static function scopedNestedSources(): iterable
+    {
+        yield 'scoped ancestor' => ['root'];
+        yield 'scoped exact source' => ['child'];
+        yield 'removed edge' => ['removed edge'];
+        yield 'changed exact pin' => ['changed pin'];
     }
 
     public static function blockedSources(): iterable
@@ -590,6 +690,22 @@ final class PublicationTocControllerTest extends TestCase
         $service->method('getMutedPubkeysStrict')->willReturn([]);
 
         return $service;
+    }
+
+    /** @param list<Event> $sources */
+    private function sourceAccess(array $sources = []): PublicationTocSourceAccess
+    {
+        $events = $this->createMock(EventRepository::class);
+        $byId = [];
+        foreach ($sources as $source) {
+            $byId[$source->getId()] = $source;
+        }
+        $events->method('findById')->willReturnCallback(static fn (string $id): ?Event => $byId[$id] ?? null);
+        return new PublicationTocSourceAccess(
+            $events, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(ContentAuthorAccessPolicy::class),
+        );
     }
 
     private function event(string $owner = self::OWNER, int $kind = 30040): Event

@@ -1,5 +1,8 @@
 {% if event_workspace_expansion_enabled %}
-    <details {{ attributes.defaults({class: disclosureClass}) }}>
+    <details data-event-workspace-disclosure="{{ frameId }}"
+             data-controller="ui--workspace-fragment"
+             data-action="toggle->ui--workspace-fragment#toggle turbo:before-fetch-request->ui--workspace-fragment#beforeRequest"
+             {{ attributes.defaults({class: disclosureClass}) }}>
         <summary>{{ summary }}</summary>
         <turbo-frame id="{{ frameId }}" src="{{ url }}" loading="lazy">
             <a href="{{ url }}">{{ loadLabel }}</a>

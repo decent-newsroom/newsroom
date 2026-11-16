@@ -1228,6 +1228,21 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
+    inventory_unavailable: 'Votre coin lecture est temporairement indisponible. Veuillez réessayer.'
+    inventory_retry: 'Réessayer'
+    drive:
+        title: 'Mon disque'
+        directory: 'Répertoire'
+        read_only: 'Consultation seule'
+        back: 'Retour à Reading Nook'
+        open_directory: 'Ouvrir le répertoire'
+        open_event: 'Ouvrir l’événement'
+        target_unavailable: 'Cette cible n’est pas disponible dans la vue en lecture seule.'
+        body_unavailable: 'Cet événement ne contient aucun texte lisible dans la vue en lecture seule.'
+        empty: 'Ce disque ou répertoire est vide.'
+        invalid: 'Référence non valide'
+        cycle: 'Un cycle de répertoires a été détecté dans ce chemin.'
+        depth_limit: 'Profondeur maximale des répertoires imbriqués atteinte.'
     bookmarks:
         disclosure: 'Signets de %title%'
         load: 'Charger les signets'
@@ -1347,6 +1362,7 @@ reading_nook:
         subscriptions: 'Subscriptions' # TODO: translate
         my_content: 'My content' # TODO: translate
         magazines: 'Magazines' # TODO: translate
+        drives: 'Disques'
     timespan:
         all: 'All time' # TODO: translate
         7d: 'Last 7 days' # TODO: translate

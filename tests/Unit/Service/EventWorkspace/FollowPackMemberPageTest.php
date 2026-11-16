@@ -127,6 +127,9 @@ final class FollowPackMemberPageTest extends TestCase
         yield 'exact second page' => [100, 2, 50, false];
         yield 'third page available' => [101, 2, 50, true];
         yield 'third page singleton' => [101, 3, 1, false];
+        yield 'thousand-member first page' => [1000, 1, 50, true];
+        yield 'thousand-member middle page' => [1000, 10, 50, true];
+        yield 'thousand-member last page' => [1000, 20, 50, false];
         yield 'out of range' => [51, 3, 0, false];
         yield 'largest safe offset' => [1, intdiv(PHP_INT_MAX, 50) + 1, 0, false];
         yield 'first overflowing offset' => [1, intdiv(PHP_INT_MAX, 50) + 2, 0, false];

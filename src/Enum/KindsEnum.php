@@ -47,6 +47,7 @@ enum KindsEnum: int
     case LONGFORM_DRAFT = 30024; // NIP-23
     case PUBLICATION_INDEX = 30040; // NKBIP-01
     case PUBLICATION_CONTENT = 30041; // NKBIP-01
+    case DRIVE = 30042; // NKBIP-04
     case DIRECTORY = 30045; // NKBIP-04, filesystem directory
     case CUSTOM_NIP = 30817; // Community-authored protocol specifications, documentation/NIP/spec.md
     case WIKI = 30818; // NIP-54 wiki entry

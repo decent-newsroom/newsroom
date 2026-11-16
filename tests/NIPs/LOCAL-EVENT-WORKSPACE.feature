@@ -102,3 +102,50 @@ Feature: Raw-event presentations for the event workspace
     And the event has no separate "L" namespace tag
     When the generic preview is rendered
     Then its title and description are not displayed
+
+  Scenario: A drive contains a directory by another author
+    Given an accessible kind:30042 drive references a readable kind:30045 directory by another author
+    When the reader opens the directory
+    Then the directory is viewable without an edit or publish action
+    And the directory's own access checks still apply
+
+  Scenario: Directory references preserve duplicate and pinned occurrences
+    Given a kind:30045 directory contains repeated references and a version-pinned address
+    When the directory is browsed
+    Then the references retain their source order and positions
+    And the pinned address resolves only to the exact matching event
+
+  Scenario: A restricted directory remains hidden
+    Given a drive references a muted, suppressed, deleted, scoped, or hidden directory
+    When the reader browses the drive
+    Then the directory's title and contents are not exposed
+
+  Scenario: Shared directories remain browsable without following cycles
+    Given two directory branches reference the same readable directory
+    And one branch references an ancestor on its current path
+    When the reader browses the drive
+    Then the shared directory remains available in both branches
+    And the cyclic reference does not expand
+
+  Scenario: A large directory remains browsable page by page
+    Given a readable directory contains more than 50 event-reference occurrences
+    When the reader opens a directory page
+    Then at most 50 occurrences are displayed in their original order
+    And duplicate occurrences remain distinct
+
+  Scenario: A readable media event can be opened without loading media
+    Given a directory references a readable picture or video event by its exact id
+    When the reader opens the event
+    Then its authorized metadata and description are viewable read-only
+    And remote media is not loaded automatically
+
+  Scenario: A scoped publication cannot leak its title through a workspace
+    Given a publication has an audience scope the reader cannot access
+    When the reader browses inventory or drive target previews
+    Then its title and contents are not exposed
+
+  Scenario: Discovery does not project an audience-scoped publication
+    Given a publication reference is missing locally and the reader starts discovery
+    When a relay returns a publication or chapter with an audience scope
+    Then the returned event is not projected by workspace discovery
+    And its title and contents are not exposed

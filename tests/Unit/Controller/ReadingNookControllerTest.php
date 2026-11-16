@@ -5,22 +5,34 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Controller;
 
 use App\Controller\Reader\ReadingNookController;
-use App\Dto\UserMetadata;
 use App\Entity\Event;
 use App\Entity\UpdateSubscription;
 use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Enum\UpdateSourceTypeEnum;
 use App\Repository\EventRepository;
+use App\Repository\DeletedEventRepository;
+use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\EventWorkspace\DriveMountAccess;
+use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\NostrIdentityService;
+use App\Service\Reader\ArticleAccessService;
+use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\UserMuteListService;
+use Psr\Log\NullLogger;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
+use Doctrine\Persistence\ManagerRegistry;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
+use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -39,6 +51,8 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Twig\Environment;
 
 final class ReadingNookControllerTest extends TestCase
@@ -46,28 +60,20 @@ final class ReadingNookControllerTest extends TestCase
     public function testNpubSubscriptionUsesProfileDisplayName(): void
     {
         $pubkey = str_repeat('a', 64);
-        $metadata = new UserMetadata(name: 'fallback-name', displayName: 'Profile Name');
-        $controller = $this->controllerWithMetadata($pubkey, $metadata);
-
-        self::assertSame('Profile Name', $this->resolveTitle($controller, $pubkey));
+        self::assertSame('Profile Name', $this->resolveProfileTitle($pubkey, $pubkey, ['name' => 'fallback-name', 'display_name' => 'Profile Name']));
     }
 
     public function testNpubSubscriptionAcceptsNpubAndFallsBackToProfileName(): void
     {
         $pubkey = str_repeat('b', 64);
         $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($pubkey));
-        $metadata = new UserMetadata(name: 'profile-name');
-        $controller = $this->controllerWithMetadata($pubkey, $metadata);
-
-        self::assertSame('profile-name', $this->resolveTitle($controller, $npub));
+        self::assertSame('profile-name', $this->resolveProfileTitle($pubkey, $npub, ['name' => 'profile-name']));
     }
 
     public function testNpubSubscriptionWithoutProfileNameUsesExistingFallback(): void
     {
         $pubkey = str_repeat('c', 64);
-        $controller = $this->controllerWithMetadata($pubkey, new UserMetadata());
-
-        self::assertNull($this->resolveTitle($controller, $pubkey));
+        self::assertNull($this->resolveProfileTitle($pubkey, $pubkey, []));
     }
 
     public function testDefaultBookmarkListTitleIsBookmarks(): void
@@ -154,11 +160,14 @@ final class ReadingNookControllerTest extends TestCase
         $em->expects(self::never())->method('getRepository');
         $subscriptions = $this->createMock(UpdateSubscriptionRepository::class);
         $subscriptions->expects(self::never())->method('findActiveForUser');
+        $eventRepository = $this->createMock(EventRepository::class);
         $response = $controller->index(
             new Request(),
             $em,
-            $this->createMock(EventRepository::class),
+            $eventRepository,
+            $this->driveAccess($eventRepository),
             $subscriptions,
+            $this->eventAccess(null),
         );
 
         self::assertInstanceOf(RedirectResponse::class, $response);
@@ -215,9 +224,9 @@ final class ReadingNookControllerTest extends TestCase
         );
         $subscriptionEvents = $this->createMock(EventRepository::class);
         $subscriptionEvents->expects(self::once())
-            ->method('findByNaddr')
-            ->with(KindsEnum::CURATION_SET->value, $otherHex, 'shared')
-            ->willReturn(null);
+            ->method('findReadingNookSubscriptionTargets')
+            ->with([['kind' => KindsEnum::CURATION_SET->value, 'pubkey' => $otherHex, 'dTag' => 'shared']])
+            ->willReturn([]);
 
         $parameters = $this->renderOwnedInventory(
             $user,
@@ -238,6 +247,7 @@ final class ReadingNookControllerTest extends TestCase
             'interests' => 1,
             'reading_lists' => 3,
             'follow_packs' => 1,
+            'drives' => 0,
             'subscriptions' => 1,
         ];
         self::assertSame($counts, $parameters['sectionCounts']);
@@ -295,6 +305,40 @@ final class ReadingNookControllerTest extends TestCase
         self::assertSame(1, $bobInventory['totalCount']);
     }
 
+    public function testDriveInventoryFiltersDeniedRootsBeforeCountsAndFacets(): void
+    {
+        $ownerHex = str_repeat('a', 64);
+        $user = $this->userFor($ownerHex);
+        $visible = $this->listEvent(7, KindsEnum::DRIVE, $ownerHex, null, time(), [
+            ['d', 'visible'],
+            ['title', 'Visible drive'],
+            ['t', 'visible-topic'],
+        ]);
+        $denied = $this->listEvent(8, KindsEnum::DRIVE, $ownerHex, null, time() - 1, [
+            ['d', 'denied'],
+            ['title', 'Secret drive title'],
+            ['t', 'secret-topic'],
+            ['a', '34550:' . $ownerHex . ':private-community'],
+        ]);
+        $eventRepository = $this->createMock(EventRepository::class);
+        $driveAccess = $this->driveAccess($eventRepository);
+
+        $context = $this->renderOwnedInventory(
+            $user,
+            [$visible, $denied],
+            subscriptionEvents: $eventRepository,
+            driveAccess: $driveAccess,
+        );
+
+        self::assertSame(1, $context['totalCount']);
+        self::assertSame(1, $context['sectionCounts']['drives']);
+        self::assertCount(1, $context['items']);
+        self::assertSame('Visible drive', $context['items'][0]['title']);
+        self::assertContains('visible-topic', $context['allTags']);
+        self::assertNotContains('secret-topic', $context['allTags']);
+        self::assertStringNotContainsString('Secret drive title', serialize($context));
+    }
+
     public function testSupportedListKindsAppearInTheirCurrentSections(): void
     {
         $ownerHex = str_repeat('a', 64);
@@ -306,6 +350,7 @@ final class ReadingNookControllerTest extends TestCase
             [KindsEnum::INTEREST_SETS, 'interests'],
             [KindsEnum::FOLLOW_PACK, 'follow_packs'],
             [KindsEnum::PUBLICATION_INDEX, 'reading_lists'],
+            [KindsEnum::DRIVE, 'drives'],
             [KindsEnum::CURATION_SET, 'reading_lists'],
             [KindsEnum::CURATION_VIDEOS, 'reading_lists'],
             [KindsEnum::CURATION_PICTURES, 'reading_lists'],
@@ -330,18 +375,24 @@ final class ReadingNookControllerTest extends TestCase
         foreach ($kinds as [$kind, $section]) {
             self::assertSame($section, $itemsByKind[$kind->value]['section']);
         }
+        self::assertSame('drives', $itemsByKind[KindsEnum::DRIVE->value]['section']);
+        self::assertSame(
+            '/reading_nook_drive_mount?driveId=' . sprintf('%064x', array_search(KindsEnum::DRIVE, array_column($kinds, 0), true) + 1),
+            $itemsByKind[KindsEnum::DRIVE->value]['url'],
+        );
+        self::assertNull($itemsByKind[KindsEnum::DRIVE->value]['manageUrl']);
         self::assertSame([
             'bookmarks' => 2,
             'interests' => 2,
             'reading_lists' => 4,
             'follow_packs' => 1,
+            'drives' => 1,
             'subscriptions' => 0,
         ], $parameters['sectionCounts']);
     }
 
-    public function testCurrentFourHundredEventCapIsAppliedBeforeDeduplication(): void
+    public function testOlderEventsAreNotLostBehindFourHundredRevisions(): void
     {
-        // Characterize the existing limitation; the planned pagination should replace it.
         $ownerHex = str_repeat('a', 64);
         $now = time();
         $events = [];
@@ -361,13 +412,321 @@ final class ReadingNookControllerTest extends TestCase
         $events[] = $this->listEvent(401, KindsEnum::CURATION_SET, $ownerHex, 'beyond', $now - 401, [
             ['title', 'List beyond current cap'],
         ]);
+        $events[] = $this->listEvent(402, KindsEnum::DRIVE, $ownerHex, 'main', $now - 402, [
+            ['description', 'My Drive'],
+        ]);
 
         $parameters = $this->renderOwnedInventory($this->userFor($ownerHex), $events);
 
-        self::assertSame(['Bookmark revision 1', 'Boundary list'], array_column($parameters['items'], 'title'));
-        self::assertSame(2, $parameters['totalCount']);
+        self::assertSame(['Bookmark revision 1', 'Boundary list', 'List beyond current cap', 'My Drive'], array_column($parameters['items'], 'title'));
+        self::assertSame(4, $parameters['totalCount']);
         self::assertSame(1, $parameters['sectionCounts']['bookmarks']);
-        self::assertSame(1, $parameters['sectionCounts']['reading_lists']);
+        self::assertSame(2, $parameters['sectionCounts']['reading_lists']);
+        self::assertSame(1, $parameters['sectionCounts']['drives']);
+    }
+
+    public function testPagesAndFiltersCoverAllCurrentOwnedCoordinates(): void
+    {
+        $owner = str_repeat('a', 64);
+        $now = time();
+        $events = [];
+        for ($i = 1; $i <= 430; ++$i) {
+            $events[] = $this->listEvent($i, KindsEnum::CURATION_SET, $owner, 'item-' . $i, $now - $i, [
+                ['title', 'Guide ' . $i], ['t', $i >= 401 ? 'older' : 'newer'],
+            ]);
+        }
+        // A newer revision must replace, not add or match the older revision.
+        $events[] = $this->listEvent(1000, KindsEnum::CURATION_SET, $owner, 'item-410', $now + 1, [
+            ['title', 'Replacement'], ['t', 'replacement'],
+        ]);
+        // Equal timestamps resolve to the lower event id, on both sides of page boundaries.
+        $events[] = $this->listEvent(1001, KindsEnum::CURATION_SET, $owner, 'item-420', $now - 420, [
+            ['title', 'Losing tie'], ['t', 'secret-old'],
+        ]);
+        $events[] = $this->listEvent(1002, KindsEnum::CURATION_SET, str_repeat('b', 64), 'foreign', $now + 2, [
+            ['title', 'Other owner'], ['t', 'foreign'],
+        ]);
+        $user = $this->userFor($owner);
+
+        $first = $this->renderOwnedInventory($user, $events);
+        self::assertSame(430, $first['totalCount']);
+        self::assertSame(430, $first['filteredCount']);
+        self::assertSame(18, $first['totalPages']);
+        self::assertCount(25, $first['items']);
+        self::assertSame('Replacement', $first['items'][0]['title']);
+        self::assertNotContains('secret-old', $first['allTags']);
+        self::assertNotContains('foreign', $first['allTags']);
+
+        $last = $this->renderOwnedInventory($user, $events, ['page' => '18']);
+        self::assertSame(['Guide 426', 'Guide 427', 'Guide 428', 'Guide 429', 'Guide 430'], array_column($last['items'], 'title'));
+        self::assertSame(430, $last['filteredCount']);
+        self::assertSame(
+            array_column($last['items'], 'title'),
+            array_column($this->renderOwnedInventory($user, $events, ['page' => '999'])['items'], 'title'),
+        );
+
+        $filtered = $this->renderOwnedInventory($user, $events, [
+            'page' => '2', 'q' => 'guide', 'section' => 'reading_lists', 'timespan' => '7d', 'tag' => 'OLDER',
+        ]);
+        self::assertSame(29, $filtered['filteredCount']);
+        self::assertSame(430, $filtered['totalCount']);
+        self::assertSame(2, $filtered['totalPages']);
+        self::assertSame(['Guide 427', 'Guide 428', 'Guide 429', 'Guide 430'], array_column($filtered['items'], 'title'));
+        self::assertContains('replacement', $filtered['allTags']);
+        self::assertSame(29, $filtered['filteredSectionCounts']['reading_lists']);
+        self::assertSame(430, $filtered['sectionCounts']['reading_lists']);
+    }
+
+    public function testMoreThanFourHundredDrivesRemainAuthorizedAndCounted(): void
+    {
+        $owner = str_repeat('a', 64);
+        $now = time();
+        $events = [];
+        for ($i = 1; $i <= 405; ++$i) {
+            $events[] = $this->listEvent($i, KindsEnum::DRIVE, $owner, 'drive-' . $i, $now - $i, [
+                ['title', 'Drive ' . $i], ['t', $i === 405 ? 'old-drive' : 'drive'],
+            ]);
+        }
+        // The current denied revision blocks fallback to an older public root.
+        $events[] = $this->listEvent(500, KindsEnum::DRIVE, $owner, 'drive-404', $now + 1, [
+            ['title', 'Denied'], ['t', 'denied'], ['a', '34550:' . $owner . ':scope'],
+        ]);
+        $page = $this->renderOwnedInventory($this->userFor($owner), $events, ['page' => '17']);
+        self::assertSame(404, $page['totalCount']);
+        self::assertSame(404, $page['sectionCounts']['drives']);
+        self::assertSame(['Drive 401', 'Drive 402', 'Drive 403', 'Drive 405'], array_column($page['items'], 'title'));
+        self::assertContains('old-drive', $page['allTags']);
+        self::assertNotContains('denied', $page['allTags']);
+    }
+
+    public function testScopedListsDoNotContributeRowsCountsFacetsOrSubscriptionTitles(): void
+    {
+        $owner = str_repeat('a', 64);
+        $user = $this->userFor($owner);
+        $now = time();
+        $audience = $this->listEvent(1, KindsEnum::PUBLICATION_INDEX, $owner, 'audience', $now, [
+            ['title', 'Secret audience'], ['s', '30879:' . $owner . ':members'], ['t', 'secret-audience'],
+        ]);
+        $community = $this->listEvent(2, KindsEnum::CURATION_SET, $owner, 'community', $now - 1, [
+            ['title', 'Secret community'], ['a', '34550:' . $owner . ':community'], ['t', 'secret-community'],
+        ]);
+        $public = $this->listEvent(3, KindsEnum::PUBLICATION_INDEX, $owner, 'public', $now - 2, [
+            ['title', 'Public'], ['a', '30040:' . $owner . ':child'], ['t', 'public'],
+        ]);
+        $result = $this->renderOwnedInventory($user, [$audience, $community, $public]);
+        self::assertSame(['Public'], array_column($result['items'], 'title'));
+        self::assertSame(1, $result['totalCount']);
+        self::assertSame(1, $result['sectionCounts']['reading_lists']);
+        self::assertSame(['public'], $result['allTags']);
+
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findReadingNookSubscriptionTargets')->willReturn([
+            '30040:' . $owner . ':audience' => $audience,
+        ]);
+        $subscription = new UpdateSubscription($user, UpdateSourceTypeEnum::PUBLICATION, '30040:' . $owner . ':audience', 'Saved subscription');
+        $result = $this->renderOwnedInventory($user, [], subscriptions: [$subscription], subscriptionEvents: $events);
+        self::assertSame(['Saved subscription'], array_column($result['items'], 'title'));
+        self::assertStringNotContainsString('Secret audience', serialize($result));
+    }
+
+    public function testMalformedNonParameterizedDTagBeyondFirstPageDoesNotCrashInventory(): void
+    {
+        $owner = str_repeat('a', 64);
+        $now = time();
+        $events = [];
+        for ($i = 1; $i <= 30; ++$i) {
+            $events[] = $this->listEvent($i, KindsEnum::CURATION_SET, $owner, 'item-' . $i, $now - $i, [
+                ['title', 'Item ' . $i],
+            ]);
+        }
+        $events[] = $this->listEvent(31, KindsEnum::BOOKMARKS, $owner, null, $now - 100, [
+            ['d', ['malformed']], ['title', 'Bookmarks with malformed identifier'], ['t', 'last'],
+        ]);
+
+        $result = $this->renderOwnedInventory($this->userFor($owner), $events);
+        self::assertSame(31, $result['totalCount']);
+        self::assertCount(25, $result['items']);
+        self::assertContains('last', $result['allTags']);
+        $lastPage = $this->renderOwnedInventory($this->userFor($owner), $events, ['page' => '2']);
+        self::assertSame('Bookmarks with malformed identifier', end($lastPage['items'])['title']);
+    }
+
+    public function testDeniedListsAndDrivesNeverContributeToCountsOrFacets(): void
+    {
+        $owner = str_repeat('a', 64);
+        $user = $this->userFor($owner);
+        $events = [
+            $this->listEvent(1, KindsEnum::CURATION_SET, $owner, 'visible', time(), [['title', 'Visible'], ['t', 'shown']]),
+            $this->listEvent(2, KindsEnum::CURATION_SET, $owner, 'deleted', time() - 1, [['title', 'Deleted list'], ['t', 'secret-deleted']]),
+            $this->listEvent(3, KindsEnum::DRIVE, $owner, 'hidden', time() - 2, [['title', 'Hidden drive'], ['t', 'secret-hidden']]),
+            $this->listEvent(4, KindsEnum::DRIVE, $owner, 'deleted-drive', time() - 3, [['title', 'Deleted drive'], ['t', 'secret-drive']]),
+        ];
+        $access = $this->eventAccess(
+            $user,
+            [sprintf('%064x', 2), sprintf('%064x', 4)],
+            hidden: ['30042:' . $owner . ':hidden'],
+        );
+        $result = $this->renderOwnedInventory($user, $events, eventAccess: $access);
+        self::assertSame(['Visible'], array_column($result['items'], 'title'));
+        self::assertSame(1, $result['totalCount']);
+        self::assertSame(0, $result['sectionCounts']['drives']);
+        self::assertSame(['shown'], $result['allTags']);
+        self::assertStringNotContainsString('secret-', serialize($result));
+
+        foreach ([
+            $this->eventAccess($user, muted: [$owner]),
+            $this->eventAccess($user, authorDenied: true),
+        ] as $deniedAccess) {
+            $denied = $this->renderOwnedInventory($user, $events, eventAccess: $deniedAccess);
+            self::assertSame(0, $denied['totalCount']);
+            self::assertSame([], $denied['allTags']);
+            self::assertSame([], $denied['items']);
+        }
+    }
+
+    public function testPolicyFailuresReturn503WithoutAnyPartialInventory(): void
+    {
+        $owner = str_repeat('a', 64);
+        $user = $this->userFor($owner);
+        $events = [];
+        for ($i = 1; $i <= 130; ++$i) {
+            $events[] = $this->listEvent($i, KindsEnum::CURATION_SET, $owner, 'list-' . $i, time() - $i, [
+                ['title', 'Private partial result ' . $i], ['t', 'private-facet'],
+            ]);
+        }
+        foreach ([
+            $this->eventAccess($user, muteFailure: true),
+            $this->eventAccess($user, batchFailureAt: 2),
+        ] as $access) {
+            $context = $this->renderOwnedInventory($user, $events, eventAccess: $access, expectUnavailable: true);
+            self::assertArrayNotHasKey('items', $context);
+            self::assertArrayNotHasKey('totalCount', $context);
+            self::assertArrayNotHasKey('allTags', $context);
+            self::assertStringNotContainsString('Private partial', serialize($context));
+            self::assertStringNotContainsString('private-facet', serialize($context));
+        }
+    }
+
+    public function testProfileMetadataRequiresAnAuthorizedLocalSignedEvent(): void
+    {
+        $owner = str_repeat('a', 64);
+        $author = str_repeat('b', 64);
+        $user = $this->userFor($owner);
+        $subscription = new UpdateSubscription($user, UpdateSourceTypeEnum::NPUB, $author, 'Saved author');
+        foreach (['missing', 'muted', 'suppressed', 'deleted', 'scope', 'warning'] as $case) {
+            $event = $this->listEvent(10, KindsEnum::METADATA, $author, null, time(), match ($case) {
+                'scope' => [['h', 'private']],
+                'warning' => [['content-warning', 'private warning']],
+                default => [],
+            }, '{"display_name":"Private profile name"}');
+            $repository = $this->createMock(EventRepository::class);
+            $repository->method('findReadingNookSubscriptionTargets')->willReturn(
+                $case === 'missing' ? [] : ['0:' . $author => $event],
+            );
+            $access = $this->eventAccess(
+                $user,
+                $case === 'deleted' ? [$event->getId()] : [],
+                $case === 'muted' ? [$author] : [],
+                authorDenied: $case === 'suppressed',
+            );
+            $result = $this->renderOwnedInventory($user, [], subscriptions: [$subscription], subscriptionEvents: $repository, eventAccess: $access);
+            self::assertSame(['Saved author'], array_column($result['items'], 'title'), $case);
+            self::assertStringNotContainsString('Private profile name', serialize($result), $case);
+        }
+    }
+
+    public function testSubscriptionTypeCannotExposeAnUnrelatedPrivateKind(): void
+    {
+        $owner = str_repeat('a', 64);
+        $user = $this->userFor($owner);
+        $subscription = new UpdateSubscription($user, UpdateSourceTypeEnum::PUBLICATION, '30042:' . $owner . ':private', 'Saved source');
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())->method('findReadingNookSubscriptionTargets')->with([])->willReturn([]);
+        $result = $this->renderOwnedInventory($user, [], subscriptions: [$subscription], subscriptionEvents: $repository);
+        self::assertSame(['Saved source'], array_column($result['items'], 'title'));
+    }
+
+    public function testDriveStoredIdentityCannotCollapseDistinctSignedCoordinates(): void
+    {
+        $owner = str_repeat('a', 64);
+        $now = time();
+        $denied = $this->listEvent(1, KindsEnum::DRIVE, $owner, 'first', $now, [
+            ['title', 'Denied'], ['a', '34550:' . $owner . ':scope'],
+        ]);
+        $visible = $this->listEvent(2, KindsEnum::DRIVE, $owner, 'second', $now - 1, [
+            ['title', 'Visible'], ['t', 'kept'],
+        ]);
+        $duplicate = $this->listEvent(3, KindsEnum::DRIVE, $owner, 'third', $now - 2, [
+            ['title', 'Duplicate'], ['t', 'excluded'],
+        ]);
+        foreach ([$denied, $visible, $duplicate] as $event) {
+            $event->setDTag('stale-projection');
+        }
+        $result = $this->renderOwnedInventory($this->userFor($owner), [$denied, $visible, $duplicate]);
+        self::assertSame(['Visible', 'Duplicate'], array_column($result['items'], 'title'));
+        self::assertSame(2, $result['totalCount']);
+        self::assertSame(['kept', 'excluded'], $result['allTags']);
+    }
+
+    public function testSubscriptionsAreMergedIntoPagesAndRemainFilterable(): void
+    {
+        $owner = str_repeat('a', 64);
+        $user = $this->userFor($owner);
+        $now = time();
+        $events = [];
+        for ($i = 1; $i <= 25; ++$i) {
+            $events[] = $this->listEvent($i, KindsEnum::CURATION_SET, $owner, 'item-' . $i, $now - $i, [
+                ['title', 'Item ' . $i],
+            ]);
+        }
+        $subscription = new UpdateSubscription($user, UpdateSourceTypeEnum::NIP51_SET, 'invalid', 'Saved updates');
+        (new \ReflectionProperty(UpdateSubscription::class, 'createdAt'))->setValue(
+            $subscription,
+            (new \DateTimeImmutable())->setTimestamp($now - 24),
+        );
+        $first = $this->renderOwnedInventory($user, $events, subscriptions: [$subscription]);
+        $second = $this->renderOwnedInventory($user, $events, ['page' => '2'], [$subscription]);
+        self::assertSame(26, $first['totalCount']);
+        self::assertSame(1, $first['sectionCounts']['subscriptions']);
+        self::assertSame('Item 24', $first['items'][23]['title']);
+        self::assertSame('Saved updates', $first['items'][24]['title']);
+        self::assertSame(['Item 25'], array_column($second['items'], 'title'));
+        self::assertContains('subscription', $first['allTags']);
+
+        $filtered = $this->renderOwnedInventory($user, $events, [
+            'section' => 'subscriptions', 'q' => 'updates', 'tag' => 'subscription',
+        ], [$subscription]);
+        self::assertSame(['Saved updates'], array_column($filtered['items'], 'title'));
+        self::assertSame('/updates_subscriptions', $filtered['items'][0]['manageUrl']);
+        self::assertSame(1, $filtered['filteredCount']);
+        self::assertSame(26, $filtered['totalCount']);
+    }
+
+    public function testEqualTimestampRowsHaveStablePageBoundariesAndSourceOrder(): void
+    {
+        $owner = str_repeat('a', 64);
+        $user = $this->userFor($owner);
+        $now = time();
+        $events = [];
+        for ($i = 60; $i >= 1; --$i) {
+            $events[] = $this->listEvent($i, KindsEnum::CURATION_SET, $owner, 'item-' . $i, $now, [
+                ['title', 'Item ' . $i],
+            ]);
+        }
+        $events[] = $this->listEvent(61, KindsEnum::DRIVE, $owner, 'drive', $now, [['title', 'Drive']]);
+        $subscription = new UpdateSubscription($user, UpdateSourceTypeEnum::NIP51_SET, 'invalid', 'Subscription');
+        (new \ReflectionProperty(UpdateSubscription::class, 'createdAt'))->setValue(
+            $subscription,
+            (new \DateTimeImmutable())->setTimestamp($now),
+        );
+        $pages = [];
+        for ($page = 1; $page <= 3; ++$page) {
+            $result = $this->renderOwnedInventory($user, $events, ['page' => (string) $page], [$subscription]);
+            $pages[] = array_column($result['items'], 'title');
+        }
+        self::assertSame(array_map(static fn (int $i): string => 'Item ' . $i, range(1, 25)), $pages[0]);
+        self::assertSame(array_map(static fn (int $i): string => 'Item ' . $i, range(26, 50)), $pages[1]);
+        self::assertSame([...array_map(static fn (int $i): string => 'Item ' . $i, range(51, 60)), 'Drive', 'Subscription'], $pages[2]);
     }
 
     public function testCombinedFiltersKeepUnfilteredCountsAndTagFacets(): void
@@ -536,12 +895,16 @@ final class ReadingNookControllerTest extends TestCase
         array $query = [],
         array $subscriptions = [],
         ?EventRepository $subscriptionEvents = null,
+        ?DriveMountAccess $driveAccess = null,
+        ?EventPreviewAccessPolicy $eventAccess = null,
+        bool $expectUnavailable = false,
     ): array {
         if (!extension_loaded('pdo_sqlite')) {
             self::markTestSkipped('The isolated Reading Nook query requires pdo_sqlite.');
         }
 
         $config = ORMSetup::createAttributeMetadataConfig([dirname(__DIR__, 3) . '/src/Entity'], true);
+        $config->setNamingStrategy(new \Doctrine\ORM\Mapping\UnderscoreNamingStrategy(CASE_LOWER));
         if (PHP_VERSION_ID >= 80400) {
             $config->enableNativeLazyObjects(true);
         } else {
@@ -557,11 +920,9 @@ final class ReadingNookControllerTest extends TestCase
         $database->flush();
         $database->clear();
 
-        $repository = new EntityRepository($database, $metadata);
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::once())->method('getRepository')->with(Event::class)->willReturn($repository);
         $subscriptionRepository = $this->createMock(UpdateSubscriptionRepository::class);
-        $subscriptionRepository->expects(self::once())
+        $subscriptionRepository->expects($expectUnavailable ? self::atMost(1) : self::once())
             ->method('findActiveForUser')
             ->with(self::identicalTo($user))
             ->willReturn($subscriptions);
@@ -573,8 +934,8 @@ final class ReadingNookControllerTest extends TestCase
         $parameters = null;
         $twig = $this->createMock(Environment::class);
         $twig->expects(self::once())->method('render')
-            ->willReturnCallback(static function (string $template, array $context) use (&$parameters): string {
-                self::assertSame('reader/reading_nook/index.html.twig', $template);
+            ->willReturnCallback(static function (string $template, array $context) use (&$parameters, $expectUnavailable): string {
+                self::assertSame($expectUnavailable ? 'reader/reading_nook/inventory_error.html.twig' : 'reader/reading_nook/index.html.twig', $template);
                 $parameters = $context;
 
                 return 'reading-nook-rendered';
@@ -585,43 +946,137 @@ final class ReadingNookControllerTest extends TestCase
         $container->set('security.token_storage', $storage);
         $container->set('twig', $twig);
         $container->set('router', $router);
-        $controller = new ReadingNookController($this->createMock(RedisCacheService::class));
+        $cache = $this->createMock(RedisCacheService::class);
+        $cache->expects(self::never())->method('getMetadata');
+        $controller = new ReadingNookController($cache);
         $controller->setContainer($container);
 
+        $eventRepository = $subscriptionEvents ?? $this->createMock(EventRepository::class);
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagerForClass')->with(Event::class)->willReturn($database);
+        $inventoryRepository = new EventRepository($registry);
+        $eventRepository->method('iterateReadingNookEvents')
+            ->willReturnCallback($inventoryRepository->iterateReadingNookEvents(...));
         $response = $controller->index(
             new Request($query),
             $em,
-            $subscriptionEvents ?? $this->createMock(EventRepository::class),
+            $eventRepository,
+            $driveAccess ?? $this->driveAccess($eventRepository),
             $subscriptionRepository,
+            $eventAccess ?? $this->eventAccess($user),
         );
         self::assertSame('reading-nook-rendered', $response->getContent());
+        self::assertSame($expectUnavailable ? 503 : 200, $response->getStatusCode());
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
         self::assertIsArray($parameters);
         $database->close();
 
         return $parameters;
     }
 
-    private function controllerWithMetadata(string $pubkey, UserMetadata $metadata): ReadingNookController
-    {
-        $cache = $this->createMock(RedisCacheService::class);
-        $cache->expects(self::once())
-            ->method('getMetadata')
-            ->with($pubkey)
-            ->willReturn($metadata);
+    /**
+     * @param list<string> $suppressedIds
+     * @param list<string> $mutedPubkeys
+     * @param list<string> $hiddenCoordinates
+     */
+    private function driveAccess(
+        EventRepository $events,
+        array $suppressedIds = [],
+        array $mutedPubkeys = [],
+        array $hiddenCoordinates = [],
+    ): DriveMountAccess {
+        $deletions = $this->createMock(DeletedEventRepository::class);
+        $deletions->method('isSuppressed')
+            ->willReturnCallback(static fn (string $id): bool => in_array($id, $suppressedIds, true));
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->method('findHiddenCoordinates')
+            ->willReturnCallback(static fn (): array => $hiddenCoordinates);
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        $mutes = $this->createMock(UserMuteListService::class);
+        $mutes->method('getMutedPubkeysStrict')->willReturn($mutedPubkeys);
 
-        return new ReadingNookController($cache);
+        return new DriveMountAccess($events, $deletions, $hidden, $authors, $mutes, new NullLogger());
     }
 
-    private function resolveTitle(ReadingNookController $controller, string $sourceValue): ?string
+    private function eventAccess(
+        ?User $viewer,
+        array $suppressedIds = [],
+        array $muted = [],
+        array $hidden = [],
+        bool $authorDenied = false,
+        bool $muteFailure = false,
+        ?int $batchFailureAt = null,
+    ): EventPreviewAccessPolicy
     {
-        $method = new \ReflectionMethod($controller, 'resolveSubscriptionTitle');
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        if ($authorDenied) {
+            $authors->method('assertReadable')->willThrowException(new NotFoundHttpException());
+            $authors->method('suppressedPubkeys')->willReturnCallback(static fn (array $pubkeys): array => $pubkeys);
+        }
+        $deletions = $this->createMock(DeletedEventRepository::class);
+        $deletions->method('isSuppressed')
+            ->willReturnCallback(static fn (string $id): bool => in_array($id, $suppressedIds, true));
+        $calls = 0;
+        $deletions->method('findSuppressedEventIds')
+            ->willReturnCallback(static function (array $events) use ($suppressedIds, $batchFailureAt, &$calls): array {
+                if (++$calls === $batchFailureAt) {
+                    throw new \RuntimeException('simulated policy failure');
+                }
+                return array_values(array_filter(
+                    array_map(static fn (Event $event): string => $event->getId(), $events),
+                    static fn (string $id): bool => in_array($id, $suppressedIds, true),
+                ));
+            });
+        $coordinates = $this->createMock(HiddenCoordinateRepository::class);
+        $coordinates->method('isHidden')
+            ->willReturnCallback(static fn (string $coordinate): bool => in_array($coordinate, $hidden, true));
+        $coordinates->method('findHiddenCoordinates')->willReturn($hidden);
+        $security = $this->createMock(Security::class);
+        $security->method('getUser')->willReturn($viewer);
+        $mutes = $this->createMock(UserMuteListService::class);
+        if ($muteFailure) {
+            $mutes->method('getMutedPubkeysStrict')->willThrowException(new \RuntimeException('unavailable'));
+        } else {
+            $mutes->method('getMutedPubkeysStrict')->willReturn($muted);
+        }
 
-        return $method->invoke(
-            $controller,
-            UpdateSourceTypeEnum::NPUB,
-            $sourceValue,
-            $this->createMock(EventRepository::class),
-            $this->createMock(EntityManagerInterface::class),
+        return new EventPreviewAccessPolicy(
+            $authors, $deletions, $coordinates, new RecordIdentityService(), $security, $mutes,
+            new NostrKeyService(), new NullLogger(),
+            new ArticleAccessService(new NostrIdentityService(
+                $this->createMock(Nip19DecoderInterface::class),
+                $this->createMock(Nip19EncoderInterface::class),
+            )),
         );
+    }
+
+    private function resolveProfileTitle(string $pubkey, string $sourceValue, array $metadata): ?string
+    {
+        $controller = new ReadingNookController($this->createMock(RedisCacheService::class));
+        $method = new \ReflectionMethod($controller, 'buildSubscriptionEntries');
+        $event = $this->listEvent(1, KindsEnum::METADATA, $pubkey, null, time(), [], json_encode($metadata, JSON_THROW_ON_ERROR));
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findReadingNookSubscriptionTargets')->willReturn(['0:' . $pubkey => $event]);
+        $user = $this->userFor(str_repeat('f', 64));
+        $subscriptions = $this->createMock(UpdateSubscriptionRepository::class);
+        $subscriptions->method('findActiveForUser')->willReturn([
+            new UpdateSubscription($user, UpdateSourceTypeEnum::NPUB, $sourceValue),
+        ]);
+        $container = new Container();
+        $router = $this->createMock(RouterInterface::class);
+        $router->method('generate')->willReturn('/action');
+        $container->set('router', $router);
+        $controller->setContainer($container);
+        $entries = $method->invoke(
+            $controller,
+            $user,
+            $subscriptions,
+            $events,
+            $this->eventAccess(null),
+            [],
+        );
+        $title = $entries[0]['title'];
+
+        return str_starts_with($title, 'npub:') ? null : $title;
     }
 }

@@ -9,6 +9,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\EventWorkspace\EventWorkspaceScopePolicy;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -27,7 +28,8 @@ final readonly class BookshelfIndexSource
     public function read(string $eventId, array $mutedPubkeys): Event
     {
         $event = $this->events->findOneBy(['id' => $eventId, 'kind' => 30040]);
-        if (!$event instanceof Event || $event->getKind() !== 30040 || $event->getId() !== $eventId) {
+        if (!$event instanceof Event || $event->getKind() !== 30040 || $event->getId() !== $eventId
+            || EventWorkspaceScopePolicy::isScopedInventoryList($event->getKind(), $event->getTags())) {
             throw new NotFoundHttpException();
         }
         $coordinate = $this->presentations->fromAuthorizedEvent($event)->coordinate;
