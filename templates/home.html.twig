@@ -33,6 +33,22 @@
             </div>
         </form>
 
+        <nav class="stream-topics" aria-label="{{ 'nav.topics'|trans }}">
+            {% if hasInterests %}
+                <a href="{{ path('my_interests') }}">{{ 'nav.myInterests'|trans }}</a>
+            {% endif %}
+            {% for set in interestSets %}
+                {% if set.title is not empty or set.dTag is not empty %}
+                    <a href="{{ set.dTag is empty
+                        ? path('interest_set_view_empty', {author: set.pubkey})
+                        : path('interest_set_view', {dTag: set.dTag, author: set.pubkey}) }}">{{ set.title|default(set.dTag) }}</a>
+                {% endif %}
+            {% endfor %}
+            {% for key, topic in mainTopics %}
+                <a href="{{ path('topics', {main: key}) }}">{{ topic.name }}</a>
+            {% endfor %}
+        </nav>
+
         <div data-controller="content--stream"
              data-content--stream-url-value="{{ path('home_feed_stream') }}"
              data-action="turbo:frame-missing->content--stream#failed turbo:fetch-request-error->content--stream#failed">

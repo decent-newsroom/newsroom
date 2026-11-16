@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Dto\UserMetadata;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\Reader\FeaturedWritersRecommendations;
+use App\Util\ForumTopics;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Twig\Environment;
@@ -33,6 +34,21 @@ final class HomePageTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/discover');
         self::assertResponseRedirects('/');
+    }
+
+    public function testHomeProvidesCompactTopicLinksBelowSearch(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('form.stream-search + nav.stream-topics[aria-label="Topics"]');
+        self::assertSelectorCount(count(ForumTopics::TOPICS), '.stream-topics a');
+        foreach (ForumTopics::TOPICS as $key => $topic) {
+            $link = $crawler->filter('.stream-topics a[href="/topics?main=' . $key . '"]');
+            self::assertCount(1, $link);
+            self::assertSame($topic['name'], trim($link->text()));
+        }
     }
 
     public function testHomePaginationRetainsItsPageWhenReloaded(): void

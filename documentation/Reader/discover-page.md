@@ -4,7 +4,9 @@
 See [Unified discovery and author streams](home-feed-logged-in.md) for current
 behavior. The source categories below remain available without tab navigation.
 
-`/discover` provides article search, topic navigation, and three discovery tabs.
+The former Discover page provided article search, topic navigation, and three
+discovery tabs. The home page now restores its compact topic and personal
+interest shortcuts.
 
 | Tab | Data source |
 |---|---|
@@ -21,9 +23,10 @@ articles can appear on a subsequent feed rebuild. `app:cache-latest-articles`
 rebuilds the Redis view every 15 minutes. A cache miss uses local search rather
 than waiting for relay fetches.
 
-The search form submits to `app_search_index` and uses `search--nostr-redirect`
-to recognize Nostr identifiers. Topic links come from `ForumTopics::TOPICS`;
-signed-in readers also get links to their interests and named interest sets.
+The home search form submits to `app_search_index` and uses
+`search--nostr-redirect` to recognize Nostr identifiers. Its topic links come
+from `ForumTopics::TOPICS`; signed-in readers also get links to their locally
+available interests and named interest sets.
 
 `content--discover-tabs` switches the existing panels and remembers the choice in
 `localStorage.discover-tab`. A removed or unknown saved tab falls back to

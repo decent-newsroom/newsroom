@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Improvement] Restore compact topic, My Interests and named interest-set shortcuts below the home-page search bar.
 - [Feature] Separate the sole featured article above index entries in Bookshelf publication tables of contents, including nested indexes.
 - [Feature] Add containing-index links to Bookshelf index pages for navigating to parent publications.
 - [Fix] Show publication titles and locally resolved author profile links on Bookshelf index pages, and label Article-only leaves as Articles while keeping sensitive titles hidden.

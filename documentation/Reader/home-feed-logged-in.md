@@ -88,6 +88,18 @@ Nostr-network inventories.
 
 ## Rendering and navigation
 
+Below the home search form, a compact, wrapping topic navigation restores the
+former Discover page's six main categories. Both visitors and signed-in readers
+see the same links, sourced from `ForumTopics::TOPICS`. Each opens the existing
+`/topics?main=…` category page; it does not filter or reload the home stream.
+For signed-in readers with a Nostr identity, a locally stored kind `10015`
+event adds a My Interests link, including when the event has no public tags.
+Locally available named interest sets (kind `30015`) come from the existing
+interest-set resolver, including sets followed by reference and the reader's
+own sets with public topic tags. Set links retain their author and identifier,
+including empty identifiers, to distinguish identically named coordinates.
+Nothing is fetched from relays while rendering these shortcuts.
+
 - `DefaultController::index()` always renders `home.html.twig`. Its frame loads
   `/home/stream`; its explicit route priority avoids the vanity-profile pattern.
 - Old `/home/tab/{tab}` links lead to the unified home.

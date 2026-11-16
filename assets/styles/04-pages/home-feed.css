@@ -82,7 +82,26 @@
 }
 
 .stream-search {
-    margin-block: var(--spacing-5);
+    margin-block: var(--spacing-5) var(--spacing-3);
+}
+
+.stream-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-4);
+    font-family: var(--font-family-sans, system-ui, sans-serif);
+    font-size: 0.8125rem;
+}
+
+.stream-topics a {
+    padding: var(--spacing-1) var(--spacing-2);
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+}
+
+.stream-topics a:hover {
+    border-color: var(--color-primary);
 }
 
 .stream-search label,

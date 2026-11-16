@@ -24,7 +24,9 @@
             </div>
 
             {% if pager.getNbPages() > 1 %}
-                <twig:Atoms:Pagination :pager="pager" route="interest_set_view" :routeParams="{dTag: set.dTag}" />
+                <twig:Atoms:Pagination :pager="pager"
+                                       :route="set.dTag is empty ? 'interest_set_view_empty' : 'interest_set_view'"
+                                       :routeParams="set.dTag is empty ? {author: set.pubkey} : {dTag: set.dTag, author: set.pubkey}" />
             {% endif %}
         {% else %}
             <div class="container mt-5 mb-5">
@@ -40,4 +42,3 @@
         </details>
     {% endif %}
 {% endblock %}
-

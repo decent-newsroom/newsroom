@@ -8,6 +8,7 @@ use App\Dto\UserMetadata;
 use App\Dto\EventWorkspace\EventPresentation;
 use App\Entity\Article;
 use App\Entity\Event;
+use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Message\FetchEventFromRelaysMessage;
@@ -39,6 +40,7 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use App\Service\Nostr\NostrKeyService;
+use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\FeaturedWritersFeed;
@@ -68,9 +70,22 @@ class DefaultController extends AbstractController
      * @throws Exception
      */
     #[Route('/', name: 'home')]
-    public function index(): Response
+    public function index(EventRepository $eventRepository, UserProfileService $userProfileService, NostrKeyService $keys): Response
     {
-        return $this->render('home.html.twig');
+        $hasInterests = false;
+        $interestSets = [];
+        $user = $this->getUser();
+        if ($user instanceof User && $user->getNpub() !== null) {
+            $pubkey = $keys->convertToHex($user->getNpub());
+            $hasInterests = $eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::INTERESTS->value) !== null;
+            $interestSets = $userProfileService->getInterestSets($pubkey);
+        }
+
+        return $this->render('home.html.twig', [
+            'mainTopics' => ForumTopics::TOPICS,
+            'hasInterests' => $hasInterests,
+            'interestSets' => $interestSets,
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
     /**

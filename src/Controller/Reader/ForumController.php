@@ -181,6 +181,7 @@ class ForumController extends AbstractController
     /**
      * Interest Set view – renders articles for a specific kind:30015 interest set belonging to the currently logged-in user.
      */
+    #[Route('/my-interests/set', name: 'interest_set_view_empty', defaults: ['dTag' => ''])]
     #[Route('/my-interests/set/{dTag}', name: 'interest_set_view', requirements: ['dTag' => '.+'])]
     public function interestSetView(
         string $dTag,
@@ -196,9 +197,10 @@ class ForumController extends AbstractController
 
         $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         $sets = $nostrClient->getUserInterestSets($pubkeyHex);
+        $author = $request->query->getString('author');
         $set = null;
         foreach ($sets as $s) {
-            if (($s['dTag'] ?? null) === $dTag) {
+            if (($s['dTag'] ?? null) === $dTag && ($author === '' || ($s['pubkey'] ?? null) === $author)) {
                 $set = $s;
                 break;
             }
