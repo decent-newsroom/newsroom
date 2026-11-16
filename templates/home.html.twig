@@ -1,107 +1,63 @@
-{% extends 'layout-full.html.twig' %}
+{% extends 'layout.html.twig' %}
 
-{% block title %}Decent Newsroom — A decentralized platform for collaborative publishing{% endblock %}
+{% block title %}{{ 'nav.discover'|trans }} — {{ brand_name }}{% endblock %}
 
 {% block ogtags %}
     {{ parent() }}
-    <meta property="og:title" content="Decent Newsroom — A decentralized platform for collaborative publishing">
-    <meta property="og:description" content="Explore, publish articles, and create magazines on Nostr">
+    <meta property="og:title" content="{{ 'content_stream.headline'|trans }}">
+    <meta property="og:description" content="{{ 'content_stream.description'|trans }}">
     <meta property="og:url" content="{{ url('home') }}">
-
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Newsroom",
-        "alternateName": "Decent Newsroom",
-        "description": "A decentralized platform for collaborative publishing on Nostr",
-        "url": "{{ url('home') }}",
-        "potentialAction": {
-            "@type": "SearchAction",
-            "target": {
-                "@type": "EntryPoint",
-                "urlTemplate": "{{ url('app_search_index') }}?q={search_term_string}"
-            },
-            "query-input": "required name=search_term_string"
-        }
-    }
-    </script>
+    <meta name="turbo-cache-control" content="no-cache">
 {% endblock %}
 
 {% block body %}
-    <main class="home-landing">
-        <section class="landing-hero">
-            <div class="landing-hero__copy">
-                <p class="eyebrow">{{ 'brand.tagline'|trans }}</p>
-                <h1 class="brand">{{ brand_name }}</h1>
-                <p class="lede">{{ 'home.hero.lede'|trans }}</p>
-                <div class="landing-actions">
-                    <a class="btn btn--lg" href="{{ path('discover') }}">{{ 'home.explore.cta'|trans }}</a>
-                    <a class="btn btn--secondary btn--lg" href="{{ path('mag_wizard_setup') }}">{{ 'home.newsroom.cta'|trans }}</a>
-                </div>
+    <section class="content-stream-page">
+        <header class="stream-masthead">
+            <p class="eyebrow">{{ 'content_stream.tagline'|trans }}</p>
+            <h1>{{ 'content_stream.headline'|trans }}</h1>
+            <p class="lede">{{ 'content_stream.description'|trans }}</p>
+            <div class="stream-journeys">
+                <a href="{{ path('newsstand') }}">{{ 'nav.newsstand'|trans }}</a>
+                <a href="{{ path('bookshelf') }}">{{ 'nav.bookshelf'|trans }}</a>
+                <a href="{{ path('mag_wizard_setup') }}">{{ 'home.newsroom.cta'|trans }}</a>
             </div>
+        </header>
 
-            <figure class="landing-hero__preview">
-                <img
-                    src="{{ asset('images/preview-unfold.png') }}"
-                    alt="{{ 'journey.landing.organized.heading'|trans }}"
-                    loading="eager"
-                    width="760"
-                >
-            </figure>
-        </section>
+        <form action="{{ path('app_search_index') }}" method="get" class="stream-search"
+              data-controller="search--nostr-redirect" data-action="submit->search--nostr-redirect#submit">
+            <label for="stream-search">{{ 'discover.searchPlaceholder'|trans }}</label>
+            <div class="stream-search__controls">
+                <input id="stream-search" type="search" name="q" required
+                       data-search--nostr-redirect-target="input">
+                <button type="submit" class="btn">{{ 'heading.search'|trans }}</button>
+            </div>
+        </form>
 
-        <section class="landing-paths">
-            <div class="landing-path">
-                <p class="eyebrow">{{ 'home.newsstand.eyebrow'|trans }}</p>
-                <h2>{{ 'home.newsstand.heading'|trans }}</h2>
-                <p>{{ 'home.newsstand.description'|trans }}</p>
-                <a class="text-link" href="{{ path('newsstand') }}">
-                    {{ 'home.newsstand.cta'|trans }}
-                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
-                </a>
+        <div data-controller="content--stream"
+             data-content--stream-url-value="{{ path('home_feed_stream') }}"
+             data-action="turbo:frame-missing->content--stream#failed turbo:fetch-request-error->content--stream#failed">
+            <div class="stream-heading">
+                <h2>{{ 'content_stream.latest'|trans }}</h2>
+                <button type="button" class="btn btn-secondary"
+                        data-action="content--stream#refresh">{{ 'content_stream.refresh'|trans }}</button>
             </div>
+            <p role="alert" data-content--stream-target="error" hidden>{{ 'content_stream.error'|trans }}</p>
+            <turbo-frame id="home-stream-content" src="{{ path('home_feed_stream', {page: app.request.query.getInt('page', 1)}) }}"
+                         data-content--stream-target="frame">
+                <p class="home-feed__loading" role="status">{{ 'home_feed.loading'|trans }}</p>
+            </turbo-frame>
+        </div>
+    </section>
+{% endblock %}
 
-            <div class="landing-path">
-                <p class="eyebrow">{{ 'home.explore.eyebrow'|trans }}</p>
-                <h2>{{ 'home.explore.heading'|trans }}</h2>
-                <p>{{ 'home.explore.description'|trans }}</p>
-                <a class="text-link" href="{{ path('discover') }}">
-                    {{ 'home.explore.cta'|trans }}
-                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
-                </a>
-            </div>
-
-            <div class="landing-path">
-                <p class="eyebrow">{{ 'home.editor.eyebrow'|trans }}</p>
-                <h2>{{ 'home.editor.heading'|trans }}</h2>
-                <p>{{ 'home.editor.description'|trans }}</p>
-                <a class="text-link" href="{{ path('editor-create') }}">
-                    {{ 'home.editor.cta'|trans }}
-                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
-                </a>
-            </div>
-
-            <div class="landing-path">
-                <p class="eyebrow">{{ 'home.newsroom.eyebrow'|trans }}</p>
-                <h2>{{ 'home.newsroom.heading'|trans }}</h2>
-                <p>{{ 'home.newsroom.description'|trans }}</p>
-                <a class="text-link" href="{{ path('mag_wizard_setup') }}">
-                    {{ 'home.newsroom.cta'|trans }}
-                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
-                </a>
-            </div>
-        </section>
-
-        <section class="landing-feature">
-            <div>
-                <p class="eyebrow">{{ 'home.unfold.eyebrow'|trans }}</p>
-                <h2>{{ 'home.unfold.heading'|trans }}</h2>
-            </div>
-            <div>
-                <p class="lede">{{ 'home.unfold.description'|trans }}</p>
-                <a class="btn btn--secondary" href="{{ path('unfold') }}">{{ 'home.unfold.cta'|trans }}</a>
-            </div>
-        </section>
-    </main>
+{% block aside %}
+    <section class="context-panel">
+        <p class="eyebrow">{{ 'content_stream.context_title'|trans }}</p>
+        <p>{{ 'content_stream.context_description'|trans }}</p>
+        {% if app.user %}
+            <a href="{{ path('reading_nook') }}">{{ 'nav.readingNook'|trans }}</a>
+            <a href="{{ path('updates_subscriptions') }}">{{ 'updates.manageSubscriptions'|trans }}</a>
+        {% endif %}
+        <a href="{{ path('topics') }}">{{ 'nav.topics'|trans }}</a>
+    </section>
 {% endblock %}

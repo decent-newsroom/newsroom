@@ -12,6 +12,21 @@ namespace App\Helper;
 trait NavigationBuilderTrait
 {
     /**
+     * Stable destinations shared by the reader and publishing workspaces.
+     */
+    protected function buildWorkspaceDestinations(): array
+    {
+        return [
+            'label' => '',
+            'items' => [
+                ['label' => 'nav.discover', 'route' => 'home', 'icon' => 'iconoir:compass'],
+                ['label' => 'nav.readingNook', 'route' => 'reading_nook', 'icon' => 'iconoir:bookmark'],
+                ['label' => 'nav.newsroom', 'route' => 'my_content', 'icon' => 'iconoir:home'],
+            ],
+        ];
+    }
+
+    /**
      * Publication-local links work on both the host and coordinate admin mounts.
      *
      * @return array<int, array{label: string, items: array<int, array{label: string, href: string, active: bool, icon: string}>}>
@@ -54,6 +69,7 @@ trait NavigationBuilderTrait
     protected function buildReadingNookNav(): array
     {
         return [
+            $this->buildWorkspaceDestinations(),
             [
                 'label' => 'reading_nook.nav.overview',
                 'items' => [
@@ -92,6 +108,7 @@ trait NavigationBuilderTrait
     protected function buildNewsroomNav(array $unfoldItems = []): array
     {
         $sections = [
+            $this->buildWorkspaceDestinations(),
             [
                 'label' => 'newsroom.nav.overview',
                 'items' => [
@@ -135,23 +152,13 @@ trait NavigationBuilderTrait
     /**
      * Build the main global navigation structure.
      *
-     * @param bool|null $isAuthenticated If null, checks $this->getUser() (only works when used in AbstractController)
+     * @param bool|null $isAuthenticated Retained for callers; destinations remain visible before sign-in.
      * @return array<int, array{label: string, items: array<int, array{label: string, route: string}>}>
      */
     protected function buildMainNav(?bool $isAuthenticated = null): array
     {
-        if ($isAuthenticated === null) {
-            // This method is only used in controller contexts where getUser() is available
-            $isAuthenticated = method_exists($this, 'getUser') && $this->getUser() !== null;
-        }
-
         $sections = [
-            [
-                'label' => '',
-                'items' => [
-                    ['label' => 'nav.discover', 'route' => 'discover', 'icon' => 'iconoir:compass'],
-                ],
-            ],
+            $this->buildWorkspaceDestinations(),
             [
                 'label' => 'nav.publications',
                 'items' => [
@@ -163,21 +170,11 @@ trait NavigationBuilderTrait
                 'label' => 'nav.create',
                 'items' => [
                     ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new', 'icon' => 'iconoir:plus'],
-                    ['label' => 'nav.newReadingList', 'route' => 'reading_list_index', 'icon' => 'iconoir:journal-page'],
+                    ['label' => 'nav.newReadingList', 'route' => 'read_wizard_new', 'icon' => 'iconoir:journal-page'],
                     ['label' => 'nav.newArticle', 'route' => 'editor-create', 'icon' => 'iconoir:edit-pencil'],
                 ],
             ],
         ];
-
-        if ($isAuthenticated) {
-            $sections[] = [
-                'label' => 'nav.personal',
-                'items' => [
-                    ['label' => 'nav.readingNook', 'route' => 'reading_nook', 'icon' => 'iconoir:bookmark'],
-                    ['label' => 'nav.newsroom', 'route' => 'my_content', 'icon' => 'iconoir:home'],
-                ],
-            ];
-        }
 
         return $sections;
     }

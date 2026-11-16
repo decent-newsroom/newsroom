@@ -1,0 +1,11 @@
+{% if pager.nbPages > 1 %}
+    <nav class="stream-pagination" aria-label="{{ 'content_stream.pagination'|trans }}">
+        {% if pager.hasPreviousPage %}
+            <a href="{{ path(route, routeParams|merge({page: pager.previousPage})) }}" rel="prev" data-turbo-frame="{{ frame|default('_self') }}">{{ 'content_stream.newer'|trans }}</a>
+        {% endif %}
+        <span>{{ 'content_stream.page'|trans({'%page%': pager.currentPage, '%pages%': pager.nbPages}) }}</span>
+        {% if pager.hasNextPage %}
+            <a href="{{ path(route, routeParams|merge({page: pager.nextPage})) }}" rel="next" data-turbo-frame="{{ frame|default('_self') }}">{{ 'content_stream.older'|trans }}</a>
+        {% endif %}
+    </nav>
+{% endif %}

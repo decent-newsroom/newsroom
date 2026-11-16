@@ -1,5 +1,10 @@
 # Profile Editorial Tab: Featured Collections
 
+**Presentation update:** these authored/featured sources now participate in the
+[unified profile stream](home-feed-logged-in.md), alongside articles, media and
+highlights. The editorial worker/cache contract described below is retained;
+there is no separate Editorial tab in ordinary profile navigation.
+
 ## Overview
 
 The profile `Editorial` tab now shows two additional collection types where the profiled user is featured:
@@ -39,4 +44,3 @@ This is shown in addition to existing authored collections (published magazines 
 - Featured magazines use projected `Magazine` contributor data when available.
 - Featured follow packs are discovered by scanning kind `39089` events for matching `p` tags.
 - Results are deduplicated by stable identifiers (`slug` for magazines, `pubkey:dTag` for follow packs).
-

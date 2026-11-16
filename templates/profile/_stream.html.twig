@@ -1,0 +1,10 @@
+<turbo-frame id="profile-stream-content" data-content--stream-target="frame" data-turbo-action="advance">
+    {% if editorialPending|default(false) %}
+        <p class="stream-pending" role="status">{{ 'content_stream.editorial_pending'|trans }}</p>
+    {% endif %}
+    {% include 'content_stream/_items.html.twig' %}
+    {% include 'content_stream/_pagination.html.twig' with {
+        route: routePrefix ~ 'profile-tab',
+        routeParams: (useVanity ? {vanity: profileId} : {npub: profileId})|merge({tab: 'stream'})
+    } %}
+</turbo-frame>

@@ -1,4 +1,41 @@
 # ── Allgemein ──────────────────────────────────────────────────────
+content_stream:
+    tagline: 'Lesen, sammeln und veröffentlichen auf Nostr.'
+    headline: 'Guten Ideen weiter folgen.'
+    description: 'Entdecke lesenswerte Texte. Sammle, was zählt, und veröffentliche eigene Werke.'
+    latest: 'Der Feed'
+    profile_title: 'Texte, Sammlungen und Aktivitäten'
+    refresh: 'Feed aktualisieren'
+    new_content: 'Neue Inhalte sind verfügbar. Aktualisiere den Feed, wenn du bereit bist.'
+    error: 'Der Feed konnte nicht geladen werden. Versuche es mit Feed aktualisieren erneut.'
+    editorial_pending: 'Publikationen und Sammlungen werden im Hintergrund aktualisiert. Andere verfügbare Werke stehen unten.'
+    empty_title: 'Noch keine Inhalte'
+    empty_description: 'Dieser Feed enthält noch keine verfügbaren Inhalte. Schau nach der Synchronisierung erneut vorbei.'
+    context_title: 'Den Zusammenhang bewahren'
+    context_description: 'Artikel, Highlights und Sammlungen in einem Feed, neueste zuerst. Angemeldete Leser sehen auch gefolgte Autoren, Interessen, ihr gewähltes Follow-Pack und Abonnements.'
+    pagination: 'Feed-Seiten'
+    newer: 'Neuere'
+    older: 'Ältere'
+    page: 'Seite %page% von %pages%'
+    open_media: 'Medien öffnen'
+    untitled: 'Unbenannte Sammlung'
+    type:
+        article: 'Artikel'
+        draft: 'Entwurf · nur für dich'
+        highlight: 'Highlight'
+        comment: 'Kommentar'
+        media: 'Medien'
+        update: 'Abonnement-Update'
+        magazine: 'Publikation'
+        reading_list: 'Leseliste'
+        follow_pack: 'Follow-Pack'
+    source:
+        featured: 'Empfohlener Autor'
+        pack: 'Dein gewähltes Follow-Pack'
+        subscription: 'Deine Abonnements'
+        featured_in: 'Enthalten in'
+        authored: 'Veröffentlichte Sammlung'
+
 unfold_interactions:
     invalid_signature: 'Die Ereignissignatur ist ungültig.'
     unknown: 'Für dieses Ereignis sind keine Zustellinformationen verfügbar.'
@@ -139,8 +176,8 @@ event_workspace:
         author: 'Autor'
         id: 'Ereignis-ID'
 brand:
-    tagline: 'Kollaboratives Publizieren auf Nostr'
-    description: 'Eine dezentralisierte Plattform für kollaboratives Publizieren'
+    tagline: 'Lesen, sammeln und veröffentlichen auf Nostr.'
+    description: 'Ein Zuhause zum Lesen, Sammeln und Veröffentlichen auf Nostr.'
 
 # ── Navigation ─────────────────────────────────────────────────────
 nav:
@@ -865,7 +902,7 @@ feedback:
 # ── Meine Inhalte ────────────────────────────────────────────────────────
 my_content:
     preview:
-        label: 'Ereignisvorschau und Verweise'
+        label: 'Vorschau und Verbindungen'
         load: 'Ereignisvorschau laden'
         unavailable: 'Das ursprüngliche Ereignis ist lokal nicht verfügbar. Bearbeitung und andere Aktionen bleiben verfügbar.'
         references: 'Ereignisverweise'
@@ -874,7 +911,7 @@ my_content:
         empty: 'Keine Ereignisverweise.'
     eyebrow: 'Newsroom'
     title: 'Meine Inhalte'
-    description: 'Entwirf, veröffentliche und organisiere deine Arbeit an einem übersichtlichen Redaktionsplatz.'
+    description: 'Schreibe, überarbeite und verwalte deine Artikel und Entwürfe.'
     untitled: 'Ohne Titel'
     no_identifier: 'Keine Kennung'
     results_count: '%count% Ergebnisse'
@@ -1325,7 +1362,7 @@ reading_nook:
         reading_lists: 'Leselisten'
         follow_packs: 'Follow-Pakete'
     title: 'Reading Nook' # TODO: translate
-    subtitle: 'Search and filter your own collections in one place.' # TODO: translate
+    subtitle: 'Deine gespeicherten Sammlungen und Abonnements.'
     create_article: 'New article' # TODO: translate
     empty: 'No items match the current filters.' # TODO: translate
     results_count: '%count% Elemente'

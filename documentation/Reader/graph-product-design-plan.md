@@ -2,6 +2,13 @@
 
 Status: **Design proposal, 15 November 2026. No application behavior is changed by this document.**
 
+Implementation update, 16 November 2026: the [unified discovery and author
+streams](home-feed-logged-in.md) apply the shared navigation/preview styling and
+editorial direction. The requested single home and mixed profile streams
+supersede the separate public-landing and retained-profile-tab suggestions below.
+Other proposed phases, including split-pane selection and commercial
+reconciliation, remain proposals rather than claimed delivered capabilities.
+
 Scheduling constraint: **Restyling begins only after the refactor is complete.** This document records a future design direction. Reassess the finished architecture and supported journeys before implementing navigation, layout, component styling, or promotional copy. Current gaps and file references are a snapshot of work in progress, not constraints to preserve in the finished design.
 
 This is the product and visual-design companion to the [event workspace iteration plan](event-workspace-iteration-plan.md), not a replacement implementation roadmap. That plan remains authoritative about delivered capabilities and access boundaries. The [editorial design system](../Newsroom/editorial-design-system.md) remains the visual foundation.

@@ -1,70 +1,30 @@
 {% extends 'layout.html.twig' %}
 
+{% block ogtags %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% block body %}
 
     {% include 'partial/_author-section.html.twig' with {author: author, npub: npub, pubkey: pubkey} %}
 
-    <section class="p-0">
-        <div class="profile-tabs" data-controller="content--author-profile-tabs"
-             data-content--author-profile-tabs-pubkey-value="{{ pubkey }}"
-             data-content--author-profile-tabs-hub-url-value="{{ mercure_public_hub_url }}"
-             data-content--author-profile-tabs-active-tab-value="{{ activeTab }}">
-
-            {# Editorial tab - visible to everyone #}
-            <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'overview'} : {'npub': profileId, 'tab': 'overview'}) }}"
-               class="tab-link {{ activeTab == 'overview' ? 'active' : '' }}"
-               data-content--author-profile-tabs-target="tab"
-               data-tab="overview"
-               data-turbo-frame="profile-tab-content"
-               data-action="click->content--author-profile-tabs#switchTab">
-                Editorial
-            </a>
-
-            {# Public tabs - visible to everyone #}
-            <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'articles'} : {'npub': profileId, 'tab': 'articles'}) }}"
-               class="tab-link {{ activeTab == 'articles' ? 'active' : '' }}"
-               data-content--author-profile-tabs-target="tab"
-               data-tab="articles"
-               data-turbo-frame="profile-tab-content"
-               data-action="click->content--author-profile-tabs#switchTab">
-                Articles
-            </a>
-
-            <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'media'} : {'npub': profileId, 'tab': 'media'}) }}"
-               class="tab-link {{ activeTab == 'media' ? 'active' : '' }}"
-               data-content--author-profile-tabs-target="tab"
-               data-tab="media"
-               data-turbo-frame="profile-tab-content"
-               data-action="click->content--author-profile-tabs#switchTab">
-                Media
-            </a>
-
-            <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'highlights'} : {'npub': profileId, 'tab': 'highlights'}) }}"
-               class="tab-link {{ activeTab == 'highlights' ? 'active' : '' }}"
-               data-content--author-profile-tabs-target="tab"
-               data-tab="highlights"
-               data-turbo-frame="profile-tab-content"
-               data-action="click->content--author-profile-tabs#switchTab">
-                Highlights
-            </a>
-
-            {# Private tabs - only visible to owner #}
-            {% if isOwner %}
-                <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'drafts'} : {'npub': profileId, 'tab': 'drafts'}) }}"
-                   class="tab-link {{ activeTab == 'drafts' ? 'active' : '' }}"
-                   data-content--author-profile-tabs-target="tab"
-                   data-tab="drafts"
-                   data-turbo-frame="profile-tab-content"
-                   data-action="click->content--author-profile-tabs#switchTab">
-                    Drafts
-                </a>
-            {% endif %}
-        </div>
-
-        {# Tab content container with Turbo Frame #}
-        {% block tab_content %}
-            {% include "profile/tabs/_#{activeTab}.html.twig" %}
-        {% endblock %}
+    <section class="content-stream-page"
+             data-controller="content--stream"
+             data-content--stream-pubkey-value="{{ pubkey }}"
+             data-content--stream-owner-value="{{ isOwner ? 'true' : 'false' }}"
+             data-content--stream-hub-url-value="{{ mercure_public_hub_url }}"
+             data-content--stream-url-value="{{ path(routePrefix ~ 'profile-tab', (useVanity ? {vanity: profileId} : {npub: profileId})|merge({tab: 'stream'})) }}"
+             data-action="turbo:frame-missing->content--stream#failed turbo:fetch-request-error->content--stream#failed">
+        <header class="stream-heading">
+            <h1>{{ 'content_stream.profile_title'|trans }}</h1>
+            <button type="button" class="btn btn-secondary" data-action="content--stream#refresh">
+                {{ 'content_stream.refresh'|trans }}
+            </button>
+        </header>
+        <p class="stream-update" role="status" data-content--stream-target="notice" hidden>{{ 'content_stream.new_content'|trans }}</p>
+        <p role="alert" data-content--stream-target="error" hidden>{{ 'content_stream.error'|trans }}</p>
+        {% include 'profile/_stream.html.twig' %}
     </section>
 
 {% endblock %}
@@ -110,7 +70,7 @@
                 {% if members|length > 10 %}
                     <p class="fp-aside__more">+{{ members|length - 10 }} {{ 'follow_pack.more_writers'|trans }}</p>
                 {% endif %}
-                <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline mt-2">{{ 'follow_pack.edit_button'|trans }}</a>
+                <a href="{{ path('follow_pack_setup') }}" class="btn btn-secondary mt-2">{{ 'follow_pack.edit_button'|trans }}</a>
             </div>
         {% else %}
             <div class="contribution-section mt-3 mb-3 p-3 ln-section--newsstand">
@@ -121,7 +81,7 @@
                     {{ 'follow_pack.sync_pending'|trans }}
                 </p>
                 <div class="text-center">
-                    <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline mt-2">{{ 'follow_pack.edit_button'|trans }}</a>
+                    <a href="{{ path('follow_pack_setup') }}" class="btn btn-secondary mt-2">{{ 'follow_pack.edit_button'|trans }}</a>
                 </div>
             </div>
         {% endif %}
@@ -131,7 +91,7 @@
                 <strong>{{ 'follow_pack.info_bubble'|trans }}</strong>
             </div>
             <div class="text-center">
-                <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline">{{ 'follow_pack.setup_button'|trans }}</a>
+                <a href="{{ path('follow_pack_setup') }}" class="btn btn-secondary">{{ 'follow_pack.setup_button'|trans }}</a>
             </div>
         </div>
     {% elseif followPackCoordinate|default('') %}

@@ -4,7 +4,6 @@
     <twig:SidebarNav
         id="leftNav"
         :sections="readingNookNav"
-        :backLink="{label: 'nav.backToDiscover', route: 'discover', icon: 'iconoir:arrow-right'}"
         :footerComponent="'components/UserMenu.html.twig'"
     />
 {% endblock %}
@@ -14,7 +13,7 @@
         <section class="context-panel">
             <p class="eyebrow">{{ 'nav.readingNook'|trans }}</p>
             <h2>{{ 'nav.discoverMoreContent'|trans }}</h2>
-            <a class="btn btn--secondary" href="{{ path('discover') }}">{{ 'nav.browseArticles'|trans }}</a>
+            <a class="btn btn--secondary" href="{{ path('home') }}">{{ 'nav.browseArticles'|trans }}</a>
         </section>
     {% else %}
         {% include 'blog-journey/_login_cta_card.html.twig' %}

@@ -1,5 +1,9 @@
 # Discover Page
 
+**Historical tab layout:** `/discover` now redirects to the single home stream.
+See [Unified discovery and author streams](home-feed-logged-in.md) for current
+behavior. The source categories below remain available without tab navigation.
+
 `/discover` provides article search, topic navigation, and three discovery tabs.
 
 | Tab | Data source |

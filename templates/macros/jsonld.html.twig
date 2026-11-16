@@ -156,7 +156,7 @@
     "@type": "WebSite",
     "name": "Newsroom",
     "alternateName": "Decent Newsroom",
-    "description": "Decentralised Newsroom - the future of journalism",
+    "description": {{ 'brand.description'|trans|json_encode|raw }},
     "url": "{{ url('home') }}",
     "potentialAction": {
         "@type": "SearchAction",

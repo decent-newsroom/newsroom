@@ -1,4 +1,41 @@
 # ── General ────────────────────────────────────────────────────────
+content_stream:
+    tagline: 'Lee, colecciona y publica en Nostr.'
+    headline: 'Sigue las buenas ideas más lejos.'
+    description: 'Descubre textos que merecen tu tiempo. Guarda lo importante y publica tus propias obras.'
+    latest: 'El feed'
+    profile_title: 'Textos, colecciones y actividad'
+    refresh: 'Actualizar feed'
+    new_content: 'Hay contenido nuevo. Actualiza el feed cuando quieras.'
+    error: 'No se pudo cargar el feed. Usa Actualizar feed para intentarlo de nuevo.'
+    editorial_pending: 'Los datos de publicaciones y colecciones se actualizan en segundo plano. Abajo se muestran otras obras disponibles.'
+    empty_title: 'Aún no hay contenido'
+    empty_description: 'Aún no hay contenido disponible en este feed. Vuelve después de la sincronización.'
+    context_title: 'Conserva el contexto'
+    context_description: 'Artículos, destacados y colecciones en un solo feed, lo más reciente primero. Los lectores conectados también ven sus autores seguidos, intereses, paquete elegido y suscripciones.'
+    pagination: 'Páginas del feed'
+    newer: 'Más recientes'
+    older: 'Anteriores'
+    page: 'Página %page% de %pages%'
+    open_media: 'Abrir multimedia'
+    untitled: 'Colección sin título'
+    type:
+        article: 'Artículo'
+        draft: 'Borrador · solo tú'
+        highlight: 'Destacado'
+        comment: 'Comentario'
+        media: 'Multimedia'
+        update: 'Novedad de suscripción'
+        magazine: 'Publicación'
+        reading_list: 'Lista de lectura'
+        follow_pack: 'Paquete de seguimiento'
+    source:
+        featured: 'Autor destacado'
+        pack: 'Tu paquete elegido'
+        subscription: 'Tus suscripciones'
+        featured_in: 'Aparece en'
+        authored: 'Colección publicada'
+
 unfold_interactions:
     invalid_signature: 'La firma del evento no es válida.'
     unknown: 'No hay información de entrega disponible para este evento.'
@@ -139,8 +176,8 @@ event_workspace:
         author: 'Autor'
         id: 'ID del evento'
 brand:
-    tagline: 'Publicación colaborativa en Nostr'
-    description: 'Una plataforma descentralizada para la publicación colaborativa'
+    tagline: 'Lee, colecciona y publica en Nostr.'
+    description: 'Un hogar para la lectura, las colecciones y la publicación en Nostr.'
 
 # ── Navegación ─────────────────────────────────────────────────────
 nav:
@@ -854,7 +891,7 @@ feedback:
 # ── Mi contenido ────────────────────────────────────────────────────────────
 my_content:
     preview:
-        label: 'Vista previa del evento y referencias'
+        label: 'Vista previa y conexiones'
         load: 'Cargar vista previa del evento'
         unavailable: 'El evento original no está disponible localmente. La edición y las demás acciones siguen disponibles.'
         references: 'Referencias del evento'
@@ -863,7 +900,7 @@ my_content:
         empty: 'No hay referencias del evento.'
     eyebrow: 'Redacción'
     title: 'Mi contenido'
-    description: 'Redacta, publica y organiza tu trabajo desde un único espacio editorial.'
+    description: 'Escribe, revisa y gestiona tus artículos y borradores.'
     untitled: 'Sin título'
     no_identifier: 'Sin identificador'
     results_count: '%count% resultados'
@@ -1315,7 +1352,7 @@ reading_nook:
         reading_lists: 'Listas de lectura'
         follow_packs: 'Packs de seguimiento'
     title: 'Reading Nook' # TODO: translate
-    subtitle: 'Search and filter your own collections in one place.' # TODO: translate
+    subtitle: 'Tus colecciones guardadas y suscripciones.'
     create_article: 'New article' # TODO: translate
     empty: 'No items match the current filters.' # TODO: translate
     results_count: '%count% elementos'

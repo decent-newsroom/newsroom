@@ -350,10 +350,7 @@ final class EventPreviewTest extends KernelTestCase
 
         $rendered = $this->renderTwigComponent('Molecules:EventPreview', ['presentation' => $presentation]);
         $crawler = $rendered->crawler();
-        self::assertSame(
-            'Sensitive content Kind 65000 Event ID sensitive-id Author npub-sensitive',
-            $crawler->filter('.event-preview')->text(),
-        );
+        $this->assertSensitiveIdentityDisclosure($crawler);
         self::assertSame(0, $crawler->filter('.event-preview__title, .event-preview__description')->count());
         self::assertSame(1, $crawler->filter('.event-preview__id.break-word')->count());
         self::assertSame(1, $crawler->filter('.event-preview__author.break-word')->count());
@@ -399,10 +396,7 @@ final class EventPreviewTest extends KernelTestCase
 
         self::assertSame(0, $crawler->filter('.event-preview__title, .event-preview__description')->count());
         self::assertSame(1, $crawler->filter('.event-preview__sensitive')->count());
-        self::assertSame(
-            'Sensitive content Kind 65000 Event ID sensitive-id Author npub-sensitive',
-            $crawler->filter('.event-preview')->text(),
-        );
+        $this->assertSensitiveIdentityDisclosure($crawler);
         foreach (['direct-secret-title', 'direct-secret-description', 'direct-secret-reveal', 'direct-secret-image', 'direct-secret-body', 'warning-reason-secret', 'raw-warning-secret'] as $secret) {
             self::assertStringNotContainsString($secret, $rendered->toString());
         }
@@ -514,6 +508,44 @@ final class EventPreviewTest extends KernelTestCase
     protected static function createKernel(array $options = []): KernelInterface
     {
         return new EventPreviewTestKernel($options['environment'] ?? 'test', $options['debug'] ?? true);
+    }
+
+    private function assertSensitiveIdentityDisclosure(Crawler $crawler): void
+    {
+        $preview = $crawler->filter('.event-preview');
+        self::assertSame(1, $preview->count());
+        self::assertSame(
+            [
+                'event-preview__type',
+                'event-preview__sensitive',
+                'event-preview__byline',
+                'event-preview__details',
+            ],
+            $preview->children()->each(static fn (Crawler $child): string => $child->attr('class')),
+        );
+        self::assertSame('Kind 65000', $preview->children('.event-preview__type')->text());
+        self::assertSame('Sensitive content', $preview->children('.event-preview__sensitive')->text());
+        self::assertSame('By npub-sensitive', $preview->children('.event-preview__byline')->text());
+
+        $details = $preview->children('details.event-preview__details');
+        self::assertSame(1, $details->count());
+        self::assertFalse($details->getNode(0)->hasAttribute('open'), 'Protocol details must start collapsed.');
+        self::assertSame('Event details', $details->children('summary:first-child')->text());
+        self::assertSame('Kind 65000', $details->children('.event-preview__kind')->text());
+        self::assertSame(
+            ['Event ID', 'Author'],
+            $details->children('dl')->children('dt')->each(static fn (Crawler $label): string => $label->text()),
+        );
+        self::assertSame(
+            ['sensitive-id', 'npub-sensitive'],
+            $details->children('dl')->children('dd')->each(static fn (Crawler $identity): string => $identity->text()),
+        );
+        self::assertSame('sensitive-id', $details->children('dl')->children('.event-preview__id')->text());
+        self::assertSame('npub-sensitive', $details->children('dl')->children('.event-preview__author')->text());
+        self::assertSame(
+            'Kind 65000 Sensitive content By npub-sensitive Event details Kind 65000 Event ID sensitive-id Author npub-sensitive',
+            $preview->text(),
+        );
     }
 
     private function factory(): EventPresentationFactory

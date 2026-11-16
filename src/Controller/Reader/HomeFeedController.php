@@ -22,19 +22,27 @@ use App\Service\MutedPubkeysService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ContentSearchService;
 use App\Service\UserMuteListService;
+use App\Service\HighlightFeedService;
+use App\Service\Nostr\NostrKeyService;
+use App\Service\Reader\ContentStreamBuilder;
+use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\FeaturedWritersFeed;
+use Pagerfanta\Adapter\ArrayAdapter;
+use Pagerfanta\Pagerfanta;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Psr\Log\LoggerInterface;
 use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
-    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|discussed|foryou|articles|media|featuredpack|activityfeed|updatesfeed'])]
-    public function tab(
-        string $tab,
+    #[Route('/home/stream', name: 'home_feed_stream', methods: ['GET'], priority: 20)]
+    public function contentStream(
+        Request $request,
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
@@ -44,33 +52,79 @@ class HomeFeedController extends AbstractController
         NostrClient $nostrClient,
         UserProfileService $userProfileService,
         UserMuteListService $userMuteListService,
-        MutedPubkeysService $mutedPubkeysService,
         FollowPackService $followPackService,
         UpdateRepository $updateRepository,
         UpdateSubscriptionRepository $subscriptionRepository,
-        ContentSearchService $contentSearch,
         LoggerInterface $logger,
+        ContentSearchService $contentSearch,
+        HighlightFeedService $highlightFeed,
+        FeaturedWritersFeed $featuredWriters,
+        ContentStreamBuilder $streamBuilder,
+        ContentAuthorAccessPolicy $authorAccess,
     ): Response {
-        return match ($tab) {
-            // 'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory, $userMuteListService),
-            // 'follows' => $this->followsTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $logger),
-            // 'interests' => $this->interestsTab($contentSearch, $nostrClient, $logger),
-            // 'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
-            'foryou', 'articles' => $this->articlesTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
-            // 'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
-            'featuredpack' => $this->featuredPackTab($followPackService, $logger),
-            'activityfeed' => $this->activityFeedTab($eventRepository, $userProfileService, $logger),
-            'updatesfeed' => $this->updatesFeedTab($updateRepository, $subscriptionRepository),
-        };
+        $latest = $this->latestArticlesData($viewStore, $exclusionPolicy, $contentSearch, $userMuteListService, $eventRepository);
+        $featured = $featuredWriters->load();
+        $highlights = $highlightFeed->loadLatestHighlights(200)['highlights'];
+        $articles = $this->personalArticlesData($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger);
+        $pack = $this->selectedPackData($followPackService, $logger);
+        $activity = $this->followedActivityData($eventRepository, $userProfileService, $logger);
+        $updates = $this->subscriptionUpdatesData($updateRepository, $subscriptionRepository);
+        $rows = $streamBuilder->build([
+            ['type' => 'article', 'items' => $latest['articles']],
+            ['type' => 'article', 'items' => $featured['articles'], 'label' => 'content_stream.source.featured'],
+            ['type' => 'highlight', 'items' => $highlights],
+            ['type' => 'article', 'items' => $articles['articles']],
+            ['type' => 'article', 'items' => $pack['articles'], 'label' => 'content_stream.source.pack'],
+            ['type' => 'activity', 'items' => $activity['activityItems']],
+            ['type' => 'update', 'items' => $updates['updates'], 'label' => 'content_stream.source.subscription'],
+        ]);
+        $pubkeys = [];
+        foreach ($rows as $row) {
+            $item = $row['item'];
+            $pubkeys[] = $row['type'] === 'update' ? $item->getEventPubkey()
+                : ($item instanceof Article ? $item->getPubkey() : (is_array($item) ? ($item['pubkey'] ?? '') : ($item->pubkey ?? '')));
+        }
+        $excluded = array_merge($authorAccess->suppressedPubkeys($pubkeys), $exclusionPolicy->getAllExcludedPubkeys());
+        if ($this->getUser() !== null) {
+            $reader = (new NostrKeyService())->convertToHex($this->getUser()->getUserIdentifier());
+            $excluded = array_merge($excluded, $userMuteListService->getMutedPubkeysStrict($reader));
+        }
+        $excluded = array_fill_keys($excluded, true);
+        $rows = array_values(array_filter($rows, static function (array $row) use ($excluded): bool {
+            $item = $row['item'];
+            $pubkey = $row['type'] === 'update' ? $item->getEventPubkey()
+                : ($item instanceof Article ? $item->getPubkey() : (is_array($item) ? ($item['pubkey'] ?? '') : ($item->pubkey ?? '')));
+            return !isset($excluded[$pubkey]);
+        }));
+        $pager = new Pagerfanta(new ArrayAdapter($rows));
+        $pager->setMaxPerPage(20);
+        $pager->setCurrentPage(min(max(1, $request->query->getInt('page', 1)), max(1, $pager->getNbPages())));
+
+        $response = $this->render('home/_stream.html.twig', [
+            'rows' => iterator_to_array($pager->getCurrentPageResults()),
+            'pager' => $pager,
+            'authorsMetadata' => array_replace($latest['authorsMetadata'], $featured['authorsMetadata'], $articles['authorsMetadata'], $pack['authorsMetadata']),
+            'sourceLabels' => $articles['sourceLabels'],
+            'commentCounts' => $articles['commentCounts'],
+        ]);
+        $response->setPrivate();
+        $response->headers->set('Cache-Control', 'private, no-store');
+        return $response;
     }
 
-    private function latestTab(
-        RedisCacheService $redisCacheService,
+    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|discussed|foryou|articles|media|featuredpack|activityfeed|updatesfeed'])]
+    public function tab(string $tab): Response
+    {
+        return $this->redirectToRoute('home');
+    }
+
+    private function latestArticlesData(
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
-        ArticleSearchFactory $articleSearchFactory,
+        ContentSearchService $contentSearch,
         UserMuteListService $userMuteListService,
-    ): Response {
+        EventRepository $eventRepository,
+    ): array {
         // ── Resolve user-level mute list (kind 10000, NIP-51) ──
         $userMutedPubkeys = [];
         /** @var User|null $user */
@@ -90,12 +144,9 @@ class HomeFeedController extends AbstractController
             $authorsMetadata = [];
             $articles = [];
 
-            foreach ($cachedView as $baseObject) {
-                if (isset($baseObject['profiles'])) {
-                    foreach ($baseObject['profiles'] as $pubkey => $profile) {
-                        $authorsMetadata[$pubkey] = (object) $profile;
-                    }
-                }
+            $pubkeys = array_column(array_column($cachedView, 'article'), 'pubkey');
+            foreach ($eventRepository->findLatestMetadataByPubkeys($pubkeys) as $pubkey => $metadataEvent) {
+                $authorsMetadata[$pubkey] = UserMetadata::fromMetadataEvent($metadataEvent)->toStdClass();
             }
 
             foreach ($cachedView as $baseObject) {
@@ -109,7 +160,7 @@ class HomeFeedController extends AbstractController
 
                     $authorMetadata = $articlePubkey ? ($authorsMetadata[$articlePubkey] ?? null) : null;
 
-                    if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
+                    if ($authorMetadata === null || $exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
                         continue;
                     }
 
@@ -127,8 +178,7 @@ class HomeFeedController extends AbstractController
                 $exclusionPolicy->getAllExcludedPubkeys(),
                 $userMutedPubkeys,
             )));
-            $articleSearch = $articleSearchFactory->create();
-            $articles = $articleSearch->findLatest(50, $excludedPubkeys);
+            $articles = $contentSearch->getLatest(50, $excludedPubkeys);
 
             // Collect author pubkeys for metadata (findLatest returns Article[])
             $authorPubkeys = [];
@@ -139,24 +189,23 @@ class HomeFeedController extends AbstractController
                 }
             }
             $authorPubkeys = array_unique($authorPubkeys);
-            $metaRaw = $redisCacheService->getMultipleMetadata($authorPubkeys);
             $authorsMetadata = [];
-            foreach ($metaRaw as $pk => $m) {
-                $authorsMetadata[$pk] = $m instanceof UserMetadata ? $m->toStdClass() : $m;
+            foreach ($eventRepository->findLatestMetadataByPubkeys(array_values($authorPubkeys)) as $pk => $metadataEvent) {
+                $authorsMetadata[$pk] = UserMetadata::fromMetadataEvent($metadataEvent)->toStdClass();
             }
 
             // Re-apply the shared policy after author metadata has been resolved.
             $articles = array_values(array_filter($articles, function (Article $article) use ($authorsMetadata, $exclusionPolicy): bool {
                 $authorMetadata = $authorsMetadata[$article->getPubkey()] ?? null;
 
-                return !$exclusionPolicy->shouldExclude($article, $authorMetadata);
+                return $authorMetadata !== null && !$exclusionPolicy->shouldExclude($article, $authorMetadata);
             }));
         }
 
-        return $this->render('home/tabs/_latest.html.twig', [
+        return [
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadata,
-        ]);
+        ];
     }
 
     private function followsTab(
@@ -330,7 +379,7 @@ class HomeFeedController extends AbstractController
      * Combined "Articles" feed: merges discussed, follows, and interests articles
      * into one deduplicated, time-sorted list with source labels.
      */
-    private function articlesTab(
+    private function personalArticlesData(
         ArticleRepository $articleRepository,
         EventRepository $eventRepository,
         UserProfileService $userProfileService,
@@ -340,17 +389,17 @@ class HomeFeedController extends AbstractController
         NostrClient $nostrClient,
         UserMuteListService $userMuteListService,
         LoggerInterface $logger,
-    ): Response {
+    ): array {
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->render('home/tabs/_articles.html.twig', [
+            return [
                 'articles' => [],
                 'authorsMetadata' => [],
                 'sourceLabels' => [],
                 'commentCounts' => [],
                 'isLoggedIn' => false,
-            ]);
+            ];
         }
 
         // ── Resolve user mute list ──
@@ -489,13 +538,13 @@ class HomeFeedController extends AbstractController
             }
         }
 
-        return $this->render('home/tabs/_articles.html.twig', [
+        return [
             'articles' => $articlesArray,
             'authorsMetadata' => $authorsMetadata,
             'sourceLabels' => $sourceLabels,
             'commentCounts' => $commentCounts,
             'isLoggedIn' => true,
-        ]);
+        ];
     }
 
     /**
@@ -607,29 +656,29 @@ class HomeFeedController extends AbstractController
      * Featured follow pack tab: shows articles from the current user's featured follow pack.
      * If no follow pack coordinate is set, renders a notice with a link to the setup page.
      */
-    private function featuredPackTab(
+    private function selectedPackData(
         FollowPackService $followPackService,
         LoggerInterface $logger,
-    ): Response {
+    ): array {
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+            return [
                 'articles' => [],
                 'authorsMetadata' => [],
                 'hasFollowPack' => false,
                 'isLoggedIn' => false,
-            ]);
+            ];
         }
 
         $coordinate = $user->getFollowPackCoordinate();
         if (!$coordinate) {
-            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+            return [
                 'articles' => [],
                 'authorsMetadata' => [],
                 'hasFollowPack' => false,
                 'isLoggedIn' => true,
-            ]);
+            ];
         }
 
         $packMeta = $followPackService->getPackMetadataFromCoordinate($coordinate);
@@ -638,23 +687,23 @@ class HomeFeedController extends AbstractController
             $pubkeys = $followPackService->getPubkeysFromCoordinate($coordinate);
             $result = $followPackService->getArticlesForPubkeys($pubkeys, 50);
 
-            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+            return [
                 'articles' => $result['articles'],
                 'authorsMetadata' => $result['authorsMetadata'],
                 'hasFollowPack' => true,
                 'isLoggedIn' => true,
                 'packMeta' => $packMeta,
-            ]);
+            ];
         } catch (\Throwable $e) {
             $logger->error('Featured pack tab: failed to load articles', ['error' => $e->getMessage()]);
 
-            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+            return [
                 'articles' => [],
                 'authorsMetadata' => [],
                 'hasFollowPack' => true,
                 'isLoggedIn' => true,
                 'packMeta' => $packMeta,
-            ]);
+            ];
         }
     }
 
@@ -662,30 +711,30 @@ class HomeFeedController extends AbstractController
      * Activity feed tab: highlights (kind 9802) and long-form article comments (kind 1111)
      * from the pubkeys the current user follows, sorted newest first.
      */
-    private function activityFeedTab(
+    private function followedActivityData(
         EventRepository $eventRepository,
         UserProfileService $userProfileService,
         LoggerInterface $logger,
-    ): Response {
+    ): array {
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->render('home/tabs/_activity_feed.html.twig', [
+            return [
                 'activityItems' => [],
                 'isLoggedIn' => false,
                 'followCount' => 0,
-            ]);
+            ];
         }
 
         try {
             $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
         } catch (\Throwable $e) {
             $logger->error('Activity feed tab: failed to convert npub', ['error' => $e->getMessage()]);
-            return $this->render('home/tabs/_activity_feed.html.twig', [
+            return [
                 'activityItems' => [],
                 'isLoggedIn' => true,
                 'followCount' => 0,
-            ]);
+            ];
         }
 
         // ── 1. Resolve followed pubkeys ──
@@ -706,11 +755,11 @@ class HomeFeedController extends AbstractController
         }
 
         if (empty($followedPubkeys)) {
-            return $this->render('home/tabs/_activity_feed.html.twig', [
+            return [
                 'activityItems' => [],
                 'isLoggedIn' => true,
                 'followCount' => 0,
-            ]);
+            ];
         }
 
         $activityItems = [];
@@ -832,11 +881,11 @@ class HomeFeedController extends AbstractController
             $logger->error('Activity feed tab: failed to load activity', ['error' => $e->getMessage()]);
         }
 
-        return $this->render('home/tabs/_activity_feed.html.twig', [
+        return [
             'activityItems' => $activityItems,
             'isLoggedIn' => true,
             'followCount' => count($followedPubkeys),
-        ]);
+        ];
     }
 
     /**
@@ -844,18 +893,18 @@ class HomeFeedController extends AbstractController
      * as the Updates page) without marking them as read/seen — that only happens
      * when the user opens the full /updates page.
      */
-    private function updatesFeedTab(
+    private function subscriptionUpdatesData(
         UpdateRepository $updateRepository,
         UpdateSubscriptionRepository $subscriptionRepository,
-    ): Response {
+    ): array {
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->render('home/tabs/_updates_feed.html.twig', [
+            return [
                 'updates' => [],
                 'hasSubscriptions' => false,
                 'isLoggedIn' => false,
-            ]);
+            ];
         }
 
         $hasSubscriptions = $subscriptionRepository->countActiveForUser($user) > 0;
@@ -879,10 +928,10 @@ class HomeFeedController extends AbstractController
             }
         }
 
-        return $this->render('home/tabs/_updates_feed.html.twig', [
+        return [
             'updates' => $updates,
             'hasSubscriptions' => $hasSubscriptions,
             'isLoggedIn' => true,
-        ]);
+        ];
     }
 }

@@ -1,7 +1,8 @@
 {% extends 'base.html.twig' %}
 
 {% block layout %}
-    <div class="app-shell" data-controller="ui--sidebar-toggle">
+    {% set context %}{% block aside %}{% endblock %}{% endset %}
+    <div class="app-shell{{ context|trim is not empty ? ' app-shell--with-context' : '' }}" data-controller="ui--sidebar-toggle">
         <div class="app-shell__sidebar">
             {% block sidebar %}{% endblock %}
         </div>
@@ -10,9 +11,11 @@
             {% block body %}{% endblock %}
         </main>
 
-        <aside id="rightNav" class="app-shell__context">
-            {% block aside %}{% endblock %}
-        </aside>
+        {% if context|trim is not empty %}
+            <aside id="rightNav" class="app-shell__context">
+                {{ context }}
+            </aside>
+        {% endif %}
 
         <div data-controller="ui--back-to-top">
             <button

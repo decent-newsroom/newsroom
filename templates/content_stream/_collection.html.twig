@@ -1,0 +1,26 @@
+{% set title = item.title|default(item.dTag|default('content_stream.untitled'|trans)) %}
+{% set itemPubkey = item.pubkey|default(pubkey|default('')) %}
+{% set slug = item.slug|default(item.dTag|default('')) %}
+{% if row.type == 'follow_pack' %}
+    {% set href = path('follow_pack_view', {npub: itemPubkey|hex_to_npub, dtag: slug}) %}
+{% elseif row.type == 'reading_list' %}
+    {% set href = path('reading-list', {npub: itemPubkey|hex_to_npub, slug: slug}) %}
+{% else %}
+    {% set href = path('magazine-index', {mag: slug}) %}
+{% endif %}
+<article class="stream-collection">
+    <div class="metadata">
+        <span>{{ 'text.by'|trans }} <twig:Molecules:UserFromNpub :ident="itemPubkey" /></span>
+        {% if row.timestamp %}<time datetime="{{ row.timestamp|date('c') }}">{{ row.timestamp|date('M j, Y') }}</time>{% endif %}
+    </div>
+    <h2><a href="{{ href }}" data-turbo-frame="_top">{{ title }}</a></h2>
+    {% if item.summary|default(item.description|default('')) %}
+        <p class="lede">{{ item.summary|default(item.description|default('')) }}</p>
+    {% endif %}
+    {% if item.image|default('') %}
+        <img src="{{ item.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': title}) }}" loading="lazy" decoding="async">
+    {% endif %}
+    {% if row.type == 'follow_pack' %}
+        <p class="metadata">{{ item.memberCount }} {{ 'followPacks.writers'|trans }}</p>
+    {% endif %}
+</article>

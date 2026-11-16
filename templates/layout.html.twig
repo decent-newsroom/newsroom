@@ -5,14 +5,7 @@
 {% endblock %}
 
 {% block aside %}
-    {% if app.user %}
-        <section class="context-panel">
-            <p class="eyebrow">{{ 'nav.publications'|trans }}</p>
-            <h2>{{ 'nav.startBlog'|trans }}</h2>
-            <p>{{ 'journey.landing.hero'|trans }}</p>
-            <a class="btn" href="{{ path('mag_wizard_new') }}">{{ 'nav.startBlog'|trans }}</a>
-        </section>
-    {% else %}
+    {% if not app.user %}
         {% include 'blog-journey/_login_cta_card.html.twig' %}
     {% endif %}
 

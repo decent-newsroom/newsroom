@@ -21,6 +21,7 @@ use App\Repository\ArticleRepository;
 // to ensure article tabs are accurate regardless of Elasticsearch index lag.
 use App\Service\VanityNameService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\ContentStreamBuilder;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -829,8 +830,8 @@ class AuthorController extends AbstractController
      * @throws Exception
      * @throws InvalidArgumentException
      */
-    #[Route('/{vanity}/{tab}', name: 'author-vanity-profile-tab', requirements: ['tab' => 'overview|articles|media|highlights|drafts'])]
-    #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'overview|articles|media|highlights|drafts'])]
+    #[Route('/{vanity}/{tab}', name: 'author-vanity-profile-tab', requirements: ['tab' => 'stream|overview|articles|media|highlights|drafts'])]
+    #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'stream|overview|articles|media|highlights|drafts'])]
     public function profileTab(
         string $tab,
         Request $request,
@@ -863,6 +864,34 @@ class AuthorController extends AbstractController
         // Check ownership
         $currentUser = $this->getUser();
         $isOwner = $currentUser && $currentUser->getUserIdentifier() === $npub;
+
+        if ($tab !== 'stream' && $request->headers->get('Turbo-Frame') !== 'profile-tab-content') {
+            return $this->redirectToRoute($routePrefix . 'profile-tab', array_merge(
+                $useVanity ? ['vanity' => $profileId] : ['npub' => $profileId],
+                ['tab' => 'stream'],
+            ));
+        }
+
+        if ($tab === 'stream') {
+            $data = $this->getProfileStreamData($pubkey, $isOwner, $request, $redisCacheService, $viewStore, $viewFactory, $em, $messageBus);
+            $response = $this->render(
+                $request->headers->get('Turbo-Frame') === 'profile-stream-content'
+                    ? 'profile/_stream.html.twig' : 'profile/author-tabs.html.twig',
+                array_merge([
+                    'author' => $author,
+                    'npub' => $npub,
+                    'pubkey' => $pubkey,
+                    'isOwner' => $isOwner,
+                    'activeTab' => 'stream',
+                    'mercure_public_hub_url' => $this->getParameter('mercure_public_hub_url'),
+                    'profileId' => $profileId,
+                    'useVanity' => $useVanity,
+                    'routePrefix' => $routePrefix,
+                ], $this->getFollowPackDataForProfile($pubkey, $npub, $isOwner, $em, $redisCacheService, $messageBus), $data),
+            );
+            $response->headers->set('Cache-Control', 'private, no-store');
+            return $response;
+        }
 
         // Private tabs require ownership
         $privateTabsRequireAuth = ['drafts'];
@@ -1077,6 +1106,66 @@ class AuthorController extends AbstractController
         }
 
         return ['articles' => $articles];
+    }
+
+    private function getProfileStreamData(
+        string $pubkey,
+        bool $isOwner,
+        Request $request,
+        RedisCacheService $cache,
+        RedisViewStore $views,
+        RedisViewFactory $factory,
+        EntityManagerInterface $em,
+        MessageBusInterface $bus,
+    ): array {
+        $sources = [
+            ['type' => 'article', 'items' => $this->getAuthorArticles($pubkey, $isOwner, $views, $factory)],
+            ['type' => 'media', 'items' => $this->getMediaTabData($pubkey, $cache, 200)['mediaEvents']],
+            ['type' => 'highlight', 'items' => $this->getHighlightsTabData($pubkey, $em)['highlights']],
+        ];
+        if ($isOwner) {
+            $sources[] = ['type' => 'draft', 'items' => $this->getDraftsTabData($pubkey, $factory, $cache->getMetadata($pubkey))['drafts']];
+        }
+
+        // Relationship inventories remain worker-built; a cold profile must not
+        // synchronously scan every publication just to render its stream.
+        $overview = $views->fetchProfileTabData($pubkey, 'overview');
+        $editorial = $overview['data'] ?? [];
+        foreach ([
+            'authorMagazines' => 'magazine',
+            'featuredMagazines' => 'magazine',
+            'authorReadingLists' => 'reading_list',
+            'featuredReadingLists' => 'reading_list',
+            'existingFollowPacks' => 'follow_pack',
+            'featuredInFollowPacks' => 'follow_pack',
+        ] as $key => $type) {
+            $sources[] = [
+                'type' => $type,
+                'items' => $editorial[$key] ?? [],
+                'label' => str_starts_with($key, 'featured')
+                    ? 'content_stream.source.featured_in' : 'content_stream.source.authored',
+            ];
+        }
+        foreach (['overview', 'articles', 'media', 'highlights'] as $section) {
+            $state = $section === 'overview' ? $overview : $views->fetchProfileTabData($pubkey, $section);
+            if (!$state['isCached'] || $state['isStale']) {
+                try {
+                    $bus->dispatch(new RevalidateProfileCacheMessage($pubkey, $section, $isOwner));
+                } catch (\Throwable $exception) {
+                    $this->logger->warning('Failed to queue profile stream revalidation.', ['exception' => $exception, 'section' => $section]);
+                }
+            }
+        }
+        $rows = (new ContentStreamBuilder())->build($sources);
+        $pager = new Pagerfanta(new ArrayAdapter($rows));
+        $pager->setMaxPerPage(20);
+        $pager->setCurrentPage(min(max(1, $request->query->getInt('page', 1)), max(1, $pager->getNbPages())));
+
+        return [
+            'rows' => iterator_to_array($pager->getCurrentPageResults()),
+            'pager' => $pager,
+            'editorialPending' => !$overview['isCached'] || $overview['isStale'],
+        ];
     }
 
     /**
@@ -1687,9 +1776,9 @@ class AuthorController extends AbstractController
     /**
      * Get media events for the media tab
      */
-    private function getMediaTabData(string $pubkey, RedisCacheService $redisCacheService): array
+    private function getMediaTabData(string $pubkey, RedisCacheService $redisCacheService, int $limit = 24): array
     {
-        $paginatedData = $redisCacheService->getMediaEventsPaginated($pubkey, 1, 24);
+        $paginatedData = $redisCacheService->getMediaEventsPaginated($pubkey, 1, $limit);
         $mediaEvents = $paginatedData['events'];
 
         foreach ($mediaEvents as $event) {
@@ -2231,13 +2320,13 @@ class AuthorController extends AbstractController
 
 
     /**
-     * Author profile - redirect to overview tab by default
+     * Author profile - use the same stream for every public entry point.
      */
     #[Route('/{vanity}', name: 'author-vanity-profile', priority: -10)]
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
     public function index(?string $npub = null, ?string $vanity = null): Response
     {
-        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => 'overview']);
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => 'stream']);
         if ($resolved instanceof Response) {
             return $resolved;
         }
@@ -2246,13 +2335,11 @@ class AuthorController extends AbstractController
         $useVanity = $resolved['useVanity'];
         $vanityName = $resolved['vanity'];
 
-        // Redirect to overview tab with the same identifier type
         if ($useVanity) {
-            return $this->redirectToRoute('author-vanity-profile-tab', ['vanity' => $vanityName, 'tab' => 'overview']);
+            return $this->redirectToRoute('author-vanity-profile-tab', ['vanity' => $vanityName, 'tab' => 'stream']);
         }
 
-        // Redirect to overview tab - shows editorial content
-        return $this->redirectToRoute('author-profile-tab', ['npub' => $npub, 'tab' => 'overview']);
+        return $this->redirectToRoute('author-profile-tab', ['npub' => $npub, 'tab' => 'stream']);
     }
 
     /**

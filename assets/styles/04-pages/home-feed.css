@@ -35,3 +35,190 @@
 .home-feed__loading .spinner {
     margin-bottom: var(--spacing-3);
 }
+
+.content-stream-page {
+    max-width: 76rem;
+    margin-inline: auto;
+    padding: var(--spacing-4);
+    min-width: 0;
+}
+
+.stream-masthead {
+    padding-block: var(--spacing-2) var(--spacing-4);
+    border-block-end: 2px solid var(--color-text);
+}
+
+.stream-masthead h1 {
+    max-width: 15ch;
+    margin-block: var(--spacing-2);
+    font-size: clamp(2.25rem, 4vw, 3.75rem);
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+}
+
+.stream-masthead .lede {
+    max-width: 48ch;
+    margin-block: var(--spacing-3);
+    font-size: clamp(1.2rem, 2vw, 1.5rem);
+}
+
+.stream-journeys,
+.stream-heading,
+.stream-search__controls,
+.stream-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-4);
+}
+
+.stream-journeys {
+    margin-top: var(--spacing-3);
+}
+
+.stream-journeys a,
+.stream-pagination a {
+    text-underline-offset: 0.25em;
+}
+
+.stream-search {
+    margin-block: var(--spacing-5);
+}
+
+.stream-search label,
+.content-stream__type,
+.stream-heading button,
+.stream-pagination,
+.stream-pending {
+    font-family: var(--font-family-sans, system-ui, sans-serif);
+    font-size: 0.875rem;
+}
+
+.stream-search label {
+    display: block;
+    margin-bottom: var(--spacing-2);
+}
+
+.stream-search > .stream-search__controls {
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--spacing-2);
+}
+
+.stream-search input {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+.stream-heading {
+    justify-content: space-between;
+    padding-block: var(--spacing-4);
+    border-bottom: 1px solid var(--color-border-strong);
+}
+
+.stream-heading h1,
+.stream-heading h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.content-stream__entry {
+    padding-block: var(--spacing-5);
+    border-bottom: 1px solid var(--color-border);
+    overflow-wrap: anywhere;
+}
+
+.content-stream__type {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
+    color: var(--color-text);
+}
+
+.content-stream__type > :first-child {
+    border-inline-start: 3px solid var(--color-primary);
+    padding-inline-start: var(--spacing-2);
+}
+
+.content-stream__entry .card,
+.content-stream__entry .highlight-card,
+.content-stream__entry .update-item {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.content-stream__entry .highlights-grid,
+.content-stream__entry .masonry-grid {
+    display: block;
+}
+
+.content-stream__entry .masonry-item,
+.content-stream__entry .masonry-image-container {
+    max-width: 32rem;
+}
+
+.stream-media > p {
+    max-width: 70ch;
+    white-space: pre-wrap;
+}
+
+.stream-media > time {
+    display: block;
+    margin-block: var(--spacing-2);
+    font-size: 0.875rem;
+}
+
+.stream-collection > img {
+    max-width: min(100%, 24rem);
+    max-height: 18rem;
+    object-fit: contain;
+    margin-top: var(--spacing-3);
+}
+
+.stream-collection h2 {
+    margin-block: var(--spacing-3);
+}
+
+.stream-pagination {
+    justify-content: space-between;
+    margin-block: var(--spacing-5);
+}
+
+.stream-pagination a,
+.stream-journeys a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+}
+
+.stream-empty,
+.stream-pending {
+    padding-block: var(--spacing-5);
+}
+
+.stream-update,
+.content-stream-page [role="alert"] {
+    border-inline-start: 3px solid var(--color-primary);
+    padding: var(--spacing-3);
+}
+
+.content-stream-page a:focus-visible,
+.content-stream-page button:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 4px;
+}
+
+@media (max-width: 480px) {
+    .content-stream-page {
+        padding-inline: var(--spacing-2);
+    }
+
+    .stream-masthead h1 {
+        font-size: 2.25rem;
+    }
+}

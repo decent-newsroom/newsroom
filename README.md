@@ -3,15 +3,10 @@
 Live at [Decent Newsroom](https://decentnewsroom.com).
 
 ## Intro
-Decentralised Newsroom is a platform for the creation, publishing, and discovery of mixed-media collaborative journals. 
-
-Newsrooms used to be at the heart of journals and media houses, but they deteriorated when their business models started to fail. 
-This project is a decentralised digital alternative. 
-
-A lot of talented creators have found their opportunity in the handful of platforms available,
-but there is synergy in collaboration that has been lost in the transition.
-
-Let's bring back high-value professional journalism and collaborative publishing.
+Decent Newsroom is a reading, curation, and publishing app for Nostr.
+Discover long-form writing, save what matters, organize collections, and publish
+your own articles and publications. Follow good ideas further without losing
+their context.
 
 ## Documentation
 
@@ -25,9 +20,11 @@ This project has multiple facets that build on each other, making the whole more
 
 ### Reader
 
-A traditional newspaper lookalike made up of multiple individual journals. 
-Logged-in users can pick and choose which journals they read and subscribe to, 
-while passers-by can browse the default public ones.
+One chronological home stream combines public discovery with signed-in readers'
+existing personalized sources. Author profiles combine writing, media,
+highlights, and collections rather than hiding them behind empty tabs.
+Reading Nook holds saved collections and subscriptions; Newsroom manages authored
+work. Focused article, book, and publication readers remain available.
 
 ### Article Editor
 
@@ -38,9 +35,9 @@ A content editor interface for writing essays, articles, and more. Featuring pre
 In the current digital landscape, media content and written word have been driven apart, and it's time to bring them closer together again. 
 The media manager is a place to create and share your own media library. 
 
-### Marketplace
+### Marketplace (future)
 
-A marketplace for requesting custom-made media (photographs, graphics, data visualizations, animations, audio, video...), science review, contacts, etc. or 
+A proposed marketplace for requesting custom-made media (photographs, graphics, data visualizations, animations, audio, video...), science review, contacts, etc. or
 for publishing art and stock images to make them available and discoverable to be included in the journals.
 
 ### Newsroom

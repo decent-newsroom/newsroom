@@ -22,7 +22,7 @@
     {% endif %}
 
     {% for section in sections %}
-        <div class="nav-section">
+        <div class="nav-section{{ loop.first and not section.label ? ' nav-section--primary' : '' }}">
             {% if section.label %}
                 <div class="nav-section__label">{{ section.label|trans }}</div>
             {% endif %}
@@ -46,7 +46,7 @@
 
     {% if footerComponent %}
         <div class="app-sidebar__footer">
-            {{ include(footerComponent) }}
+            {{ include(footerComponent, {attributes: attributes.without('id')}) }}
         </div>
     {% endif %}
 </nav>

@@ -40,6 +40,7 @@ use Psr\Log\LoggerInterface;
 use App\Service\Nostr\NostrKeyService;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\FeaturedWritersFeed;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -68,10 +69,6 @@ class DefaultController extends AbstractController
     #[Route('/', name: 'home')]
     public function index(): Response
     {
-        if ($this->getUser()) {
-            return $this->render('home_authenticated.html.twig');
-        }
-
         return $this->render('home.html.twig');
     }
 
@@ -236,68 +233,9 @@ class DefaultController extends AbstractController
      * @throws Exception|InvalidArgumentException
      */
     #[Route('/discover', name: 'discover')]
-    public function discover(
-        RedisCacheService $redisCacheService,
-        UserEntityRepository $userRepository,
-        ArticleRepository $articleRepository,
-        HighlightFeedService $highlightFeedService,
-        NostrClient $nostrClient,
-        EntityManagerInterface $entityManager,
-        GraphMagazineListService $graphMagazineList,
-    ): Response
+    public function discover(): Response
     {
-        $user = $this->getUser();
-
-        // Highlights tab: use the same Redis-first + repository fallback source as /highlights.
-        $highlights = [];
-        try {
-            $highlightsFeed = $highlightFeedService->loadLatestHighlights(200);
-            $highlights = $highlightsFeed['highlights'];
-        } catch (\Throwable) {
-            // Non-critical; proceed with empty highlights.
-        }
-
-        // ── Featured Writers Tab (same feed as /featured-articles) ─────────
-        $featuredArticles = [];
-        $featuredAuthorsMetadata = [];
-        try {
-            $featuredFeed = $this->buildFeaturedWritersFeed($userRepository, $articleRepository, $redisCacheService);
-            $featuredArticles = $featuredFeed['articles'];
-            $featuredAuthorsMetadata = $featuredFeed['authorsMetadata'];
-        } catch (\Throwable) {
-            // Non-critical — proceed with empty featured writers feed
-        }
-
-        // Build main topics key => display name map from ForumTopics constant
-        $mainTopicsMap = [];
-        foreach (ForumTopics::TOPICS as $key => $data) {
-            $name = $data['name'] ?? ucfirst($key);
-            $mainTopicsMap[$key] = $name;
-        }
-
-        // Check if the logged-in user has a known interests list (kind 10015)
-        // and fetch their named interest sets (kind 30015)
-        $hasInterests = false;
-        $interestSets = [];
-        if ($user !== null) {
-            try {
-                $pubkeyHex = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($user->getUserIdentifier()));
-                $interests = $nostrClient->getUserInterests($pubkeyHex);
-                $hasInterests = !empty($interests);
-                $interestSets = $nostrClient->getUserInterestSets($pubkeyHex);
-            } catch (\Throwable) {
-                // Non-critical — proceed without interests
-            }
-        }
-
-        return $this->render('pages/discover.html.twig', [
-            'highlights' => $highlights,
-            'featuredArticles' => $featuredArticles,
-            'featuredAuthorsMetadata' => $featuredAuthorsMetadata,
-            'mainTopicsMap' => $mainTopicsMap,
-            'hasInterests' => $hasInterests,
-            'interestSets' => $interestSets,
-        ]);
+        return $this->redirectToRoute('home', [], 302);
     }
 
     /**
@@ -536,54 +474,15 @@ class DefaultController extends AbstractController
      */
     #[Route('/featured-articles', name: 'featured_articles')]
     public function featuredArticles(
-        UserEntityRepository $userRepository,
-        ArticleRepository $articleRepository,
-        RedisCacheService $redisCacheService,
+        FeaturedWritersFeed $featuredWriters,
     ): Response
     {
-        $featuredFeed = $this->buildFeaturedWritersFeed($userRepository, $articleRepository, $redisCacheService);
+        $featuredFeed = $featuredWriters->load();
 
         return $this->render('pages/featured-articles.html.twig', [
             'articles' => $featuredFeed['articles'],
             'authorsMetadata' => $featuredFeed['authorsMetadata'],
         ]);
-    }
-
-    /**
-     * @return array{articles: array<int, Article>, authorsMetadata: array<string, object>}
-     */
-    private function buildFeaturedWritersFeed(
-        UserEntityRepository $userRepository,
-        ArticleRepository $articleRepository,
-        RedisCacheService $redisCacheService,
-    ): array
-    {
-        $featuredUsers = $userRepository->findFeaturedWriters();
-
-        // Convert featured writer npubs to hex pubkeys for article filtering.
-        $pubkeys = [];
-        foreach ($featuredUsers as $user) {
-            $npub = $user->getNpub();
-            if (str_starts_with(strtolower(trim((string) ($npub))), 'npub1')) {
-                $pubkeys[] = (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($npub));
-            }
-        }
-
-        $articles = $articleRepository->findLatestByPubkeys($pubkeys, 50);
-        $authorPubkeys = array_unique(array_map(fn($article) => $article->getPubkey(), $articles));
-        $metadataMap = $redisCacheService->getMultipleMetadata($authorPubkeys);
-
-        $authorsMetadataStd = [];
-        foreach ($metadataMap as $pubkey => $metadata) {
-            $authorsMetadataStd[$pubkey] = $metadata instanceof UserMetadata
-                ? $metadata->toStdClass()
-                : $metadata;
-        }
-
-        return [
-            'articles' => $articles,
-            'authorsMetadata' => $authorsMetadataStd,
-        ];
     }
 
     /**

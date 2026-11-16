@@ -211,7 +211,7 @@
                         {% if item.url or item.manageUrl %}
                             <details class="reading-nook-menu" name="reading-nook-actions">
                                 <summary aria-label="{{ 'reading_nook.action.menu'|trans({'%title%': title}) }}">
-                                    {{ ux_icon('iconoir:plus', {class: 'icon'}) }}
+                                    {{ ux_icon('iconoir:more-horiz', {class: 'icon'}) }}
                                 </summary>
                                 <div class="reading-nook-menu__panel">
                                     {% if item.url %}
@@ -282,46 +282,6 @@
 
 {% block aside %}
     <div class="reading-nook-aside">
-        <section class="reading-nook-aside__panel">
-            <h2>{{ 'reading_nook.title'|trans }}</h2>
-            <div class="reading-nook-aside__stats">
-                <div>
-                    <span>{{ 'reading_nook.summary.total'|trans }}</span>
-                    <strong>{{ totalCount }}</strong>
-                </div>
-                <div>
-                    <span>{{ 'reading_nook.summary.visible'|trans }}</span>
-                    <strong>{{ filteredCount }}</strong>
-                </div>
-                <div>
-                    <span>{{ 'reading_nook.summary.filters'|trans }}</span>
-                    <strong>{{ activeFilterCount }}</strong>
-                </div>
-            </div>
-        </section>
-
-        <section class="reading-nook-aside__panel">
-            <h2>{{ 'reading_nook.filters.section'|trans }}</h2>
-            <nav class="reading-nook-aside__nav">
-                <a
-                    href="{{ path('reading_nook', filterQuery|merge({section: 'all'})) }}"
-                    {% if filters.section == 'all' %}aria-current="page"{% endif %}
-                >
-                    <span>{{ 'reading_nook.section.all'|trans }}</span>
-                    <strong>{{ filteredCount }} / {{ totalCount }}</strong>
-                </a>
-                {% for section in sectionKeys %}
-                    <a
-                        href="{{ path('reading_nook', filterQuery|merge({section: section})) }}"
-                        {% if filters.section == section %}aria-current="page"{% endif %}
-                    >
-                        <span>{{ sectionLabels[section]|trans }}</span>
-                        <strong>{{ filteredSectionCounts[section] }} / {{ sectionCounts[section] }}</strong>
-                    </a>
-                {% endfor %}
-            </nav>
-        </section>
-
         {% if topTags is not empty %}
             <section class="reading-nook-aside__panel">
                 <h2>{{ 'reading_nook.aside.top_tags'|trans }}</h2>

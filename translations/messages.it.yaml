@@ -1,4 +1,41 @@
 # ── General / shared ───────────────────────────────────────────────
+content_stream:
+    tagline: 'Leggi, raccogli e pubblica su Nostr.'
+    headline: 'Segui le buone idee più lontano.'
+    description: 'Scopri testi che meritano il tuo tempo. Conserva ciò che conta e pubblica le tue opere.'
+    latest: 'Il flusso'
+    profile_title: 'Testi, raccolte e attività'
+    refresh: 'Aggiorna il flusso'
+    new_content: 'Sono disponibili nuovi contenuti. Aggiorna il flusso quando vuoi.'
+    error: 'Impossibile caricare il flusso. Usa Aggiorna il flusso per riprovare.'
+    editorial_pending: 'Pubblicazioni e raccolte si aggiornano in background. Le altre opere disponibili sono mostrate qui sotto.'
+    empty_title: 'Ancora nessun contenuto'
+    empty_description: 'Non ci sono ancora contenuti disponibili. Torna dopo la sincronizzazione.'
+    context_title: 'Tieni vicino il contesto'
+    context_description: 'Articoli, evidenziazioni e raccolte in un unico flusso, dai più recenti. I lettori connessi vedono anche autori seguiti, interessi, pacchetto scelto e abbonamenti.'
+    pagination: 'Pagine del flusso'
+    newer: 'Più recenti'
+    older: 'Precedenti'
+    page: 'Pagina %page% di %pages%'
+    open_media: 'Apri contenuto multimediale'
+    untitled: 'Raccolta senza titolo'
+    type:
+        article: 'Articolo'
+        draft: 'Bozza · solo tu'
+        highlight: 'Evidenziazione'
+        comment: 'Commento'
+        media: 'Multimedia'
+        update: 'Novità dagli abbonamenti'
+        magazine: 'Pubblicazione'
+        reading_list: 'Lista di lettura'
+        follow_pack: 'Pacchetto di autori'
+    source:
+        featured: 'Autore in evidenza'
+        pack: 'Il tuo pacchetto scelto'
+        subscription: 'I tuoi abbonamenti'
+        featured_in: 'Presente in'
+        authored: 'Raccolta pubblicata'
+
 text:
     byline: 'Di'
     search: 'Cerca articoli o incolla identificatori Nostr...'
@@ -54,8 +91,8 @@ event_workspace:
         author: 'Autore'
         id: 'ID evento'
 brand:
-    tagline: 'Pubblicazione collaborativa su Nostr'
-    description: 'Una piattaforma decentralizzata per la pubblicazione collaborativa'
+    tagline: 'Leggi, raccogli e pubblica su Nostr.'
+    description: 'Uno spazio per leggere, raccogliere e pubblicare su Nostr.'
 
 # ── Navigation / Layout ──────────────────────────────────────────
 nav:
@@ -853,8 +890,9 @@ newsroom:
         media_manager: 'Gestore media'
 
 my_content:
+    description: 'Scrivi, rivedi e gestisci i tuoi articoli e le tue bozze.'
     preview:
-        label: 'Anteprima evento e riferimenti'
+        label: 'Anteprima e collegamenti'
         load: 'Carica anteprima evento'
         unavailable: 'L’evento originale non è disponibile localmente. La modifica e le altre azioni restano disponibili.'
         references: 'Riferimenti dell’evento'
@@ -949,7 +987,7 @@ reading_nook:
     section:
         drives: 'Drive'
     title: 'Reading Nook'
-    subtitle: 'Cerca e filtra le tue raccolte in un unico posto.'
+    subtitle: 'Le tue raccolte salvate e i tuoi abbonamenti.'
     empty: 'Nessun elemento corrisponde ai filtri correnti.'
     results_count: '%count% elementi'
     column:

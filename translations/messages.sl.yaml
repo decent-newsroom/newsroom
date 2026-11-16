@@ -1,4 +1,41 @@
 # ── Splošno ────────────────────────────────────────────────────────
+content_stream:
+    tagline: 'Berite, zbirajte in objavljajte na Nostru.'
+    headline: 'Sledite dobrim idejam dlje.'
+    description: 'Odkrijte besedila, vredna vašega časa. Shranite pomembno in objavite svoja dela.'
+    latest: 'Tok vsebin'
+    profile_title: 'Besedila, zbirke in dejavnost'
+    refresh: 'Osveži tok'
+    new_content: 'Na voljo so nove vsebine. Osvežite tok, ko boste pripravljeni.'
+    error: 'Toka ni bilo mogoče naložiti. Poskusite znova z gumbom Osveži tok.'
+    editorial_pending: 'Podatki o publikacijah in zbirkah se osvežujejo v ozadju. Druga razpoložljiva dela so prikazana spodaj.'
+    empty_title: 'Vsebin še ni'
+    empty_description: 'V tem toku še ni razpoložljivih vsebin. Vrnite se po sinhronizaciji.'
+    context_title: 'Ohranite kontekst pri roki'
+    context_description: 'Članki, poudarki in zbirke v enem toku, najnovejše najprej. Prijavljeni bralci vidijo tudi avtorje, ki jim sledijo, zanimanja, izbrani paket avtorjev in naročnine.'
+    pagination: 'Strani toka'
+    newer: 'Novejše'
+    older: 'Starejše'
+    page: 'Stran %page% od %pages%'
+    open_media: 'Odpri predstavnost'
+    untitled: 'Zbirka brez naslova'
+    type:
+        article: 'Članek'
+        draft: 'Osnutek · samo vi'
+        highlight: 'Poudarek'
+        comment: 'Komentar'
+        media: 'Predstavnost'
+        update: 'Novost iz naročnine'
+        magazine: 'Publikacija'
+        reading_list: 'Bralni seznam'
+        follow_pack: 'Paket avtorjev'
+    source:
+        featured: 'Izpostavljeni avtor'
+        pack: 'Vaš izbrani paket avtorjev'
+        subscription: 'Vaše naročnine'
+        featured_in: 'Vključeno v'
+        authored: 'Objavljena zbirka'
+
 unfold_interactions:
     invalid_signature: 'Podpis dogodka ni veljaven.'
     unknown: 'Podatki o dostavi za ta dogodek niso na voljo.'
@@ -139,8 +176,8 @@ event_workspace:
         author: 'Avtor'
         id: 'ID dogodka'
 brand:
-    tagline: 'Sodelovalno založništvo na Nostru'
-    description: 'Decentralizirana platforma za sodelovalno založništvo'
+    tagline: 'Berite, zbirajte in objavljajte na Nostru.'
+    description: 'Dom za branje, zbirke in objavljanje na Nostru.'
 
 # ── Navigacija ────────────────────────────────────────────────────
 nav:
@@ -854,7 +891,7 @@ feedback:
 # ── Moja vsebina ──────────────────────────────────────────────────
 my_content:
     preview:
-        label: 'Predogled dogodka in sklici'
+        label: 'Predogled in povezave'
         load: 'Naloži predogled dogodka'
         unavailable: 'Izvirni dogodek ni na voljo lokalno. Urejanje in druga dejanja ostajajo na voljo.'
         references: 'Sklici dogodka'
@@ -863,7 +900,7 @@ my_content:
         empty: 'Ni sklicev dogodka.'
     eyebrow: 'Uredništvo'
     title: 'Moja vsebina'
-    description: 'Pišite, objavljajte in urejajte svoje delo na enem preglednem uredniškem mestu.'
+    description: 'Pišite, popravljajte in upravljajte svoje članke in osnutke.'
     untitled: 'Brez naslova'
     no_identifier: 'Brez identifikatorja'
     results_count: '%count% rezultatov'
@@ -1314,7 +1351,7 @@ reading_nook:
         reading_lists: 'Bralni seznami'
         follow_packs: 'Paketi za sledenje'
     title: 'Reading Nook' # TODO: translate
-    subtitle: 'Search and filter your own collections in one place.' # TODO: translate
+    subtitle: 'Vaše shranjene zbirke in naročnine.'
     create_article: 'New article' # TODO: translate
     empty: 'No items match the current filters.' # TODO: translate
     results_count: '%count% elementov'

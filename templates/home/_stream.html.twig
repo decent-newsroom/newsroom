@@ -1,0 +1,4 @@
+<turbo-frame id="home-stream-content">
+    {% include 'content_stream/_items.html.twig' %}
+    {% include 'content_stream/_pagination.html.twig' with {route: 'home', routeParams: {}, frame: '_top'} %}
+</turbo-frame>

@@ -55,7 +55,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 - [Follow Packs Page](Reader/follow-packs-page.md)
 - [Following Feed](Reader/follows-feature-implementation.md)
 - [Highlights](Reader/highlights.md)
-- [Home Feed for Logged-In Users](Reader/home-feed-logged-in.md)
+- [Unified discovery and author streams](Reader/home-feed-logged-in.md)
 - [JSON-LD Structured Data Implementation](Reader/json-ld-structured-data.md)
 - [Magazine Wizard: Attach Existing Lists Feature](Reader/magazine-existing-list-attachment.md)
 - [Math / LaTeX Rendering](Reader/math-rendering.md)

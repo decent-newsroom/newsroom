@@ -1,10 +1,14 @@
 .app-shell {
     display: grid;
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--aside-width);
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     width: 100%;
     max-width: var(--page-max-width);
     min-height: calc(100vh - var(--header-height));
     margin: var(--header-height) auto 0;
+}
+
+.app-shell--with-context {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--aside-width);
 }
 
 .app-shell__sidebar {
@@ -44,8 +48,11 @@ body.no-scroll {
 }
 
 .app-sidebar {
+    --sidebar-accent: var(--color-nostr-profile);
     height: 100%;
     padding: var(--spacing-5) var(--spacing-3);
+    background: var(--color-bg);
+    color: var(--color-text);
     overflow-y: auto;
 }
 
@@ -57,10 +64,22 @@ body.no-scroll {
     margin-bottom: var(--spacing-4);
 }
 
+.nav-section--primary {
+    margin-bottom: var(--spacing-5);
+    padding-bottom: var(--spacing-4);
+    border-bottom: 1px solid var(--color-border-strong);
+}
+
+.app-sidebar .nav-section--primary .user-nav a {
+    min-height: 2.85rem;
+    color: var(--color-text);
+    font-weight: 700;
+}
+
 .nav-section__label {
     margin-bottom: var(--spacing-1);
     padding: var(--spacing-2) var(--spacing-3);
-    color: var(--color-text-muted);
+    color: var(--color-text-mid);
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.13em;
@@ -77,8 +96,8 @@ body.no-scroll {
     margin: 0;
 }
 
-.user-nav a,
-.sidebar-nav__back a {
+.app-sidebar .user-nav a,
+.app-sidebar .sidebar-nav__back a {
     display: flex;
     min-height: 2.65rem;
     align-items: center;
@@ -94,16 +113,34 @@ body.no-scroll {
         color var(--transition-fast);
 }
 
-.user-nav a:hover,
-.sidebar-nav__back a:hover {
+.app-sidebar .user-nav a:hover,
+.app-sidebar .sidebar-nav__back a:hover {
     border-left-color: var(--color-border-strong);
     color: var(--color-text);
     text-decoration: none;
 }
 
-.user-nav a[aria-current="page"] {
-    border-left-color: var(--color-primary);
-    color: var(--color-primary-link);
+.app-sidebar .user-nav a[aria-current="page"] {
+    border-left-color: var(--sidebar-accent);
+    color: var(--sidebar-accent);
+}
+
+.app-sidebar .user-nav a:focus-visible,
+.app-sidebar .sidebar-nav__back a:focus-visible,
+.app-sidebar__mobile-header button:focus-visible {
+    color: var(--sidebar-accent);
+    outline: 2px solid var(--sidebar-accent);
+    outline-offset: -2px;
+}
+
+.app-sidebar .user-nav a .icon,
+.app-sidebar .sidebar-nav__back a .icon {
+    color: inherit;
+}
+
+.user-nav a span {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .sidebar-nav__back {
@@ -142,7 +179,8 @@ body.no-scroll {
 }
 
 @media (max-width: 1200px) {
-    .app-shell {
+    .app-shell,
+    .app-shell--with-context {
         grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     }
 

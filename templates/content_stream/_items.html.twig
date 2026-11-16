@@ -1,0 +1,42 @@
+<div class="content-stream">
+    {% for row in rows %}
+        {% set item = row.item %}
+        <div class="content-stream__entry" data-stream-key="{{ row.key }}">
+            <div class="content-stream__type">
+                <span>{{ ('content_stream.type.' ~ (row.type == 'activity' ? item.type : row.type))|trans }}</span>
+                {% for label in row.labels %}<span>{{ label|trans }}</span>{% endfor %}
+            </div>
+            {% if row.type in ['article', 'draft'] %}
+                {% set coord = item.pubkey ~ ':' ~ item.slug %}
+                <twig:Molecules:Card :article="item" :authors_metadata="authorsMetadata|default([])"
+                    :comment_count="commentCounts[coord]|default(0)" :source_labels="sourceLabels[coord]|default([])" />
+            {% elseif row.type == 'activity' %}
+                {% include 'partial/_activity_items.html.twig' with {activityItems: [item]} %}
+            {% elseif row.type == 'highlight' %}
+                {% if item.created_at is defined %}
+                    {% include 'partial/_highlight_feed_card.html.twig' with {highlight: item} %}
+                {% else %}
+                    {% include 'partial/_highlight_with_source.html.twig' with {highlight: item} %}
+                {% endif %}
+            {% elseif row.type == 'media' %}
+                <article class="stream-media">
+                    <a href="{{ path('nevent', {nevent: item.noteId}) }}" data-turbo-frame="_top">
+                        {{ 'content_stream.open_media'|trans }}
+                    </a>
+                    <time datetime="{{ row.timestamp|date('c') }}">{{ row.timestamp|date('M j, Y') }}</time>
+                    {% include 'partial/_masonry.html.twig' with {mediaEvents: [item]} %}
+                    {% if item.content %}<p>{{ item.content }}</p>{% endif %}
+                </article>
+            {% elseif row.type == 'update' %}
+                {% include 'partial/_update_items.html.twig' with {updates: [item]} %}
+            {% else %}
+                {% include 'content_stream/_collection.html.twig' %}
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="stream-empty">
+            <h2>{{ 'content_stream.empty_title'|trans }}</h2>
+            <p>{{ 'content_stream.empty_description'|trans }}</p>
+        </div>
+    {% endfor %}
+</div>

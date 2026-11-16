@@ -1,4 +1,41 @@
 # ── General / shared ─────────────────────────────────────────────
+content_stream:
+    tagline: 'Read, collect, and publish on Nostr.'
+    headline: 'Follow good ideas further.'
+    description: 'Discover writing worth your time. Collect what matters, and publish your own.'
+    latest: 'The stream'
+    profile_title: 'Writing, collections, and activity'
+    refresh: 'Refresh stream'
+    new_content: 'New content is available. Refresh the stream when you are ready.'
+    error: 'The stream could not be loaded. Use Refresh stream to try again.'
+    editorial_pending: 'Publication and collection details are refreshing in the background. Other available work is shown below.'
+    empty_title: 'No content here yet'
+    empty_description: 'Nothing is available in this stream yet. Check back after content has synced.'
+    context_title: 'Keep the context close'
+    context_description: 'Articles, highlights, and collections share one stream, newest first. Signed-in readers also see their follows, interests, chosen follow pack, and subscriptions.'
+    pagination: 'Stream pages'
+    newer: 'Newer'
+    older: 'Older'
+    page: 'Page %page% of %pages%'
+    open_media: 'Open media'
+    untitled: 'Untitled collection'
+    type:
+        article: 'Article'
+        draft: 'Draft · only you'
+        highlight: 'Highlight'
+        comment: 'Comment'
+        media: 'Media'
+        update: 'Subscription update'
+        magazine: 'Publication'
+        reading_list: 'Reading list'
+        follow_pack: 'Follow pack'
+    source:
+        featured: 'Featured writer'
+        pack: 'Your chosen follow pack'
+        subscription: 'Your subscriptions'
+        featured_in: 'Appears in'
+        authored: 'Published collection'
+
 unfold_interactions:
     invalid_signature: 'The event signature is invalid.'
     unknown: 'Delivery information is unavailable for this event.'
@@ -157,8 +194,8 @@ event_workspace:
         author: 'Author'
         id: 'Event ID'
 brand:
-    tagline: 'Collaborative publishing on Nostr'
-    description: 'A decentralized platform for collaborative publishing'
+    tagline: 'Read, collect, and publish on Nostr.'
+    description: 'A home for reading, collections, and publishing on Nostr.'
 
 # ── Navigation / Layout ──────────────────────────────────────────
 nav:
@@ -1049,7 +1086,7 @@ feedback:
 # ── My Content ───────────────────────────────────────────────────
 my_content:
     preview:
-        label: 'Event preview and references'
+        label: 'Preview and connections'
         load: 'Load event preview'
         unavailable: 'The original event is unavailable locally. Editing and other actions remain available.'
         references: 'Event references'
@@ -1058,7 +1095,7 @@ my_content:
         empty: 'No event references.'
     eyebrow: 'Newsroom'
     title: 'My Content'
-    description: 'Draft, publish, and organize your work from one focused publishing desk.'
+    description: 'Write, revise, and manage your articles and drafts.'
     untitled: 'Untitled'
     no_identifier: 'No identifier'
     results_count: '%count% results'
@@ -1689,7 +1726,7 @@ reading_nook:
         follow_packs: 'Follow packs'
         drives: 'Drives'
     title: 'Reading Nook'
-    subtitle: 'Search and filter your own collections in one place.'
+    subtitle: 'Your saved collections and subscriptions.'
     create_article: 'New article'
     empty: 'No items match the current filters.'
     results_count: '%count% items'

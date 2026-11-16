@@ -1,4 +1,26 @@
+{% set author = presentation.authorNpub is not null and presentation.authorNpub|trim is not same as('') ? presentation.authorNpub : presentation.authorPubkey %}
+{% set typeLabels = {
+    20: 'my_content.type.pictures',
+    21: 'my_content.type.videos',
+    22: 'my_content.type.videos',
+    10003: 'reading_nook.section.bookmarks',
+    30003: 'reading_nook.section.bookmarks',
+    30004: 'my_content.type.articles_notes',
+    30005: 'my_content.type.videos',
+    30006: 'my_content.type.pictures',
+    30023: 'nav.article',
+    30024: 'my_content.status.draft',
+    30040: 'heading.index',
+    39089: 'followPacks.type'
+} %}
 <div class="event-preview">
+    <p class="event-preview__type">
+        {% if typeLabels[presentation.kind] is defined %}
+            {{ typeLabels[presentation.kind]|trans|e }}
+        {% else %}
+            {{ 'event_workspace.preview.kind'|trans({'%kind%': presentation.kind})|e }}
+        {% endif %}
+    </p>
     {% if presentation.isSensitive or presentation.hasContentWarning %}
         <p class="event-preview__sensitive">{{ 'event_workspace.preview.sensitive'|trans|e }}</p>
     {% else %}
@@ -9,30 +31,41 @@
                 {{ presentation.title|e }}
             {% endif %}
         </p>
-        {% if presentation.description is not null %}
-            <p class="event-preview__description break-word">{{ presentation.description|e }}</p>
-        {% endif %}
     {% endif %}
 
-    <p class="event-preview__kind">{{ 'event_workspace.preview.kind'|trans({'%kind%': presentation.kind})|e }}</p>
-    <dl>
-        <dt>{{ 'event_workspace.preview.id'|trans|e }}</dt>
-        <dd class="event-preview__id break-word">
-            {% if presentation.eventId|trim is same as('') %}
+    <p class="event-preview__byline">
+        <span>{{ 'text.byline'|trans|e }}</span>
+        <span class="event-preview__author-short">
+            {% if author|trim is same as('') %}
                 {{ 'text.unknown'|trans|e }}
+            {% elseif author|length > 24 %}
+                {{ author|slice(0, 12)|e }}…{{ author|slice(-6)|e }}
             {% else %}
-                {{ presentation.eventId|e }}
+                {{ author|e }}
             {% endif %}
-        </dd>
-        <dt>{{ 'event_workspace.preview.author'|trans|e }}</dt>
-        <dd class="event-preview__author break-word">
-            {% if presentation.authorNpub is not null and presentation.authorNpub|trim is not same as('') %}
-                {{ presentation.authorNpub|e }}
-            {% elseif presentation.authorPubkey|trim is not same as('') %}
-                {{ presentation.authorPubkey|e }}
-            {% else %}
-                {{ 'text.unknown'|trans|e }}
-            {% endif %}
-        </dd>
-    </dl>
+        </span>
+    </p>
+
+    {% if not presentation.isSensitive and not presentation.hasContentWarning and presentation.description is not null %}
+        <p class="event-preview__description break-word">{{ presentation.description|e }}</p>
+    {% endif %}
+
+    <details class="event-preview__details">
+        <summary>{{ 'event.details'|trans|e }}</summary>
+        <p class="event-preview__kind">{{ 'event_workspace.preview.kind'|trans({'%kind%': presentation.kind})|e }}</p>
+        <dl>
+            <dt>{{ 'event_workspace.preview.id'|trans|e }}</dt>
+            <dd class="event-preview__id break-word">
+                {% if presentation.eventId|trim is same as('') %}
+                    {{ 'text.unknown'|trans|e }}
+                {% else %}
+                    {{ presentation.eventId|e }}
+                {% endif %}
+            </dd>
+            <dt>{{ 'event_workspace.preview.author'|trans|e }}</dt>
+            <dd class="event-preview__author break-word">
+                {{ author|trim is same as('') ? 'text.unknown'|trans|e : author|e }}
+            </dd>
+        </dl>
+    </details>
 </div>
