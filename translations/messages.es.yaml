@@ -19,6 +19,13 @@ content_stream:
     page: 'Página %page% de %pages%'
     open_media: 'Abrir multimedia'
     untitled: 'Colección sin título'
+    people:
+        eyebrow: 'De nuestro paquete destacado'
+        eyebrow_personal: 'De tu paquete seleccionado'
+        title: 'Descubre escritores'
+        previous: 'Escritores anteriores'
+        next: 'Más escritores'
+        view_pack: 'Explorar el paquete'
     type:
         article: 'Artículo'
         draft: 'Borrador · solo tú'

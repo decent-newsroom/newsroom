@@ -33,10 +33,18 @@
                 {% include 'content_stream/_collection.html.twig' %}
             {% endif %}
         </div>
+        {% if feedBreaks[loop.index] is defined %}
+            <twig:Organisms:FeaturedWritersCarousel :members="feedBreaks[loop.index]"
+                :packNpub="featuredPeople.packNpub" :packDtag="featuredPeople.packDtag" :personal="featuredPeople.personal" :breakId="loop.index" />
+        {% endif %}
     {% else %}
         <div class="stream-empty">
             <h2>{{ 'content_stream.empty_title'|trans }}</h2>
             <p>{{ 'content_stream.empty_description'|trans }}</p>
         </div>
+        {% if feedBreaks[0] is defined %}
+            <twig:Organisms:FeaturedWritersCarousel :members="feedBreaks[0]"
+                :packNpub="featuredPeople.packNpub" :packDtag="featuredPeople.packDtag" :personal="featuredPeople.personal" :breakId="0" />
+        {% endif %}
     {% endfor %}
 </div>

@@ -21,6 +21,7 @@ use App\Service\BooksChapterLookup;
 use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\FollowPackService;
 use App\Service\Graph\GraphMagazineListService;
 use App\Service\Magazine\MagazineStructureService;
 use App\Service\Magazine\PublicationIndexClassifier;
@@ -489,7 +490,7 @@ class DefaultController extends AbstractController
      * Follow Pack view page — shows cover image, member list, and latest articles.
      * @throws InvalidArgumentException
      */
-    #[Route('/follow-pack/{npub}/{dtag}', name: 'follow_pack_view', requirements: ['npub' => 'npub1[a-z0-9]+'])]
+    #[Route('/follow-pack/{npub}/{dtag}', name: 'follow_pack_view', requirements: ['npub' => 'npub1[a-z0-9]+', 'dtag' => '.+'])]
     public function followPackView(
         string $npub,
         string $dtag,
@@ -499,6 +500,7 @@ class DefaultController extends AbstractController
         ArticleRepository $articleRepository,
         MessageBusInterface $messageBus,
         ContentAuthorAccessPolicy $authorAccess,
+        FollowPackService $followPackService,
     ): Response
     {
         try {
@@ -519,7 +521,7 @@ class DefaultController extends AbstractController
         $title = '';
         $image = null;
         $description = null;
-        $memberPubkeys = [];
+        $memberPubkeys = $followPackService->getMemberPubkeys($packEvent);
 
         foreach ($packEvent->getTags() as $tag) {
             $key = $tag[0] ?? '';
@@ -529,12 +531,9 @@ class DefaultController extends AbstractController
                 'picture' => $image ??= $tag[1] ?? null,
                 'description' => $description = $tag[1] ?? null,
                 'about' => $description ??= $tag[1] ?? null,
-                'p' => $memberPubkeys[] = $tag[1] ?? '',
                 default => null,
             };
         }
-
-        $memberPubkeys = array_filter(array_unique($memberPubkeys));
 
         // Resolve member profiles
         $nip19 = new NostrNip19Service();

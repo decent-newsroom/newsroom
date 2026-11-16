@@ -27,6 +27,7 @@ use App\Service\Nostr\NostrKeyService;
 use App\Service\Reader\ContentStreamBuilder;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\FeaturedWritersFeed;
+use App\Service\Reader\FeaturedWritersRecommendations;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
@@ -59,6 +60,7 @@ class HomeFeedController extends AbstractController
         ContentSearchService $contentSearch,
         HighlightFeedService $highlightFeed,
         FeaturedWritersFeed $featuredWriters,
+        FeaturedWritersRecommendations $recommendations,
         ContentStreamBuilder $streamBuilder,
         ContentAuthorAccessPolicy $authorAccess,
     ): Response {
@@ -85,6 +87,7 @@ class HomeFeedController extends AbstractController
                 : ($item instanceof Article ? $item->getPubkey() : (is_array($item) ? ($item['pubkey'] ?? '') : ($item->pubkey ?? '')));
         }
         $excluded = array_merge($authorAccess->suppressedPubkeys($pubkeys), $exclusionPolicy->getAllExcludedPubkeys());
+        $reader = null;
         if ($this->getUser() !== null) {
             $reader = (new NostrKeyService())->convertToHex($this->getUser()->getUserIdentifier());
             $excluded = array_merge($excluded, $userMuteListService->getMutedPubkeysStrict($reader));
@@ -99,9 +102,19 @@ class HomeFeedController extends AbstractController
         $pager = new Pagerfanta(new ArrayAdapter($rows));
         $pager->setMaxPerPage(20);
         $pager->setCurrentPage(min(max(1, $request->query->getInt('page', 1)), max(1, $pager->getNbPages())));
+        $pageRows = iterator_to_array($pager->getCurrentPageResults());
+        $user = $this->getUser();
+        $featuredPeople = $recommendations->load(
+            $pager->getCurrentPage(),
+            array_keys($excluded),
+            $reader,
+            $user instanceof User ? $user->getFollowPackCoordinate() : null,
+        );
 
         $response = $this->render('home/_stream.html.twig', [
-            'rows' => iterator_to_array($pager->getCurrentPageResults()),
+            'rows' => $pageRows,
+            'featuredPeople' => $featuredPeople,
+            'feedBreaks' => $recommendations->positionBreaks($featuredPeople['members'] ?? [], count($pageRows)),
             'pager' => $pager,
             'authorsMetadata' => array_replace($latest['authorsMetadata'], $featured['authorsMetadata'], $articles['authorsMetadata'], $pack['authorsMetadata']),
             'sourceLabels' => $articles['sourceLabels'],

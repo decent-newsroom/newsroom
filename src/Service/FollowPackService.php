@@ -80,11 +80,20 @@ class FollowPackService
             return [];
         }
 
-        // Extract 'p' tags
+        return $this->getMemberPubkeys($matchingEvent);
+    }
+
+    /** @return list<string> */
+    public function getMemberPubkeys(Event $event): array
+    {
         $pubkeys = [];
-        foreach ($matchingEvent->getTags() as $tag) {
+        foreach ($event->getTags() as $tag) {
             if (is_array($tag) && count($tag) >= 2 && $tag[0] === 'p') {
-                $pubkeys[] = $tag[1];
+                if (!is_string($tag[1]) || preg_match('/^[0-9a-f]{64}$/i', $tag[1]) !== 1) {
+                    $this->logger->warning('Invalid member pubkey in follow pack.');
+                    continue;
+                }
+                $pubkeys[] = strtolower($tag[1]);
             }
         }
 
@@ -237,4 +246,3 @@ class FollowPackService
         );
     }
 }
-

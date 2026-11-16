@@ -19,6 +19,13 @@ content_stream:
     page: 'Pagina %page% di %pages%'
     open_media: 'Apri contenuto multimediale'
     untitled: 'Raccolta senza titolo'
+    people:
+        eyebrow: 'Dal nostro pacchetto in evidenza'
+        eyebrow_personal: 'Dal tuo pacchetto selezionato'
+        title: 'Autori da scoprire'
+        previous: 'Autori precedenti'
+        next: 'Autori successivi'
+        view_pack: 'Esplora il pacchetto'
     type:
         article: 'Articolo'
         draft: 'Bozza · solo tu'

@@ -1,0 +1,41 @@
+{% if members is not empty %}
+    <section {{ attributes.defaults({class: 'featured-people'}) }}
+             aria-labelledby="featured-people-heading-{{ breakId }}"
+             data-controller="ui--carousel">
+        <div class="featured-people__heading">
+            <div>
+                <p class="eyebrow">{{ (personal ? 'content_stream.people.eyebrow_personal' : 'content_stream.people.eyebrow')|trans }}</p>
+                <h2 id="featured-people-heading-{{ breakId }}">{{ 'content_stream.people.title'|trans }}</h2>
+            </div>
+            <div class="featured-people__controls">
+                <button type="button" class="btn btn-secondary" hidden
+                        data-ui--carousel-target="previous" data-action="ui--carousel#previous"
+                        aria-label="{{ 'content_stream.people.previous'|trans }}">&#8592;</button>
+                <button type="button" class="btn btn-secondary" hidden
+                        data-ui--carousel-target="next" data-action="ui--carousel#next"
+                        aria-label="{{ 'content_stream.people.next'|trans }}">&#8594;</button>
+            </div>
+        </div>
+        <ul class="featured-people__track" data-ui--carousel-target="track"
+            tabindex="0" aria-label="{{ 'content_stream.people.title'|trans }}">
+            {% for member in members %}
+                {% set profile = member.metadata %}
+                <li class="featured-people__slide">
+                    <a class="featured-people__card" href="{{ path('author-profile', {npub: member.npub}) }}" data-turbo-frame="_top">
+                        {% if profile.picture %}
+                            <img class="featured-people__avatar" src="{{ profile.picture }}" alt="" width="56" height="56" loading="lazy" decoding="async">
+                        {% else %}
+                            <span class="featured-people__avatar featured-people__avatar--placeholder" aria-hidden="true">
+                                <twig:ux:icon name="iconoir:user" class="icon" />
+                            </span>
+                        {% endif %}
+                        <span class="featured-people__name">{{ profile.displayName ?: (profile.name ?: member.npub|shortenNpub) }}</span>
+                        {% if profile.nip05 is not empty %}<span class="featured-people__identity">{{ profile.nip05|first }}</span>{% endif %}
+                        {% if profile.about %}<span class="featured-people__about">{{ profile.about|length > 120 ? profile.about|slice(0, 120) ~ '…' : profile.about }}</span>{% endif %}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+        <a class="featured-people__pack" href="{{ path('follow_pack_view', {npub: packNpub, dtag: packDtag}) }}" data-turbo-frame="_top">{{ 'content_stream.people.view_pack'|trans }}</a>
+    </section>
+{% endif %}

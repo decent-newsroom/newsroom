@@ -31,6 +31,42 @@ labels survive deduplication. Equal-date rows use an identity tie-breaker.
 Legacy collection snapshots without dates sort last instead of appearing new.
 Local update records remain distinct notification rows.
 
+The home stream also inserts featured-writer profile carousels as feed breaks.
+They use the locally stored follow pack configured for the `ESSAYIST_WRITERS`
+purpose (the same featured pack as Essayist), for visitors and signed-in
+readers alike. If no site pack is configured, signed-in readers see members
+of their own selected pack instead, labeled accordingly; that pack continues
+to supply articles separately. Cards link to profiles and the originating pack, and do not follow
+anyone or alter a kind-3 list. Missing or empty packs produce no break.
+Suppressed, muted, excluded and current-reader profiles are omitted. Pack order
+is preserved, up to 24 profiles are displayed per page, and larger packs rotate
+their starting point on subsequent pages. Metadata is resolved in a bounded
+batch through the existing cache with asynchronous refresh on misses.
+The source is the `follow_pack_source` row with purpose `essayist_writers`;
+its `39089:<author hex>:<d-tag>` coordinate must refer to a follow-pack event
+already stored locally. There is currently no source-configuration UI. Without
+that row, visitors see no suggestions; signed-in readers need a locally stored
+selected pack. A configured site pack without a local event produces no break.
+An operator can configure the existing site source with a database upsert,
+substituting the coordinate of the intended locally stored public pack:
+
+```sql
+INSERT INTO follow_pack_source (purpose, coordinate, created_at, updated_at)
+VALUES ('essayist_writers', '39089:<author hex>:<d-tag>', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (purpose) DO UPDATE
+SET coordinate = EXCLUDED.coordinate, updated_at = EXCLUDED.updated_at;
+```
+
+This also changes the featured pack on the Essayist home page. Readers can
+choose their own fallback pack at `/settings/follow-pack`.
+
+Recommendations are inserted after five and, when there are enough entries and
+profiles, fifteen content rows; short or empty streams still show one carousel.
+They do not consume pagination slots or affect content ordering. Carousel
+navigation supports touch, keyboard and buttons; if the carousel controller is
+unavailable, its profile links remain horizontally scrollable. The home feed
+itself is loaded via Turbo.
+
 Both streams paginate the merged results at 20 rows per page, not one page per
 content type. Existing source bounds still apply: for example personalized
 articles 60, selected-pack articles 50, activity 60, updates 50, author articles

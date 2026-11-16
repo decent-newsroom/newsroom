@@ -19,6 +19,13 @@ content_stream:
     page: 'Page %page% sur %pages%'
     open_media: 'Ouvrir le média'
     untitled: 'Collection sans titre'
+    people:
+        eyebrow: 'De notre pack mis en avant'
+        eyebrow_personal: 'De votre pack sélectionné'
+        title: 'Des auteurs à découvrir'
+        previous: 'Auteurs précédents'
+        next: 'Auteurs suivants'
+        view_pack: 'Explorer le pack'
     type:
         article: 'Article'
         draft: 'Brouillon · vous uniquement'

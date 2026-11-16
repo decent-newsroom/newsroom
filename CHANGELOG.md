@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Feature] Show featured follow-pack writers as profile-card carousels between home stream entries.
 - [Feature] Unified public and signed-in home discovery and author profiles into paginated mixed-content streams without tabs, with stable workspace navigation and editorial shared previews.
 - [Improvement] Applied pending Rector cleanups across PHP application and test code.
 - [Fix] Prevent viewer-specific workspace pages and drive event views from being restored from stale Turbo snapshots after access changes.

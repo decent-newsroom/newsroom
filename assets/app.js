@@ -37,6 +37,7 @@ import './styles/03-components/a2hs.css';
 import './styles/03-components/og.css';
 import './styles/03-components/nostr-previews.css';
 import './styles/03-components/event-preview.css';
+import './styles/03-components/featured-people.css';
 import './styles/reading-lists.css';
 import './styles/03-components/nip05-badge.css';
 import './styles/03-components/picture-event.css';

@@ -1,0 +1,101 @@
+.featured-people {
+    min-width: 0;
+    padding-block: var(--spacing-5);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.featured-people__heading,
+.featured-people__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.featured-people__heading {
+    justify-content: space-between;
+    margin-bottom: var(--spacing-3);
+}
+
+.featured-people__heading h2,
+.featured-people__heading p {
+    margin: 0;
+}
+
+.featured-people__controls button {
+    min-width: 44px;
+    padding: var(--spacing-2);
+}
+
+.featured-people__controls button[hidden] {
+    display: none;
+}
+
+.featured-people__track {
+    display: flex;
+    gap: var(--spacing-3);
+    overflow-x: auto;
+    margin: 0;
+    padding: 2px 2px var(--spacing-3);
+    list-style: none;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 2px;
+    overscroll-behavior-inline: contain;
+}
+
+.featured-people__slide {
+    flex: 0 0 min(16rem, 85%);
+    min-width: 0;
+    scroll-snap-align: start;
+}
+
+.featured-people__card {
+    display: flex;
+    height: 100%;
+    min-height: 12rem;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3);
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.featured-people__card:hover {
+    border-color: var(--color-primary);
+}
+
+.featured-people__avatar {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+}
+
+.featured-people__avatar--placeholder {
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--color-border-strong);
+}
+
+.featured-people__name {
+    font-weight: 700;
+}
+
+.featured-people__identity,
+.featured-people__about {
+    color: var(--color-text-mid);
+    font-size: 0.875rem;
+}
+
+.featured-people__pack {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    text-underline-offset: 0.25em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .featured-people__track {
+        scroll-behavior: smooth;
+    }
+}

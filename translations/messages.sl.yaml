@@ -19,6 +19,13 @@ content_stream:
     page: 'Stran %page% od %pages%'
     open_media: 'Odpri predstavnost'
     untitled: 'Zbirka brez naslova'
+    people:
+        eyebrow: 'Iz našega izpostavljenega paketa'
+        eyebrow_personal: 'Iz vašega izbranega paketa'
+        title: 'Odkrijte avtorje'
+        previous: 'Prejšnji avtorji'
+        next: 'Naslednji avtorji'
+        view_pack: 'Raziščite paket avtorjev'
     type:
         article: 'Članek'
         draft: 'Osnutek · samo vi'

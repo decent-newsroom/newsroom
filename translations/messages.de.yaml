@@ -19,6 +19,13 @@ content_stream:
     page: 'Seite %page% von %pages%'
     open_media: 'Medien öffnen'
     untitled: 'Unbenannte Sammlung'
+    people:
+        eyebrow: 'Aus unserem vorgestellten Follow-Pack'
+        eyebrow_personal: 'Aus deinem ausgewählten Follow-Pack'
+        title: 'Autorinnen und Autoren entdecken'
+        previous: 'Vorherige Autoren'
+        next: 'Weitere Autoren'
+        view_pack: 'Follow-Pack entdecken'
     type:
         article: 'Artikel'
         draft: 'Entwurf · nur für dich'

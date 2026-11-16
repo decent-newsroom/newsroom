@@ -19,6 +19,13 @@ content_stream:
     page: 'Page %page% of %pages%'
     open_media: 'Open media'
     untitled: 'Untitled collection'
+    people:
+        eyebrow: 'From our featured follow pack'
+        eyebrow_personal: 'From your selected follow pack'
+        title: 'Writers to discover'
+        previous: 'Previous writers'
+        next: 'Next writers'
+        view_pack: 'Explore the follow pack'
     type:
         article: 'Article'
         draft: 'Draft · only you'
