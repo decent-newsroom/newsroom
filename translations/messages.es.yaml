@@ -1,4 +1,14 @@
 # ── General ────────────────────────────────────────────────────────
+admin_mcp:
+    title: 'Estadísticas de MCP'
+    note: 'Hoy y los seis días UTC anteriores. Solicitudes atribuidas a las API de artículos y libros, no sesiones MCP ni usuarios únicos. Las lecturas de recursos comparten los nombres de las operaciones de herramientas. Los errores incluyen HTTP 400 y superiores.'
+    unavailable: 'Las estadísticas de MCP no están disponibles. Consulta los registros de la aplicación.'
+    empty: 'No se han registrado solicitudes a la API de MCP en este periodo. La recopilación comienza tras desplegar la aplicación y el servicio MCP con soporte de estadísticas.'
+    requests: 'Solicitudes a la API'
+    errors: 'Errores HTTP'
+    latency: 'Respuesta media del servidor (ms)'
+    operations: 'Operaciones populares'
+    operation: 'Operación'
 content_stream:
     tagline: 'Lee, colecciona y publica en Nostr.'
     headline: 'Sigue las buenas ideas más lejos.'

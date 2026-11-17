@@ -1,4 +1,14 @@
 # ── General / shared ─────────────────────────────────────────────
+admin_mcp:
+    title: 'MCP analytics'
+    note: 'Today and the previous six UTC days. Attributed article and book API requests, not MCP sessions or unique users. Resource reads share tool operation names. Errors include HTTP 400 and above.'
+    unavailable: 'MCP analytics are unavailable. Check the application logs.'
+    empty: 'No MCP API requests recorded in this window. Collection starts after the app and MCP service are deployed with analytics support.'
+    requests: 'API requests'
+    errors: 'HTTP errors'
+    latency: 'Average server response (ms)'
+    operations: 'Popular operations'
+    operation: 'Operation'
 content_stream:
     tagline: 'Read, collect, and publish on Nostr.'
     headline: 'Follow good ideas further.'

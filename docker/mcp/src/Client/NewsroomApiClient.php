@@ -136,6 +136,7 @@ class NewsroomApiClient
                 'query' => $query,
                 'headers' => [
                     'X-Internal-Token' => $this->internalToken,
+                    'X-Newsroom-Client' => 'mcp',
                     'Accept' => 'application/json',
                 ],
             ]);

@@ -1,4 +1,14 @@
 # ── Splošno ────────────────────────────────────────────────────────
+admin_mcp:
+    title: 'Analitika MCP'
+    note: 'Danes in prejšnjih šest dni po UTC. Pripisane zahteve API za članke in knjige, ne seje MCP ali edinstveni uporabniki. Branje virov uporablja ista imena operacij kot orodja. Napake vključujejo HTTP 400 in višje.'
+    unavailable: 'Analitika MCP ni na voljo. Preverite dnevnike aplikacije.'
+    empty: 'V tem obdobju ni zabeleženih zahtev API MCP. Zbiranje se začne po namestitvi aplikacije in storitve MCP s podporo za analitiko.'
+    requests: 'Zahteve API'
+    errors: 'Napake HTTP'
+    latency: 'Povprečni odziv strežnika (ms)'
+    operations: 'Priljubljene operacije'
+    operation: 'Operacija'
 content_stream:
     tagline: 'Berite, zbirajte in objavljajte na Nostru.'
     headline: 'Sledite dobrim idejam dlje.'

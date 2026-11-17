@@ -1,0 +1,47 @@
+<section class="metric-section">
+    <h2>{{ 'admin_mcp.title'|trans }}</h2>
+    <p class="analytics-note">{{ 'admin_mcp.note'|trans }}</p>
+    {% if snapshot.error|default(false) %}
+        <div class="notice error">{{ 'admin_mcp.unavailable'|trans }}</div>
+    {% elseif snapshot.requests == 0 %}
+        <p>{{ 'admin_mcp.empty'|trans }}</p>
+    {% else %}
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">{{ snapshot.requests|number_format }}</div>
+                <div class="metric-label">{{ 'admin_mcp.requests'|trans }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ snapshot.errors|number_format }}</div>
+                <div class="metric-label">{{ 'admin_mcp.errors'|trans }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ snapshot.average_ms|number_format(1) }}</div>
+                <div class="metric-label">{{ 'admin_mcp.latency'|trans }}</div>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <h3>{{ 'admin_mcp.operations'|trans }}</h3>
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'admin_mcp.operation'|trans }}</th>
+                        <th>{{ 'admin_mcp.requests'|trans }}</th>
+                        <th>{{ 'admin_mcp.errors'|trans }}</th>
+                        <th>{{ 'admin_mcp.latency'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for operation in snapshot.operations %}
+                        <tr>
+                            <td><code>{{ operation.operation }}</code></td>
+                            <td>{{ operation.requests|number_format }}</td>
+                            <td>{{ operation.errors|number_format }}</td>
+                            <td>{{ operation.average_ms|number_format(1) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>

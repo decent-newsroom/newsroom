@@ -24,8 +24,8 @@ APIs on the newsroom app, so the two can be developed and deployed independently
 | `mcp` → newsroom app | `INTERNAL_API_TOKEN` (`X-Internal-Token`) | `App\EventSubscriber\InternalApiTokenSubscriber` (fails closed) |
 
 The MCP HTTP endpoint is public. The stdio transport has no network surface;
-both transports use the internal-API token only for MCP-to-newsroom article
-requests.
+both transports use the internal-API token for MCP-to-newsroom requests.
+The Books API remains public; its token is used only to attribute MCP analytics.
 
 ## Internal API contract (newsroom app)
 
@@ -113,6 +113,34 @@ The MCP service writes stderr log entries when an upstream request starts and
 when it completes, including the service, method, path, HTTP status, and duration.
 Failures include the exception details. The internal token and response bodies are
 never logged, so inspect the service with `docker compose logs -f mcp`.
+
+### Admin dashboard analytics
+
+The admin dashboard includes MCP usage for **today and the previous six UTC
+calendar days**. It shows API requests, HTTP errors (400 and above, including
+404), request-weighted average server response time in milliseconds, and
+operations ranked by request count.
+
+Both MCP clients attach `X-Newsroom-Client: mcp` and `X-Internal-Token`.
+`McpAnalyticsSubscriber` verifies the token and records only the nine supported
+article/book operations. Public Books API requests without the matching token
+and marker, ordinary web visits, and subrequests are not counted. Operation names
+match tool names for readability, but resource reads share `get_article` and
+`get_book`; these are **upstream API requests, not protocol tool-call counts**.
+
+`McpAnalytics` stores atomic daily aggregates in Redis hashes
+`mcp_analytics:v1:YYYY-MM-DD`, with an eight-day expiry. No request bodies,
+queries, article IDs, IPs, tokens, or client identities are stored. No migration
+or new environment variable is needed. Redis failures are logged and shown as
+unavailable rather than zero traffic; analytics write failures do not break API
+responses.
+
+Collection starts after deploying **both the newsroom app and the rebuilt MCP
+image**. There is no historical backfill. The empty state is normal before the
+first attributed request. Redis eviction/reset loses the aggregates. Timing
+covers Symfony request handling, not network transit or MCP processing.
+Connection failures that never reach Symfony, MCP handshakes, tool discovery,
+sessions, and unique users are not measured.
 
 See `docker/mcp/.env.example`. On the newsroom side, set the matching `INTERNAL_API_TOKEN`
 (already wired into `config/services.yaml` as `internal_api.token`).

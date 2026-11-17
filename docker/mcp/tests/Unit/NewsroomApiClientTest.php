@@ -28,6 +28,7 @@ final class NewsroomApiClientTest extends TestCase
         self::assertStringContainsString('/internal/api/articles/search', $captured['url']);
         self::assertStringContainsString('q=nostr', urldecode($captured['url']));
         self::assertContains('X-Internal-Token: secret-token', $captured['options']['headers']);
+        self::assertContains('X-Newsroom-Client: mcp', $captured['options']['headers']);
     }
 
     public function testGetArticleReturnsResultObject(): void

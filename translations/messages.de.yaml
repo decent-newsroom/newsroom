@@ -1,4 +1,14 @@
 # ── Allgemein ──────────────────────────────────────────────────────
+admin_mcp:
+    title: 'MCP-Analysen'
+    note: 'Heute und die letzten sechs UTC-Tage. Zugeordnete Artikel- und Buch-API-Anfragen, keine MCP-Sitzungen oder einzelnen Nutzer. Ressourcenabrufe teilen die Operationsnamen der Tools. Fehler umfassen HTTP 400 und höher.'
+    unavailable: 'MCP-Analysen sind nicht verfügbar. Prüfen Sie die Anwendungsprotokolle.'
+    empty: 'In diesem Zeitraum wurden keine MCP-API-Anfragen erfasst. Die Erfassung beginnt nach der Bereitstellung von App und MCP-Dienst mit Analyseunterstützung.'
+    requests: 'API-Anfragen'
+    errors: 'HTTP-Fehler'
+    latency: 'Mittlere Serverantwortzeit (ms)'
+    operations: 'Beliebte Operationen'
+    operation: 'Operation'
 content_stream:
     tagline: 'Lesen, sammeln und veröffentlichen auf Nostr.'
     headline: 'Guten Ideen weiter folgen.'

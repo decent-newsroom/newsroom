@@ -19,6 +19,7 @@ class BooksApiClient
         private readonly HttpClientInterface $http,
         private readonly string $baseUrl,
         ?LoggerInterface $logger = null,
+        private readonly string $internalToken = '',
     ) {
         $this->logger = $logger ?? new NullLogger();
     }
@@ -83,7 +84,11 @@ class BooksApiClient
 
         try {
             $options = [
-                'headers' => ['Accept' => 'application/json'],
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'X-Newsroom-Client' => 'mcp',
+                    'X-Internal-Token' => $this->internalToken,
+                ],
             ];
             if ($payload !== null) {
                 $options['json'] = $payload;

@@ -42,6 +42,7 @@ final class ServerFactory
             HttpClient::create(['timeout' => 15]),
             $baseUrl,
             $logger,
+            $internalToken,
         );
 
         $container = new ArrayContainer([

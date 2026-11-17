@@ -20,12 +20,14 @@ final class BooksApiClientTest extends TestCase
             return new MockResponse(json_encode([['id' => 'book-id', 'kind' => 30040]]));
         });
 
-        $client = new BooksApiClient($http, 'http://php');
+        $client = new BooksApiClient($http, 'http://php', internalToken: 'secret-token');
         $books = $client->searchPublications(['q' => 'Republic', 'limit' => 5]);
 
         self::assertSame([['id' => 'book-id', 'kind' => 30040]], $books);
         self::assertSame('POST', $captured['method']);
         self::assertStringEndsWith('/books/api/publications/search', $captured['url']);
+        self::assertContains('X-Newsroom-Client: mcp', $captured['options']['headers']);
+        self::assertContains('X-Internal-Token: secret-token', $captured['options']['headers']);
     }
 
     public function testGetBookReturnsNullOn404(): void

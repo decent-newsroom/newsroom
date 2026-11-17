@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Service\Admin\AdminDashboardService;
+use App\Service\Admin\McpAnalytics;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,12 +21,13 @@ class AdminDashboardController extends AbstractController
     }
 
     #[Route('', name: 'dashboard')]
-    public function index(): Response
+    public function index(McpAnalytics $mcpAnalytics): Response
     {
         $metrics = $this->dashboardService->getDashboardMetrics();
 
         return $this->render('admin/dashboard.html.twig', [
             'metrics' => $metrics,
+            'mcp' => $mcpAnalytics->snapshot(),
         ]);
     }
 

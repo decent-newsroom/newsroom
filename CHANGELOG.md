@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Feature] Show privacy-safe MCP article and book API usage, errors, latency, and popular operations on the admin dashboard.
 - [Feature] Make Bookshelf an Android ereader promo page with app downloads, an optional six-book directory-curated selection, and web search below.
 - [Fix] Hide highlights with locally unavailable sources from signed-out readers across feeds, article frames, and event pages without changing signed-in behavior.
 - [Improvement] Show readable local article and index titles and summaries instead of reference identifiers in Bookshelf tables of contents.

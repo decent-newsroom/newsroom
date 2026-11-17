@@ -26,6 +26,7 @@
     {% endfor %}
 
     {% include 'admin/_visit_snapshot.html.twig' with {snapshot: metrics.visits} only %}
+    {% include 'admin/_mcp_snapshot.html.twig' with {snapshot: mcp} only %}
 
     <!-- Navigation Grid -->
     <section class="metric-section">
