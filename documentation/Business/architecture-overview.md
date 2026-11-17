@@ -5,7 +5,7 @@ The running application has several independent subscription and membership feat
 | Feature | Current purpose |
 |---|---|
 | [Vanity names](vanity-names.md) | Paid NIP-05 identity and profile aliases. |
-| Updates Pro | Paid access to more update sources and NIP-51 set subscriptions. |
+| [Local subscriptions](../Reader/subscriptions.md) | Free profile, magazine, list, and follow-pack subscriptions with a change-aware feed. Updates Pro is retired; historical payments and receipt settlement remain. |
 | [Publication subdomains](publication-subdomain.md) | Paid hosting and local Unfold site setup. |
 | [Essayist](../Essayist/essayist.md) | Member contributions, reading access, and membership relay authentication. |
 | [Visitor analytics](visitor-analytics.md) | Operator traffic reporting. |

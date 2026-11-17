@@ -11,10 +11,8 @@ use App\Service\Nostr\NostrNip19Service;
 
 /**
  * Turns a notified {@see Event} into display-safe title / summary / URL for a
- * {@see \App\Entity\Update} row and its Mercure toast payload.
- *
- * Keeps only the fields that are safe to render in a cross-user toast — no
- * raw event body, no profile data beyond the author pubkey.
+ * {@see \App\Entity\Update} row. The feed authorizes these fields before display;
+ * Mercure carries a metadata-free activity signal instead.
  */
 class UpdateRenderer
 {
@@ -31,7 +29,7 @@ class UpdateRenderer
         $title = $this->extractTag($event, 'title') ?? $this->extractTag($event, 'name');
         $summary = $this->extractTag($event, 'summary');
         if ($title === null || $title === '') {
-            $title = $this->extractTag($event, 'alt') ?? $this->fallbackTitle($event);
+            $title = $this->extractTag($event, 'alt');
         }
 
         return [
@@ -54,7 +52,7 @@ class UpdateRenderer
         }
 
         // Last-resort fallback when event id cannot be encoded.
-        return '/updates';
+        return '/subscriptions';
     }
 
     private function encodeNaddr(Event $event): ?string
@@ -94,18 +92,11 @@ class UpdateRenderer
         }
     }
 
-    private function fallbackTitle(Event $event): string
-    {
-        return match ($event->getKind()) {
-            KindsEnum::LONGFORM->value => 'New article',
-            KindsEnum::PUBLICATION_INDEX->value => 'New publication',
-            default => 'New event',
-        };
-    }
-
     private function extractTag(Event $event, string $name): ?string
     {
-        foreach ($event->getTags() as $tag) {
+        /** @var array<array-key, mixed> $tags */
+        $tags = $event->getTags();
+        foreach ($tags as $tag) {
             if (is_array($tag) && ($tag[0] ?? null) === $name && isset($tag[1]) && is_string($tag[1])) {
                 $value = trim($tag[1]);
                 if ($value !== '') {

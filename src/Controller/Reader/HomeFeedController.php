@@ -29,6 +29,7 @@ use App\Service\Reader\PublicationIndexStream;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\FeaturedWritersFeed;
 use App\Service\Reader\FeaturedWritersRecommendations;
+use App\Service\Update\SubscriptionFeed;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
@@ -42,6 +43,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
+    public function __construct(private readonly SubscriptionFeed $subscriptionFeed) {}
+
     #[Route('/home/stream', name: 'home_feed_stream', methods: ['GET'], priority: 20)]
     public function contentStream(
         Request $request,
@@ -905,9 +908,7 @@ class HomeFeedController extends AbstractController
     }
 
     /**
-     * Updates feed tab: shows items from the user's update subscriptions (same data
-     * as the Updates page) without marking them as read/seen — that only happens
-     * when the user opens the full /updates page.
+     * The same authorized subscription items as /subscriptions, without changing read state.
      */
     private function subscriptionUpdatesData(
         UpdateRepository $updateRepository,
@@ -925,24 +926,7 @@ class HomeFeedController extends AbstractController
 
         $hasSubscriptions = $subscriptionRepository->countActiveForUser($user) > 0;
 
-        // Fetch recent updates using the same collapse logic as UpdatesController::index().
-        // We deliberately do NOT call markAllSeen / markAllRead here.
-        $raw = $updateRepository->findRecentForUser($user, 200);
-        $updates = [];
-        $seenPubkeys = [];
-        foreach ($raw as $update) {
-            if ($update->getEventKind() === 30023) {
-                $key = $update->getEventPubkey();
-                if (isset($seenPubkeys[$key])) {
-                    continue;
-                }
-                $seenPubkeys[$key] = true;
-            }
-            $updates[] = $update;
-            if (count($updates) >= 50) {
-                break;
-            }
-        }
+        $updates = $this->subscriptionFeed->page($user)['items'];
 
         return [
             'updates' => $updates,

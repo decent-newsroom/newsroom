@@ -49,17 +49,6 @@
                         data-copy="39089:{{ authorPubkey }}:{{ packDtag }}">
                     {{ 'followPackView.shareCoordinate'|trans }}
                 </button>
-                {% if app.user and app.user.userIdentifier != authorNpub %}
-                    <div class="dropdown-divider"></div>
-                    <form method="post" action="{{ path('updates_subscriptions_add') }}" class="m-0">
-                        <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
-                        <input type="hidden" name="identifier" value="{{ packEvent|naddrEncode }}" />
-                        <input type="hidden" name="redirect_to" value="{{ app.request.requestUri }}" />
-                        <button class="dropdown-item" type="submit">
-                            {{ 'updates.subscription.addSubmit'|trans }}
-                        </button>
-                    </form>
-                {% endif %}
             </div>
         </div>
 
@@ -72,6 +61,9 @@
         <section class="d-flex gap-3 center ln-section--newsstand mb-3">
             <div class="container mt-5">
                 <h1>{{ title }}</h1>
+                {% if app.user %}
+                    <twig:Molecules:SubscribeButton identifier="39089:{{ authorPubkey }}:{{ packDtag }}" />
+                {% endif %}
                 {% if description %}
                     <p class="eyebrow">{{ description }}</p>
                 {% endif %}
@@ -135,4 +127,3 @@
         </ul>
     </div>
 {% endblock %}
-

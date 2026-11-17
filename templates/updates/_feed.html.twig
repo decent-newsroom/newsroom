@@ -1,0 +1,4 @@
+{% include 'partial/_update_items.html.twig' %}
+{% if nextCursor %}
+    <a class="btn" href="{{ path('updates_index', {before: nextCursor}) }}" data-turbo-frame="_top">{{ 'subscription_feed.older'|trans }}</a>
+{% endif %}

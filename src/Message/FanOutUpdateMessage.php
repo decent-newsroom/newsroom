@@ -9,7 +9,7 @@ namespace App\Message;
  * update to users who subscribed to a matching source (npub, publication
  * coordinate, or NIP-51 set).
  *
- * v1 notified kinds: 30023 (longform) and 30040 (publication index).
+ * Shared local change records determine which revisions need delivery.
  */
 final class FanOutUpdateMessage
 {
@@ -23,4 +23,3 @@ final class FanOutUpdateMessage
         return $this->eventId;
     }
 }
-

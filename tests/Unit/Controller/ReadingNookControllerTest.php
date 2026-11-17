@@ -275,7 +275,7 @@ final class ReadingNookControllerTest extends TestCase
             $items['Reading queue']['url'],
         );
         self::assertSame('/read_wizard_articles?load=reading', $items['Reading queue']['manageUrl']);
-        self::assertSame('/updates_subscriptions', $items['Saved updates']['url']);
+        self::assertSame('/updates_index', $items['Saved updates']['url']);
         self::assertSame('/updates_subscriptions', $items['Saved updates']['manageUrl']);
         self::assertSame('rust', $parameters['allTags'][0]);
     }

@@ -54,6 +54,10 @@
         <p class="event-preview__description break-word">{{ presentation.description|e }}</p>
     {% endif %}
 
+    {% if app.user and not presentation.isSensitive and not presentation.hasContentWarning and presentation.kind in [30040, 39089] and presentation.coordinate %}
+        <twig:Molecules:SubscribeButton :identifier="presentation.coordinate" />
+    {% endif %}
+
     <details class="event-preview__details">
         <summary>{{ 'event.details'|trans|e }}</summary>
         <p class="event-preview__kind">{{ 'event_workspace.preview.kind'|trans({'%kind%': presentation.kind})|e }}</p>

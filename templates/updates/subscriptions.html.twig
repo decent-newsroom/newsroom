@@ -1,5 +1,6 @@
 {% extends 'reading-nook-layout.html.twig' %}
 {% block title %}{{ 'updates.subscriptionsTitle'|trans }}{% endblock %}
+{% block stylesheets %}{{ parent() }}<meta name="turbo-cache-control" content="no-cache">{% endblock %}
 {% block body %}
 <div class="w-container py-4">
     <twig:Atoms:PageHeading
@@ -16,20 +17,7 @@
         {% endfor %}
     {% endfor %}
 
-    {# Tier status banner #}
-    {% if isPro %}
-        <div class="notice success mb-3" style="max-width: 600px;">
-            <strong>Updates Pro</strong> active — unlimited subscriptions of all source types.
-            {% if proSubscription and proSubscription.expiresAt %}
-                Expires {{ proSubscription.expiresAt|date('F j, Y') }}.
-            {% endif %}
-        </div>
-    {% else %}
-        <div class="notice info mb-3" style="max-width: 600px;">
-            Free plan: {{ currentCount }}/{{ freeCap }} subscriptions used. NIP-51 set subscriptions require
-            <a href="{{ path('updates_pro_index') }}">Updates Pro</a>.
-        </div>
-    {% endif %}
+    <p>{{ 'subscription_feed.local_notice'|trans }}</p>
 
     <form method="post" action="{{ path('updates_subscriptions_add') }}" class="mb-4">
         <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
@@ -70,4 +58,3 @@
     {% endif %}
 </div>
 {% endblock %}
-

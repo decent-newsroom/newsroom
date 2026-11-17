@@ -4,21 +4,16 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\Magazine;
 use App\Entity\UpdateSubscription;
 use App\Entity\User;
 use App\Enum\UpdateSourceTypeEnum;
 use App\Helper\NavigationBuilderTrait;
-use App\Repository\EventRepository;
 use App\Repository\UpdateRepository;
 use App\Repository\UpdateSubscriptionRepository;
-use App\Service\Update\UpdateAccessService;
-use App\Service\UpdateProService;
-use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+use App\Service\Update\SubscriptionSource;
+use App\Service\Update\SubscriptionFeed;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\LoggerInterface;
-use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,7 +22,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Updates Center — per-user update feed and subscription management.
+ * Local subscription feed and source management.
  */
 #[IsGranted('ROLE_USER')]
 class UpdatesController extends AbstractController
@@ -37,111 +32,53 @@ class UpdatesController extends AbstractController
     public function __construct(
         private readonly UpdateRepository $updateRepository,
         private readonly UpdateSubscriptionRepository $subscriptionRepository,
-        private readonly UpdateAccessService $accessService,
-        private readonly UpdateProService $proService,
+        private readonly SubscriptionSource $sources,
+        private readonly SubscriptionFeed $feed,
         private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger,
-        private readonly EventRepository $eventRepository,
     ) {
     }
 
-    #[Route('/updates', name: 'updates_index', methods: ['GET'])]
-    public function index(): Response
+    #[Route('/updates', name: 'updates_legacy', methods: ['GET'])]
+    #[Route('/subscriptions', name: 'updates_index', methods: ['GET'])]
+    public function index(Request $request): Response
     {
         /** @var User $user */
         $user = $this->getUser();
-        $raw = $this->updateRepository->findRecentForUser($user, 200);
-        $subscriptions = $this->subscriptionRepository->findActiveForUser($user);
-
-        // Count unread before marking them as read/seen.
-        $unread = $this->updateRepository->countUnreadForUser($user);
-
-        // Opening the page marks all updates as seen and read.
-        $this->updateRepository->markAllSeen($user);
-        $this->updateRepository->markAllRead($user);
-
-        // Collapse: for article updates (kind 30023), only keep the latest
-        // per publication/author (identified by eventPubkey). Results are
-        // already sorted newest-first so the first occurrence is the latest.
-        $items = [];
-        $seenPubkeys = [];
-        foreach ($raw as $update) {
-            if ($update->getEventKind() === 30023) {
-                $key = $update->getEventPubkey();
-                if (isset($seenPubkeys[$key])) {
-                    continue;
-                }
-                $seenPubkeys[$key] = true;
-            }
-            $items[] = $update;
-            if (count($items) >= 50) {
-                break;
-            }
-        }
-
+        $before = $request->query->get('before');
+        $before = is_string($before) && ctype_digit($before) ? $before : null;
+        $page = $this->feed->page($user, $before);
         return $this->render('updates/index.html.twig', [
-            'updates' => $items,
-            'subscriptions' => $subscriptions,
-            'unread' => $unread,
-            'isPro' => $this->accessService->isPro($user),
-            'freeCap' => $this->accessService->getFreeCap(),
-            'proSubscription' => $this->proService->getSubscription($user->getUserIdentifier()),
-        ]);
+            'readingNookNav' => $this->buildReadingNookNav(),
+            'updates' => $page['items'],
+            'nextCursor' => $page['nextCursor'],
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
-    #[Route('/updates/subscriptions', name: 'updates_subscriptions', methods: ['GET'])]
+    #[Route('/updates/subscriptions', name: 'updates_subscriptions_legacy', methods: ['GET'])]
+    #[Route('/subscriptions/sources', name: 'updates_subscriptions', methods: ['GET'])]
     public function subscriptions(): Response
     {
         /** @var User $user */
         $user = $this->getUser();
         $subscriptions = $this->subscriptionRepository->findActiveForUser($user);
 
-        // Resolve display titles for PUBLICATION and NIP51_SET subscriptions.
-        // Map: coordinate (kind:pubkey:d) → human-readable title string.
         $sourceTitles = [];
-        $magazineRepo = $this->em->getRepository(Magazine::class);
         foreach ($subscriptions as $sub) {
             $type = $sub->getSourceType();
-            if ($type !== UpdateSourceTypeEnum::PUBLICATION && $type !== UpdateSourceTypeEnum::NIP51_SET) {
+            if ($type === UpdateSourceTypeEnum::NPUB) {
                 continue;
             }
-            $coordinate = $sub->getSourceValue();
-            $parts = explode(':', $coordinate, 3);
-            if (count($parts) !== 3) {
+            $event = $this->sources->currentEvent($type, $sub->getSourceValue());
+            if ($event === null || !$this->feed->isEventReadable($event)) {
                 continue;
             }
-            [, $pubkey, $dTag] = $parts;
-
-            if ($type === UpdateSourceTypeEnum::PUBLICATION) {
-                // Try Magazine entity first (has a proper title column).
-                $magazine = $magazineRepo->findOneBy(['pubkey' => $pubkey, 'slug' => $dTag]);
-                if ($magazine?->getTitle() !== null) {
-                    $sourceTitles[$coordinate] = $magazine->getTitle();
-                    continue;
-                }
-                // Fallback: look up the raw kind 30040 event and read its title tag.
-                $kind = (int) $parts[0];
-                $event = $this->eventRepository->findByNaddr($kind, $pubkey, $dTag);
-                if ($event !== null && $event->getTitle() !== null) {
-                    $sourceTitles[$coordinate] = $event->getTitle();
-                }
-            } elseif ($type === UpdateSourceTypeEnum::NIP51_SET) {
-                $kind = (int) $parts[0];
-                $event = $this->eventRepository->findByNaddr($kind, $pubkey, $dTag);
-                if ($event !== null) {
-                    // Prefer 'title' tag; fall back to 'name' tag; last resort: d-tag.
-                    $title = $event->getTitle();
-                    if ($title === null) {
-                        foreach ($event->getTags() as $tag) {
-                            if (is_array($tag) && ($tag[0] ?? '') === 'name' && isset($tag[1])) {
-                                $title = (string) $tag[1];
-                                break;
-                            }
-                        }
-                    }
-                    if ($title !== null) {
-                        $sourceTitles[$coordinate] = $title;
-                    }
+            /** @var array<array-key, mixed> $tags */
+            $tags = $event->getTags();
+            foreach ($tags as $tag) {
+                if (is_array($tag) && in_array($tag[0] ?? null, ['title', 'name'], true)
+                    && is_string($tag[1] ?? null) && trim($tag[1]) !== '') {
+                    $sourceTitles[$sub->getSourceValue()] = $tag[1];
+                    break;
                 }
             }
         }
@@ -150,11 +87,7 @@ class UpdatesController extends AbstractController
             'readingNookNav' => $this->buildReadingNookNav(),
             'subscriptions' => $subscriptions,
             'sourceTitles' => $sourceTitles,
-            'isPro' => $this->accessService->isPro($user),
-            'freeCap' => $this->accessService->getFreeCap(),
-            'currentCount' => $this->subscriptionRepository->countActiveForUser($user),
-            'proSubscription' => $this->proService->getSubscription($user->getUserIdentifier()),
-        ]);
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
     #[Route('/updates/subscriptions', name: 'updates_subscriptions_add', methods: ['POST'])]
@@ -176,25 +109,15 @@ class UpdatesController extends AbstractController
         }
 
         try {
-            [$type, $value, $label] = $this->parseIdentifier($raw);
+            [$type, $value, $label] = $this->sources->parse($raw);
         } catch (\InvalidArgumentException $e) {
             $this->addFlash('error', 'updates.errors.invalidInput');
             return $this->redirect($redirectTo);
         }
 
-        // Paywall check
-        $blockReason = $this->accessService->blockReason($user, $type);
-        if ($blockReason !== null) {
-            $this->addFlash('error', $blockReason);
-            return $this->redirectToRoute('updates_pro_index');
-        }
-
-        if ($this->subscriptionRepository->findOneForUser($user, $type, $value) !== null) {
-            $this->addFlash('error', 'updates.errors.alreadySubscribed');
-            return $this->redirect($redirectTo);
-        }
-
-        $subscription = new UpdateSubscription($user, $type, $value, $label);
+        $subscription = $this->subscriptionRepository->findOneForUser($user, $type, $value)
+            ?? new UpdateSubscription($user, $type, $value, $label);
+        $subscription->reactivate();
         $this->em->persist($subscription);
         $this->em->flush();
 
@@ -209,7 +132,8 @@ class UpdatesController extends AbstractController
             return null;
         }
 
-        if (!str_starts_with($redirectTo, '/') || str_starts_with($redirectTo, '//')) {
+        if (!str_starts_with($redirectTo, '/') || str_starts_with($redirectTo, '//')
+            || str_contains($redirectTo, '\\') || preg_match('/[\x00-\x20]/', $redirectTo)) {
             return null;
         }
 
@@ -231,7 +155,7 @@ class UpdatesController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $this->em->remove($sub);
+        $sub->setActive(false);
         $this->em->flush();
 
         return $this->redirectToRoute('updates_subscriptions');
@@ -245,18 +169,32 @@ class UpdatesController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         return new JsonResponse([
-            'unread' => $this->updateRepository->countUnreadForUser($user),
-            'unseen' => $this->updateRepository->countUnseenForUser($user),
+            ...$this->feed->unreadCounts($user),
         ]);
     }
 
-    #[Route('/api/updates/{id}/read', name: 'api_updates_mark_read', methods: ['POST'])]
-    public function markRead(string $id): JsonResponse
+    #[Route('/subscriptions/items', name: 'subscription_feed_items', methods: ['GET'])]
+    public function items(): Response
     {
         /** @var User $user */
         $user = $this->getUser();
+        $page = $this->feed->page($user);
+        return $this->render('updates/_feed.html.twig', [
+            'updates' => $page['items'],
+            'nextCursor' => $page['nextCursor'],
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
+    }
+
+    #[Route('/api/updates/{id}/read', name: 'api_updates_mark_read', methods: ['POST'])]
+    public function markRead(Request $request, string $id): JsonResponse
+    {
+        if (!$this->isCsrfTokenValid('subscription-read', (string) $request->request->get('_token'))) {
+            return new JsonResponse(['ok' => false], 403);
+        }
+        /** @var User $user */
+        $user = $this->getUser();
         $n = $this->updateRepository->findForUser($user, $id);
-        if ($n === null) {
+        if ($n === null || !$this->feed->isReadable($n)) {
             return new JsonResponse(['ok' => false], 404);
         }
         $n->markRead();
@@ -265,68 +203,38 @@ class UpdatesController extends AbstractController
     }
 
     #[Route('/api/updates/mark-all-seen', name: 'api_updates_mark_all_seen', methods: ['POST'])]
-    public function markAllSeen(): JsonResponse
+    public function markAllSeen(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('subscription-read', (string) $request->request->get('_token'))) {
+            return new JsonResponse(['ok' => false], 403);
+        }
         /** @var User $user */
         $user = $this->getUser();
-        $count = $this->updateRepository->markAllSeen($user);
+        $count = 0;
+        foreach ($this->updateRepository->unreadForUser($user) as $update) {
+            if ($update->getSeenAt() === null && $this->feed->isReadable($update)) {
+                $update->markSeen();
+                ++$count;
+            }
+        }
+        $this->em->flush();
         return new JsonResponse(['ok' => true, 'updated' => $count]);
     }
 
-    /**
-     * Parse a user-supplied identifier into a (type, value, label) tuple.
-     *
-     * Accepts:
-     *  - raw hex pubkey (64 chars)  → NPUB
-     *  - `npub1…` / `nostr:npub1…`  → NPUB
-     *  - `naddr1…` / `nostr:naddr1…` → PUBLICATION (if kind=30040) or NIP51_SET (if a supported NIP-51 set kind)
-     *  - raw `kind:pubkey:d` coordinate → PUBLICATION or NIP51_SET depending on kind
-     *
-     * @return array{0: UpdateSourceTypeEnum, 1: string, 2: ?string}
-     */
-    private function parseIdentifier(string $raw): array
+    #[Route('/subscriptions/read/{id}', name: 'subscription_read', methods: ['POST'])]
+    public function read(Request $request, string $id): Response
     {
-        $raw = (static function (string $identifier): string { $identifier = trim($identifier); if (str_starts_with($identifier, 'nostr:')) { return substr($identifier, 6); } return $identifier; })((string) ($raw));
-
-        // Hex pubkey
-        if (PublicKey::fromHex(strtolower(trim((string) ($raw)))) !== null) {
-            return [UpdateSourceTypeEnum::NPUB, $raw, null];
+        if (!$this->isCsrfTokenValid('subscription-read', (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
         }
-
-        // npub1…
-        if (str_starts_with(strtolower(trim((string) ($raw))), 'npub1')) {
-            return [UpdateSourceTypeEnum::NPUB, (static function (string $npub): string { $npub = strtolower(trim($npub)); if (str_starts_with($npub, 'nostr:')) { $npub = substr($npub, 6); } return PublicKey::fromBech32($npub)?->toHex() ?? throw new \InvalidArgumentException('Not a valid npub'); })((string) ($raw)), $raw];
+        /** @var User $user */
+        $user = $this->getUser();
+        $update = $this->updateRepository->findForUser($user, $id);
+        if ($update === null || !$this->feed->isReadable($update)) {
+            throw $this->createNotFoundException();
         }
-
-        // naddr1…
-        if (str_starts_with($raw, 'naddr1')) {
-            $decoded = (new NostrNip19Service())->decode($raw);
-            if (!isset($decoded['kind'], $decoded['author'], $decoded['identifier'])) {
-                throw new \InvalidArgumentException('Malformed naddr');
-            }
-            $coord = $decoded['kind'] . ':' . $decoded['author'] . ':' . $decoded['identifier'];
-            return [$this->typeForCoordinate((int) $decoded['kind']), $coord, $raw];
-        }
-
-        // Raw coordinate `kind:pubkey:d`
-        if (preg_match('/^(\d+):([0-9a-f]{64}):(.*)$/', $raw, $m)) {
-            return [$this->typeForCoordinate((int) $m[1]), $raw, null];
-        }
-
-        throw new \InvalidArgumentException('Unrecognized identifier');
-    }
-
-    private function typeForCoordinate(int $kind): UpdateSourceTypeEnum
-    {
-        if ($kind === 30040) {
-            return UpdateSourceTypeEnum::PUBLICATION;
-        }
-        // Any other supported set kind goes under NIP51_SET.
-        $setKinds = [3, 10000, 10015, 30003, 30004, 30005, 30015, 39089];
-        if (in_array($kind, $setKinds, true)) {
-            return UpdateSourceTypeEnum::NIP51_SET;
-        }
-        throw new \InvalidArgumentException('Unsupported kind for update subscription');
+        $update->markRead();
+        $this->em->flush();
+        return $this->redirectToRoute('updates_index');
     }
 }
-

@@ -1,9 +1,11 @@
-{% extends 'layout.html.twig' %}
+{% extends 'reading-nook-layout.html.twig' %}
 {% block title %}{{ 'updates.pageTitle'|trans }}{% endblock %}
+{% block stylesheets %}{{ parent() }}<meta name="turbo-cache-control" content="no-cache">{% endblock %}
 {% block body %}
 <div class="w-container py-4"
      data-controller="ui--updates-stream"
-     data-ui--updates-stream-topic-url-value="{{ mercure_public_hub_url }}?topic={{ ('/users/' ~ app.user.id ~ '/updates')|url_encode }}">
+     data-ui--updates-stream-items-url-value="{{ app.request.query.has('before') ? '' : path('subscription_feed_items') }}"
+     data-ui--updates-stream-error-value="{{ 'subscription_feed.refresh_error'|trans }}">
 
     <twig:Atoms:PageHeading
         heading="{{ 'updates.pageTitle'|trans }}"
@@ -13,12 +15,6 @@
         <div>
             <a class="btn mb-3" href="{{ path('updates_subscriptions') }}">{{ 'updates.manageSubscriptions'|trans }}</a>
         </div>
-        <div class="d-flex flex-row align-items-center gap-3">
-            {% if not isPro %}
-                <a href="{{ path('updates_pro_index') }}" class="badge badge--pro">⚡ Updates Pro</a>
-            {% endif %}
-            <span class="badge">{{ unread }}</span> {{ 'updates.unreadLabel'|trans }}
-        </div>
     </div>
 
     {% for label, messages in app.flashes %}
@@ -27,11 +23,9 @@
         {% endfor %}
     {% endfor %}
 
-    {% if updates is empty %}
-        <p class="text-muted">{{ 'updates.empty'|trans }}</p>
-    {% else %}
-        {% include 'partial/_update_items.html.twig' with {streamTarget: true} %}
-    {% endif %}
+    <p>{{ 'subscription_feed.local_notice'|trans }}</p>
+    <div data-ui--updates-stream-target="list">
+        {% include 'updates/_feed.html.twig' %}
+    </div>
 </div>
 {% endblock %}
-

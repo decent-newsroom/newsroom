@@ -6,10 +6,8 @@ namespace App\Twig\Components\Molecules;
 
 use App\Entity\UpdateSubscription;
 use App\Entity\User;
-use App\Enum\UpdateSourceTypeEnum;
 use App\Repository\UpdateSubscriptionRepository;
-use App\Service\Update\UpdateAccessService;
-use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
+use App\Service\Update\SubscriptionSource;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -17,14 +15,10 @@ use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 /**
- * Live subscribe/unsubscribe button for an author pubkey.
- *
- * Renders a single button that toggles the current user's update
- * subscription to the given author. Handles the access cap check
- * inline and shows an error message instead of subscribing when
- * the free tier limit is reached.
+ * The same local subscription action for profiles and collections.
  */
 #[AsLiveComponent('Molecules:SubscribeButton')]
 final class SubscribeButton
@@ -35,16 +29,18 @@ final class SubscribeButton
     #[LiveProp]
     public string $pubkey = '';
 
-    /** Internal state — resolved on first render */
-    #[LiveProp(writable: true)]
+    #[LiveProp]
+    public string $identifier = '';
+
+    #[LiveProp]
     public bool $subscribed = false;
 
-    #[LiveProp(writable: true)]
+    #[LiveProp]
     public string $error = '';
 
     public function __construct(
         private readonly UpdateSubscriptionRepository $subscriptionRepository,
-        private readonly UpdateAccessService $accessService,
+        private readonly SubscriptionSource $sources,
         private readonly EntityManagerInterface $em,
         private readonly Security $security,
     ) {}
@@ -53,17 +49,23 @@ final class SubscribeButton
     {
         /** @var User|null $user */
         $user = $this->security->getUser();
-        if ($user === null) {
+        if (!$user instanceof User) {
             return;
         }
 
+        try {
+            [$type, $value] = $this->sources->parse($this->identifier ?: $this->pubkey);
+        } catch (\InvalidArgumentException) {
+            $this->error = 'updates.errors.invalidInput';
+            return;
+        }
         $existing = $this->subscriptionRepository->findOneForUser(
             $user,
-            UpdateSourceTypeEnum::NPUB,
-            $this->pubkey,
+            $type,
+            $value,
         );
 
-        $this->subscribed = $existing !== null;
+        $this->subscribed = $existing?->isActive() ?? false;
     }
 
     #[LiveAction]
@@ -71,43 +73,35 @@ final class SubscribeButton
     {
         /** @var User|null $user */
         $user = $this->security->getUser();
-        if ($user === null) {
-            return;
+        if (!$user instanceof User) {
+            throw new AccessDeniedException();
         }
 
+        try {
+            [$type, $value, $label] = $this->sources->parse($this->identifier ?: $this->pubkey);
+        } catch (\InvalidArgumentException) {
+            $this->error = 'updates.errors.invalidInput';
+            return;
+        }
         $existing = $this->subscriptionRepository->findOneForUser(
             $user,
-            UpdateSourceTypeEnum::NPUB,
-            $this->pubkey,
+            $type,
+            $value,
         );
 
-        if ($existing !== null) {
-            // Unsubscribe
-            $this->em->remove($existing);
+        if ($existing?->isActive()) {
+            $existing->setActive(false);
             $this->em->flush();
             $this->subscribed = false;
             $this->error = '';
             return;
         }
 
-        // Subscribe — check access cap
-        $blockReason = $this->accessService->blockReason($user, UpdateSourceTypeEnum::NPUB);
-        if ($blockReason !== null) {
-            $this->error = $blockReason;
-            return;
-        }
-
-        try {
-            $npub = (static function (string $pubkey): string { return PublicKey::fromHex(strtolower(trim($pubkey)))?->toBech32() ?? throw new \InvalidArgumentException('Not a valid hex pubkey'); })((string) ($this->pubkey));
-        } catch (\InvalidArgumentException) {
-            $npub = null;
-        }
-        $subscription = new UpdateSubscription($user, UpdateSourceTypeEnum::NPUB, $this->pubkey, $npub);
+        $subscription = $existing ?? new UpdateSubscription($user, $type, $value, $label);
+        $subscription->reactivate();
         $this->em->persist($subscription);
         $this->em->flush();
         $this->subscribed = true;
         $this->error = '';
     }
 }
-
-

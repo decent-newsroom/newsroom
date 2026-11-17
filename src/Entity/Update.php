@@ -13,7 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
  * handler when an ingested Nostr event matches at least one of the user's
  * active {@see UpdateSubscription} rows.
  *
- * v1 delivers kinds 30023 and 30040 only.
+ * Links each recipient's delivery and read state to an optional shared local change.
  */
 #[ORM\Entity(repositoryClass: UpdateRepository::class)]
 #[ORM\Table(name: 'notification')]
@@ -34,6 +34,16 @@ class Update
     #[ORM\ManyToOne(targetEntity: UpdateSubscription::class)]
     #[ORM\JoinColumn(name: 'subscription_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?UpdateSubscription $subscription = null;
+
+    #[ORM\ManyToOne(targetEntity: SubscriptionChange::class)]
+    #[ORM\JoinColumn(name: 'change_id', referencedColumnName: 'event_id', nullable: true, onDelete: 'SET NULL')]
+    private ?SubscriptionChange $change = null;
+
+    /** @var array<string, mixed> */
+    private array $visibleChanges = [];
+
+    /** @var array{label: string, url: string}|null */
+    private ?array $visibleSource = null;
 
     #[ORM\Column(type: Types::STRING, length: 64)]
     private string $eventId;
@@ -79,6 +89,7 @@ class Update
         ?string $eventCoordinate = null,
         ?string $title = null,
         ?string $summary = null,
+        ?SubscriptionChange $change = null,
     ) {
         $this->user = $user;
         $this->eventId = $eventId;
@@ -90,12 +101,23 @@ class Update
         $this->eventCoordinate = $eventCoordinate;
         $this->title = $title;
         $this->summary = $summary;
+        $this->change = $change;
     }
 
     public function getId(): ?string
     {
         return $this->id;
     }
+
+    public function getChange(): ?SubscriptionChange { return $this->change; }
+    /** @return array<string, mixed> */
+    public function getVisibleChanges(): array { return $this->visibleChanges; }
+    /** @param array<string, mixed> $changes */
+    public function setVisibleChanges(array $changes): void { $this->visibleChanges = $changes; }
+    /** @return array{label: string, url: string}|null */
+    public function getVisibleSource(): ?array { return $this->visibleSource; }
+    /** @param array{label: string, url: string}|null $source */
+    public function setVisibleSource(?array $source): void { $this->visibleSource = $source; }
 
     public function getUser(): User
     {
@@ -172,4 +194,3 @@ class Update
         return $this;
     }
 }
-

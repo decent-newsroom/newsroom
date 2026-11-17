@@ -14,6 +14,7 @@ use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrEventIngressGuard;
 use App\Service\Nostr\AuthorIngestionGate;
 use App\Service\ReplaceableEventCleanupService;
+use App\Service\Update\UpdateMatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -72,6 +73,12 @@ final class PersistGatewayEventsHandler
 
             $eventId = $rawEvent['id'] ?? null;
             if (!$eventId || isset($existingIds[$eventId])) {
+                if ($eventId && UpdateMatcher::isNotifiedKind((int) ($rawEvent['kind'] ?? 0))) {
+                    $existing = $this->eventRepository->find($eventId);
+                    if ($existing instanceof Event) {
+                        $this->cleanupService->removeOlderEventVersions($existing, $this->entityManager);
+                    }
+                }
                 $skipped++;
                 continue;
             }

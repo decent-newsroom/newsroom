@@ -10,6 +10,7 @@ use App\Enum\UpdateProStatus;
 use App\Enum\UpdateProTier;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Attribute\AsCommand;
+use App\Service\UpdateProService;
 
 final class UpdatesProPaymentContractTest extends TestCase
 {
@@ -33,5 +34,10 @@ final class UpdatesProPaymentContractTest extends TestCase
             ->newInstance();
 
         self::assertSame('updates-pro:check-receipts', $attribute->name);
+    }
+
+    public function testRetiredProductCannotCreateNewInvoices(): void
+    {
+        self::assertFalse(method_exists(UpdateProService::class, 'createSubscriptionInvoice'));
     }
 }

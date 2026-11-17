@@ -5,51 +5,25 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\UpdateProSubscription;
-use App\Entity\User;
 use App\Enum\UpdateProStatus;
-use App\Enum\UpdateProTier;
 use App\Enum\RolesEnum;
 use App\Repository\UpdateProSubscriptionRepository;
 use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use App\Service\Nostr\NostrKeyService;
 
 /**
- * Manages paid Updates Pro subscriptions.
- *
- * Handles invoice, activation, renewal, grace, and expiry without relay fetching.
- *
- * Free tier limits (enforced by callers / {@see UpdateAccessService}):
- *   - Up to {@see self::FREE_SUBSCRIPTION_CAP} npub + publication subscriptions.
- *   - No NIP-51 set subscriptions.
- * Pro tier:
- *   - Unlimited subscriptions of all source types.
+ * Legacy payment settlement and history for the retired Updates Pro product.
+ * No entitlement is required for local content subscriptions.
  */
 class UpdateProService
 {
-    /** Maximum update subscriptions for free (non-Pro) users. */
-    public const FREE_SUBSCRIPTION_CAP = 5;
-
-    private readonly string $recipientPubkeyHex;
-
     public function __construct(
         private readonly UpdateProSubscriptionRepository $subscriptionRepository,
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly LNURLResolver $lnurlResolver,
         private readonly LoggerInterface $logger,
-        string $recipientPubkey,
-        private readonly string $recipientLud16,
     ) {
-        // Normalize and convert npub to hex if needed
-        $recipientPubkey = strtolower(trim($recipientPubkey));
-        if (str_starts_with($recipientPubkey, 'npub1')) {
-            $key = new NostrKeyService();
-            $this->recipientPubkeyHex = $key->convertToHex($recipientPubkey);
-        } else {
-            $this->recipientPubkeyHex = $recipientPubkey;
-        }
     }
 
     public function getSubscription(string $npub): ?UpdateProSubscription
@@ -63,55 +37,11 @@ class UpdateProService
         return $sub !== null && $sub->isActive();
     }
 
-    /**
-     * Create or reuse a pending subscription and generate a BOLT11 invoice.
-     *
-     * @return array{bolt11: string, amount: int, subscription: UpdateProSubscription}
-     */
-    public function createSubscriptionInvoice(string $npub, UpdateProTier $tier): array
-    {
-        $subscription = $this->subscriptionRepository->findByNpub($npub);
-
-        if (!$subscription) {
-            $subscription = new UpdateProSubscription($npub, $tier);
-        } elseif ($subscription->isExpired() || $subscription->getStatus() === UpdateProStatus::PENDING) {
-            $subscription->setTier($tier);
-        }
-
-        $amountSats = $tier->getPriceInSats();
-
-        $lnurlInfo = $this->lnurlResolver->resolve($this->recipientLud16);
-        $bolt11 = $this->lnurlResolver->requestInvoice(
-            callback: $lnurlInfo->callback,
-            amountMillisats: $amountSats * 1000,
-            nostrEvent: null,
-            lnurl: $lnurlInfo->bech32
-        );
-
-        $subscription->setPendingInvoiceBolt11($bolt11);
-        $subscription->setStatus(UpdateProStatus::PENDING);
-        $this->subscriptionRepository->save($subscription);
-
-        $this->logger->info('Created Updates Pro invoice', [
-            'npub' => $npub,
-            'tier' => $tier->value,
-            'amount_sats' => $amountSats,
-        ]);
-
-        return [
-            'bolt11' => $bolt11,
-            'amount' => $amountSats,
-            'subscription' => $subscription,
-        ];
-    }
-
     public function activateSubscription(UpdateProSubscription $subscription, string $zapReceiptEventId): void
     {
         $subscription->setZapReceiptEventId($zapReceiptEventId);
         $subscription->activate();
         $this->subscriptionRepository->save($subscription);
-
-        $this->grantProRole($subscription->getNpub());
 
         $this->logger->info('Activated Updates Pro subscription', [
             'npub' => $subscription->getNpub(),
@@ -125,8 +55,6 @@ class UpdateProService
         $subscription->setZapReceiptEventId($zapReceiptEventId);
         $subscription->renew();
         $this->subscriptionRepository->save($subscription);
-
-        $this->grantProRole($subscription->getNpub());
 
         $this->logger->info('Renewed Updates Pro subscription', [
             'npub' => $subscription->getNpub(),
@@ -168,32 +96,6 @@ class UpdateProService
         return count($subs);
     }
 
-    public function cancelPendingSubscription(string $npub): void
-    {
-        $sub = $this->subscriptionRepository->findByNpub($npub);
-        if (!$sub) {
-            throw new \RuntimeException('No subscription found for this user');
-        }
-        if ($sub->getStatus() !== UpdateProStatus::PENDING) {
-            throw new \RuntimeException('Only pending subscriptions can be cancelled');
-        }
-        $this->subscriptionRepository->remove($sub);
-    }
-
-    private function grantProRole(string $npub): void
-    {
-        $user = $this->userRepository->findOneBy(['npub' => $npub]);
-        if (!$user) {
-            $user = new User();
-            $user->setNpub($npub);
-            $this->entityManager->persist($user);
-        }
-        if (!$user->isUpdatesProSubscriber()) {
-            $user->addRole(RolesEnum::UPDATES_PRO->value);
-            $this->entityManager->flush();
-        }
-    }
-
     private function revokeProRole(string $npub): void
     {
         $user = $this->userRepository->findOneBy(['npub' => $npub]);
@@ -203,4 +105,3 @@ class UpdateProService
         }
     }
 }
-

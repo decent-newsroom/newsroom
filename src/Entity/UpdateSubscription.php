@@ -107,5 +107,12 @@ class UpdateSubscription
     {
         return $this->createdAt;
     }
-}
 
+    public function reactivate(): void
+    {
+        if (!$this->active) {
+            $this->active = true;
+            $this->createdAt = new \DateTimeImmutable();
+        }
+    }
+}

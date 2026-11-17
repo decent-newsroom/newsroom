@@ -8,10 +8,15 @@ use App\Entity\Update;
 use App\Message\FanOutUpdateMessage;
 use App\Repository\EventRepository;
 use App\Repository\UpdateRepository;
+use App\Repository\SubscriptionChangeRepository;
 use App\Service\Mercure\MercureSubscriberTokenService;
 use App\Service\Update\UpdateMatcher;
 use App\Service\Update\UpdateRenderer;
+use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\EventWorkspace\EventWorkspaceScopePolicy;
+use App\Dto\EventWorkspace\EventPresentation;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update as MercureUpdate;
@@ -30,25 +35,36 @@ class FanOutUpdateHandler
 {
     public function __construct(
         private readonly EventRepository $eventRepository,
+        private readonly SubscriptionChangeRepository $changes,
         private readonly UpdateRepository $updateRepository,
         private readonly UpdateMatcher $matcher,
         private readonly UpdateRenderer $renderer,
         private readonly EntityManagerInterface $em,
         private readonly HubInterface $hub,
         private readonly LoggerInterface $logger,
+        private readonly EventPreviewAccessPolicy $access,
     ) {
     }
 
     public function __invoke(FanOutUpdateMessage $message): void
     {
-        $event = $this->eventRepository->find($message->getEventId());
+        $change = $this->changes->find($message->getEventId());
+        $event = $change?->metadataEvent() ?? $this->eventRepository->find($message->getEventId());
         if ($event === null) {
-            $this->logger->debug('FanOutUpdate: event not found', ['event_id' => $message->getEventId()]);
+            $this->logger->debug('Subscription fan-out: event not found', ['event_id' => $message->getEventId()]);
             return;
         }
 
+        if ($change !== null && !$change->hasChanges()
+            && ($change->getKind() !== 30023 || $change->getPreviousEventId() !== null)) {
+            return;
+        }
         if (!UpdateMatcher::isNotifiedKind($event->getKind())) {
             // Defence in depth: refuse to update on out-of-scope kinds.
+            return;
+        }
+        if (EventPresentation::hasSensitiveTagEvidence($event->getTags())
+            || EventWorkspaceScopePolicy::isScopedInventoryList($event->getKind(), $event->getTags())) {
             return;
         }
 
@@ -63,6 +79,12 @@ class FanOutUpdateHandler
 
         foreach ($matches as $subscription) {
             $user = $subscription->getUser();
+            if (!$subscription->isActive() || !$this->access->isReadable($event, $user)) {
+                continue;
+            }
+            if ($subscription->getCreatedAt()->getTimestamp() > $event->getCreatedAt()) {
+                continue;
+            }
 
             // Dedup: (user_id, event_id) unique constraint handles races, but
             // we also skip cleanly to avoid flush-then-rollback churn.
@@ -81,29 +103,35 @@ class FanOutUpdateHandler
                 eventCoordinate: $coordinate,
                 title: $rendered['title'],
                 summary: $rendered['summary'],
+                change: $change,
             );
 
             try {
-                $this->em->persist($update);
-                $this->em->flush();
+                $inserted = $this->em->getConnection()->transactional(function () use ($user, $event, $update): bool {
+                    if ($this->em->getConnection()->getDatabasePlatform() instanceof PostgreSQLPlatform) {
+                        $this->em->getConnection()->executeQuery('SELECT pg_advisory_xact_lock(hashtext(:delivery))', [
+                            'delivery' => $user->getId() . ':' . $event->getId(),
+                        ]);
+                    }
+                    if ($this->updateRepository->existsForUserAndEvent($user, $event->getId())) {
+                        return false;
+                    }
+                    $this->em->persist($update);
+                    $this->em->flush();
+                    return true;
+                });
             } catch (\Throwable $e) {
-                // Unique-violation race with another worker — treat as delivered.
-                if (str_contains($e->getMessage(), '23505') || str_contains($e->getMessage(), 'duplicate key')) {
-                    $this->logger->debug('Update insert raced; skipping mercure publish', [
-                        'user_id' => $user->getId(),
-                        'event_id' => $event->getId(),
-                    ]);
-                    continue;
-                }
-                $this->logger->error('Failed to persist update', [
+                $this->logger->error('Failed to persist subscription update', [
                     'user_id' => $user->getId(),
                     'event_id' => $event->getId(),
                     'error' => $e->getMessage(),
                 ]);
-                continue;
+                throw $e;
             }
 
-            $this->publishToUser($user, $update);
+            if ($inserted) {
+                $this->publishToUser($user, $update);
+            }
         }
     }
 
@@ -113,14 +141,6 @@ class FanOutUpdateHandler
             $topic = MercureSubscriberTokenService::topicForUser($user);
             $payload = json_encode([
                 'type' => 'update',
-                'id' => $update->getId(),
-                'kind' => $update->getEventKind(),
-                'title' => $update->getTitle(),
-                'summary' => $update->getSummary(),
-                'url' => $update->getUrl(),
-                'author' => $update->getEventPubkey(),
-                'createdAt' => $update->getCreatedAt()->getTimestamp(),
-                'unread' => $this->updateRepository->countUnreadForUser($user),
             ], JSON_UNESCAPED_SLASHES);
 
             $this->hub->publish(new MercureUpdate($topic, (string) $payload, true));
@@ -133,4 +153,3 @@ class FanOutUpdateHandler
         }
     }
 }
-

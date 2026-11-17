@@ -2,6 +2,13 @@
 
 Status: **Design proposal, 15 November 2026. No application behavior is changed by this document.**
 
+Commercial supersession: [local subscriptions](subscriptions.md) are now free for
+all supported sources. Updates Pro is retired, with historical payments and
+receipt settlement preserved. All proposals below to expose, price, promote, or
+gate subscriptions through Updates Pro are superseded, including the
+five-source free limit and paid-only collection access. The remaining paid
+services are separate products.
+
 Implementation update, 16 November 2026: the [unified discovery and author
 streams](home-feed-logged-in.md) apply the shared navigation/preview styling and
 editorial direction. The requested single home and mixed profile streams

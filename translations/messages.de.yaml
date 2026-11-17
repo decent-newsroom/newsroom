@@ -1180,7 +1180,7 @@ home_feed:
         media: 'Medien'
         featured_pack: 'Follow-Pack'
         activity: 'Aktivität'
-        updates: 'Updates'
+        updates: 'Abonnements'
     loading: 'Artikel werden geladen…'
     source:
         discussed: 'Diskutiert'
@@ -1207,10 +1207,10 @@ home_feed:
         noFollows: 'Folge Leuten auf Nostr, um ihre Highlights und Kommentare hier zu sehen.'
     updates:
         no_subscriptions: 'Du hast noch keine Update-Abonnements.'
-        subscribe_hint: 'Verwende die Abonnieren-Schaltfläche auf Autorprofilseiten, um sie in diesen Feed aufzunehmen, oder verwalte deine Abonnements manuell.'
+        subscribe_hint: 'Abonniere Profile, Magazine und Follow-Packs oder verwalte deine Quellen hier.'
         manage_cta: 'Abonnements verwalten'
         empty: 'Noch keine Updates von deinen Abonnements.'
-        view_all: 'Alle Updates anzeigen'
+        view_all: 'Abonnement-Feed anzeigen'
 
 # ── Einstellungen ──────────────────────────────────────────────────────
 settings:
@@ -1262,34 +1262,55 @@ followPackView:
     shareCoordinate: 'Koordinate'
 # ── Updates Center ──────────────────────────────────────────
 updates:
-    pageTitle: 'Updates'
-    tagline: 'New articles and publications from the sources you subscribe to.'
-    empty: 'No updates yet.'
-    untitled: 'Untitled'
-    unreadLabel: 'unread'
-    manageSubscriptions: 'Manage subscriptions'
-    backToCenter: 'Back to updates'
-    subscriptionsTitle: 'Update subscriptions'
-    subscriptionsTagline: 'Subscribe to an npub, a publication, or a NIP-51 list to receive updates for new long-form content (kinds 30023 and 30040).'
+    pageTitle: 'Abonnements'
+    tagline: 'Neue Artikel und Änderungen an deinen abonnierten Magazinen, Listen und Follow-Packs.'
+    empty: 'Noch keine Neuigkeiten.'
+    untitled: 'Ohne Titel'
+    unreadLabel: 'ungelesen'
+    manageSubscriptions: 'Abonnements verwalten'
+    backToCenter: 'Zurück zu den Abonnements'
+    subscriptionsTitle: 'Abonnierte Quellen'
+    subscriptionsTagline: 'Abonniere Profile, Magazine, Listen und Follow-Packs. Alle Quellentypen sind kostenlos.'
     subscriptions:
-        empty: 'You have no active subscriptions.'
+        empty: 'Du hast keine aktiven Abonnements.'
     subscription:
-        addLabel: 'Subscribe to'
+        addLabel: 'Quelle abonnieren'
         addPlaceholder: 'npub1… / naddr1… / hex pubkey / kind:pubkey:d'
-        addSubmit: 'Subscribe'
+        addSubmit: 'Abonnieren'
         subscribed: 'Abonniert'
-        remove: 'Unsubscribe'
-        removeConfirm: 'Remove this subscription?'
+        remove: 'Abonnement beenden'
+        removeConfirm: 'Dieses Abonnement beenden?'
         sourceType:
-            npub: 'Author'
-            publication: 'Publication'
-            nip51Set: 'NIP-51 set'
+            npub: 'Profil'
+            publication: 'Magazin oder Liste'
+            nip51Set: 'Liste oder Follow-Pack'
     toast:
-        newArticle: 'New article'
-        newPublication: 'New publication'
+        newArticle: 'Neuer Artikel'
+        newPublication: 'Neue Publikation'
     errors:
-        invalidInput: 'Could not recognize that identifier.'
-        alreadySubscribed: 'You are already subscribed to that source.'
+        invalidInput: 'Diese Kennung wurde nicht erkannt.'
+        alreadySubscribed: 'Du hast diese Quelle bereits abonniert.'
+
+subscription_feed:
+    via: 'Über'
+    title: 'Abonnements'
+    feed: 'Abonnement-Feed'
+    local_notice: 'Kostenlos und nur in deinem Newsroom-Konto sichtbar. Ein Abonnement veröffentlicht keinen Nostr-Follow.'
+    older: 'Ältere Neuigkeiten'
+    article_updated: 'Artikel aktualisiert'
+    magazine_updated: 'Magazin oder Liste aktualisiert'
+    pack_updated: 'Follow-Pack aktualisiert'
+    source_updated: 'Quelle aktualisiert'
+    added: 'Hinzugefügt'
+    removed: 'Entfernt'
+    reordered: 'Reihenfolge geändert'
+    metadata_changed: 'Quelldetails geändert'
+    content_changed: 'Inhalt geändert'
+    more_changes: 'Weitere Änderungen findest du in der Quelle.'
+    mark_read: 'Als gelesen markieren'
+    new_activity: 'Es gibt Neuigkeiten in deinen Abonnements.'
+    refresh_error: 'Abonnements konnten nicht aktualisiert werden. Lade die Seite erneut.'
+    unavailable: 'Einige geänderte Einträge sind lokal nicht verfügbar oder zugriffsbeschränkt. Öffne die Quelle für ihre Verweise.'
 
 media_gallery:
     picture: 'Bild'

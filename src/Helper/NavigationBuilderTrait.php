@@ -21,6 +21,7 @@ trait NavigationBuilderTrait
             'items' => [
                 ['label' => 'nav.discover', 'route' => 'home', 'icon' => 'iconoir:compass'],
                 ['label' => 'nav.readingNook', 'route' => 'reading_nook', 'icon' => 'iconoir:bookmark'],
+                ['label' => 'subscription_feed.title', 'route' => 'updates_index', 'icon' => 'iconoir:rss-feed'],
                 ['label' => 'nav.newsroom', 'route' => 'my_content', 'icon' => 'iconoir:home'],
             ],
         ];
@@ -93,6 +94,7 @@ trait NavigationBuilderTrait
             [
                 'label' => 'updates.pageTitle',
                 'items' => [
+                    ['label' => 'subscription_feed.feed', 'route' => 'updates_index', 'icon' => 'iconoir:rss-feed'],
                     ['label' => 'updates.manageSubscriptions', 'route' => 'updates_subscriptions', 'icon' => 'iconoir:rss-feed'],
                 ],
             ],

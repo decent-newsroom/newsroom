@@ -762,7 +762,7 @@ home_feed:
         media: 'Media'
         featured_pack: 'Follow Pack'
         activity: 'Activity'
-        updates: 'Updates'
+        updates: 'Subscriptions'
     loading: 'Loading articles…'
     source:
         discussed: 'Discussed'
@@ -801,10 +801,10 @@ home_feed:
         noFollows: 'Follow some people on Nostr to see their highlights and comments here.'
     updates:
         no_subscriptions: 'You don''t have any update subscriptions yet.'
-        subscribe_hint: 'Use the Subscribe button on author profile pages to include them in this feed, or manage your subscriptions manually.'
+        subscribe_hint: 'Subscribe on profiles, magazines and follow packs, or manage your sources here.'
         manage_cta: 'Manage subscriptions'
         empty: 'No updates yet from your subscriptions.'
-        view_all: 'View all updates'
+        view_all: 'View subscription feed'
 
 # ── Article page ──────────────────────────────────────────────────
 article:
@@ -1603,15 +1603,15 @@ webPreview:
     loadNotice: 'Click to fetch a preview from %host%. This will contact a third-party server.'
 # ── Updates Center ──────────────────────────────────────────
 updates:
-    pageTitle: 'Updates'
-    tagline: 'New articles and publications from the sources you subscribe to.'
+    pageTitle: 'Subscriptions'
+    tagline: 'New articles and changes to your subscribed magazines, lists and follow packs.'
     empty: 'No updates yet.'
     untitled: 'Untitled'
     unreadLabel: 'unread'
     manageSubscriptions: 'Manage subscriptions'
-    backToCenter: 'Back to updates'
-    subscriptionsTitle: 'Update subscriptions'
-    subscriptionsTagline: 'Subscribe to an npub, a publication, or a NIP-51 list to receive updates for new long-form content (kinds 30023 and 30040).'
+    backToCenter: 'Back to subscriptions'
+    subscriptionsTitle: 'Subscribed sources'
+    subscriptionsTagline: 'Subscribe to profiles, magazines, lists and follow packs. All source types are free.'
     subscriptions:
         empty: 'You have no active subscriptions.'
     subscription:
@@ -1622,9 +1622,9 @@ updates:
         remove: 'Unsubscribe'
         removeConfirm: 'Remove this subscription?'
         sourceType:
-            npub: 'Author'
-            publication: 'Publication'
-            nip51Set: 'NIP-51 set'
+            npub: 'Profile'
+            publication: 'Magazine or list'
+            nip51Set: 'List or follow pack'
     toast:
         newArticle: 'New article'
         newPublication: 'New publication'
@@ -1632,10 +1632,26 @@ updates:
         invalidInput: 'Could not recognize that identifier.'
         alreadySubscribed: 'You are already subscribed to that source.'
 
-updatesPro:
-    required:
-        nip51Sets: 'NIP-51 set subscriptions require Updates Pro.'
-        cap: 'You have reached the free subscription limit. Upgrade to Updates Pro for unlimited subscriptions.'
+subscription_feed:
+    via: 'Via'
+    title: 'Subscriptions'
+    feed: 'Subscription feed'
+    local_notice: 'Free and private to your Newsroom account. Subscribing does not publish a Nostr follow.'
+    older: 'Older updates'
+    article_updated: 'Article updated'
+    magazine_updated: 'Magazine or list updated'
+    pack_updated: 'Follow pack updated'
+    source_updated: 'Source updated'
+    added: 'Added'
+    removed: 'Removed'
+    reordered: 'Items reordered'
+    metadata_changed: 'Source details changed'
+    content_changed: 'Content changed'
+    more_changes: 'More changes are available in the source.'
+    mark_read: 'Mark as read'
+    new_activity: 'Your subscriptions have new activity.'
+    refresh_error: 'Could not refresh subscriptions. Reload the page to try again.'
+    unavailable: 'Some changed items are unavailable locally or restricted. Open the source for its references.'
 
 relay_feed:
     title: 'Relay Feed'

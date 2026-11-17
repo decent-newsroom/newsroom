@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Feature] Unify free local subscriptions across profiles, magazines and follow packs with a dedicated change-aware feed, shared revision history and explicit read state; retire Updates Pro purchases while preserving payment history.
 - [Improvement] Restore compact topic, My Interests and named interest-set shortcuts below the home-page search bar.
 - [Feature] Separate the sole featured article above index entries in Bookshelf publication tables of contents, including nested indexes.
 - [Feature] Add containing-index links to Bookshelf index pages for navigating to parent publications.

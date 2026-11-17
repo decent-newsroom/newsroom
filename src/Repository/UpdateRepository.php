@@ -27,8 +27,7 @@ class UpdateRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('n')
             ->andWhere('n.user = :user')
             ->setParameter('user', $user)
-            ->orderBy('n.createdAt', \SortDirection::Descending)
-            ->addOrderBy('n.id', \SortDirection::Descending)
+            ->orderBy('n.id', \SortDirection::Descending)
             ->setMaxResults($limit);
 
         if ($beforeId !== null) {
@@ -47,6 +46,14 @@ class UpdateRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    /** @return iterable<Update> */
+    public function unreadForUser(User $user): iterable
+    {
+        return $this->createQueryBuilder('n')
+            ->andWhere('n.user = :user')->andWhere('n.readAt IS NULL')
+            ->setParameter('user', $user)->getQuery()->toIterable();
     }
 
     public function countUnseenForUser(User $user): int
@@ -96,4 +103,3 @@ class UpdateRepository extends ServiceEntityRepository
         return $this->findOneBy(['id' => $id, 'user' => $user]);
     }
 }
-

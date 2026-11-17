@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Service\Graph\RecordIdentityService;
+use App\Service\Update\SubscriptionChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -20,7 +21,13 @@ class ReplaceableEventCleanupService
     public function __construct(
         private readonly RecordIdentityService $recordIdentityService,
         private readonly LoggerInterface $logger,
+        private readonly SubscriptionChangeRecorder $subscriptionChanges,
     ) {}
+
+    public function recordArticleChange(Article $article, EntityManagerInterface $em, ?Article $previous = null): void
+    {
+        $this->subscriptionChanges->recordArticle($article, $em, $previous);
+    }
 
     /**
      * Remove older versions of a replaceable/parameterized-replaceable Event entity.
@@ -28,6 +35,7 @@ class ReplaceableEventCleanupService
      */
     public function removeOlderEventVersions(Event $newEvent, EntityManagerInterface $em): int
     {
+        $this->subscriptionChanges->record($newEvent, $em);
         $kind = $newEvent->getKind();
         $pubkey = $newEvent->getPubkey();
 
@@ -154,7 +162,7 @@ class ReplaceableEventCleanupService
 
                 $this->logger->debug('Cleaned up older article revisions', [
                     'pubkey' => substr($pubkey, 0, 16) . '...',
-                    'kind' => $kind instanceof \BackedEnum ? $kind->value : $kind,
+                    'kind' => $kind->value,
                     'slug' => $slug,
                     'deleted_count' => $deleted,
                     'kept_id' => $newArticle->getId(),
@@ -172,4 +180,3 @@ class ReplaceableEventCleanupService
         }
     }
 }
-

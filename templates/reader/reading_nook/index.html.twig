@@ -242,7 +242,7 @@
                                 </h2>
 
                                 {% if item.summary %}
-                                    <p>{{ item.summary }}</p>
+                                    <p>{{ item.section == 'subscriptions' ? item.summary|trans : item.summary }}</p>
                                 {% endif %}
 
                                 <div class="reading-nook-row__meta">

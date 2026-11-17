@@ -474,12 +474,6 @@ services:
         tags: ['controller.service_arguments']
 
 
-    # Updates Pro Service — paywall for NIP-51 set subscriptions and higher caps
-    App\Service\UpdateProService:
-        arguments:
-            $recipientPubkey: '%payment_recipient_pubkey%'
-            $recipientLud16: '%payment_recipient_lud16%'
-
     App\Command\SubscriptionZapReceiptWorkerCommand:
         arguments:
             $recipientPubkey: '%payment_recipient_pubkey%'

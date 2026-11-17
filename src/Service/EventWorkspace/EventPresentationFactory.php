@@ -302,7 +302,7 @@ final readonly class EventPresentationFactory
      * @param array<array-key, mixed> $tags
      * @return list<EventReference>
      */
-    private function references(string $eventId, int $kind, array $tags): array
+    public function references(string $eventId, int $kind, array $tags): array
     {
         $references = [];
         $position = 0;

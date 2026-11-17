@@ -118,7 +118,7 @@ final readonly class EventPreviewAccessPolicy
         }));
     }
 
-    public function isReadable(Event $event): bool
+    public function isReadable(Event $event, ?UserInterface $viewer = null): bool
     {
         $eventId = $event->getId();
         $stage = 'event_fields';
@@ -161,6 +161,7 @@ final readonly class EventPreviewAccessPolicy
                 $event->getCreatedAt(),
                 $this->identities->isParameterizedReplaceable($event->getKind()),
                 $stage,
+                $viewer,
                 authorAlreadyChecked: false,
             );
         } catch (\Throwable $exception) {

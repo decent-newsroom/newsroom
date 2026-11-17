@@ -20,9 +20,9 @@ Lazy workspace frames share at most four concurrent requests in a tab; queued
 closed disclosures wait until reopened, and disconnecting a disclosure cancels
 its pending requests. Explicit TOC discovery has its own four-request limit.
 
-Reading Nook is a personalized workspace for navigating a user's own read-side Nostr collections from a single page. It merges bookmarks, topic lists, follow packs, reading lists, and update subscriptions into one searchable and filterable pool.
+Reading Nook is a personalized workspace for navigating a user's own read-side Nostr collections from a single page. It merges bookmarks, topic lists, follow packs, reading lists, and local subscriptions into one searchable and filterable pool. [Subscriptions](subscriptions.md) are free for all supported sources, with a dedicated change feed and separate source management.
 
-Author update subscriptions resolve their stored hex pubkey or npub through
+Profile subscriptions resolve their stored hex pubkey or npub through
 the cached kind `0` profile metadata. Subscription rows prefer
 `display_name`, then `name`, and retain the shortened identifier fallback when
 no profile name is available.
@@ -229,7 +229,7 @@ Reading Nook does not introduce new tables. It composes existing data sources:
 
 1. User opens `/reading-nook`
 2. Controller resolves current user pubkey
-3. Current owned collection revisions and active update subscriptions are merged
+3. Current owned collection revisions and active local subscriptions are merged
 4. Query filters (`q`, `section`, `timespan`, `tag`) are applied server-side
 5. Counts and tag facets are calculated over the complete local inventory
 6. Twig renders a 25-item page, retaining filters in Previous/Next links

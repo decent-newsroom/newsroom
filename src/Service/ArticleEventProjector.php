@@ -79,6 +79,9 @@ class ArticleEventProjector
                     ->findOneBy(['eventId' => $eventId]);
 
                 if ($existingArticle) {
+                    if ($em instanceof \Doctrine\ORM\EntityManagerInterface) {
+                        $this->cleanupService->recordArticleChange($existingArticle, $em);
+                    }
                     $this->logger->debug('Article already exists in database, skipping', [
                         'event_id' => $eventId,
                         'db_id' => $existingArticle->getId()
@@ -119,6 +122,7 @@ class ArticleEventProjector
             $articlePubkey = $article->getPubkey();
             $articleCreatedAt = $article->getCreatedAt();
             $articleEventId = $article->getEventId() ?? '';
+            $previousArticle = null;
 
             if ($articleKind && $articleSlug && $articlePubkey && $articleCreatedAt) {
                 /** @var \App\Repository\ArticleRepository $articleRepo */
@@ -157,6 +161,11 @@ class ArticleEventProjector
                     }
 
                     $olderRevisions[] = $existing;
+                    if ($previousArticle === null || $existingCreatedAt > $previousArticle->getCreatedAt()
+                        || ($existingCreatedAt == $previousArticle->getCreatedAt()
+                            && strcmp($existingEventId, $previousArticle->getEventId() ?? '') < 0)) {
+                        $previousArticle = $existing;
+                    }
                 }
 
                 if ($newerExists) {
@@ -244,15 +253,18 @@ class ArticleEventProjector
                 'db_id' => $article->getId()
             ]);
 
+            if ($em instanceof \Doctrine\ORM\EntityManagerInterface) {
+                $this->cleanupService->recordArticleChange($article, $em, $previousArticle);
+            }
+
             // Defensive cleanup: any older revisions that slipped past the
             // pre-persist guard (e.g. inserted by a different writer between
             // our findAllRevisionsByCoordinate() call and our flush) are
             // removed here. Uses ORM remove() so the FOS Elastica listener
             // fires postRemove for each stale row.
-            $this->cleanupService->removeOlderArticleRevisions(
-                $article,
-                $em instanceof \Doctrine\ORM\EntityManagerInterface ? $em : $this->managerRegistry->getManager()
-            );
+            if ($em instanceof \Doctrine\ORM\EntityManagerInterface) {
+                $this->cleanupService->removeOlderArticleRevisions($article, $em);
+            }
 
             // Update graph layer tables (parsed_reference + current_record)
             // so the graph stays in sync without needing backfill/audit repair.

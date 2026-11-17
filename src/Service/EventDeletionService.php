@@ -253,6 +253,15 @@ class EventDeletionService
             seenTargetRefs: $seenTargetRefs,
         );
 
+        $this->em()->getConnection()->executeStatement(
+            'DELETE FROM notification WHERE event_id = :id AND event_pubkey = :pubkey',
+            ['id' => $eventId, 'pubkey' => $requesterPubkey],
+        );
+        $this->em()->getConnection()->executeStatement(
+            'DELETE FROM subscription_change WHERE event_id = :id AND pubkey = :pubkey',
+            ['id' => $eventId, 'pubkey' => $requesterPubkey],
+        );
+
         if ($target === null) {
             return 'suppressed'; // tombstone recorded, nothing locally to remove
         }
@@ -306,6 +315,16 @@ class EventDeletionService
         );
 
         $this->cascadeDelete($kind, $requesterPubkey, $dTag, null, $requestedAt);
+        $this->em()->getConnection()->executeStatement(
+            'DELETE FROM notification WHERE event_kind = :kind AND event_pubkey = :pubkey
+             AND event_coordinate = :coordinate AND created_at <= :created',
+            ['kind' => $kind, 'pubkey' => $requesterPubkey, 'coordinate' => $coordinate,
+                'created' => (new \DateTimeImmutable())->setTimestamp($requestedAt)->format('Y-m-d H:i:s')],
+        );
+        $this->em()->getConnection()->executeStatement(
+            'DELETE FROM subscription_change WHERE coordinate = :coordinate AND pubkey = :pubkey AND created_at <= :created',
+            ['coordinate' => $coordinate, 'pubkey' => $requesterPubkey, 'created' => $requestedAt],
+        );
 
         return 'processed';
     }
@@ -459,7 +478,6 @@ class EventDeletionService
         $this->em()->persist($tombstone);
     }
 }
-
 
 
 

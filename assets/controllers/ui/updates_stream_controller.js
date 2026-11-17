@@ -1,102 +1,78 @@
 import { Controller } from '@hotwired/stimulus';
 
-/**
- * Opens an EventSource to the current user's private Mercure updates topic
- * and surfaces each update as a toast (via the global `window.showToast` helper
- * installed by the utility--toast controller). Also highlights newly-arrived
- * items in the updates page list, if present.
- *
- * Expected on: authenticated pages (Mercure subscriber cookie is set server-side).
- *
- * Values:
- *   - topicUrlValue: absolute Mercure hub URL with ?topic=... query string
- *
- * Targets:
- *   - list: <ul> to prepend new arrivals into (optional)
- */
 export default class extends Controller {
-    static values = { topicUrl: String };
+    static values = { topicUrl: String, itemsUrl: String, message: String, error: String };
     static targets = ['list'];
 
     connect() {
+        this.connected = true;
+        if (this.hasItemsUrlValue && this.itemsUrlValue) {
+            this.receive = () => {
+                clearTimeout(this.refreshTimer);
+                this.refreshTimer = setTimeout(() => this.refresh(), 150);
+            };
+            window.addEventListener('subscriptions:updated', this.receive);
+            return;
+        }
         if (!this.topicUrlValue || typeof window.EventSource === 'undefined') {
             return;
         }
-
-        try {
-            // Cookie-based auth — the browser sends the mercureAuthorization
-            // HttpOnly cookie automatically when withCredentials is true.
-            this.source = new EventSource(this.topicUrlValue, { withCredentials: true });
-            this.source.onmessage = (e) => this.onMessage(e);
-            this.source.onerror = () => {
-                // Let the browser handle reconnection; do not spam the console.
-            };
-        } catch (err) {
-            console.warn('updates-stream: failed to open EventSource', err);
-        }
+        this.source = new EventSource(this.topicUrlValue, { withCredentials: true });
+        this.source.onmessage = (event) => {
+            let payload;
+            try {
+                payload = JSON.parse(event.data);
+            } catch (error) {
+                console.warn('subscriptions: invalid update signal', error);
+                return;
+            }
+            if (payload?.type !== 'update') {
+                return;
+            }
+            if (this.messageValue && typeof window.showToast === 'function') {
+                window.showToast(this.messageValue, 'info');
+            }
+            window.dispatchEvent(new CustomEvent('subscriptions:updated'));
+        };
     }
 
     disconnect() {
-        if (this.source) {
-            this.source.close();
-            this.source = null;
+        this.connected = false;
+        this.source?.close();
+        this.request?.abort();
+        clearTimeout(this.refreshTimer);
+        if (this.receive) {
+            window.removeEventListener('subscriptions:updated', this.receive);
         }
     }
 
-    onMessage(event) {
-        let payload;
-        try {
-            payload = JSON.parse(event.data);
-        } catch (_err) {
-            return;
-        }
-        if (!payload || payload.type !== 'update') {
-            return;
-        }
-
-        const title = payload.title || 'New update';
-        if (typeof window.showToast === 'function') {
-            window.showToast(title, 'info');
-        }
-
-        this.prependToList(payload);
-        this.dispatch('received', { detail: payload });
-    }
-
-    prependToList(payload) {
+    async refresh() {
         if (!this.hasListTarget) {
             return;
         }
-        const li = document.createElement('li');
-        li.className = 'update-item update-item--unread update-item--fresh';
-        li.dataset.updateId = payload.id;
-
-        const header = document.createElement('div');
-        header.className = 'update-item__header';
-        const kind = document.createElement('span');
-        kind.className = 'update-item__kind';
-        kind.textContent = payload.kind === 30040 ? 'Publication updated' : 'New article';
-        header.appendChild(kind);
-        li.appendChild(header);
-
-        const a = document.createElement('a');
-        a.className = 'update-item__title';
-        a.href = payload.url || '#';
-        a.textContent = title(payload);
-        li.appendChild(a);
-
-        if (payload.summary) {
-            const p = document.createElement('p');
-            p.className = 'update-item__summary';
-            p.textContent = payload.summary;
-            li.appendChild(p);
+        this.request?.abort();
+        this.request = new AbortController();
+        try {
+            // Reauthorize in the reader's HTTP session; the push contains no metadata.
+            const response = await fetch(this.itemsUrlValue, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                signal: this.request.signal,
+            });
+            if (!response.ok || response.redirected) {
+                throw new Error(`Subscription feed returned ${response.status}`);
+            }
+            const html = await response.text();
+            if (this.connected) {
+                this.listTarget.innerHTML = html;
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.warn('subscriptions: feed refresh failed', error);
+                if (this.errorValue && typeof window.showToast === 'function') {
+                    window.showToast(this.errorValue, 'error');
+                }
+            }
         }
-
-        this.listTarget.prepend(li);
     }
 }
-
-function title(p) {
-    return p.title && String(p.title).trim() !== '' ? p.title : 'Untitled';
-}
-

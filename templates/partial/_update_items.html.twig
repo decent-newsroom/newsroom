@@ -13,9 +13,11 @@
             data-update-id="{{ n.id }}">
             <div class="update-item__header">
                 <span class="update-item__kind">
-                    {% if n.eventKind == 30023 %}{{ 'updates.toast.newArticle'|trans }}
-                    {% elseif n.eventKind == 30040 %}{{ 'updates.toast.newPublication'|trans }}
-                    {% else %}{{ n.eventKind }}
+                    {% if n.eventKind == 30023 and (n.change is null or n.change.previousEventId is null) %}{{ 'updates.toast.newArticle'|trans }}
+                    {% elseif n.eventKind == 30023 %}{{ 'subscription_feed.article_updated'|trans }}
+                    {% elseif n.eventKind == 30040 %}{{ 'subscription_feed.magazine_updated'|trans }}
+                    {% elseif n.eventKind == 39089 %}{{ 'subscription_feed.pack_updated'|trans }}
+                    {% else %}{{ 'subscription_feed.source_updated'|trans }}
                     {% endif %}
                 </span>
                 <time datetime="{{ n.createdAt|date('c') }}">{{ n.createdAt|date('Y-m-d H:i') }}</time>
@@ -23,10 +25,44 @@
             <a href="{{ n.url }}" class="update-item__title" data-turbo-frame="_top">
                 {{ n.title ?: ('updates.untitled'|trans) }}
             </a>
+            {% if n.visibleSource %}
+                <p>{{ 'subscription_feed.via'|trans }} <a href="{{ n.visibleSource.url }}" data-turbo-frame="_top">{{ n.visibleSource.label }}</a></p>
+            {% endif %}
             {% if n.summary %}
                 <p class="update-item__summary">{{ n.summary }}</p>
             {% endif %}
+            {% set changes = n.visibleChanges %}
+            {% if changes is not empty %}
+                {% for direction in ['added', 'removed'] %}
+                    {% if changes[direction] is not empty %}
+                        <p>{{ ('subscription_feed.' ~ direction)|trans }}</p>
+                        <ul>
+                            {% for member in changes[direction] %}
+                                <li>
+                                    {% if member.url %}
+                                        <a href="{{ member.url }}" data-turbo-frame="_top">{{ member.label }}</a>
+                                    {% else %}
+                                        {{ member.label }}
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% endfor %}
+                {% if changes.reordered %}<p>{{ 'subscription_feed.reordered'|trans }}</p>{% endif %}
+                {% if changes.metadata %}<p>{{ 'subscription_feed.metadata_changed'|trans }}</p>{% endif %}
+                {% if changes.content %}<p>{{ 'subscription_feed.content_changed'|trans }}</p>{% endif %}
+                {% if changes.truncated %}<p>{{ 'subscription_feed.more_changes'|trans }}</p>{% endif %}
+                {% if changes.unavailable %}<p>{{ 'subscription_feed.unavailable'|trans }}</p>{% endif %}
+            {% endif %}
+            {% if n.readAt is null %}
+                <form method="post" action="{{ path('subscription_read', {id: n.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('subscription-read') }}">
+                    <button class="btn btn-sm" type="submit">{{ 'subscription_feed.mark_read'|trans }}</button>
+                </form>
+            {% endif %}
         </li>
+    {% else %}
+        <li>{{ 'updates.empty'|trans }}</li>
     {% endfor %}
 </ul>
-

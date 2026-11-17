@@ -68,6 +68,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 - [Related Articles Suggestions](Reader/related-articles.md)
 - [Relay Feed](Reader/relay-feed.md)
 - [Single Event Page Details](Reader/single-event-page.md)
+- [Local subscriptions and change feed](Reader/subscriptions.md)
 - [Sitemap](Reader/sitemap.md)
 - [User Mute List Filtering (NIP-51 kind 10000)](Reader/user-mute-list-filtering.md)
 
