@@ -87,10 +87,13 @@ final class MagazineReviewArticlePreviewTest extends KernelTestCase
 final class MagazineReviewEmbedFixture
 {
     public string $parsed = '';
+    public string $rawContent = '';
+    public bool $renderMedia = true;
 
     public function mount(string $bech, string $type): void
     {
         $this->parsed = 'nostr-preview-fixture:' . $type . ':' . $bech;
+        $this->rawContent = $this->parsed;
     }
 }
 
@@ -98,10 +101,13 @@ final class MagazineReviewEmbedFixture
 final class MagazineReviewCoordinateFixture
 {
     public string $parsed = '';
+    public string $rawContent = '';
+    public bool $renderMedia = true;
 
     public function mount(string $coordinate): void
     {
         $this->parsed = 'article-coordinate-fixture:' . $coordinate;
+        $this->rawContent = $this->parsed;
     }
 }
 

@@ -1,6 +1,6 @@
 {# Embedded event card component #}
 {% set eventIdentifier = nevent ?? naddr %}
-<div class="embedded-event-card" data-event-id="{{ eventIdentifier }}">
+<div class="embedded-event-card" data-event-id="{{ eventIdentifier }}"{% if event.kind == 9802 %} data-highlight-embed data-turbo-temporary{% endif %}>
     <div class="event-header">
         {% if author %}
             <div class="author-info">

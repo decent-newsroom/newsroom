@@ -9,6 +9,7 @@ use DecentNewsroom\UnfoldBundle\Content\ContentKindPolicy;
 use DecentNewsroom\UnfoldBundle\Content\PostData;
 use DecentNewsroom\UnfoldBundle\Contract\CommentProviderInterface;
 use DecentNewsroom\UnfoldBundle\Contract\Comment;
+use DecentNewsroom\UnfoldBundle\Contract\ContentHtmlResolverInterface;
 use DecentNewsroom\UnfoldBundle\Contract\MarkdownConverterInterface;
 use DecentNewsroom\UnfoldBundle\Contract\ProfileMetadata;
 use DecentNewsroom\UnfoldBundle\Contract\ProfileMetadataProviderInterface;
@@ -182,6 +183,44 @@ final class MultiKindRenderingTest extends TestCase
             self::assertStringContainsString('<strong>text</strong>', $html);
             self::assertStringContainsString('https://images.example/safe.png', $html);
         }
+    }
+
+    public function testViewerDependentHtmlIsResolvedAfterTheSharedCacheAndSanitizedAgain(): void
+    {
+        $converter = new class implements MarkdownConverterInterface, ContentHtmlResolverInterface {
+            public int $conversions = 0;
+            public array $inputs = [];
+            public bool $show = true;
+
+            public function convertToHTML(string $content, ?string $format = null, ?int $kind = null, ?array $tags = null): string
+            {
+                ++$this->conversions;
+                return '<div class="nostr-deferred-embed" data-nostr-bech="nevent1test" data-nostr-type="highlight-nevent"></div>';
+            }
+
+            public function resolveContentHtml(string $html): string
+            {
+                $this->inputs[] = $html;
+                return $this->show
+                    ? '<div data-highlight-embed data-turbo-temporary>Highlight<script>alert(1)</script></div>'
+                    : '<span data-highlight-embed data-turbo-temporary></span>';
+            }
+        };
+        $builder = $this->builder($converter);
+        $post = $this->post(30023, 'story');
+        $first = $builder->buildPostContext($this->site(), [], $post)['post']['html'];
+        $converter->show = false;
+        $second = $builder->buildPostContext($this->site(), [], $post)['post']['html'];
+
+        self::assertSame(1, $converter->conversions);
+        self::assertCount(2, $converter->inputs);
+        self::assertSame($converter->inputs[0], $converter->inputs[1]);
+        self::assertStringContainsString('data-nostr-bech="nevent1test"', $converter->inputs[0]);
+        self::assertStringContainsString('data-nostr-type="highlight-nevent"', $converter->inputs[0]);
+        self::assertStringContainsString('Highlight', $first);
+        self::assertStringNotContainsString('<script', $first);
+        self::assertStringContainsString('data-turbo-temporary', $first);
+        self::assertStringNotContainsString('Highlight', $second);
     }
 
     private function post(int $kind, string $slug, array $tags = [], string $content = 'Body', ?string $author = null): PostData

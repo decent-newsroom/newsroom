@@ -9,7 +9,9 @@ use App\Dto\EventWorkspace\EventPresentation;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\DeletedEventRepository;
+use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
+use App\Repository\HighlightRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\ArticleEventProjector;
 use App\Service\Cache\RedisCacheService;
@@ -25,7 +27,9 @@ use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\UserMuteListService;
+use App\Tests\Unit\Support\HighlightSourceVisibilityFactory;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
 use nostriphant\NIP19\Bech32;
@@ -41,6 +45,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 final class EventControllerWorkspacePageTest extends TestCase
 {
+    use HighlightSourceVisibilityFactory;
+
     private const ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const AUTHOR = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     private const VIEWER = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
@@ -162,7 +168,120 @@ final class EventControllerWorkspacePageTest extends TestCase
         ]), $this->policy('deleted'));
 
         self::assertNull($controller->parameters['highlightEventRef']);
-        self::assertTrue($response->headers->hasCacheControlDirective('public'));
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+    }
+
+    public function testGuestHighlightPageRejectsMissingExactSourceEvenWhenAnAddressIsPresent(): void
+    {
+        $exactId = str_repeat('d', 64);
+        $sources = $this->createMock(EventRepository::class);
+        $sources->expects(self::once())->method('findHighlightSourceTargets')
+            ->with([], [$exactId])->willReturn(['eventIds' => [], 'coordinates' => []]);
+        $metadata = $this->createMock(RedisCacheService::class);
+        $metadata->expects(self::never())->method('getMetadata');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->request($this->event(KindsEnum::HIGHLIGHTS->value, [
+            ['e', $exactId],
+            ['a', '30023:' . self::AUTHOR . ':article'],
+        ]), $this->policy(), $metadata, highlightSources: $this->highlightSources($sources, true));
+    }
+
+    public function testGuestHighlightPageAllowsALocallyStoredExactSource(): void
+    {
+        $exactId = str_repeat('d', 64);
+        $source = $this->event(KindsEnum::TEXT_NOTE->value, []);
+        $source->setId($exactId);
+        $sources = $this->createMock(EventRepository::class);
+        $sources->expects(self::once())->method('findHighlightSourceTargets')
+            ->with([], [$exactId])->willReturn(['eventIds' => [$exactId => $source], 'coordinates' => []]);
+        [$controller, $response] = $this->request($this->event(KindsEnum::HIGHLIGHTS->value, [
+            ['e', strtoupper($exactId)],
+        ]), $this->policy(), highlightSources: $this->highlightSources($sources, true));
+
+        self::assertSame($exactId, $controller->parameters['highlightEventRef']);
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+    }
+
+    public function testGuestHighlightPagePreparesTheActualLocalCoordinateForRendering(): void
+    {
+        $coordinate = '30040:' . self::AUTHOR . ':Chapter:One';
+        $source = $this->event(30040, [['d', 'Chapter:One']]);
+        $source->setId(str_repeat('d', 64));
+        $sources = $this->createMock(EventRepository::class);
+        $sources->expects(self::once())->method('findHighlightSourceTargets')
+            ->with([$coordinate], [])->willReturn(['eventIds' => [], 'coordinates' => [$coordinate => $source]]);
+        [$controller] = $this->request($this->event(KindsEnum::HIGHLIGHTS->value, [
+            ['a', '30040:' . strtoupper(self::AUTHOR) . ':Chapter:One', 'wss://relay.example'],
+        ]), $this->policy(), highlightSources: $this->highlightSources($sources, true));
+
+        $prepared = $controller->parameters['highlightGuestSource'];
+        self::assertSame($coordinate, $prepared['article_ref']);
+        self::assertNull($prepared['event_ref']);
+        $address = new Bech32($prepared['naddr']);
+        self::assertSame('Chapter:One', $address->data->identifier);
+        self::assertSame(['wss://relay.example'], $address->data->relays);
+    }
+
+    /** @dataProvider rootHighlightVisibility */
+    public function testRootHighlightVisibilityDoesNotHideTheReply(bool $anonymous, bool $sourceAvailable, bool $visible): void
+    {
+        $rootId = str_repeat('e', 64);
+        $sourceId = str_repeat('d', 64);
+        $root = $this->event(KindsEnum::HIGHLIGHTS->value, [['e', $sourceId]]);
+        $root->setId($rootId);
+        $root->setPubkey(str_repeat('c', 64));
+        $reply = $this->event(KindsEnum::TEXT_NOTE->value, [['e', $rootId, '', 'root']]);
+
+        $sources = $this->createMock(EventRepository::class);
+        if ($anonymous) {
+            $source = $this->event(KindsEnum::TEXT_NOTE->value, []);
+            $source->setId($sourceId);
+            $sources->expects(self::once())->method('findHighlightSourceTargets')
+                ->with([], [$sourceId])
+                ->willReturn(['eventIds' => $sourceAvailable ? [$sourceId => $source] : [], 'coordinates' => []]);
+        } else {
+            $sources->expects(self::never())->method('findHighlightSourceTargets');
+        }
+
+        $metadata = $this->createMock(RedisCacheService::class);
+        $metadata->expects(self::exactly($visible ? 2 : 1))->method('getMetadata');
+        [$controller, $response] = $this->request(
+            $reply,
+            $this->policy(),
+            $metadata,
+            highlightSources: $this->highlightSources($sources, $anonymous),
+            rootEvent: $root,
+        );
+
+        self::assertSame(self::ID, $controller->parameters['event']->id);
+        self::assertSame($visible ? $rootId : null, $controller->parameters['opEvent']?->id);
+        self::assertTrue($controller->parameters['hasHighlightOp']);
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+        self::assertFalse($response->headers->hasCacheControlDirective('public'));
+    }
+
+    public static function rootHighlightVisibility(): iterable
+    {
+        yield 'guest with missing source' => [true, false, false];
+        yield 'guest with local source' => [true, true, true];
+        yield 'signed-in reader with missing source' => [false, false, true];
+    }
+
+    public function testEmbeddedHighlightMakesAnOtherwisePublicEventResponsePrivate(): void
+    {
+        [, $response] = $this->request(
+            $this->event(65000, []),
+            $this->policy(),
+            renderedContent: '<span hidden data-highlight-embed data-turbo-temporary></span>',
+        );
+
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+        self::assertFalse($response->headers->hasCacheControlDirective('public'));
     }
 
     /** @dataProvider legacyCases */
@@ -212,20 +331,39 @@ final class EventControllerWorkspacePageTest extends TestCase
         return $event;
     }
 
-    private function request(Event $event, EventPreviewAccessPolicy $policy, ?RedisCacheService $metadata = null, ?string $identifier = null): array
+    private function request(
+        Event $event,
+        EventPreviewAccessPolicy $policy,
+        ?RedisCacheService $metadata = null,
+        ?string $identifier = null,
+        ?HighlightSourceVisibility $highlightSources = null,
+        ?Event $rootEvent = null,
+        string $renderedContent = 'rendered',
+    ): array
     {
         $controller = new class($this->createMock(ArticleEventProjector::class), $this->createMock(ContentAuthorAccessPolicy::class)) extends EventController {
             public string $view = '';
             public array $parameters = [];
+            public string $renderedContent = 'rendered';
             public function render(string $view, array $parameters = [], ?Response $response = null): Response
             {
                 $this->view = $view;
                 $this->parameters = $parameters;
-                return $response ?? new Response('rendered');
+                return $response ?? new Response($this->renderedContent);
             }
         };
+        $controller->renderedContent = $renderedContent;
         $repository = $this->createMock(EventRepository::class);
-        $repository->expects(self::once())->method('findById')->with(self::ID)->willReturn($event);
+        if ($rootEvent === null) {
+            $repository->expects(self::once())->method('findById')->with(self::ID)->willReturn($event);
+        } else {
+            $repository->expects(self::exactly(2))->method('findById')
+                ->willReturnCallback(static fn (string $id): ?Event => match ($id) {
+                    self::ID => $event,
+                    $rootEvent->getId() => $rootEvent,
+                    default => null,
+                });
+        }
         $client = $this->createMock(NostrClient::class);
         $client->expects(self::never())->method('getEventById');
         $bus = $this->createMock(MessageBusInterface::class);
@@ -238,8 +376,19 @@ final class EventControllerWorkspacePageTest extends TestCase
             $this->createMock(GenericEventProjector::class),
             $this->createMock(UserRelayListService::class), $policy,
             new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
+            $highlightSources ?? $this->highlightSources($this->createMock(EventRepository::class), false),
         );
         return [$controller, $response];
+    }
+
+    private function highlightSources(EventRepository $events, bool $anonymous): HighlightSourceVisibility
+    {
+        $security = $this->createMock(Security::class);
+        if (!$anonymous) {
+            $security->method('getUser')->willReturn($this->createMock(UserInterface::class));
+        }
+
+        return $this->makeHighlightVisibility($events, security: $security);
     }
 
     private function policy(string $reason = ''): EventPreviewAccessPolicy

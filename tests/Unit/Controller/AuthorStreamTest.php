@@ -26,10 +26,14 @@ use App\Service\Reader\ArticleAccessService;
 use App\Service\UserMuteListService;
 use App\Repository\DeletedEventRepository;
 use App\Repository\HiddenCoordinateRepository;
+use App\Repository\HighlightRepository;
+use App\Service\Reader\HighlightSourceVisibility;
+use App\Service\Nostr\NostrNip19Service;
 use Symfony\Bundle\SecurityBundle\Security;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
 use App\Service\VanityNameService;
+use App\Tests\Unit\Support\HighlightSourceVisibilityFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
@@ -40,6 +44,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class AuthorStreamTest extends TestCase
 {
+    use HighlightSourceVisibilityFactory;
+
     /** @dataProvider viewers */
     public function testTheStreamCombinesExistingSourcesButNeverLoadsVisitorDrafts(bool $owner, bool $cached, bool $stale): void
     {
@@ -130,6 +136,7 @@ final class AuthorStreamTest extends TestCase
             new RedisViewFactory($cache, $logger), $em, $bus,
             new PublicationIndexStream($indexEvents, $access, $security, $keys),
             new ProfileFeaturedContent($events, $access, $security, $keys),
+            $this->makeHighlightVisibility($events, articles: $articles, security: $security, access: $access),
         );
         self::assertSame(
             ['magazine', ...($cached ? ['reading_list'] : []), ...($owner ? ['draft'] : []), 'article', ...($cached ? ['follow_pack'] : [])],

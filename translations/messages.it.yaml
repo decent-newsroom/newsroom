@@ -397,6 +397,26 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    promo:
+        eyebrow: 'Il tuo prossimo capitolo, ovunque'
+        description: 'Un lettore Android per i libri su Nostr. Salva un libro, scegli il tuo stile di lettura e porta il prossimo capitolo offline.'
+        offline_title: 'Salva. Leggi ovunque.'
+        offline_description: 'Leggi i libri salvati anche offline e riprendi da dove eri rimasto.'
+        comfort_title: 'Mettiti comodo'
+        comfort_description: 'Scegli il tema, il carattere e l’allineamento del testo.'
+        highlights_title: 'Conserva i passaggi importanti'
+        highlights_description: 'Salva evidenziazioni e cerca nei libri e nei capitoli per ritrovarle.'
+        privacy_title: 'La tua lettura, la tua scelta'
+        privacy_description: 'Leggi e segui i progressi localmente senza account. Collega un account Nostr per le recensioni e la condivisione facoltativa.'
+        curated_eyebrow: 'Da dove iniziare'
+        curated_title: 'Scelti per la tua libreria'
+        view_directory: 'Esplora tutta la selezione'
+        web_title: 'Preferisci leggere sul web?'
+        unavailable: 'Questa selezione è temporaneamente non disponibile.'
+        empty: 'Non ci sono ancora libri in questa selezione.'
+        reference_missing: 'Questo libro non è attualmente disponibile nell’indice dei libri.'
+        reference_invalid: 'Questa voce contiene un riferimento a un libro non valido.'
+        reference_restricted: 'Questo libro non può essere mostrato.'
     read_this_book: 'Leggi questo libro'
     contained_in_index: 'Contenuto nell’indice'
     open_index: 'Apri nella libreria'

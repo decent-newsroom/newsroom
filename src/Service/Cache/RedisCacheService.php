@@ -126,13 +126,14 @@ class RedisCacheService
 
     /**
      * Fetch metadata for multiple pubkeys at once using Redis getItems.
-     * Returns cached data immediately, dispatches async batch fetch for misses.
+     * Returns local data immediately and optionally dispatches a batch fetch for misses.
      *
      * @param string[] $pubkeys Array of hex pubkeys
+     * @param bool $refreshOnMiss Schedule a profile refresh when local metadata is unavailable
      * @return array<string, UserMetadata> Map of pubkey => metadata
      * @throws InvalidArgumentException
      */
-    public function getMultipleMetadata(array $pubkeys): array
+    public function getMultipleMetadata(array $pubkeys, bool $refreshOnMiss = true): array
     {
         foreach ($pubkeys as $pubkey) {
             if (PublicKey::fromHex(strtolower(trim((string) ($pubkey)))) === null) {
@@ -209,7 +210,7 @@ class RedisCacheService
         }
 
         // Dispatch batch async fetch for all misses (throttled, non-blocking)
-        if (!empty($missedPubkeys)) {
+        if ($refreshOnMiss && !empty($missedPubkeys)) {
             try {
                 $queued = $this->profileUpdateDispatcher->dispatchBatch($missedPubkeys);
                 $this->logger->debug('Dispatched batch async profile fetch', [

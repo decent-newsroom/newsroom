@@ -6,6 +6,7 @@ namespace App\Controller\Bookshelf;
 
 use App\Bookshelf\BookContainingIndexes;
 use App\Bookshelf\BookshelfIndexSource;
+use App\Bookshelf\BookshelfTocArticles;
 use App\Dto\EventWorkspace\EventPresentation;
 use App\Dto\EventWorkspace\EventReferenceRole;
 use App\Dto\UserMetadata;
@@ -39,6 +40,7 @@ final class IndexController extends AbstractController
         private readonly EventRepository $events,
         private readonly RedisCacheService $profileCache,
         private readonly BookContainingIndexes $containingIndexes,
+        private readonly BookshelfTocArticles $tocArticles,
         #[Autowire('%env(bool:EVENT_WORKSPACE_EXPANSION_ENABLED)%')]
         private readonly bool $expansionEnabled = true,
     ) {}
@@ -54,10 +56,10 @@ final class IndexController extends AbstractController
             ? $this->profileCache->getMetadata($pubkey, refreshOnMiss: false)
             : UserMetadata::fromMetadataEvent($metadataEvent);
         $presentation = $this->presentations->fromAuthorizedEvent($event);
-        $tocPage = $this->pages->fromAuthorizedEvent(
+        $tocPage = $this->tocArticles->enrich($this->pages->fromAuthorizedEvent(
             $event, $this->pageNumber($request), routeName: 'bookshelf_index',
             readerMutedPubkeys: $muted, separateFeaturedArticle: true,
-        );
+        ));
 
         return $this->render('bookshelf/index.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
@@ -116,10 +118,10 @@ final class IndexController extends AbstractController
         }
 
         return $this->render('reader/reading_nook/_publication_toc.html.twig', [
-            'tocPage' => $this->pages->fromAuthorizedEvent(
+            'tocPage' => $this->tocArticles->enrich($this->pages->fromAuthorizedEvent(
                 $event, $page, $path, $occurrence, 'bookshelf_index_toc', $muted,
                 separateFeaturedArticle: true,
-            ),
+            )),
             'tocNestedRoute' => 'bookshelf_index_toc',
             'tocBookshelfLinks' => true,
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));

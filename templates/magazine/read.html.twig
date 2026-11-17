@@ -4,6 +4,7 @@
 
 {% block stylesheets %}
     {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
     <style>
         header.chapter-header {
             position: relative;
@@ -117,7 +118,7 @@
                         <div class="chapter-content"
                              data-controller="utility--katex"
                              data-utility--katex-display-value="true">
-                            {{ chapter.content|resolve_nostr_embeds|raw }}
+                            {{ chapter.content|resolve_nostr_embeds(chapter.event.content, chapter.event.kind, chapter.event.tags)|raw }}
                         </div>
                     </article>
 

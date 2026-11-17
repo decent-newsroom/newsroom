@@ -6,6 +6,7 @@ namespace App\Controller\Reader;
 
 use App\Message\FetchHighlightsMessage;
 use App\Service\HighlightFeedService;
+use App\Service\Reader\HighlightSourceVisibility;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,11 +24,11 @@ class HighlightsController extends AbstractController
     ) {}
 
     #[Route('/highlights', name: 'highlights')]
-    public function index(): Response
+    public function index(HighlightSourceVisibility $highlightSources): Response
     {
         try {
             $feed = $this->highlightFeedService->loadLatestHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
-            $highlights = $feed['highlights'];
+            $highlights = $highlightSources->filter($feed['highlights']);
             $fromRedisView = $feed['from_redis_view'];
 
             if ($fromRedisView) {
@@ -44,23 +45,26 @@ class HighlightsController extends AbstractController
                 }
             }
 
-            return $this->render('pages/highlights.html.twig', [
+            $response = $this->render('pages/highlights.html.twig', [
                 'highlights' => $highlights,
                 'total' => count($highlights),
                 'from_redis_view' => $fromRedisView,
             ]);
+            $response->headers->set('Cache-Control', 'private, no-store');
+            return $response;
 
         } catch (\Exception $e) {
             $this->logger->error('Error loading highlights page', [
                 'error' => $e->getMessage()
             ]);
 
-            return $this->render('pages/highlights.html.twig', [
+            $response = $this->render('pages/highlights.html.twig', [
                 'highlights' => [],
                 'total' => 0,
                 'error' => 'Unable to load highlights at this time. Please try again later.',
             ]);
+            $response->headers->set('Cache-Control', 'private, no-store');
+            return $response;
         }
     }
 }
-

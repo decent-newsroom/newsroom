@@ -514,6 +514,26 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    promo:
+        eyebrow: 'Your next chapter, anywhere'
+        description: 'An Android ereader for books on Nostr. Save a book, settle into your own reading style, and take your next chapter offline.'
+        offline_title: 'Save it. Read it anywhere.'
+        offline_description: 'Keep saved books available offline and pick up where you left off.'
+        comfort_title: 'Make yourself comfortable'
+        comfort_description: 'Choose your reading theme, font, and text alignment.'
+        highlights_title: 'Keep the passages that matter'
+        highlights_description: 'Save highlights and search books and chapter text to find your way back.'
+        privacy_title: 'Your reading, your choice'
+        privacy_description: 'Read and track progress locally without an account. Connect a Nostr account for reviews and optional sharing.'
+        curated_eyebrow: 'A place to start'
+        curated_title: 'Picked for your bookshelf'
+        view_directory: 'Explore the full selection'
+        web_title: 'Prefer to read on the web?'
+        unavailable: 'This selection is temporarily unavailable.'
+        empty: 'No books in this selection yet.'
+        reference_missing: 'This book is not currently available from the book index.'
+        reference_invalid: 'This directory entry has an invalid book reference.'
+        reference_restricted: 'This book cannot be displayed.'
     read_this_book: 'Read this book'
     contained_in_index: 'Contained in index'
     open_index: 'Open in Bookshelf'

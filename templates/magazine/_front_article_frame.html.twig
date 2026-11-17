@@ -47,7 +47,7 @@
                 <div class="article-main"
                      data-controller="utility--katex"
                      data-utility--katex-display-value="true">
-                    {{ content|resolve_nostr_embeds|raw }}
+                    {{ content|resolve_nostr_embeds(article.content, article.kind ? article.kind.value : null, article.raw.tags|default(null))|raw }}
                 </div>
 
                 {% if article.topics|length > 0 %}
@@ -72,4 +72,3 @@
         </article>
     {% endif %}
 </turbo-frame>
-

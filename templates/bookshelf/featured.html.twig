@@ -1,0 +1,24 @@
+{% extends '@Bookshelf/bookshelf-layout.html.twig' %}
+{% block title %}{{ 'bookshelf.promo.curated_title'|trans }} | Bookshelf{% endblock %}
+{% block ogtags %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+{% block body %}
+    <section class="bookshelf-page">
+        <a href="{{ path('bookshelf') }}">{{ 'bookshelf.back'|trans }}</a>
+        <h1>{{ 'bookshelf.promo.curated_title'|trans }}</h1>
+        {% include 'bookshelf/_featured_entries.html.twig' with {featured: featured, directoryView: true} only %}
+        {% if featured.eventId and (featured.hasPrevious or featured.hasNext) %}
+            <nav class="event-member-pagination" aria-label="{{ 'bookshelf.references.pagination'|trans }}">
+                {% if featured.hasPrevious %}
+                    <a rel="prev" href="{{ path('bookshelf_featured', {eventId: featured.eventId, page: featured.page - 1}) }}">{{ 'reading_nook.toc.previous'|trans }}</a>
+                {% endif %}
+                {% if featured.hasNext %}
+                    <a rel="next" href="{{ path('bookshelf_featured', {eventId: featured.eventId, page: featured.page + 1}) }}">{{ 'reading_nook.toc.next'|trans }}</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    </section>
+{% endblock %}
+{% block aside %}{% endblock %}

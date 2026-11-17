@@ -9,6 +9,7 @@ use App\Repository\ArticleRepository;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\EventWorkspace\AuthoredArticlePreview;
@@ -20,7 +21,9 @@ use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\UserMuteListService;
+use App\Tests\Unit\Support\HighlightSourceVisibilityFactory;
 use App\Twig\Components\Molecules\NostrEmbed;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
@@ -45,6 +48,8 @@ use Twig\TwigFilter;
 
 final class CommentFeedCardTemplateTest extends KernelTestCase
 {
+    use HighlightSourceVisibilityFactory;
+
     private const AUTHOR = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     private const ROOT = '30040:' . self::AUTHOR . ':root:edition';
@@ -284,6 +289,8 @@ final class CommentFeedCardTemplateTest extends KernelTestCase
         $articles = $this->createMock(ArticleRepository::class);
         $articles->expects(self::never())->method('findOneBy');
         $container->set(ArticleRepository::class, $articles);
+        $container->set(HighlightSourceVisibility::class, $this->makeHighlightVisibility($events, articles: $articles));
+        $container->set(RedisCacheService::class, $this->createMock(RedisCacheService::class));
         $authors = $this->createMock(ContentAuthorAccessPolicy::class);
         if ($suppressed) {
             $authors->method('assertReadable')->willThrowException(new NotFoundHttpException());
@@ -306,7 +313,9 @@ final class CommentFeedCardTemplateTest extends KernelTestCase
         $container->set(EventPresentationFactory::class, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()));
         $container->set(NostrEventVerifier::class, $this->eventVerifier());
         $container->set(LoggerInterface::class, new NullLogger());
-        return $container->get(Environment::class)->render('partial/_bookmark_event_card.html.twig', [
+        $twig = $container->get(Environment::class);
+        $twig->addGlobal('app', ['user' => null]);
+        return $twig->render('partial/_bookmark_event_card.html.twig', [
             'event' => $this->event(1111, $tags),
         ]);
     }
@@ -326,10 +335,13 @@ final class CommentFeedCardTemplateTest extends KernelTestCase
 final class CommentFeedAuthorFixture
 {
     public string $parsed = '';
+    public string $rawContent = '';
+    public bool $renderMedia = true;
 
     public function mount(string $ident): void
     {
         $this->parsed = $ident;
+        $this->rawContent = $ident;
     }
 }
 
@@ -337,10 +349,13 @@ final class CommentFeedAuthorFixture
 final class CommentFeedContentFixture
 {
     public string $parsed = '';
+    public string $rawContent = '';
+    public bool $renderMedia = true;
 
     public function mount(string $content): void
     {
         $this->parsed = $content;
+        $this->rawContent = $content;
     }
 }
 
@@ -369,7 +384,7 @@ final class CommentFeedCardTestKernel extends Kernel
         ]);
         $services = $container->services();
         $services->set(\App\Twig\Filters::class)->autowire()->autoconfigure();
-        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, NostrEventVerifier::class, LoggerInterface::class] as $dependency) {
+        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, NostrEventVerifier::class, HighlightSourceVisibility::class, RedisCacheService::class, LoggerInterface::class] as $dependency) {
             $services->set($dependency)->synthetic()->public();
         }
         $services->set(AuthoredArticlePreview::class)->autowire();

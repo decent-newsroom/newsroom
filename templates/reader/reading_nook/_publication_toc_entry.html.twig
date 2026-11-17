@@ -1,4 +1,8 @@
 {% set reference = entry.reference %}
+{% set compactBookshelfTarget = tocBookshelfLinks|default(false)
+    and reference.targetKind in [30023, 30040]
+    and entry.targetResolution == 'available' and entry.target is not null %}
+{% if not compactBookshelfTarget %}
 {# Reference identity is always the source's original occurrence. #}
 <strong>
     {% if reference.targetIdentifier is not null and reference.targetIdentifier != '' %}
@@ -22,20 +26,27 @@
 {% elseif entry.invalidVersionPin %}
     <div>{{ 'reading_nook.toc.invalid_pin'|trans }}{% if entry.rawVersionPin is not null %}: <code>{{ entry.rawVersionPin }}</code>{% endif %}</div>
 {% endif %}
+{% endif %}
 {% if entry.targetResolution == 'available' and entry.target is not null %}
     <div class="event-toc-target">
-        {% if entry.target.title %}
+        {% if entry.target.sensitive and compactBookshelfTarget %}
+            <strong>{{ 'reading_nook.toc.sensitive'|trans }}</strong>
+        {% elseif entry.target.title is not null and entry.target.title != '' %}
             <strong>{{ entry.target.title }}</strong>
+        {% elseif compactBookshelfTarget %}
+            <strong>{{ 'event_workspace.preview.untitled'|trans }}</strong>
         {% else %}
             <strong>{{ (reference.targetKind == 30040 ? 'reading_nook.toc.index_reference' : 'reading_nook.toc.section_reference')|trans({'%identifier%': reference.targetIdentifier ?? ''}) }}</strong>
         {% endif %}
-        {% if entry.target.sensitive %}
+        {% if entry.target.sensitive and not compactBookshelfTarget %}
             <span>{{ 'reading_nook.toc.sensitive'|trans }}</span>
-        {% elseif entry.target.summary %}
+        {% elseif not entry.target.sensitive and entry.target.summary is not null and entry.target.summary != '' %}
             <p>{{ entry.target.summary }}</p>
         {% endif %}
-        <span>{{ 'reading_nook.toc.local_revision'|trans }}: <code>{{ entry.target.eventId }}</code></span>
-        {% if tocBookshelfLinks|default(false) %}
+        {% if not compactBookshelfTarget %}
+            <span>{{ 'reading_nook.toc.local_revision'|trans }}: <code>{{ entry.target.eventId }}</code></span>
+        {% endif %}
+        {% if tocBookshelfLinks|default(false) and reference.targetKind == 30040 %}
             <a data-turbo-frame="_top" href="{{ path('bookshelf_index', {eventId: entry.target.eventId}) }}">{{ 'bookshelf.open_index'|trans }}</a>
         {% endif %}
     </div>
@@ -64,6 +75,10 @@
             :loadLabel="'reading_nook.toc.load_chapter'|trans"
         />
     {% elseif entry.nestedOccurrenceId is not null %}
+        {% set nestedTitle = entry.target.title ?? reference.targetIdentifier ?? '' %}
+        {% if compactBookshelfTarget and (entry.target.sensitive or entry.target.title is null or entry.target.title == '') %}
+            {% set nestedTitle = (entry.target.sensitive ? 'reading_nook.toc.sensitive' : 'event_workspace.preview.untitled')|trans %}
+        {% endif %}
         {% set nestedUrl = path(tocNestedRoute|default('reading_nook_nested_publication_toc'), {
             eventId: entry.target.eventId, page: 1, path: entry.nestedPath|join(','),
             occurrence: entry.nestedOccurrenceId, coordinate: entry.target.coordinate,
@@ -73,7 +88,7 @@
             disclosureClass="event-toc-disclosure"
             :frameId="'nook-toc-nested-' ~ entry.nestedOccurrenceId"
             :url="nestedUrl"
-            :summary="'reading_nook.toc.expand_nested'|trans({'%title%': entry.target.title ?? reference.targetIdentifier ?? ''})"
+            :summary="'reading_nook.toc.expand_nested'|trans({'%title%': nestedTitle})"
             :loadLabel="'reading_nook.toc.load'|trans"
         />
     {% endif %}

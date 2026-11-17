@@ -2,6 +2,9 @@
 
 ## v0.1.0
 
+- [Feature] Make Bookshelf an Android ereader promo page with app downloads, an optional six-book directory-curated selection, and web search below.
+- [Fix] Hide highlights with locally unavailable sources from signed-out readers across feeds, article frames, and event pages without changing signed-in behavior.
+- [Improvement] Show readable local article and index titles and summaries instead of reference identifiers in Bookshelf tables of contents.
 - [Improvement] Match publication Subscribe actions in streams to compact article bookmark buttons, with an icon, active state and footer placement.
 - [Fix] Cap profile stream width on large screens while preserving responsive sizing.
 - [Improvement] Restore a dedicated "Featured in" profile sidebar for magazines, reading lists and follow packs, alongside the existing stream and recommended writers.

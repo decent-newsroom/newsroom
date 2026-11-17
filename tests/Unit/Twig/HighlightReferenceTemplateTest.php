@@ -9,6 +9,7 @@ use App\Repository\ArticleRepository;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
@@ -20,13 +21,16 @@ use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\UserMuteListService;
+use App\Tests\Unit\Support\HighlightSourceVisibilityFactory;
 use App\Twig\Components\Molecules\NostrEmbed;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
 use Innis\Nostr\Core\Domain\Service\SignatureServiceInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Bridge\Twig\AppVariable;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -36,6 +40,7 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\UX\TwigComponent\TwigComponentBundle;
 use Twig\Environment;
 use Twig\Extension\AbstractExtension;
@@ -44,6 +49,8 @@ use Twig\TwigFunction;
 
 final class HighlightReferenceTemplateTest extends KernelTestCase
 {
+    use HighlightSourceVisibilityFactory;
+
     private const AUTHOR = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     private const IDENTIFIER = 'source:edition';
@@ -113,6 +120,27 @@ final class HighlightReferenceTemplateTest extends KernelTestCase
         }
     }
 
+    public function testPreparedGuestSourceRendersTheLocalCoordinateInsteadOfAPlaceholder(): void
+    {
+        $events = $this->createMock(EventRepository::class);
+        $source = $this->event(self::ID, 'Guest source title');
+        $events->expects(self::once())->method('findHighlightSourceTargets')
+            ->with([self::COORDINATE], [])
+            ->willReturn(['coordinates' => [self::COORDINATE => $source], 'eventIds' => []]);
+        $events->expects(self::once())->method('findByNaddr')
+            ->with(30040, self::AUTHOR, self::IDENTIFIER)->willReturn($source);
+        $prepared = $this->makeHighlightVisibility($events)->prepareEventSource([
+            ['a', '30040:' . strtoupper(self::AUTHOR) . ':' . self::IDENTIFIER, self::RELAY],
+        ]);
+        self::assertIsArray($prepared);
+
+        $html = $this->renderHighlight('partial/_highlight_feed_card.html.twig', $prepared, $events);
+
+        self::assertStringContainsString('Guest source title', $html);
+        self::assertStringContainsString('href="/e/' . $this->address() . '"', $html);
+        self::assertStringNotContainsString('nostr--deferred-embed', $html);
+    }
+
     private static function templates(): array
     {
         return [
@@ -146,6 +174,8 @@ final class HighlightReferenceTemplateTest extends KernelTestCase
         $articles = $this->createMock(ArticleRepository::class);
         $articles->expects(self::never())->method('findOneBy');
         $container->set(ArticleRepository::class, $articles);
+        $container->set(HighlightSourceVisibility::class, $this->makeHighlightVisibility($events, articles: $articles));
+        $container->set(RedisCacheService::class, $this->createMock(RedisCacheService::class));
         $container->set(EventPreviewAccessPolicy::class, new EventPreviewAccessPolicy(
             $this->createMock(ContentAuthorAccessPolicy::class),
             $this->createMock(DeletedEventRepository::class),
@@ -166,7 +196,12 @@ final class HighlightReferenceTemplateTest extends KernelTestCase
         )));
         $container->set(LoggerInterface::class, new NullLogger());
 
-        return $container->get(Environment::class)->render($template, [
+        $app = new AppVariable();
+        $app->setTokenStorage(new TokenStorage());
+        $twig = $container->get(Environment::class);
+        $twig->addGlobal('app', $app);
+
+        return $twig->render($template, [
             'highlight' => array_merge([
                 'pubkey' => null,
                 'created_at' => 123,
@@ -211,7 +246,7 @@ final class HighlightReferenceTestKernel extends Kernel
         $services = $container->services();
         $services->set(\App\Twig\Filters::class)->autowire()->autoconfigure();
         $services->set(\App\Twig\NostrExtension::class)->autowire()->autoconfigure();
-        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, NostrEventVerifier::class, LoggerInterface::class] as $dependency) {
+        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, NostrEventVerifier::class, HighlightSourceVisibility::class, RedisCacheService::class, LoggerInterface::class] as $dependency) {
             $services->set($dependency)->synthetic()->public();
         }
         $services->set(AuthoredArticlePreview::class)->autowire();

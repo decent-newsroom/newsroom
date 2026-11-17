@@ -240,7 +240,10 @@ final class CommentContextEmbedFixture
     public string $label = 'event';
     public bool $restricted = false;
     public bool $sensitive = false;
+    public bool $hiddenHighlight = false;
     public mixed $presentation = null;
+    public ?object $highlightCardEvent = null;
+    public ?object $highlightCardAuthor = null;
 
     public function mount(string $bech, string $type): void
     {
@@ -255,10 +258,13 @@ final class CommentContextEmbedFixture
 final class CommentContextContentFixture
 {
     public string $parsed = '';
+    public string $rawContent = '';
+    public bool $renderMedia = true;
 
     public function mount(string $content): void
     {
         $this->parsed = $content;
+        $this->rawContent = $content;
     }
 }
 

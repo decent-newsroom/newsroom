@@ -1,5 +1,10 @@
 {% extends 'layout.html.twig' %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% block ogtags %}
     {{ parent() }}
     <meta property="og:title" content="Highlights - Decent Newsroom">
@@ -41,4 +46,3 @@
         {% include 'partial/_highlights_feed.html.twig' with {highlights: highlights} only %}
     </div>
 {% endblock %}
-

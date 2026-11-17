@@ -29,6 +29,7 @@ use App\Service\Reader\PublicationIndexStream;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\FeaturedWritersFeed;
 use App\Service\Reader\FeaturedWritersRecommendations;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\Update\SubscriptionFeed;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
@@ -68,10 +69,11 @@ class HomeFeedController extends AbstractController
         ContentStreamBuilder $streamBuilder,
         ContentAuthorAccessPolicy $authorAccess,
         PublicationIndexStream $publicationIndexes,
+        HighlightSourceVisibility $highlightSources,
     ): Response {
         $latest = $this->latestArticlesData($viewStore, $exclusionPolicy, $contentSearch, $userMuteListService, $eventRepository);
         $featured = $featuredWriters->load();
-        $highlights = $highlightFeed->loadLatestHighlights(200)['highlights'];
+        $highlights = $highlightSources->filter($highlightFeed->loadLatestHighlights(200)['highlights']);
         $articles = $this->personalArticlesData($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger);
         $pack = $this->selectedPackData($followPackService, $logger);
         $activity = $this->followedActivityData($eventRepository, $userProfileService, $logger);

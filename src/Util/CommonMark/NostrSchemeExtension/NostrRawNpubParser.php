@@ -19,6 +19,7 @@ readonly class NostrRawNpubParser implements InlineParserInterface
     public function __construct(
         private RedisCacheService $redisCacheService,
         private ?NostrPrefetchedData $prefetchedData = null,
+        private bool $refreshOnMiss = true,
     )
     {
     }
@@ -44,7 +45,7 @@ readonly class NostrRawNpubParser implements InlineParserInterface
         if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($hex)) {
             $meta = $this->prefetchedData->getMetadata($hex);
         } else {
-            $meta = $this->redisCacheService->getMetadata($hex);
+            $meta = $this->redisCacheService->getMetadata($hex, $this->refreshOnMiss);
         }
 
         // Use shortened npub as default name, from first and last 8 characters of the fullMatch

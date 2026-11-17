@@ -17,6 +17,7 @@ use App\Service\Nostr\EventLookupKey;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Util\Nip10TagParser;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
@@ -352,8 +353,20 @@ class EventController extends AbstractController
         ?EventEntity $localEvent,
         ?EventPreviewAccessPolicy $previewAccess,
         ?EventPresentationFactory $presentations,
+        ?HighlightSourceVisibility $highlightSources,
     ): Response {
         $this->authorAccess->assertReadable($event->pubkey);
+        $isHighlight = (int) ($event->kind ?? 0) === KindsEnum::HIGHLIGHTS->value;
+        $highlightGuestSource = null;
+        if ($isHighlight) {
+            if ($highlightSources === null) {
+                throw new \LogicException('Highlight source visibility service is unavailable.');
+            }
+            $highlightGuestSource = $highlightSources->prepareEventSource(is_array($event->tags ?? null) ? $event->tags : []);
+            if ($highlightGuestSource === null) {
+                throw new NotFoundHttpException('Event not found');
+            }
+        }
         $publicationRedirect = $this->redirectPublicationIndexIfNeeded($event, $logger);
         if ($publicationRedirect instanceof Response) {
             return $publicationRedirect;
@@ -392,6 +405,15 @@ class EventController extends AbstractController
             $genericEventProjector,
             $logger,
         );
+        $hasHighlightOp = $opEvent !== null && (int) $opEvent->kind === KindsEnum::HIGHLIGHTS->value;
+        if ($hasHighlightOp) {
+            if ($highlightSources === null) {
+                throw new \LogicException('Highlight source visibility service is unavailable.');
+            }
+            if (!$highlightSources->isSourceAvailable(is_array($opEvent->tags ?? null) ? $opEvent->tags : [])) {
+                $opEvent = null;
+            }
+        }
         $opAuthorMetadata = $opEvent ? $redisCacheService->getMetadata($opEvent->pubkey) : null;
 
         $followPackProfiles = [];
@@ -424,9 +446,13 @@ class EventController extends AbstractController
             'followPackProfiles' => $followPackProfiles,
             'eventPresentation' => $presentation,
             'highlightEventRef' => $highlightEventRef,
+            'highlightGuestSource' => $highlightGuestSource,
+            'hasHighlightOp' => $hasHighlightOp,
         ]);
 
-        if ($presentation !== null || $highlightEventRef !== null) {
+        $responseContent = $response->getContent();
+        $hasEmbeddedHighlight = is_string($responseContent) && str_contains($responseContent, 'data-highlight-embed');
+        if ($presentation !== null || $isHighlight || $hasHighlightOp || $hasEmbeddedHighlight) {
             // Mutes are viewer-specific; a shared cache must not bypass policy.
             $response->setPrivate();
             $response->headers->addCacheControlDirective('no-store');
@@ -454,7 +480,8 @@ class EventController extends AbstractController
                           GenericEventProjector $genericEventProjector,
                           \App\Service\Nostr\UserRelayListService $userRelayListService,
                           ?EventPreviewAccessPolicy $previewAccess = null,
-                          ?EventPresentationFactory $presentations = null): Response
+                          ?EventPresentationFactory $presentations = null,
+                          ?HighlightSourceVisibility $highlightSources = null): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
@@ -748,6 +775,7 @@ class EventController extends AbstractController
                             $dbEvent,
                             $previewAccess,
                             $presentations,
+                            $highlightSources,
                         );
                     }
 
@@ -846,6 +874,7 @@ class EventController extends AbstractController
                             null,
                             $previewAccess,
                             $presentations,
+                            $highlightSources,
                         );
                     }
 
@@ -894,6 +923,7 @@ class EventController extends AbstractController
                 $dbEvent ?? null,
                 $previewAccess,
                 $presentations,
+                $highlightSources,
             );
 
         } catch (Exception $e) {

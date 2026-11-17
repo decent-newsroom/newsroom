@@ -481,6 +481,26 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    promo:
+        eyebrow: 'Tu próximo capítulo, donde quieras'
+        description: 'Un lector de libros en Nostr para Android. Guarda un libro, elige tu estilo de lectura y lleva tu próximo capítulo sin conexión.'
+        offline_title: 'Guárdalo. Lee donde quieras.'
+        offline_description: 'Lee tus libros guardados sin conexión y continúa donde lo dejaste.'
+        comfort_title: 'Lee a tu gusto'
+        comfort_description: 'Elige el tema, la fuente y la alineación del texto.'
+        highlights_title: 'Conserva los pasajes importantes'
+        highlights_description: 'Guarda destacados y busca en libros y capítulos para volver a encontrarlos.'
+        privacy_title: 'Tu lectura, tu elección'
+        privacy_description: 'Lee y registra tu progreso localmente sin cuenta. Conecta una cuenta de Nostr para reseñas y para compartir si quieres.'
+        curated_eyebrow: 'Un punto de partida'
+        curated_title: 'Elegidos para tu biblioteca'
+        view_directory: 'Explora toda la selección'
+        web_title: '¿Prefieres leer en la web?'
+        unavailable: 'Esta selección no está disponible temporalmente.'
+        empty: 'Todavía no hay libros en esta selección.'
+        reference_missing: 'Este libro no está disponible actualmente en el índice de libros.'
+        reference_invalid: 'Esta entrada contiene una referencia de libro no válida.'
+        reference_restricted: 'No se puede mostrar este libro.'
     read_this_book: 'Leer este libro'
     contained_in_index: 'Incluido en el índice'
     open_index: 'Abrir en la biblioteca'

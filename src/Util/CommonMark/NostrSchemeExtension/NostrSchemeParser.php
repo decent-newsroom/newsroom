@@ -30,6 +30,7 @@ class NostrSchemeParser implements InlineParserInterface
     public function __construct(
         private readonly RedisCacheService $redisCacheService,
         private readonly ?NostrPrefetchedData $prefetchedData = null,
+        private readonly bool $refreshOnMiss = true,
     )
     {
     }
@@ -58,7 +59,7 @@ class NostrSchemeParser implements InlineParserInterface
                     if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($hex)) {
                         $profile = $this->prefetchedData->getMetadata($hex);
                     } else {
-                        $profile = $this->redisCacheService->getMetadata($hex);
+                        $profile = $this->redisCacheService->getMetadata($hex, $this->refreshOnMiss);
                     }
                     if (isset($profile->name)) {
                         $inlineContext->getContainer()->appendChild(new NostrMentionLink($profile->name, $bechEncoded));

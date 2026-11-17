@@ -77,6 +77,16 @@ class HighlightService
         return $highlights;
     }
 
+    /**
+     * Load fresh highlight identities and references for a guest visibility check.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getHighlightsForArticleFromDatabase(string $articleCoordinate): array
+    {
+        return $this->getCachedHighlights($articleCoordinate);
+    }
+
 
     /**
      * Store highlight results in Redis and update metadata.
@@ -112,6 +122,8 @@ class HighlightService
 
     /**
      * Get cached highlights from database (deduplicated).
+     *
+     * @return list<array<string, mixed>>
      */
     private function getCachedHighlights(string $articleCoordinate): array
     {
@@ -124,7 +136,9 @@ class HighlightService
 
         return array_map(function (Highlight $highlight) {
             return [
+                'id' => $highlight->getEventId(),
                 'event_ref' => $this->extractEventRef($highlight->getRawEvent()),
+                'article_ref' => $highlight->getArticleCoordinate(),
                 'content' => $highlight->getContent(),
                 'created_at' => $highlight->getCreatedAt(),
                 'pubkey' => $highlight->getPubkey(),

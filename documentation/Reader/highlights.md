@@ -10,6 +10,7 @@ Highlights are Nostr kind 9802 events (NIP-84) — user-selected excerpts from a
 |-----------|------|
 | Entity | `src/Entity/Highlight.php` |
 | Service | `src/Service/HighlightService.php` |
+| Guest source visibility | `src/Service/Reader/HighlightSourceVisibility.php` |
 | Projector | `src/Service/HighlightProjector.php` |
 | Fetch command | `src/Command/FetchHighlightsCommand.php` |
 | Cache command | `src/Command/CacheLatestHighlightsCommand.php` |
@@ -25,9 +26,44 @@ Highlights are Nostr kind 9802 events (NIP-84) — user-selected excerpts from a
 - **Inline highlighting**: Existing highlights are marked inline in the article text (toggled via button)
 - **Highlights feed**: `/highlights` page shows latest highlights from Redis view store
 
+### Guest source availability
+
+Anonymous readers see highlights only when their referenced source can be
+resolved from the local database. This applies to the home and profile streams,
+profile highlights, `/highlights`, article highlight frames, direct highlight
+pages, reply root cards, and highlights embedded in other content. Direct pages
+return not found when the source is unavailable; a reply remains visible
+without its unavailable highlight root. Signed-in readers retain the existing
+deferred and external-source behavior.
+
+The check uses the highlight's persisted tags, not an article-shaped Redis
+placeholder. A valid lowercase `e` tag identifies an exact event and takes
+precedence over any coordinate; a missing exact event is not replaced by a
+newer coordinate revision. Otherwise an `a`/`A` address is matched by kind,
+author, and case-sensitive identifier against the local source selected by the
+existing preview loader. A local longform Event also needs its matching readable
+Article projection; an Article-only fallback must have a verified signed event.
+Existing source access, scope, and sensitive-content protections still apply.
+URL-only, malformed, restricted, and unresolvable sources are hidden from
+guests. These checks do not fetch from relays or the Books API, and do not
+mutate the shared highlight caches. Source availability is checked again on
+each request, before counts and pagination. Viewer-dependent highlight pages
+and article frames also avoid shared HTTP caching and Turbo snapshots, so a
+previous signed-in view is not restored after logout.
+
+Embedded highlights are resolved after shared HTML caches are read, including
+hosted Unfold content. Older cached event cards are rebuilt from their original
+content for guests without changing the shared cache. Guest reconstruction and
+embedded-highlight body rendering use local metadata without scheduling profile
+refreshes; third-party rich embeds in those guest-rendered portions are shown as
+links rather than fetching their providers on each request. Signed-in rendering
+keeps its normal metadata and rich-embed behavior. When older cached cards have
+no original content, their HTML is withheld rather than shown without a source
+check.
+
 ### Kind 30041 source chapters
 
-When a highlight references a kind `30041` chapter, the feed keeps the highlight's own coordinate even if an Article with the same author and slug appears in the Redis view. The chapter card reads the local `event` table first, then queries the Books API by author and `d` tag. An exact API result is hydrated into a temporary `Event` for rendering and cached briefly; no local database row is created. If neither source has the chapter, the existing fetch action searches relays asynchronously. The standalone and magazine chapter views use the same read-only Books API lookup before their relay-loading fallback. Other source kinds keep their existing lookup path.
+When a highlight references a kind `30041` chapter, the feed keeps the highlight's own coordinate even if an Article with the same author and slug appears in the Redis view. For signed-in readers, the chapter card reads the local `event` table first, then queries the Books API by author and `d` tag. An exact API result is hydrated into a temporary `Event` for rendering and cached briefly; no local database row is created. If neither source has the chapter, the existing fetch action searches relays asynchronously. Guests see the highlight only when the chapter is locally stored. The standalone and magazine chapter views use the same read-only Books API lookup before their relay-loading fallback. Other source kinds keep their existing lookup path.
 
 ## Creating Highlights
 
@@ -52,9 +88,9 @@ Highlights are stored with an `articleCoordinate` matching the format `kind:pubk
 
 Highlights use a two-tier read-only cache to minimise article page load latency. **No relay refresh is triggered during a web request** — article pages serve whatever is already cached.
 
-1. **Redis (hot cache, 10 min TTL)**: `getHighlightsForArticle()` checks Redis first. On hit, the response is returned with zero DB queries.
+1. **Redis (hot cache, 10 min TTL)**: For signed-in readers, `getHighlightsForArticle()` checks Redis first. On hit, the response is returned with zero DB queries.
 
-2. **PostgreSQL (warm cache)**: On Redis miss, highlights are loaded via `findByArticleCoordinateDeduplicated()` — a DB-level dedup query (GROUP BY `MD5(content||pubkey)`) that avoids pulling duplicate rows into PHP. The result is written back to Redis for subsequent requests.
+2. **PostgreSQL (warm cache)**: On Redis miss, highlights are loaded via `findByArticleCoordinateDeduplicated()` — a DB-level dedup query (GROUP BY `MD5(content||pubkey)`) that avoids pulling duplicate rows into PHP. The result is written back to Redis for subsequent requests. Guest article frames read fresh highlight references from PostgreSQL and check source availability without changing the shared Redis entry.
 
 3. **Async ingestion (cron + relay workers)**: Highlights are fetched from relays and persisted to the database entirely in the background by cron jobs (`app:fetch-highlights` every 15 min, `app:cache-latest-highlights` every 30 min) and relay subscription workers. After saving new highlights the Redis key is invalidated so the next page load picks up fresh data.
 
@@ -70,7 +106,7 @@ Highlights use a two-tier read-only cache to minimise article page load latency.
 - **Performance**: Highlights fetch was moved entirely out of the web request path. Article pages serve only from Redis/DB cache — no relay calls and no async message dispatches. Relay ingestion runs exclusively in cron jobs and relay subscription workers.
 - **Feature gate removed**: The `HIGHLIGHTS_ENABLED` env flag was removed after the async refactor solved the original performance concern.
 - **Coordinate mismatch bug**: Fixed an issue where `FetchHighlightsCommand` stored coordinates from the event's `a` tag, while `RefreshArticleHighlightsHandler` used the controller-supplied coordinate. Both now canonicalise from the event's `a` tag.
-- **Redis cache layer**: Added a Redis → DB two-tier cache. On Redis hit (10 min TTL), article pages load with zero DB queries for highlights. On miss, a single DB query loads and re-warms Redis.
+- **Redis cache layer**: Added a Redis → DB two-tier cache for signed-in article frames. Guest frames use a fresh database read so source availability is never inferred from a stale cache.
 - **Query consolidation**: Replaced multiple DB queries per page load with a single `findByArticleCoordinateDeduplicated()` call using DB-level deduplication via `GROUP BY MD5(content||pubkey)`.
 - **Multi-relay queries**: Highlights are now fetched from both the local strfry relay and default relays for broader coverage.
 - **Suffix-based coordinate matching**: Exact `article_coordinate = :coord` queries missed highlights stored with a different kind prefix (e.g. `30024:` vs `30023:`). Switched all repository queries to LIKE `%:pubkey:slug` suffix matching and normalised the Redis cache key to `pubkey:slug`, making highlight-to-article mapping resilient against kind prefix differences.

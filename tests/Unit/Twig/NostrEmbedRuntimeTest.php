@@ -5,21 +5,29 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Twig;
 
 use App\Twig\NostrEmbedRuntime;
+use App\Util\CommonMark\Converter;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\UX\TwigComponent\ComponentRendererInterface;
 
 class NostrEmbedRuntimeTest extends TestCase
 {
     private ComponentRendererInterface $renderer;
     private LoggerInterface $logger;
+    private Converter $converter;
+    private Security $security;
     private NostrEmbedRuntime $runtime;
 
     protected function setUp(): void
     {
         $this->renderer = $this->createMock(ComponentRendererInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
-        $this->runtime = new NostrEmbedRuntime($this->renderer, $this->logger);
+        $this->converter = $this->createMock(Converter::class);
+        $this->converter->method('withLocalRendering')->willReturnCallback(static fn (callable $render): mixed => $render());
+        $this->security = $this->createMock(Security::class);
+        $this->runtime = new NostrEmbedRuntime($this->renderer, $this->logger, $this->converter, $this->security);
     }
 
     // ── Null / empty input ───────────────────────────────────────
@@ -234,5 +242,88 @@ class NostrEmbedRuntimeTest extends TestCase
 
         $this->assertSame($html, $result);
     }
-}
 
+    public function testGuestRebuildsLegacyCardsFromRawContentBeforeResolvingHighlights(): void
+    {
+        $raw = 'A cached nostr:nevent1reference';
+        $cached = '<p>Before</p><div class="embedded-event-card">stale highlight</div>';
+        $placeholder = '<div class="nostr-deferred-embed" data-nostr-bech="nevent1reference" data-nostr-type="highlight-nevent"></div>';
+        $this->converter->expects(self::once())->method('convertToHTML')
+            ->with($raw, null, 30023, [['d', 'story']], false)
+            ->willReturn('<p>Before</p>' . $placeholder);
+        $this->renderer->expects(self::once())->method('createAndRender')
+            ->with('Molecules:NostrEmbed', [
+                'bech' => 'nevent1reference',
+                'type' => 'nevent',
+                'renderHighlightCard' => true,
+            ])->willReturn('<span hidden data-highlight-embed></span>');
+
+        $result = $this->runtime->resolveEmbeds($cached, $raw, 30023, [['d', 'story']], false);
+
+        self::assertStringNotContainsString('stale highlight', $result);
+        self::assertStringContainsString('data-highlight-embed', $result);
+        self::assertStringContainsString('<p>Before</p>', $result);
+    }
+
+    public function testSignedInReaderKeepsLegacyCachedHtml(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createMock(UserInterface::class));
+        $this->converter->expects(self::never())->method('convertToHTML');
+        $html = '<div class="embedded-event-card">cached highlight</div>';
+        self::assertSame($html, $this->runtime->resolveEmbeds($html, 'raw'));
+    }
+
+    public function testGuestWithNoRawContentDoesNotSeeAnUnverifiableLegacyCard(): void
+    {
+        $this->logger->expects(self::once())->method('warning')
+            ->with('Cannot safely render cached Nostr cards without their source content.');
+        self::assertSame('', $this->runtime->resolveEmbeds('<div class="embedded-event-card">cached highlight</div>'));
+    }
+
+    public function testLegacyRebuildFailureLogsAndEscapesTheRawContent(): void
+    {
+        $this->converter->method('convertToHTML')->willThrowException(new \RuntimeException('conversion failed'));
+        $this->logger->expects(self::once())->method('error')
+            ->with('Could not rebuild cached Nostr cards for a guest.', self::anything());
+        self::assertSame(
+            '<pre>&lt;raw&gt;</pre>',
+            $this->runtime->resolveEmbeds('<div class="embedded-event-card">stale</div>', '<raw>'),
+        );
+    }
+
+    public function testNestedConversionLeavesPlaceholdersUnresolvedForSharedCaches(): void
+    {
+        $this->converter->method('isConverting')->willReturn(true);
+        $this->renderer->expects(self::never())->method('createAndRender');
+        $this->converter->expects(self::never())->method('convertToHTML');
+        $html = '<div class="nostr-deferred-embed" data-nostr-bech="nevent1a" data-nostr-type="highlight-nevent"></div>';
+        self::assertSame($html, $this->runtime->resolveEmbeds($html, 'raw'));
+    }
+
+    public function testHighlightOnlyResolutionLeavesOtherDeferredEmbedsUntouched(): void
+    {
+        $other = '<div class="nostr-deferred-embed" data-nostr-bech="note1a" data-nostr-type="note"></div>';
+        $highlight = '<div class="nostr-deferred-embed" data-nostr-bech="naddr1b" data-nostr-type="highlight-naddr"></div>';
+        $this->renderer->expects(self::once())->method('createAndRender')
+            ->with('Molecules:NostrEmbed', [
+                'bech' => 'naddr1b',
+                'type' => 'naddr',
+                'renderHighlightCard' => true,
+            ])->willReturn('<div>Highlight</div>');
+
+        self::assertSame(
+            $other . '<div>Highlight</div>',
+            $this->runtime->resolveEmbeds($other . $highlight, checkLegacyCards: false, highlightOnly: true),
+        );
+    }
+
+    public function testRecursiveHighlightEmbedIsOmittedWithoutBlockingSiblingOccurrences(): void
+    {
+        $placeholder = '<div class="nostr-deferred-embed" data-nostr-bech="nevent1a" data-nostr-type="highlight-nevent"></div>';
+        $this->renderer->expects(self::exactly(2))->method('createAndRender')
+            ->willReturnCallback(fn (): string => '<article>' . $this->runtime->resolveEmbeds($placeholder) . '</article>');
+        $this->logger->expects(self::exactly(2))->method('warning');
+
+        self::assertSame('<article></article><article></article>', $this->runtime->resolveEmbeds($placeholder . $placeholder));
+    }
+}

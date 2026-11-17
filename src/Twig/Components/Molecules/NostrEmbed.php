@@ -10,10 +10,12 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\Nostr\NostrEventVerifier;
+use App\Service\Reader\HighlightSourceVisibility;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Log\LoggerInterface;
@@ -30,7 +32,11 @@ final class NostrEmbed
     public string $label = '';
     public bool $restricted = false;
     public bool $sensitive = false;
+    public bool $hiddenHighlight = false;
     public ?EventPresentation $presentation = null;
+    public ?object $highlightCardEvent = null;
+    public ?object $highlightCardAuthor = null;
+    private bool $renderHighlightCard = false;
 
     public function __construct(
         private readonly EventRepository $eventRepository,
@@ -40,12 +46,15 @@ final class NostrEmbed
         private readonly NostrEventVerifier $eventVerifier,
         private readonly EventPresentationFactory $presentations,
         private readonly LoggerInterface $logger,
+        private readonly HighlightSourceVisibility $highlightSources,
+        private readonly RedisCacheService $metadata,
     ) {}
 
-    public function mount(string $bech, string $type, ?Event $resolvedEvent = null): void
+    public function mount(string $bech, string $type, ?Event $resolvedEvent = null, bool $renderHighlightCard = false): void
     {
         $this->bech = $bech;
         $this->type = $type;
+        $this->renderHighlightCard = $renderHighlightCard;
         $this->shortBech = substr($bech, 0, 12) . '…' . substr($bech, -8);
         $this->label = match ($type) {
             'naddr' => 'article',
@@ -79,6 +88,9 @@ final class NostrEmbed
             }
         } catch (\Throwable $exception) {
             $this->presentation = null;
+            $this->highlightCardEvent = null;
+            $this->highlightCardAuthor = null;
+            $this->hiddenHighlight = false;
             $this->sensitive = false;
             $this->restricted = true;
             $this->logger->error('NostrEmbed: local resolution failed; denying preview', [
@@ -127,6 +139,29 @@ final class NostrEmbed
     private function presentEvent(Event $event, bool $allowMissingArticleFallback = false): void
     {
         $kind = $event->getKind();
+        if ($kind === KindsEnum::HIGHLIGHTS->value && $this->renderHighlightCard) {
+            if (!$this->highlightSources->isSourceAvailable($event->getTags())
+                || ($this->highlightSources->isAnonymous() && !$this->access->isReadable($event))) {
+                $this->hiddenHighlight = true;
+                return;
+            }
+
+            $this->highlightCardEvent = (object) [
+                'id' => $event->getId(),
+                'kind' => $kind,
+                'pubkey' => $event->getPubkey(),
+                'content' => $event->getContent(),
+                'created_at' => $event->getCreatedAt(),
+                'tags' => $event->getTags(),
+                'sig' => $event->getSig(),
+            ];
+            $this->highlightCardAuthor = $this->metadata->getMetadata(
+                $event->getPubkey(),
+                !$this->highlightSources->isAnonymous(),
+            );
+            return;
+        }
+
         $identifier = $kind >= 30000 && $kind <= 39999 ? $this->firstIdentifier($event) : null;
         if (($kind >= 30000 && $kind <= 39999 && $identifier === null)
             || (!$this->access->isReadable($event))) {

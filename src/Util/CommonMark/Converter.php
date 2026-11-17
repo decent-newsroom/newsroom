@@ -54,6 +54,9 @@ class Converter implements MarkdownConverterInterface
     /** Math placeholders surviving CommonMark: token → final HTML math expression. */
     private array $mathPlaceholders = [];
 
+    private int $conversionDepth = 0;
+    private bool $localRendering = false;
+
     public function __construct(
         private readonly RedisCacheService $redisCacheService,
         private readonly TwigEnvironment $twig,
@@ -73,30 +76,28 @@ class Converter implements MarkdownConverterInterface
      */
     public function convertToHTML(string $content, ?string $format = null, ?int $kind = null, ?array $tags = null, bool $renderMedia = true): string
     {
-        // Normalize bare bech32 entities (nevent1..., naddr1..., etc.) to nostr: URI
-        // form so that all downstream parsers recognise them.
-        $content = $this->normalizeBareNostrEntities($content);
-
-        // Normalize Nostr math markup conventions: unwrap backtick-protected
-        // math (`$…$`, `$$…$$`) and convert ```latex/math/tex code blocks
-        // to display math before any further processing.
-        $content = $this->normalizeNostrMathMarkup($content);
-
-        // Extract all math expressions ($$…$$, $…$, \(…\), \[…\]) from the
-        // raw content and replace with inert alphanumeric placeholders that
-        // survive CommonMark unchanged. The actual math is stored in
-        // $this->mathPlaceholders and restored after markdown conversion.
-        $content = $this->extractMathPlaceholders($content);
-
-        // Bulk prefetch all referenced nostr entities before any conversion
-        $this->prefetchedData = $this->prefetchNostrData($content, $tags);
-
-        $resolvedFormat = $format ?? $this->resolveFormatByKind($kind);
-        if (!$renderMedia) {
-            $resolvedFormat = 'markdown';
-        }
-
+        $previousPrefetchedData = $this->prefetchedData;
+        $previousMathPlaceholders = $this->mathPlaceholders;
+        $this->prefetchedData = null;
+        $this->mathPlaceholders = [];
+        ++$this->conversionDepth;
         try {
+            // Normalize bare bech32 entities (nevent1..., naddr1..., etc.) to nostr: URI
+            // form so that all downstream parsers recognise them.
+            $content = $this->normalizeBareNostrEntities($content);
+
+            // Normalize Nostr math markup before protecting it from Markdown.
+            $content = $this->normalizeNostrMathMarkup($content);
+            $content = $this->extractMathPlaceholders($content);
+
+            // Bulk prefetch all referenced nostr entities before any conversion.
+            $this->prefetchedData = $this->prefetchNostrData($content, $tags);
+
+            $resolvedFormat = $format ?? $this->resolveFormatByKind($kind);
+            if (!$renderMedia) {
+                $resolvedFormat = 'markdown';
+            }
+
             // Explicit format (or kind mapping) always wins over heuristic detection.
             if ($resolvedFormat === 'asciidoc') {
                 $html = $this->asciidocConverter->convert($content);
@@ -120,9 +121,30 @@ class Converter implements MarkdownConverterInterface
             // Default to Markdown
             return $this->convertMarkdownToHTML($content, $renderMedia);
         } finally {
-            // Clear per-run state so no stale data leaks between calls.
-            $this->prefetchedData = null;
-            $this->mathPlaceholders = [];
+            $this->prefetchedData = $previousPrefetchedData;
+            $this->mathPlaceholders = $previousMathPlaceholders;
+            --$this->conversionDepth;
+        }
+    }
+
+    public function isConverting(): bool
+    {
+        return $this->conversionDepth > 0;
+    }
+
+    /**
+     * @template T
+     * @param callable(): T $render
+     * @return T
+     */
+    public function withLocalRendering(callable $render): mixed
+    {
+        $previous = $this->localRendering;
+        $this->localRendering = true;
+        try {
+            return $render();
+        } finally {
+            $this->localRendering = $previous;
         }
     }
 
@@ -873,8 +895,10 @@ class Converter implements MarkdownConverterInterface
         $env->addExtension(new StrikethroughExtension());
         $env->addExtension(new SmartPunctExtension());
         if ($renderMedia) {
-            $env->addExtension(new EmbedExtension());
-            $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
+            if (!$this->localRendering) {
+                $env->addExtension(new EmbedExtension());
+                $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
+            }
             $env->addExtension(new RawImageLinkExtension());
         } else {
             $env->mergeConfig(['html_input' => 'escape', 'allow_unsafe_links' => false]);
@@ -902,7 +926,7 @@ class Converter implements MarkdownConverterInterface
                 }
             });
         }
-        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->prefetchedData));
+        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->prefetchedData, !$this->localRendering));
         $env->addExtension(new AutolinkExtension());
 
         if ($headingsCount > 3) {
@@ -1183,7 +1207,9 @@ class Converter implements MarkdownConverterInterface
 
         $byHex = [];
         try {
-            $fetched = $this->redisCacheService->getMultipleMetadata($hexes);
+            $fetched = $this->localRendering
+                ? $this->redisCacheService->getMultipleMetadata($hexes, false)
+                : $this->redisCacheService->getMultipleMetadata($hexes);
             foreach ($hexes as $hex) {
                 $byHex[$hex] = $fetched[$hex] ?? null;
             }
@@ -1352,6 +1378,10 @@ class Converter implements MarkdownConverterInterface
                     return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
                 }
 
+                if ($event && (int) $event->kind === KindsEnum::HIGHLIGHTS->value) {
+                    return $this->renderDeferredEmbed($bechEncoded, 'highlight-nevent');
+                }
+
                 // Kind-1 cards must use the exact-ID access and warning gates
                 // at template render time, even when conversion found the event.
                 if (!$event || (int) $event->kind === 1) {
@@ -1392,6 +1422,10 @@ class Converter implements MarkdownConverterInterface
                 // Deferred embed if event data is missing
                 if (!$event) {
                     return $this->renderDeferredEmbed($bechEncoded, 'naddr');
+                }
+
+                if ((int) $event->kind === KindsEnum::HIGHLIGHTS->value) {
+                    return $this->renderDeferredEmbed($bechEncoded, 'highlight-naddr');
                 }
 
                 // Public workspace previews must apply coordinate access and

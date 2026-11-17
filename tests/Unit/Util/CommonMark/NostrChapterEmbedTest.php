@@ -52,6 +52,32 @@ final class NostrChapterEmbedTest extends TestCase
         );
     }
 
+    public function testLocalHighlightNeventIsDeferredForViewerSpecificSourceChecks(): void
+    {
+        $event = $this->exactEvent(KindsEnum::HIGHLIGHTS->value);
+        $reference = (string) Bech32::nevent(id: $event->id, kind: KindsEnum::HIGHLIGHTS->value);
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $reference . '" data-nostr-type="highlight-nevent"></div>',
+            $this->renderNostrLink($twig, $reference, [], eventsById: [$event->id => $event]),
+        );
+    }
+
+    public function testLocalHighlightAddressIsDeferredForViewerSpecificSourceChecks(): void
+    {
+        $event = $this->exactEvent(KindsEnum::HIGHLIGHTS->value);
+        $reference = (string) Bech32::naddr(kind: KindsEnum::HIGHLIGHTS->value, pubkey: $event->pubkey, identifier: 'highlight');
+        $twig = $this->createMock(TwigEnvironment::class);
+        $twig->expects(self::never())->method('render');
+
+        self::assertSame(
+            '<div class="nostr-deferred-embed" data-nostr-bech="' . $reference . '" data-nostr-type="highlight-naddr"></div>',
+            $this->renderNostrLink($twig, $reference, ['9802:' . $event->pubkey . ':highlight' => $event]),
+        );
+    }
+
     public function testLocalKindOneInlineNeventRemainsAnEscapedLink(): void
     {
         $event = $this->exactEvent(1);

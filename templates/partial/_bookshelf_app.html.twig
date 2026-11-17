@@ -1,8 +1,8 @@
-<section class="bookshelf-app">
+<section class="bookshelf-app" aria-labelledby="bookshelf-app-title">
     <div class="bookshelf-app__intro">
-        <p class="eyebrow">{{ 'bookshelf.app.eyebrow'|trans }}</p>
-        <h2>{{ 'bookshelf.app.title'|trans }}</h2>
-        <p>{{ 'bookshelf.app.description'|trans }}</p>
+        <p class="eyebrow">{{ 'bookshelf.promo.eyebrow'|trans }}</p>
+        <h1 id="bookshelf-app-title">{{ 'bookshelf.app.title'|trans }}</h1>
+        <p>{{ 'bookshelf.promo.description'|trans }}</p>
     </div>
 
     <div class="bookshelf-app__downloads">
@@ -17,7 +17,6 @@
                 alt="{{ 'bookshelf.app.zapstore'|trans }}"
                 width="197"
                 height="60"
-                loading="lazy"
             >
         </a>
 
@@ -30,5 +29,14 @@
             {{ ux_icon('iconoir:github-circle', {class: 'icon'}) }}
             {{ 'bookshelf.app.releases'|trans }}
         </a>
+    </div>
+
+    <div class="bookshelf-app__benefits">
+        {% for benefit in ['offline', 'comfort', 'highlights', 'privacy'] %}
+            <div>
+                <h2>{{ ('bookshelf.promo.' ~ benefit ~ '_title')|trans }}</h2>
+                <p>{{ ('bookshelf.promo.' ~ benefit ~ '_description')|trans }}</p>
+            </div>
+        {% endfor %}
     </div>
 </section>

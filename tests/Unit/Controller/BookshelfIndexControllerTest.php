@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Controller;
 
 use App\Bookshelf\BookContainingIndexes;
 use App\Bookshelf\BookshelfIndexSource;
+use App\Bookshelf\BookshelfTocArticles;
 use App\Controller\Bookshelf\IndexController;
 use App\Entity\Event;
 use App\Entity\User;
@@ -15,6 +16,7 @@ use App\Repository\HiddenCoordinateRepository;
 use App\Dto\UserMetadata;
 use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\EventPresentationFactory;
+use App\Service\EventWorkspace\DriveMountEventAccessInterface;
 use App\Service\EventWorkspace\EventWorkspaceSourceAdapter;
 use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
@@ -51,6 +53,9 @@ final class BookshelfIndexControllerTest extends TestCase
     private UserMetadata $cachedProfile;
     private EventPresentationFactory $presentations;
     private PublicationTocTraversalSigner $signer;
+    private DriveMountEventAccessInterface&MockObject $articleAccess;
+    /** @var array<int, Event> */
+    private array $articleTargets = [];
 
     /** @var array<string, Event> */
     private array $stored = [];
@@ -84,6 +89,8 @@ final class BookshelfIndexControllerTest extends TestCase
         });
         $this->presentations = new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service());
         $this->signer = new PublicationTocTraversalSigner('bookshelf-test-secret');
+        $this->articleAccess = $this->createMock(DriveMountEventAccessInterface::class);
+        $this->articleAccess->method('readableArticleTargets')->willReturnCallback(fn (): array => $this->articleTargets);
     }
 
     public function testRoutesArePublicReadOnlyAndUseExactIdentity(): void
@@ -306,6 +313,39 @@ final class BookshelfIndexControllerTest extends TestCase
         self::assertSame([1, 3], array_column(
             array_column($this->captured['tocPage']['entries'], 'reference'), 'position',
         ));
+    }
+
+    public function testArticleMetadataIsAddedToRootAndNestedBookshelfPages(): void
+    {
+        $childCoordinate = '30040:' . self::FOREIGN . ':child';
+        $this->stored = [
+            self::ROOT => $this->event(self::ROOT, self::AUTHOR, [
+                ['d', 'root'], ['a', $childCoordinate], ['a', '30023:' . self::FOREIGN . ':story'],
+            ]),
+            self::CHILD => $this->event(self::CHILD, self::FOREIGN, [
+                ['d', 'child'], ['a', '30023:' . self::FOREIGN . ':story'],
+            ]),
+        ];
+        $article = $this->event(str_repeat('e', 64), self::FOREIGN, [
+            ['d', 'story'], ['title', 'Story title'], ['summary', 'Story summary'],
+        ]);
+        $article->setKind(30023);
+        $this->events->method('findPublicationIndexTargets')
+            ->willReturn(['coordinates' => [$childCoordinate => $this->stored[self::CHILD]], 'eventIds' => []]);
+        $this->articleTargets = [2 => $article];
+        $controller = $this->controller();
+        $controller->show(self::ROOT, new Request(), new PublicationIndexClassifier());
+        self::assertSame('Story title', $this->captured['tocPage']['featuredEntry']['target']['title']);
+        $entry = $this->captured['tocPage']['entries'][0];
+
+        $this->articleTargets = [1 => $article];
+        $controller->toc(self::CHILD, new Request([
+            'path' => implode(',', $entry['nestedPath']),
+            'occurrence' => $entry['nestedOccurrenceId'],
+            'coordinate' => $childCoordinate,
+            'signature' => $entry['nestedSignature'],
+        ]));
+        self::assertSame('Story summary', $this->captured['tocPage']['entries'][0]['target']['summary']);
     }
 
     public function testNestedBookshelfFragmentSeparatesAndPaginatesFeaturedArticle(): void
@@ -538,6 +578,7 @@ final class BookshelfIndexControllerTest extends TestCase
             ),
             $this->signer, $this->mutes, $this->events, $this->profiles,
             new BookContainingIndexes($this->events, $this->presentations, $this->authors, $this->deletions, $this->hidden),
+            new BookshelfTocArticles($this->articleAccess),
             $enabled,
         );
         $container = new Container();

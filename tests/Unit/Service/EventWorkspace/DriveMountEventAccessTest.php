@@ -84,6 +84,52 @@ final class DriveMountEventAccessTest extends TestCase
         self::assertFalse($access->isReadableTarget($scoped));
     }
 
+    /** @dataProvider deniedArticleCases */
+    public function testArticleOccurrenceResolutionFailsClosed(string $denial): void
+    {
+        $event = $this->articleEvent();
+        $article = $this->articleProjection($denial === 'exclusive');
+        if ($denial === 'sensitive') {
+            $event->setTags([['d', 'story'], ['title', 'Secret'], ['content-warning']]);
+        } elseif ($denial === 'scoped') {
+            $event->setTags([['d', 'story'], ['title', 'Secret'], ['h', 'private']]);
+        } elseif ($denial === 'mismatched event') {
+            $event->setTags([['d', 'different'], ['title', 'Secret']]);
+        } elseif ($denial === 'mismatched projection') {
+            $article->setSlug('different');
+        }
+        $source = new Event();
+        $source->setId(str_repeat('d', 64));
+        $source->setPubkey(self::AUTHOR);
+        $source->setKind(30040);
+        $source->setCreatedAt(123);
+        $source->setTags([['a', '30023:' . self::AUTHOR . ':story', '', self::EVENT_ID]]);
+        $source->setContent('');
+        $references = (new \App\Service\EventWorkspace\EventPresentationFactory(
+            new RecordIdentityService(),
+            new \App\Service\Nostr\NostrNip19Service(),
+        ))->fromAuthorizedEvent($source)->references;
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findWorkspaceDriveArticleTargets')
+            ->with([], [self::EVENT_ID])
+            ->willReturn(['coordinates' => [], 'eventIds' => $denial === 'missing' ? [] : [self::EVENT_ID => $event]]);
+        $articles = $this->createMock(ArticleRepository::class);
+        $articles->method('findWorkspaceEntitlementByEventId')
+            ->willReturn($denial === 'missing projection' ? null : $article);
+        $access = $this->access($events, $articles, $this->viewer([]), $denial);
+
+        self::assertSame([], $access->readableArticleTargets($references));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function deniedArticleCases(): iterable
+    {
+        foreach (['missing', 'missing projection', 'exclusive', 'sensitive', 'scoped',
+            'mismatched event', 'mismatched projection', 'deleted', 'hidden', 'muted', 'suppressed'] as $denial) {
+            yield $denial => [$denial];
+        }
+    }
+
     public function testPublicationAudienceScopesFailClosedForBothIndexesAndChapters(): void
     {
         $access = $this->access(

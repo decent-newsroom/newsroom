@@ -2,6 +2,11 @@
 
 {% import 'macros/jsonld.html.twig' as jsonld %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% block title %}{{ wiki.title }} - {{ magazine.title|default(mag) }} - Newsroom{% endblock %}
 
 {% block ogtags %}
@@ -65,7 +70,7 @@
                 <div class="wiki-content"
                      data-controller="utility--katex"
                      data-utility--katex-display-value="true">
-                    {{ content|resolve_nostr_embeds|raw }}
+                    {{ content|resolve_nostr_embeds(wiki.content, wiki.kind, wiki.tags)|raw }}
                 </div>
             </div>
         </div>

@@ -481,6 +481,26 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    promo:
+        eyebrow: 'Naslednje poglavje, kjer koli'
+        description: 'Bralnik za Android za knjige na Nostru. Shranite knjigo, izberite svoj slog branja in vzemite naslednje poglavje s seboj brez povezave.'
+        offline_title: 'Shranite. Berite kjer koli.'
+        offline_description: 'Berite shranjene knjige brez povezave in nadaljujte tam, kjer ste končali.'
+        comfort_title: 'Naj bo branje udobno'
+        comfort_description: 'Izberite temo, pisavo in poravnavo besedila.'
+        highlights_title: 'Ohranite pomembne odlomke'
+        highlights_description: 'Shranite poudarke ter iščite po knjigah in besedilu poglavij, da jih znova najdete.'
+        privacy_title: 'Vaše branje, vaša izbira'
+        privacy_description: 'Berite in spremljajte napredek lokalno brez računa. Povežite račun Nostr za ocene in neobvezno deljenje.'
+        curated_eyebrow: 'Za začetek'
+        curated_title: 'Izbrano za vašo knjižno polico'
+        view_directory: 'Raziščite celoten izbor'
+        web_title: 'Raje berete na spletu?'
+        unavailable: 'Izbor trenutno ni na voljo.'
+        empty: 'V tem izboru še ni knjig.'
+        reference_missing: 'Ta knjiga trenutno ni na voljo v kazalu knjig.'
+        reference_invalid: 'Ta vnos vsebuje neveljaven sklic na knjigo.'
+        reference_restricted: 'Te knjige ni mogoče prikazati.'
     read_this_book: 'Beri to knjigo'
     contained_in_index: 'Vključeno v kazalo'
     open_index: 'Odpri na knjižni polici'

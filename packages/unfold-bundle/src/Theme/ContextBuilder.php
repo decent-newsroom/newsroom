@@ -20,6 +20,7 @@ use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
+use DecentNewsroom\UnfoldBundle\Contract\ContentHtmlResolverInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -42,7 +43,7 @@ class ContextBuilder
         private readonly ?LoggerInterface $logger = null,
         private readonly ?InteractionReaderInterface $interactionReader = null,
     ) {
-        $this->sanitizer = new HtmlSanitizer((new HtmlSanitizerConfig())
+        $sanitizerConfig = (new HtmlSanitizerConfig())
             ->allowSafeElements()
             ->allowRelativeLinks()
             ->allowRelativeMedias()
@@ -50,7 +51,15 @@ class ContextBuilder
             ->allowMediaSchemes(['http', 'https'])
             ->allowAttribute('class', '*')
             ->allowAttribute('id', '*')
-            ->withMaxInputLength(-1));
+            ->withMaxInputLength(-1);
+        if ($converter instanceof ContentHtmlResolverInterface) {
+            $sanitizerConfig = $sanitizerConfig
+                ->allowAttribute('data-nostr-bech', 'div')
+                ->allowAttribute('data-nostr-type', 'div')
+                ->allowAttribute('data-highlight-embed', ['div', 'span'])
+                ->allowAttribute('data-turbo-temporary', ['div', 'span']);
+        }
+        $this->sanitizer = new HtmlSanitizer($sanitizerConfig);
     }
 
     /**
@@ -510,7 +519,8 @@ class ContextBuilder
         }
         $format = ContentKindPolicy::format($post->kind);
         $identities = array_map(static fn(PostData $item): string => $item->coordinate, $publicationPosts);
-        $cacheKey = 'unfold_html_v3_' . hash('sha256', serialize([
+        $cacheVersion = $this->converter instanceof ContentHtmlResolverInterface ? 'v4' : 'v3';
+        $cacheKey = 'unfold_html_' . $cacheVersion . '_' . hash('sha256', serialize([
             $post->coordinate, $post->eventId, $post->content, $post->kind, $post->tags,
             $format, $post->kind === 30818 ? $identities : [], $this->platformBaseUrl,
         ]));
@@ -519,22 +529,25 @@ class ContextBuilder
             $item = $this->cache->getItem($cacheKey);
 
             if ($item->isHit()) {
-                return $item->get();
+                $html = $item->get();
+            } else {
+                // Cache the sanitized, viewer-independent conversion.
+                $html = $post->kind === 30818
+                    ? WikiLinkResolver::convert($post, $publicationPosts, $this->converter, $this->platformBaseUrl)
+                    : $this->converter->convertToHTML($post->content, $format, $post->kind, $post->tags);
+                $html = $this->sanitizer->sanitize($html);
+                $item->set($html);
+                $item->expiresAfter(self::CACHE_TTL);
+                $this->cache->save($item);
             }
 
-            // Convert markdown to HTML
-            $html = $post->kind === 30818
-                ? WikiLinkResolver::convert($post, $publicationPosts, $this->converter, $this->platformBaseUrl)
-                : $this->converter->convertToHTML($post->content, $format, $post->kind, $post->tags);
-            $html = $this->sanitizer->sanitize($html);
-
-            // Cache the result
-            $item->set($html);
-            $item->expiresAfter(self::CACHE_TTL);
-            $this->cache->save($item);
+            if ($this->converter instanceof ContentHtmlResolverInterface) {
+                $html = $this->sanitizer->sanitize($this->converter->resolveContentHtml($html));
+            }
 
             return $html;
         } catch (\Throwable $e) {
+            $this->logger?->warning('Unfold content rendering failed.', ['exception' => $e]);
             // Fallback to basic HTML escaping if conversion or caching fails
             $html = htmlspecialchars($post->content, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             return nl2br($html);

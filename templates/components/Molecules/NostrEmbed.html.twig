@@ -1,5 +1,9 @@
 {# Local candidates have already been authorized by NostrEmbed. #}
-{% if restricted %}
+{% if hiddenHighlight %}
+    <span hidden data-highlight-embed data-turbo-temporary></span>
+{% elseif highlightCardEvent is not null %}
+    {% include 'components/event_card.html.twig' with {event: highlightCardEvent, author: highlightCardAuthor, nevent: bech} only %}
+{% elseif restricted %}
     <div class="nostr-placeholder">
         <span class="nostr-placeholder-label">{{ 'event_workspace.target.restricted'|trans }}</span>
     </div>

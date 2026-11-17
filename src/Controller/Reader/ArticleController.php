@@ -8,6 +8,7 @@ use App\Service\ArticlePublicationIndexer;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ArticlePageLoader;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\HighlightService;
 use App\Service\ReadingListNavigationService;
@@ -302,23 +303,33 @@ class ArticleController  extends AbstractController
         string $slug,
         string $npub,
         HighlightService $highlightService,
+        HighlightSourceVisibility $highlightSources,
     ): Response {
         $this->authorAccess->assertReadable($npub);
         $slug = urldecode($slug);
         $highlights = [];
+        $isAnonymous = $highlightSources->isAnonymous();
 
         try {
             $key = new NostrKeyService();
             $pubkey = $key->convertToHex($npub);
             $articleCoordinate = '30023:' . $pubkey . ':' . $slug;
-            $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
+            if (!$isAnonymous) {
+                $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
+            }
         } catch (\Throwable) {
             // Best-effort only
         }
 
-        return $this->render('pages/_article_highlights_frame.html.twig', [
-            'highlights' => $highlights,
+        if ($isAnonymous && isset($articleCoordinate)) {
+            $highlights = $highlightService->getHighlightsForArticleFromDatabase($articleCoordinate);
+        }
+
+        $response = $this->render('pages/_article_highlights_frame.html.twig', [
+            'highlights' => $highlightSources->filter($highlights),
         ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+        return $response;
     }
 
     #[Route('/p/{npub}/d/{slug}/related', name: 'article-related-frame', requirements: ['slug' => '.+'], priority: 6)]

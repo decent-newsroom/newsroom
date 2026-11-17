@@ -1,0 +1,26 @@
+{% if featured.state != 'available' %}
+    <p class="bookshelf-notice" role="status">{{ 'bookshelf.promo.unavailable'|trans }}</p>
+{% elseif featured.entries is empty %}
+    <p class="bookshelf-empty">{{ 'bookshelf.promo.empty'|trans }}</p>
+{% else %}
+    <ol class="bookshelf-featured__grid">
+        {% for entry in featured.entries %}
+            <li class="bookshelf-featured__entry">
+                {% if entry.status == 'available' %}
+                    {% set book = entry.book %}
+                    {% set image = book.imageUrl %}
+                    {% if image and (image starts with 'https://' or image starts with 'http://') %}
+                        <img class="bookshelf-featured__cover" src="{{ image }}" alt="" loading="lazy" decoding="async">
+                    {% endif %}
+                    {% set heading = directoryView|default(false) ? 'h2' : 'h3' %}
+                    <{{ heading }}><a href="{{ path('bookshelf_read', {id: book.eventId}) }}">{{ book.title ?? 'event_workspace.preview.untitled'|trans }}</a></{{ heading }}>
+                    {% if book.description %}
+                        <p class="line-clamp-3">{{ book.description|slice(0, 220) }}</p>
+                    {% endif %}
+                {% else %}
+                    <p>{{ ('bookshelf.promo.reference_' ~ entry.status)|trans }}</p>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+{% endif %}

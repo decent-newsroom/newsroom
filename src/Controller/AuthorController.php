@@ -22,6 +22,7 @@ use App\Repository\ArticleRepository;
 use App\Service\VanityNameService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\ContentStreamBuilder;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\Reader\PublicationIndexStream;
 use App\Service\Reader\ProfileFeaturedContent;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
@@ -844,6 +845,7 @@ class AuthorController extends AbstractController
         EntityManagerInterface $em,
         PublicationIndexStream $publicationIndexes,
         ProfileFeaturedContent $featuredContent,
+        HighlightSourceVisibility $highlightSources,
         ?string $npub = null,
         ?string $vanity = null
     ): Response {
@@ -877,7 +879,7 @@ class AuthorController extends AbstractController
         }
 
         if ($tab === 'stream') {
-            $data = $this->getProfileStreamData($pubkey, $isOwner, $request, $redisCacheService, $viewStore, $viewFactory, $em, $messageBus, $publicationIndexes, $featuredContent);
+            $data = $this->getProfileStreamData($pubkey, $isOwner, $request, $redisCacheService, $viewStore, $viewFactory, $em, $messageBus, $publicationIndexes, $featuredContent, $highlightSources);
             $response = $this->render(
                 $request->headers->get('Turbo-Frame') === 'profile-stream-content'
                     ? 'profile/_stream.html.twig' : 'profile/author-tabs.html.twig',
@@ -1042,6 +1044,10 @@ class AuthorController extends AbstractController
             $templateData = [];
         }
 
+        if ($tab === 'highlights' && isset($templateData['highlights'])) {
+            $templateData['highlights'] = $highlightSources->filter($templateData['highlights']);
+        }
+
         // Apply pagination for the articles tab (cache stores all articles; paginate at render time)
         if ($tab === 'articles' && !empty($templateData['articles'])) {
             $page = max(1, (int) $request->query->get('page', 1));
@@ -1061,7 +1067,7 @@ class AuthorController extends AbstractController
 
         if ($isTurboFrameRequest) {
             // Return just the tab partial for Turbo Frame
-            return $this->render("profile/tabs/_{$tab}.html.twig", array_merge([
+            $response = $this->render("profile/tabs/_{$tab}.html.twig", array_merge([
                 'author' => $author,
                 'npub' => $npub,
                 'pubkey' => $pubkey,
@@ -1071,6 +1077,10 @@ class AuthorController extends AbstractController
                 'useVanity' => $useVanity,
                 'routePrefix' => $routePrefix,
             ], $templateData));
+            if ($tab === 'highlights') {
+                $response->headers->set('Cache-Control', 'private, no-store');
+            }
+            return $response;
         }
 
         // Direct access - return full page with layout and tabs
@@ -1123,11 +1133,12 @@ class AuthorController extends AbstractController
         MessageBusInterface $bus,
         PublicationIndexStream $publicationIndexes,
         ProfileFeaturedContent $featuredContent,
+        HighlightSourceVisibility $highlightSources,
     ): array {
         $sources = [
             ['type' => 'article', 'items' => $this->getAuthorArticles($pubkey, $isOwner, $views, $factory)],
             ['type' => 'media', 'items' => $this->getMediaTabData($pubkey, $cache, 200)['mediaEvents']],
-            ['type' => 'highlight', 'items' => $this->getHighlightsTabData($pubkey, $em)['highlights']],
+            ['type' => 'highlight', 'items' => $highlightSources->filter($this->getHighlightsTabData($pubkey, $em)['highlights'])],
         ];
         if ($isOwner) {
             $sources[] = ['type' => 'draft', 'items' => $this->getDraftsTabData($pubkey, $factory, $cache->getMetadata($pubkey))['drafts']];

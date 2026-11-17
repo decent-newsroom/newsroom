@@ -82,6 +82,41 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Load every exact-ID projection that a local preview could select.
+     *
+     * @param list<string> $eventIds
+     * @return array<string, list<Article>> Exact event ID to projections
+     */
+    public function findHighlightSourcesByEventIds(array $eventIds): array
+    {
+        if (count($eventIds) > 128) {
+            throw new \InvalidArgumentException('Highlight source lookup is limited to 128 event IDs.');
+        }
+        $eventIds = array_values(array_unique(array_filter(
+            $eventIds,
+            static fn (string $id): bool => preg_match('/^[0-9a-f]{64}$/iD', $id) === 1,
+        )));
+        if ($eventIds === []) {
+            return [];
+        }
+
+        $articles = $this->createQueryBuilder('a')
+            ->where('a.eventId IN (:eventIds)')
+            ->setParameter('eventIds', $eventIds)
+            ->orderBy('a.id', \SortDirection::Ascending)
+            ->getQuery()
+            ->getResult();
+
+        $result = [];
+        foreach ($articles as $article) {
+            $id = (string) $article->getEventId();
+            $result[$id][] = $article;
+        }
+
+        return $result;
+    }
+
+    /**
      * Return the newest revision of each slug for one author and event kind.
      *
      * The DISTINCT ON query keeps revision collapsing in PostgreSQL instead of
@@ -276,7 +311,9 @@ class ArticleRepository extends ServiceEntityRepository
             $qb->setParameter('p' . $i, $c['pubkey']);
             $qb->setParameter('s' . $i, $c['slug']);
         }
-        $qb->where($orX)->orderBy('a.createdAt', \SortDirection::Descending);
+        $qb->where($orX)
+            ->orderBy('a.createdAt', \SortDirection::Descending)
+            ->addOrderBy('a.eventId', \SortDirection::Ascending);
 
         /** @var Article[] $results */
         $results = $qb->getQuery()->getResult();

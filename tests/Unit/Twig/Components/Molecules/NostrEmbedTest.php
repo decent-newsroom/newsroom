@@ -14,6 +14,7 @@ use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\AuthoredArticlePreview;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
+use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrEventVerifier;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrIdentityService;
@@ -22,7 +23,9 @@ use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\UserMuteListService;
+use App\Tests\Unit\Support\HighlightSourceVisibilityFactory;
 use App\Twig\Components\Molecules\NostrEmbed;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
@@ -41,6 +44,8 @@ use Twig\TwigFilter;
 
 final class NostrEmbedTest extends TestCase
 {
+    use HighlightSourceVisibilityFactory;
+
     private const AUTHOR = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
@@ -77,6 +82,69 @@ final class NostrEmbedTest extends TestCase
             'note' => ['note', (new NostrNip19Service())->encodeNote(self::ID)],
             'nevent' => ['nevent', (string) Bech32::nevent(id: self::ID, author: self::AUTHOR, kind: 30040)],
         ];
+    }
+
+    /** @dataProvider embeddedHighlightVisibility */
+    public function testDeferredHighlightCardUsesCurrentViewerAndLocalSource(bool $anonymous, bool $sourceAvailable, bool $visible): void
+    {
+        $sourceId = str_repeat('d', 64);
+        $event = $this->event(KindsEnum::HIGHLIGHTS->value, [['e', $sourceId]]);
+        $source = $this->event(KindsEnum::TEXT_NOTE->value, []);
+        $source->setId($sourceId);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findById')->with(self::ID)->willReturn($event);
+        if ($anonymous) {
+            $events->expects(self::once())->method('findHighlightSourceTargets')
+                ->with([], [$sourceId])
+                ->willReturn(['eventIds' => $sourceAvailable ? [$sourceId => $source] : [], 'coordinates' => []]);
+        } else {
+            $events->expects(self::never())->method('findHighlightSourceTargets');
+        }
+        $security = $anonymous ? $this->createMock(Security::class) : $this->viewerSecurity();
+        $metadata = $this->createMock(RedisCacheService::class);
+        $metadata->expects($visible ? self::once() : self::never())->method('getMetadata');
+        $component = $this->component($events, security: $security, metadata: $metadata);
+        $reference = (string) Bech32::nevent(id: self::ID, kind: KindsEnum::HIGHLIGHTS->value);
+        $component->mount($reference, 'nevent', renderHighlightCard: true);
+
+        self::assertSame(!$visible, $component->hiddenHighlight);
+        self::assertSame($visible ? 'Event body' : null, $component->highlightCardEvent?->content);
+        $html = $this->render($component);
+        self::assertStringContainsString('data-highlight-embed', $html);
+        self::assertStringContainsString('data-turbo-temporary', $html);
+        if ($visible) {
+            self::assertStringContainsString('embedded-event-card', $html);
+        } else {
+            self::assertStringNotContainsString('embedded-event-card', $html);
+            self::assertStringNotContainsString('Event body', $html);
+        }
+    }
+
+    public static function embeddedHighlightVisibility(): iterable
+    {
+        yield 'guest with missing source' => [true, false, false];
+        yield 'guest with local source' => [true, true, true];
+        yield 'signed-in reader with missing source' => [false, false, true];
+    }
+
+    public function testDeferredHighlightAddressKeepsExactRequestedAddress(): void
+    {
+        $sourceId = str_repeat('d', 64);
+        $event = $this->event(KindsEnum::HIGHLIGHTS->value, [['d', 'entry'], ['e', $sourceId]]);
+        $source = $this->event(KindsEnum::TEXT_NOTE->value, []);
+        $source->setId($sourceId);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findByNaddr')
+            ->with(KindsEnum::HIGHLIGHTS->value, self::AUTHOR, 'entry')->willReturn($event);
+        $events->expects(self::once())->method('findHighlightSourceTargets')
+            ->with([], [$sourceId])->willReturn(['eventIds' => [$sourceId => $source], 'coordinates' => []]);
+        $reference = (new NostrNip19Service())->encodeAddr(self::AUTHOR, 'entry', KindsEnum::HIGHLIGHTS->value);
+        $component = $this->component($events);
+        $component->mount($reference, 'naddr', renderHighlightCard: true);
+
+        self::assertFalse($component->hiddenHighlight);
+        self::assertSame(self::ID, $component->highlightCardEvent?->id);
+        self::assertStringContainsString('href="/e/' . $reference . '"', $this->render($component));
     }
 
     /** @dataProvider exactReferences */
@@ -582,14 +650,18 @@ final class NostrEmbedTest extends TestCase
         ?Security $security = null,
         ?UserMuteListService $mutes = null,
         ?NostrEventVerifier $verifier = null,
+        ?HighlightSourceVisibility $highlightSources = null,
+        ?RedisCacheService $metadata = null,
     ): NostrEmbed {
         $logger ??= new NullLogger();
+        $security ??= $this->createMock(Security::class);
+        $articles ??= $this->createMock(ArticleRepository::class);
         $policy = new EventPreviewAccessPolicy(
             $authors ?? $this->createMock(ContentAuthorAccessPolicy::class),
             $deletions ?? $this->createMock(DeletedEventRepository::class),
             $hidden ?? $this->createMock(HiddenCoordinateRepository::class),
             new RecordIdentityService(),
-            $security ?? $this->createMock(Security::class),
+            $security,
             $mutes ?? $this->createMock(UserMuteListService::class),
             new NostrKeyService(),
             $logger,
@@ -599,10 +671,12 @@ final class NostrEmbedTest extends TestCase
             )),
         );
         return new NostrEmbed(
-            $events, $articles ?? $this->createMock(ArticleRepository::class), $policy,
+            $events, $articles, $policy,
             new AuthoredArticlePreview(new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service())),
             $verifier ?? $this->articleVerifier(),
             new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()), $logger,
+            $highlightSources ?? $this->makeHighlightVisibility($events, articles: $articles, security: $security, access: $policy),
+            $metadata ?? $this->createMock(RedisCacheService::class),
         );
     }
 
@@ -665,6 +739,7 @@ final class NostrEmbedTest extends TestCase
     private function render(NostrEmbed $component): string
     {
         $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 5) . '/templates'), ['strict_variables' => true]);
+        $twig->addGlobal('app', (object) ['user' => null]);
         $twig->addFilter(new TwigFilter('trans', static fn (string $key, array $parameters = []): string => strtr($key, $parameters)));
         return $twig->render('components/Molecules/NostrEmbed.html.twig', get_object_vars($component));
     }

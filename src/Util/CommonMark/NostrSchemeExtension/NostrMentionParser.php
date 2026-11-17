@@ -20,6 +20,7 @@ readonly class NostrMentionParser implements InlineParserInterface
     public function __construct(
         private RedisCacheService $redisCacheService,
         private ?NostrPrefetchedData $prefetchedData = null,
+        private bool $refreshOnMiss = true,
     ){}
 
     public function getMatchDefinition(): InlineParserMatch
@@ -52,7 +53,7 @@ readonly class NostrMentionParser implements InlineParserInterface
             if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($hex)) {
                 $metadata = $this->prefetchedData->getMetadata($hex);
             } else {
-                $metadata = $this->redisCacheService->getMetadata($hex);
+                $metadata = $this->redisCacheService->getMetadata($hex, $this->refreshOnMiss);
             }
             $label = $metadata->display_name ?? $metadata->name;
         }

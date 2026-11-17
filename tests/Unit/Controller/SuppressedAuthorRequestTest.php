@@ -15,6 +15,7 @@ use App\Entity\VanityName;
 use App\Repository\ArticleRepository;
 use App\Repository\BannedPubkeyRepository;
 use App\Repository\EventRepository;
+use App\Repository\HighlightRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\ArticleEventProjector;
 use App\Service\ArticlePublicationIndexer;
@@ -31,8 +32,10 @@ use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\ArticleAccessService;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\ReadingListNavigationService;
 use App\Service\VanityNameService;
+use App\Tests\Unit\Support\HighlightSourceVisibilityFactory;
 use App\Util\CommonMark\Converter;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19DecoderInterface;
 use DecentNewsroom\NostrKernelBundle\Contract\Nip19\Nip19EncoderInterface;
@@ -41,6 +44,7 @@ use nostriphant\NIP19\Bech32;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -48,6 +52,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class SuppressedAuthorRequestTest extends TestCase
 {
+    use HighlightSourceVisibilityFactory;
+
     private const HEX = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
@@ -218,7 +224,9 @@ final class SuppressedAuthorRequestTest extends TestCase
             case 'highlights':
                 $highlights = $this->createMock(HighlightService::class);
                 $highlights->expects(self::never())->method('getHighlightsForArticle');
-                $controller->articleHighlightsFrame('spam', $npub, $highlights);
+                $controller->articleHighlightsFrame(
+                    'spam', $npub, $highlights, $this->makeHighlightVisibility($this->createMock(EventRepository::class)),
+                );
                 break;
             case 'related':
                 $manager = $this->createMock(EntityManagerInterface::class);

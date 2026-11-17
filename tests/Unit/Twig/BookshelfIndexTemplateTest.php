@@ -47,6 +47,7 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
 
         $twig = self::getContainer()->get('twig');
         self::assertInstanceOf(Environment::class, $twig);
+        $twig->addGlobal('app', ['user' => null]);
         $twig->setLoader(new ChainLoader([
             new ArrayLoader([
                 '@Bookshelf/bookshelf-layout.html.twig' => '<!DOCTYPE html><html><head><title>{% block title %}{% endblock %}</title></head><body>{% block body %}{% endblock %}</body></html>',
@@ -241,6 +242,70 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
         self::assertSame(['0', '1'], $crawler->filter('li')->each(static fn (Crawler $item): ?string => $item->attr('data-source-tag-position')));
     }
 
+    public function testKnownBookshelfTargetsShowMetadataWithoutReferenceIdentifiers(): void
+    {
+        $presentation = $this->presentation([
+            ['a', '30023:' . self::AUTHOR . ':article-slug', '', str_repeat('c', 64)],
+            ['a', '30040:' . self::AUTHOR . ':index-slug', '', str_repeat('d', 64)],
+            ['a', '30040:' . self::AUTHOR . ':missing'],
+        ]);
+        $article = $this->tocEntry($presentation->references[0]);
+        $article['targetResolution'] = 'available';
+        $article['target'] = [
+            'eventId' => str_repeat('c', 64), 'title' => 'Article <title>',
+            'summary' => 'Article & summary', 'sensitive' => false,
+        ];
+        $index = $this->tocEntry($presentation->references[1]);
+        $index['targetResolution'] = 'available';
+        $index['target'] = [
+            'eventId' => str_repeat('d', 64), 'title' => 'Index title',
+            'summary' => 'Index summary', 'sensitive' => false,
+        ];
+        $page = [
+            'eventId' => self::EVENT_ID, 'page' => 1, 'start' => 1, 'featuredEntry' => $article,
+            'entries' => [$index, $this->tocEntry($presentation->references[2])],
+            'hasPrevious' => false, 'hasNext' => false,
+        ];
+        $html = $this->renderIndex($presentation, tocPage: $page);
+        $crawler = new Crawler($html);
+        $rows = $crawler->filter('.event-toc-list li');
+        self::assertSame('Article <title>', $rows->eq(0)->filter('strong')->text());
+        self::assertSame('Article & summary', $rows->eq(0)->filter('p')->text());
+        self::assertSame('Index title', $rows->eq(1)->filter('strong')->text());
+        self::assertSame('Index summary', $rows->eq(1)->filter('p')->text());
+        self::assertSame('/bookshelf/index/' . str_repeat('d', 64), $rows->eq(1)->filter('a')->attr('href'));
+        self::assertCount(0, $rows->eq(0)->filter('a, code'));
+        self::assertCount(0, $rows->eq(1)->filter('code'));
+        foreach (['article-slug', 'index-slug', str_repeat('c', 64), str_repeat('d', 64), 'reference'] as $identifier) {
+            self::assertStringNotContainsString($identifier, strtolower($rows->eq(0)->text() . $rows->eq(1)->text()));
+        }
+        self::assertStringContainsString('missing', $rows->eq(2)->text());
+        self::assertCount(1, $rows->eq(2)->filter('code'));
+        self::assertStringNotContainsString('<title>', $rows->eq(0)->html());
+    }
+
+    public function testKnownSensitiveAndUntitledIndexesDoNotFallBackToIdentifiers(): void
+    {
+        $presentation = $this->presentation([
+            ['a', '30040:' . self::AUTHOR . ':sensitive'],
+            ['a', '30040:' . self::AUTHOR . ':untitled'],
+        ]);
+        $sensitive = $this->tocEntry($presentation->references[0]);
+        $sensitive['targetResolution'] = 'available';
+        $sensitive['target'] = ['eventId' => str_repeat('c', 64), 'title' => null, 'summary' => null, 'sensitive' => true];
+        $untitled = $this->tocEntry($presentation->references[1]);
+        $untitled['targetResolution'] = 'available';
+        $untitled['target'] = ['eventId' => str_repeat('d', 64), 'title' => null, 'summary' => null, 'sensitive' => false];
+        $crawler = new Crawler($this->renderIndex($presentation, tocPage: [
+            'eventId' => self::EVENT_ID, 'page' => 1, 'start' => 1, 'featuredEntry' => null,
+            'entries' => [$sensitive, $untitled], 'hasPrevious' => false, 'hasNext' => false,
+        ]));
+        $rows = $crawler->filter('.event-toc-list li');
+        self::assertSame($this->trans('reading_nook.toc.sensitive'), $rows->eq(0)->filter('strong')->text());
+        self::assertSame($this->trans('event_workspace.preview.untitled'), $rows->eq(1)->filter('strong')->text());
+        self::assertCount(0, $rows->filter('code'));
+    }
+
     public function testPublicationContentsLabelsExistInEveryEnabledLocale(): void
     {
         $translator = self::getContainer()->get('translator');
@@ -299,6 +364,7 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
             'isBook' => $isBook,
             'tocHeading' => $tocHeading,
             'containingIndexes' => $containingIndexes,
+            'tocBookshelfLinks' => true,
             'tocPage' => $tocPage ?? [
                 'eventId' => self::EVENT_ID, 'page' => 1, 'entries' => [],
                 'hasPrevious' => false, 'hasNext' => false,

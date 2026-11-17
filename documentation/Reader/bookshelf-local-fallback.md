@@ -72,8 +72,11 @@ identifier when unavailable. Sensitive titles remain hidden. It composes the
 shared tag-only event preview and ordered TOC. Books retain the exact-ID
 continuous-reader link. TOC headings distinguish Article-only leaves,
 chapter-only leaves, and mixed or other content. Each TOC page resolves at
-most 50 local nested-index occurrences; leaf references remain visible
-without loading bodies. Nested indexes have a
+most 50 visible local occurrences. Known, readable indexes and articles show
+their signed title and summary without reference labels, coordinates, pins, or
+revision identifiers; an untitled or sensitive index uses the corresponding
+generic label. Unresolved or restricted references retain their reference
+details. Nested indexes have a
 Bookshelf detail link and an explicit lazy disclosure using
 `/bookshelf/index/{eventId}/toc`, never the owner-only Reading Nook endpoints.
 When the signed index has exactly one kind `30023` content occurrence and at
@@ -84,15 +87,20 @@ reference appears on each page, with at most 49 index occurrences below it,
 so the 50-occurrence limit remains intact even when the article occurs later in
 the signed tags. Non-content tags do not affect the split. Original source
 positions, remaining index order, duplicates, unresolved references, raw pins,
-and full coordinates are preserved; an invalid pin stays visible as invalid.
+and full coordinates are preserved in the underlying occurrences; an invalid
+pin stays visible as invalid.
 Other TOCs, including Reading Nook, retain their original ordering and 50-row
 pages. Exact pins never fall back to latest or a different author.
 
 Every page/fragment allows only locally stored public kind `30040` Events,
 checking hidden coordinates, reader mutes, author suppression, and NIP-09
 deletion before exposing source data. Signed fragment ancestry is also
-re-authorized on each request. Author metadata is read locally; no
-Article/draft lookup, relay or profile fetch, body conversion, or write occurs.
+re-authorized on each request. Author metadata is read locally. Article metadata
+is shown only when the exact local Event has a matching Article projection and
+passes the existing entitlement, scope, sensitivity, author, mute, hidden
+coordinate, and deletion checks. Missing or mismatched projections and cold
+pins remain references; they never fall back to another revision. No draft
+lookup, relay or profile fetch, body conversion, or write occurs.
 Sensitive preview metadata stays
 gated by the shared preview/TOC primitives. Responses are private/no-store.
 Nested state uses the existing HMAC traversal signer, occurrence-specific

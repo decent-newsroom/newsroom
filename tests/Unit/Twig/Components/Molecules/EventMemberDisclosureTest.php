@@ -773,6 +773,22 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertStringNotContainsString('child body must not render', $html);
         self::assertStringNotContainsString('private.example', $html);
         self::assertCount(0, $crawler->selectLink('Read this book'));
+        $withoutTitles = $page;
+        $withoutTitles['entries'][0]['target']['title'] = null;
+        $withoutTitles['entries'][0]['target']['summary'] = null;
+        $withoutTitles['entries'][0]['target']['sensitive'] = true;
+        $withoutTitles['entries'][1]['target']['title'] = null;
+        $withoutTitles['entries'][1]['target']['summary'] = null;
+        $parameters['tocPage'] = $withoutTitles;
+        $crawler = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
+        $rows = $crawler->filter('.event-toc-list > li');
+        self::assertStringNotContainsString('nested', strtolower($rows->eq(0)->text()));
+        self::assertStringNotContainsString('nested', strtolower($rows->eq(1)->text()));
+        if ($enabled) {
+            self::assertStringContainsString('Sensitive index metadata hidden', $rows->eq(0)->filter('summary')->text());
+            self::assertStringContainsString('Untitled event', $rows->eq(1)->filter('summary')->text());
+        }
+        $parameters['tocPage'] = $page;
         $parameters['isBook'] = true;
         $crawler = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
         self::assertSame('/bookshelf/' . self::ID, $crawler->selectLink('Read this book')->attr('href'));
@@ -1043,7 +1059,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
         $container->import($this->getProjectDir() . '/config/packages/translation.yaml');
         $container->extension('twig', [
             'default_path' => '%kernel.project_dir%/templates', 'strict_variables' => true,
-            'globals' => ['event_workspace_expansion_enabled' => true],
+            'globals' => ['event_workspace_expansion_enabled' => true, 'app' => ['user' => null]],
         ]);
         $container->extension('twig_component', [
             'anonymous_template_directory' => 'components/',

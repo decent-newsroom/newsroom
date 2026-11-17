@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service;
 
 use App\Entity\Article;
+use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use Doctrine\DBAL\Connection;
@@ -90,6 +91,113 @@ final class ApiPreviewRevisionRepositoryTest extends KernelTestCase
         $repository = self::getContainer()->get(EventRepository::class);
         self::assertSame(str_repeat('c', 64), $repository->findByNaddr(30040, self::AUTHOR, 'index')?->getId());
         self::assertNull($repository->findByNaddr(30040, self::AUTHOR, '42'), 'Non-string first d is not an identifier.');
+    }
+
+    public function testLegacyLookupIgnoresMalformedTagContainers(): void
+    {
+        $this->insertEvent('a', 300, ['d' => 'index'], null);
+        $this->insertEvent('b', 200, ['not-a-tag', ['d', 'index']], null);
+        $repository = self::getContainer()->get(EventRepository::class);
+        $coordinate = '30040:' . self::AUTHOR . ':index';
+
+        self::assertSame(str_repeat('b', 64), $repository->findByNaddr(30040, self::AUTHOR, 'index')?->getId());
+        self::assertSame(
+            str_repeat('b', 64),
+            $repository->findHighlightSourceTargets([$coordinate], [])['coordinates'][$coordinate]->getId(),
+        );
+    }
+
+    public function testGuestHighlightBatchMatchesIndexedAndLegacyPreviewSelection(): void
+    {
+        $this->insertEvent('a', 100, [['d', 'index']], null);
+        $this->insertEvent('c', 200, [['d', 'index']], null);
+        $this->insertEvent('d', 200, [['d', 'index']], null);
+        $this->insertEvent('b', 500, [['d', 42], ['d', 'index']], null);
+        $this->insertEvent('e', 400, [['d', 'other'], ['d', 'index']], 'index');
+        $repository = self::getContainer()->get(EventRepository::class);
+        $coordinate = '30040:' . self::AUTHOR . ':index';
+
+        $indexed = $repository->findHighlightSourceTargets([$coordinate], []);
+        self::assertSame(str_repeat('e', 64), $indexed['coordinates'][$coordinate]->getId());
+        self::assertSame(
+            $repository->findByNaddr(30040, self::AUTHOR, 'index')->getId(),
+            $indexed['coordinates'][$coordinate]->getId(),
+        );
+
+        $this->connection->delete('event', ['id' => str_repeat('e', 64)]);
+        $legacy = $repository->findHighlightSourceTargets([$coordinate], []);
+        self::assertSame(str_repeat('c', 64), $legacy['coordinates'][$coordinate]->getId());
+        self::assertSame(
+            $repository->findByNaddr(30040, self::AUTHOR, 'index')->getId(),
+            $legacy['coordinates'][$coordinate]->getId(),
+        );
+        self::assertArrayNotHasKey(
+            '30040:' . self::AUTHOR . ':42',
+            $repository->findHighlightSourceTargets(['30040:' . self::AUTHOR . ':42'], [])['coordinates'],
+        );
+    }
+
+    public function testGuestHighlightLegacyLookupRequiresAnExplicitEmptyDTag(): void
+    {
+        $this->insertEvent('a', 200, [['title', 'No identifier']], null);
+        $repository = self::getContainer()->get(EventRepository::class);
+        $coordinate = '30040:' . self::AUTHOR . ':';
+
+        self::assertNull($repository->findByNaddr(30040, self::AUTHOR, ''));
+        self::assertArrayNotHasKey($coordinate, $repository->findHighlightSourceTargets([$coordinate], [])['coordinates']);
+
+        $this->insertEvent('b', 100, [['d', '']], null);
+        self::assertSame(str_repeat('b', 64), $repository->findByNaddr(30040, self::AUTHOR, '')->getId());
+        self::assertSame(
+            str_repeat('b', 64),
+            $repository->findHighlightSourceTargets([$coordinate], [])['coordinates'][$coordinate]->getId(),
+        );
+    }
+
+    public function testGuestHighlightExactLookupUsesTheSameCaseSensitiveIdAsThePreview(): void
+    {
+        $this->insertEvent('b', 100, [], null);
+        $this->insertEvent('B', 200, [], null);
+        $this->insertEvent('C', 300, [], null);
+        $repository = self::getContainer()->get(EventRepository::class);
+        $lower = str_repeat('b', 64);
+        $upperOnly = str_repeat('c', 64);
+
+        $targets = $repository->findHighlightSourceTargets([], [strtoupper($lower), $upperOnly]);
+
+        self::assertSame($lower, $targets['eventIds'][$lower]->getId());
+        self::assertArrayNotHasKey($upperOnly, $targets['eventIds']);
+        self::assertNull($repository->findById($upperOnly));
+    }
+
+    public function testGuestHighlightArticleBatchMatchesExactStoredIds(): void
+    {
+        foreach ([
+            [1, str_repeat('d', 64), 30023],
+            [2, str_repeat('d', 64), 30023],
+            [3, str_repeat('f', 64), 30024],
+            [4, str_repeat('E', 64), 30023],
+        ] as [$id, $eventId, $kind]) {
+            $this->connection->insert('article', [
+                'id' => $id,
+                'event_id' => $eventId,
+                'kind' => $kind,
+                'pubkey' => self::AUTHOR,
+                'slug' => 'article',
+                'created_at' => '2026-10-01 12:00:00',
+                'essayist_exclusive' => 'false',
+            ]);
+        }
+
+        $articles = self::getContainer()->get(ArticleRepository::class)->findHighlightSourcesByEventIds([
+            str_repeat('D', 64), str_repeat('d', 64), str_repeat('f', 64),
+            str_repeat('e', 64), str_repeat('E', 64),
+        ]);
+        self::assertSame([str_repeat('d', 64), str_repeat('f', 64), str_repeat('E', 64)], array_keys($articles));
+        self::assertSame([1, 2], array_map(static fn (Article $article): ?int => $article->getId(), $articles[str_repeat('d', 64)]));
+        self::assertSame(KindsEnum::LONGFORM_DRAFT, $articles[str_repeat('f', 64)][0]->getKind());
+        self::assertArrayNotHasKey(str_repeat('e', 64), $articles);
+        self::assertArrayNotHasKey(str_repeat('D', 64), $articles);
     }
 
     private function insertEvent(string $id, int $createdAt, array $tags, ?string $dTag): void

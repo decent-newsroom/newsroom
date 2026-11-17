@@ -1,5 +1,10 @@
 {% extends 'layout.html.twig' %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% block title %}{{ title }} - Newsroom{% endblock %}
 
 {% block ogtags %}
@@ -36,7 +41,7 @@
                 <div class="chapter-content"
                      data-controller="utility--katex"
                      data-utility--katex-display-value="true">
-                    {{ content|resolve_nostr_embeds|raw }}
+                    {{ content|resolve_nostr_embeds(chapter.content, chapter.kind, chapter.tags)|raw }}
                 </div>
             </div>
         </div>

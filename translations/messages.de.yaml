@@ -481,6 +481,26 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    promo:
+        eyebrow: 'Dein nächstes Kapitel, überall'
+        description: 'Ein Android-E-Reader für Bücher auf Nostr. Speichere ein Buch, finde deinen Lesestil und nimm dein nächstes Kapitel offline mit.'
+        offline_title: 'Speichern. Überall lesen.'
+        offline_description: 'Lies gespeicherte Bücher offline und mache dort weiter, wo du aufgehört hast.'
+        comfort_title: 'Mach es dir bequem'
+        comfort_description: 'Wähle Lesedesign, Schrift und Textausrichtung.'
+        highlights_title: 'Behalte die wichtigen Stellen'
+        highlights_description: 'Speichere Markierungen und durchsuche Bücher und Kapiteltexte, um Stellen wiederzufinden.'
+        privacy_title: 'Dein Lesen, deine Entscheidung'
+        privacy_description: 'Lies und verfolge deinen Fortschritt lokal ohne Konto. Verbinde ein Nostr-Konto für Rezensionen und optionales Teilen.'
+        curated_eyebrow: 'Ein guter Anfang'
+        curated_title: 'Für dein Bücherregal ausgewählt'
+        view_directory: 'Die ganze Auswahl entdecken'
+        web_title: 'Lieber im Web lesen?'
+        unavailable: 'Diese Auswahl ist vorübergehend nicht verfügbar.'
+        empty: 'Diese Auswahl enthält noch keine Bücher.'
+        reference_missing: 'Dieses Buch ist derzeit nicht im Buchindex verfügbar.'
+        reference_invalid: 'Dieser Verzeichniseintrag enthält einen ungültigen Buchverweis.'
+        reference_restricted: 'Dieses Buch kann nicht angezeigt werden.'
     read_this_book: 'Dieses Buch lesen'
     contained_in_index: 'Enthalten im Index'
     open_index: 'Im Bücherregal öffnen'

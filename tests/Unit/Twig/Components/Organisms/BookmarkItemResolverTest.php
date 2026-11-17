@@ -11,6 +11,7 @@ use App\Repository\ArticleRepository;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\EventWorkspace\AuthoredArticlePreview;
@@ -23,7 +24,9 @@ use App\Service\Nostr\NostrNip19Service;
 use App\Service\Nostr\NostrSigner;
 use App\Service\Reader\ArticleAccessService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\Reader\HighlightSourceVisibility;
 use App\Service\UserMuteListService;
+use App\Tests\Unit\Support\HighlightSourceVisibilityFactory;
 use App\Twig\Components\Molecules\NostrEmbed;
 use App\Twig\Components\Atoms\PageHeading;
 use App\Twig\Components\Organisms\BookmarkItemResolver;
@@ -56,6 +59,8 @@ use Twig\Runtime\EscaperRuntime;
 
 final class BookmarkItemResolverTest extends KernelTestCase
 {
+    use HighlightSourceVisibilityFactory;
+
     private const ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     private const AUTHOR = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     private const RELAY = 'wss://bookmark.example.test';
@@ -553,10 +558,14 @@ final class BookmarkItemResolverTest extends KernelTestCase
             $articles->expects(self::once())->method('findOneBy')->with(['eventId' => self::ID])->willReturn($projection);
         }
         self::getContainer()->set(ArticleRepository::class, $articles);
+        self::getContainer()->set(HighlightSourceVisibility::class, $this->makeHighlightVisibility($events, articles: $articles));
+        self::getContainer()->set(RedisCacheService::class, $this->createMock(RedisCacheService::class));
         self::getContainer()->set(EventPreviewAccessPolicy::class, $policy);
         self::getContainer()->set(EventPresentationFactory::class, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()));
         self::getContainer()->set(NostrEventVerifier::class, $this->eventVerifier());
         self::getContainer()->set(LoggerInterface::class, new NullLogger());
+        $twig = self::getContainer()->get(Environment::class);
+        $twig->addGlobal('app', ['user' => null]);
         if ($page !== null) {
             $client = $this->createMock(NostrClient::class);
             $client->expects(self::never())->method('getEventById');
@@ -565,7 +574,6 @@ final class BookmarkItemResolverTest extends KernelTestCase
             $em->expects(self::never())->method('flush');
             self::getContainer()->set(NostrClient::class, $client);
             self::getContainer()->set(EntityManagerInterface::class, $em);
-            $twig = self::getContainer()->get(Environment::class);
             // Exercise the real page body, not the unrelated app-shell/navigation.
             $twig->setLoader(new ChainLoader([
                 new ArrayLoader(['reading-nook-layout.html.twig' => '{% block body %}{% endblock %}']),
@@ -573,7 +581,7 @@ final class BookmarkItemResolverTest extends KernelTestCase
             ]));
             return $twig->render('pages/my-bookmarks.html.twig', $page);
         }
-        return self::getContainer()->get(Environment::class)->render(
+        return $twig->render(
             'components/Organisms/BookmarkItemResolver.html.twig',
             get_object_vars($resolver) + ['attributes' => new ComponentAttributes([], new EscaperRuntime())],
         );
@@ -595,10 +603,13 @@ final class BookmarkItemResolverTest extends KernelTestCase
 final class BookmarkProfileFixture
 {
     public string $parsed = '';
+    public string $rawContent = '';
+    public bool $renderMedia = true;
 
     public function mount(string $ident): void
     {
         $this->parsed = htmlspecialchars($ident, ENT_QUOTES);
+        $this->rawContent = $ident;
     }
 }
 
@@ -629,7 +640,7 @@ final class BookmarkItemResolverTestKernel extends Kernel
         ]);
         $services = $container->services();
         $services->set(\App\Twig\Filters::class)->autowire()->autoconfigure();
-        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, NostrEventVerifier::class, LoggerInterface::class, EntityManagerInterface::class, NostrClient::class] as $dependency) {
+        foreach ([EventRepository::class, ArticleRepository::class, EventPreviewAccessPolicy::class, EventPresentationFactory::class, NostrEventVerifier::class, HighlightSourceVisibility::class, RedisCacheService::class, LoggerInterface::class, EntityManagerInterface::class, NostrClient::class] as $dependency) {
             $services->set($dependency)->synthetic()->public();
         }
         $services->set(AuthoredArticlePreview::class)->autowire();

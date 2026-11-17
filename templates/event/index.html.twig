@@ -1,5 +1,12 @@
 {% extends 'layout.html.twig' %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    {% if event.kind == 9802 or hasHighlightOp|default(false) %}
+        <meta name="turbo-cache-control" content="no-cache">
+    {% endif %}
+{% endblock %}
+
 {% block title %}
     {%- if author and (author.name ?? false) -%}
         {{ author.name }} - Nostr Event
@@ -164,6 +171,10 @@
                 naddr: null,
                 preview: null,
             } %}
+
+            {% if highlightGuestSource is defined and highlightGuestSource is not null %}
+                {% set highlight = highlight|merge(highlightGuestSource) %}
+            {% endif %}
 
             {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
         {% else %}

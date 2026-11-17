@@ -10,6 +10,8 @@ use Psr\Log\LoggerInterface;
 class Content
 {
     public string $parsed = '';
+    public string $rawContent = '';
+    public bool $renderMedia = true;
     public function __construct(
         private readonly Converter $converter,
         private readonly LoggerInterface $logger,
@@ -19,6 +21,8 @@ class Content
     public function mount(?string $content, bool $renderMedia = true): void
     {
         $content ??= '';
+        $this->rawContent = $content;
+        $this->renderMedia = $renderMedia;
         try {
             $this->parsed = $this->converter->convertToHTML($content, renderMedia: $renderMedia);
         } catch (\Throwable $exception) {

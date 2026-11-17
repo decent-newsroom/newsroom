@@ -482,8 +482,10 @@ class EventRepository extends ServiceEntityRepository
                     AND e.pubkey = :pubkey
                     AND (
                         SELECT CASE WHEN jsonb_typeof(tag->1) = 'string' THEN tag->>1 END
-                        FROM jsonb_array_elements(e.tags) WITH ORDINALITY AS tags(tag, position)
-                        WHERE tag->>0 = 'd'
+                        FROM jsonb_array_elements(
+                            CASE WHEN jsonb_typeof(e.tags) = 'array' THEN e.tags ELSE '[]'::jsonb END
+                        ) WITH ORDINALITY AS tags(tag, position)
+                        WHERE jsonb_typeof(tag) = 'array' AND tag->>0 = 'd'
                         ORDER BY position
                         LIMIT 1
                     ) = :identifier
@@ -649,6 +651,55 @@ class EventRepository extends ServiceEntityRepository
             $eventIds,
             [30023, 30040, 30041],
         );
+    }
+
+    /**
+     * Resolve a bounded batch using the same local address selection as
+     * findByNaddr(), including its indexed-first legacy fallback.
+     *
+     * @param list<string> $coordinates
+     * @param list<string> $eventIds
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    public function findHighlightSourceTargets(array $coordinates, array $eventIds): array
+    {
+        if (count($coordinates) + count($eventIds) > 128) {
+            throw new \InvalidArgumentException('Highlight source lookup is limited to 128 references.');
+        }
+
+        $kinds = [];
+        foreach ($coordinates as $coordinate) {
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) === 3 && ctype_digit($parts[0])) {
+                $kind = (int) $parts[0];
+                if ($kind >= 30000 && $kind <= 39999) {
+                    $kinds[$kind] = $kind;
+                }
+            }
+        }
+
+        $indexed = $this->findBoundedReferenceTargets(
+            $coordinates,
+            [],
+            array_values($kinds),
+            metadataOnly: true,
+            highlightPreview: true,
+            indexedIdentity: true,
+        );
+        $missing = array_values(array_filter(
+            $coordinates,
+            static fn (string $coordinate): bool => !isset($indexed['coordinates'][$coordinate]),
+        ));
+        $targets = $this->findBoundedReferenceTargets(
+            $missing,
+            $eventIds,
+            array_values($kinds),
+            metadataOnly: true,
+            highlightPreview: true,
+        );
+        $targets['coordinates'] = $indexed['coordinates'] + $targets['coordinates'];
+
+        return $targets;
     }
 
     /**
@@ -962,6 +1013,8 @@ class EventRepository extends ServiceEntityRepository
         array $kinds,
         bool $metadataOnly = false,
         bool $requireEmptyContent = false,
+        bool $highlightPreview = false,
+        bool $indexedIdentity = false,
     ): array
     {
         $coordinates = array_values(array_unique(array_filter(
@@ -986,6 +1039,26 @@ class EventRepository extends ServiceEntityRepository
         $connection = $this->getEntityManager()->getConnection();
         $platform = $connection->getDatabasePlatform();
         $dTagExpression = match (true) {
+            $indexedIdentity => 'e.d_tag',
+            $highlightPreview && $platform instanceof PostgreSQLPlatform => "(SELECT
+                    CASE WHEN jsonb_typeof(tag.value->1) = 'string' THEN tag.value->>1 END
+                FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(e.tags) = 'array' THEN e.tags ELSE '[]'::jsonb END
+                ) WITH ORDINALITY AS tag(value, ordinality)
+                WHERE jsonb_typeof(tag.value) = 'array' AND tag.value->>0 = 'd'
+                ORDER BY tag.ordinality
+                LIMIT 1)",
+            $highlightPreview && $platform instanceof SQLitePlatform => "(
+                (SELECT CASE WHEN json_type(tag.value, '$[1]') = 'text'
+                             THEN json_extract(tag.value, '$[1]') END
+                 FROM json_each(
+                     CASE WHEN json_valid(e.tags) AND json_type(e.tags) = 'array' THEN e.tags ELSE '[]' END
+                 ) AS tag
+                 WHERE CASE WHEN tag.type = 'array' THEN json_extract(tag.value, '$[0]') END = 'd'
+                 ORDER BY CAST(tag.key AS INTEGER)
+                 LIMIT 1)
+            )",
+            $highlightPreview => throw new \LogicException('Highlight source lookup requires PostgreSQL or SQLite.'),
             $platform instanceof PostgreSQLPlatform => "COALESCE(
                 (SELECT tag.value->>1
                  FROM jsonb_array_elements(e.tags) WITH ORDINALITY AS tag(value, ordinality)
@@ -1006,13 +1079,17 @@ class EventRepository extends ServiceEntityRepository
             )",
             default => "COALESCE(e.d_tag, '')",
         };
+        $pubkeyExpression = $highlightPreview ? 'e.pubkey' : 'lower(e.pubkey)';
+        $idOrder = $highlightPreview ? 'e.id' : 'lower(e.id)';
+        $idExpression = $highlightPreview ? 'e.id' : 'lower(e.id)';
         $params = [];
         $coordinateSql = [];
         foreach ($coordinates as $index => $coordinate) {
             [$kind, $pubkey, $identifier] = explode(':', $coordinate, 3);
             $coordinateSql[] = sprintf(
-                "(e.kind = :kind_%d AND lower(e.pubkey) = :pubkey_%d AND %s = :d_tag_%d)",
+                "(e.kind = :kind_%d AND %s = :pubkey_%d AND %s = :d_tag_%d)",
                 $index,
+                $pubkeyExpression,
                 $index,
                 $dTagExpression,
                 $index,
@@ -1028,14 +1105,16 @@ class EventRepository extends ServiceEntityRepository
                 "SELECT id, 'coordinate' AS target_type FROM (
                     SELECT e.id,
                            ROW_NUMBER() OVER (
-                               PARTITION BY e.kind, lower(e.pubkey), %s
-                               ORDER BY e.created_at DESC, lower(e.id) ASC
+                               PARTITION BY e.kind, %s, %s
+                               ORDER BY e.created_at DESC, %s ASC
                            ) AS revision_rank
                     FROM event e
                     WHERE (%s)
                 ) current_revisions
                 WHERE revision_rank = 1",
+                $pubkeyExpression,
                 $dTagExpression,
+                $idOrder,
                 implode(' OR ', $coordinateSql),
             );
         }
@@ -1050,7 +1129,7 @@ class EventRepository extends ServiceEntityRepository
             // Exact pins are fetched by ID first, then the caller validates
             // their declared kind/pubkey/d-tag. A wrong-kind pin is a mismatch,
             // not a reason to fall back to the current coordinate revision.
-            $selected[] = "SELECT e.id, 'exact' AS target_type FROM event e WHERE lower(e.id) IN ("
+            $selected[] = "SELECT e.id, 'exact' AS target_type FROM event e WHERE {$idExpression} IN ("
                 . implode(', ', $idPlaceholders) . ')';
         }
 
@@ -1059,9 +1138,10 @@ class EventRepository extends ServiceEntityRepository
         $columns = $metadataOnly
             ? "e.id, e.kind, e.pubkey, e.created_at, e.tags, e.d_tag, '' AS content, '' AS sig"
             : 'e.*';
+        $targetIdExpression = $highlightPreview ? 'requested_targets.id' : 'lower(requested_targets.id)';
         $sql = 'SELECT ' . $columns . ', requested_targets.target_type FROM event e INNER JOIN ('
             . implode(' UNION ALL ', $selected)
-            . ') requested_targets ON lower(e.id) = lower(requested_targets.id)'
+            . ") requested_targets ON {$idExpression} = {$targetIdExpression}"
             . ($requireEmptyContent ? " WHERE e.content = ''" : '')
             . ' ORDER BY e.created_at DESC, lower(e.id) ASC, requested_targets.target_type';
         $rows = $connection->executeQuery($sql, $params)->fetchAllAssociative();
@@ -1082,9 +1162,12 @@ class EventRepository extends ServiceEntityRepository
         foreach ($coordinates as $coordinate) {
             [$kind, $pubkey, $identifier] = explode(':', $coordinate, 3);
             foreach ($coordinateCandidates as $event) {
+                $eventIdentifier = $indexedIdentity
+                    ? $event->getDTag()
+                    : ($highlightPreview ? $this->firstSignedDTag($event) : $this->dTagFromEvent($event));
                 if ($event->getKind() !== (int) $kind
                     || strtolower($event->getPubkey()) !== $pubkey
-                    || $this->dTagFromEvent($event) !== $identifier) {
+                    || $eventIdentifier !== $identifier) {
                     continue;
                 }
                 $byCoordinate[$coordinate] = $event;
@@ -1100,6 +1183,19 @@ class EventRepository extends ServiceEntityRepository
         }
 
         return ['coordinates' => $byCoordinate, 'eventIds' => $byExactId];
+    }
+
+    private function firstSignedDTag(Event $event): ?string
+    {
+        /** @var array<array-key, mixed> $tags */
+        $tags = $event->getTags();
+        foreach ($tags as $tag) {
+            if (is_array($tag) && ($tag[0] ?? null) === 'd') {
+                return is_string($tag[1] ?? null) ? $tag[1] : null;
+            }
+        }
+
+        return '';
     }
 
     private function dTagFromEvent(Event $event): string

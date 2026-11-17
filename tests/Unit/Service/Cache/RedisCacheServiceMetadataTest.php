@@ -91,6 +91,35 @@ final class RedisCacheServiceMetadataTest extends TestCase
         self::assertSame('Local author', $metadata->displayName);
     }
 
+    /** @dataProvider batchRefreshModes */
+    public function testBatchLookupCanSkipRefreshForMissingProfiles(?bool $refreshOnMiss, bool $dispatch): void
+    {
+        $item = $this->createMock(CacheItemInterface::class);
+        $item->method('isHit')->willReturn(false);
+        $pool = $this->createMock(CacheItemPoolInterface::class);
+        $pool->expects(self::once())->method('getItems')
+            ->with(['0_' . self::PUBKEY])->willReturn(['0_' . self::PUBKEY => $item]);
+        $pool->expects(self::never())->method('save');
+        $users = $this->createMock(UserEntityRepository::class);
+        $users->expects(self::once())->method('findByNpubs')->with([$this->npub()])->willReturn([]);
+        $dispatcher = $this->createMock(ProfileUpdateDispatcher::class);
+        $dispatcher->expects($dispatch ? self::once() : self::never())
+            ->method('dispatchBatch')->with([self::PUBKEY])->willReturn(1);
+        $service = $this->service($pool, $users, $dispatcher);
+
+        $metadata = $refreshOnMiss === null
+            ? $service->getMultipleMetadata([self::PUBKEY])
+            : $service->getMultipleMetadata([self::PUBKEY], $refreshOnMiss);
+
+        self::assertSame(UserMetadata::createDefault(self::PUBKEY)->name, $metadata[self::PUBKEY]->name);
+    }
+
+    public static function batchRefreshModes(): iterable
+    {
+        yield 'default refresh' => [null, true];
+        yield 'local only' => [false, false];
+    }
+
     private function npub(): string
     {
         return PublicKey::fromHex(self::PUBKEY)?->toBech32()
