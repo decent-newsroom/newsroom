@@ -43,6 +43,10 @@
     min-width: 0;
 }
 
+.content-stream-page--profile {
+    max-width: 52rem;
+}
+
 .stream-masthead {
     padding-block: var(--spacing-2) var(--spacing-4);
     border-block-end: 2px solid var(--color-text);

@@ -19,9 +19,6 @@
                 {% if row.timestamp %}<time datetime="{{ row.timestamp|date('c') }}">{{ row.timestamp|date('M j, Y') }}</time>{% endif %}
             </div>
             <h2><a href="{{ href }}" data-turbo-frame="_top">{{ title }}</a></h2>
-            {% if app.user and itemPubkey %}
-                <twig:Molecules:SubscribeButton identifier="{{ row.type == 'follow_pack' ? 39089 : 30040 }}:{{ itemPubkey }}:{{ slug }}" />
-            {% endif %}
             {% if item.summary|default(item.description|default('')) %}
                 <p class="lede">{{ item.summary|default(item.description|default('')) }}</p>
             {% endif %}
@@ -35,4 +32,9 @@
             </figure>
         {% endif %}
     </div>
+    {% if app.user and itemPubkey %}
+        <div class="card-footer">
+            <twig:Molecules:SubscribeButton identifier="{{ row.type == 'follow_pack' ? 39089 : 30040 }}:{{ itemPubkey }}:{{ slug }}" :compact="true" class="stream-collection__subscribe" />
+        </div>
+    {% endif %}
 </article>

@@ -33,6 +33,9 @@ final class SubscribeButton
     public string $identifier = '';
 
     #[LiveProp]
+    public bool $compact = false;
+
+    #[LiveProp]
     public bool $subscribed = false;
 
     #[LiveProp]
@@ -45,8 +48,12 @@ final class SubscribeButton
         private readonly Security $security,
     ) {}
 
-    public function mount(): void
+    // Symfony calls mount() before assigning props that are not mount arguments.
+    public function mount(string $pubkey = '', string $identifier = ''): void
     {
+        $this->pubkey = $pubkey !== '' ? $pubkey : $this->pubkey;
+        $this->identifier = $identifier !== '' ? $identifier : $this->identifier;
+
         /** @var User|null $user */
         $user = $this->security->getUser();
         if (!$user instanceof User) {

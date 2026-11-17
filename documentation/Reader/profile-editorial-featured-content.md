@@ -5,6 +5,10 @@
 highlights. The editorial worker/cache contract described below is retained;
 there is no separate Editorial tab in ordinary profile navigation.
 
+The profile stream is centered and capped at `52rem` (832px at the default root
+font size), while remaining fluid on smaller screens. This profile-only limit
+does not change the home stream, author header or right-hand aside.
+
 The profile's right-hand aside also has a compact **Featured in** section for
 magazines, reading lists and follow packs. It is visible to owners and visitors,
 independently of the current stream page, above the existing recommended-writers

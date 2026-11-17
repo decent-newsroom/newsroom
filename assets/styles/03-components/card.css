@@ -107,7 +107,8 @@
     font-style: italic;
 }
 
-.article-card .card-footer {
+.article-card .card-footer,
+.stream-collection .card-footer {
     display: flex;
     min-height: 2.5rem;
     align-items: center;
@@ -116,6 +117,10 @@
     margin-top: var(--spacing-2);
     color: var(--color-text-muted);
     font-size: var(--font-size-xs);
+}
+
+.stream-collection__subscribe {
+    margin-left: auto;
 }
 
 .card-bookmark-btn {

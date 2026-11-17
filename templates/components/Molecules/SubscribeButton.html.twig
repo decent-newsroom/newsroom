@@ -3,20 +3,23 @@
         <p role="alert">{{ error|trans }}</p>
     {% elseif subscribed %}
         <button type="button"
-                class="btn btn-outline-secondary"
+                class="{{ compact ? 'card-bookmark-btn is-active' : 'btn btn-outline-secondary' }}"
                 title="{{ 'updates.subscription.remove'|trans }}"
                 aria-pressed="true"
                 data-action="live#action"
                 data-live-action-param="toggle">
-            {{ 'updates.subscription.subscribed'|trans }}
+            {% if compact %}{{ ux_icon('iconoir:rss-feed', {class: 'icon', 'aria-hidden': 'true'}) }}{% endif %}
+            <span>{{ 'updates.subscription.subscribed'|trans }}</span>
         </button>
     {% else %}
         <button type="button"
-                class="btn btn-outline-primary"
+                class="{{ compact ? 'card-bookmark-btn' : 'btn btn-outline-primary' }}"
+                title="{{ 'updates.subscription.addSubmit'|trans }}"
                 aria-pressed="false"
                 data-action="live#action"
                 data-live-action-param="toggle">
-            {{ 'updates.subscription.addSubmit'|trans }}
+            {% if compact %}{{ ux_icon('iconoir:rss-feed', {class: 'icon', 'aria-hidden': 'true'}) }}{% endif %}
+            <span>{{ 'updates.subscription.addSubmit'|trans }}</span>
         </button>
     {% endif %}
 </div>

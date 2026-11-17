@@ -223,8 +223,8 @@ final class SubscriptionsTest extends TestCase
         $security = $this->createMock(Security::class);
         $security->method('getUser')->willReturn($user);
         $button = new SubscribeButton($this->subscriptions, $this->sources, $this->em, $security);
-        $button->identifier = '39089:' . str_repeat('b', 64) . ':pack';
-        $button->mount();
+        $button->mount(identifier: '39089:' . str_repeat('b', 64) . ':pack');
+        self::assertSame('', $button->error);
         $button->toggle();
         self::assertTrue($button->subscribed);
         self::assertSame(7, $this->subscriptions->countActiveForUser($user));
@@ -234,6 +234,20 @@ final class SubscriptionsTest extends TestCase
         $button->toggle();
         self::assertSame(7, $this->subscriptions->countActiveForUser($user));
         self::assertCount(7, $this->subscriptions->findAll());
+    }
+
+    public function testProfileButtonMountsFromPubkeyArgument(): void
+    {
+        $user = $this->user();
+        $pubkey = sprintf('%064x', 1);
+        $this->em->persist(new UpdateSubscription($user, UpdateSourceTypeEnum::NPUB, $pubkey));
+        $this->em->flush();
+        $security = $this->createMock(Security::class);
+        $security->method('getUser')->willReturn($user);
+        $button = new SubscribeButton($this->subscriptions, $this->sources, $this->em, $security);
+        $button->mount(pubkey: $pubkey);
+        self::assertSame('', $button->error);
+        self::assertTrue($button->subscribed);
     }
 
     public function testArticleOnlyIngestionRecordsAndDeliversWithoutAnEventRow(): void

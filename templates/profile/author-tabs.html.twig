@@ -9,7 +9,7 @@
 
     {% include 'partial/_author-section.html.twig' with {author: author, npub: npub, pubkey: pubkey} %}
 
-    <section class="content-stream-page"
+    <section class="content-stream-page content-stream-page--profile"
              data-controller="content--stream"
              data-content--stream-pubkey-value="{{ pubkey }}"
              data-content--stream-owner-value="{{ isOwner ? 'true' : 'false' }}"

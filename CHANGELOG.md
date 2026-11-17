@@ -2,6 +2,8 @@
 
 ## v0.1.0
 
+- [Improvement] Match publication Subscribe actions in streams to compact article bookmark buttons, with an icon, active state and footer placement.
+- [Fix] Cap profile stream width on large screens while preserving responsive sizing.
 - [Improvement] Restore a dedicated "Featured in" profile sidebar for magazines, reading lists and follow packs, alongside the existing stream and recommended writers.
 - [Feature] Unify free local subscriptions across profiles, magazines and follow packs with a dedicated change-aware feed, shared revision history and explicit read state; retire Updates Pro purchases while preserving payment history.
 - [Improvement] Restore compact topic, My Interests and named interest-set shortcuts below the home-page search bar.
