@@ -1060,6 +1060,7 @@ editor:
 
 # ── Profile / Author page ────────────────────────────────────────
 profile:
+    featured_in: 'Featured in'
     articles: 'Articles'
     media: 'Media'
     highlights: 'Highlights'

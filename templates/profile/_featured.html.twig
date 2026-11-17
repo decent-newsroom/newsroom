@@ -1,0 +1,17 @@
+{% if featuredRows|default([]) %}
+    <section class="context-panel" aria-labelledby="profile-featured-heading">
+        <h2 id="profile-featured-heading">{{ 'profile.featured_in'|trans }}</h2>
+        <ul class="list-unstyled">
+            {% for row in featuredRows %}
+                {% set item = row.item %}
+                {% set href = row.type == 'follow_pack'
+                    ? path('follow_pack_view', {npub: item.pubkey|hex_to_npub, dtag: item.slug})
+                    : path('bookshelf_index', {eventId: item.indexEventId}) %}
+                <li class="mb-3">
+                    <span class="eyebrow">{{ ('content_stream.type.' ~ row.type)|trans }}</span>
+                    <a href="{{ href }}" data-turbo-frame="_top">{{ item.title ?: 'content_stream.untitled'|trans }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+{% endif -%}

@@ -865,6 +865,7 @@ editor:
 
 # ── Profil / Stran avtorja ────────────────────────────────────────
 profile:
+    featured_in: 'Vključeno v'
     articles: 'Članki'
     media: 'Mediji'
     highlights: 'Poudarki'

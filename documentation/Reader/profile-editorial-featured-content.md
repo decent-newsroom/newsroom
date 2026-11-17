@@ -5,6 +5,20 @@
 highlights. The editorial worker/cache contract described below is retained;
 there is no separate Editorial tab in ordinary profile navigation.
 
+The profile's right-hand aside also has a compact **Featured in** section for
+magazines, reading lists and follow packs. It is visible to owners and visitors,
+independently of the current stream page, above the existing recommended-writers
+sidebar. Featured entries remain in the stream, including on smaller screens
+where the layout hides the aside.
+
+`ProfileFeaturedContent` uses worker-built overview relationships only as candidate
+identities. It batch-resolves current local events and applies suppression,
+deletion, hidden-coordinate, reader-mute, scope and sensitive-content checks
+before exposing signed titles. Missing local targets are omitted; rendering does
+not fetch from relays or synchronously rebuild relationship inventories. Cold or
+stale overview caches retain the stream's background revalidation behavior.
+Stream refreshes and pagination update the aside through a Turbo Stream.
+
 ## Overview
 
 The profile `Editorial` tab now shows two additional collection types where the profiled user is featured:

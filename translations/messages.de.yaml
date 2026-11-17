@@ -876,6 +876,7 @@ editor:
 
 # ── Profil / Autorenseite ───────────────────────────────────────────────
 profile:
+    featured_in: 'Enthalten in'
     articles: 'Artikel'
     media: 'Medien'
     highlights: 'Highlights'

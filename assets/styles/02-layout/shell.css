@@ -11,6 +11,15 @@
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--aside-width);
 }
 
+/* Retain the profile's Turbo update target without an empty context column. */
+.app-shell--with-context:has(> .app-shell__context > #profile-featured-content:only-child:empty) {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+.app-shell__context:has(> #profile-featured-content:only-child:empty) {
+    display: none;
+}
+
 .app-shell__sidebar {
     position: sticky;
     top: var(--header-height);

@@ -17,6 +17,7 @@ use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\PublicationIndexStream;
+use App\Service\Reader\ProfileFeaturedContent;
 use App\Service\EventWorkspace\EventPreviewAccessPolicy;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrKeyService;
@@ -34,12 +35,13 @@ use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final class AuthorStreamTest extends TestCase
 {
     /** @dataProvider viewers */
-    public function testTheStreamCombinesExistingSourcesButNeverLoadsVisitorDrafts(bool $owner): void
+    public function testTheStreamCombinesExistingSourcesButNeverLoadsVisitorDrafts(bool $owner, bool $cached, bool $stale): void
     {
         $pubkey = str_repeat('a', 64);
         $article = (new Article())->setPubkey($pubkey)->setSlug('public')->setTitle('Public essay')
@@ -55,9 +57,9 @@ final class AuthorStreamTest extends TestCase
             ->willReturn(['events' => [], 'total' => 0, 'hasMore' => false]);
         $views = $this->createMock(RedisViewStore::class);
         $views->method('fetchProfileTabData')->willReturnCallback(static fn (string $key, string $section): array => [
-            'isCached' => true,
-            'isStale' => false,
-            'data' => $section === 'overview' ? [
+            'isCached' => $section !== 'overview' || $cached,
+            'isStale' => $section === 'overview' && $stale,
+            'data' => $section === 'overview' && $cached ? [
                 'authorMagazines' => [['pubkey' => $pubkey, 'slug' => 'book', 'title' => 'Stale cached book', 'createdAt' => 999]],
                 'authorReadingLists' => [
                     ['pubkey' => $pubkey, 'slug' => 'reading', 'title' => 'Reading', 'createdAt' => 300],
@@ -69,10 +71,19 @@ final class AuthorStreamTest extends TestCase
         $events = $this->createMock(EventRepository::class);
         $events->expects(self::once())->method('findBy')
             ->with(['pubkey' => $pubkey, 'kind' => 9802], ['created_at' => 'DESC'], 50)->willReturn([]);
+        $pack = new Event();
+        $pack->setId(str_repeat('d', 64));
+        $pack->setPubkey(str_repeat('b', 64));
+        $pack->setKind(39089);
+        $pack->setCreatedAt(50);
+        $pack->setTags([['d', 'people'], ['title', 'Signed people'], ['p', $pubkey]]);
+        $events->expects($cached ? self::once() : self::never())->method('findReadingNookSubscriptionTargets')
+            ->willReturn(['39089:' . str_repeat('b', 64) . ':people' => $pack]);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($events);
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects(self::never())->method('dispatch');
+        $bus->expects($cached && !$stale ? self::never() : self::once())->method('dispatch')
+            ->willReturnCallback(static fn (object $message): Envelope => new Envelope($message));
         $logger = new NullLogger();
         $security = $this->createMock(Security::class);
         $keys = new NostrKeyService();
@@ -118,16 +129,18 @@ final class AuthorStreamTest extends TestCase
             $controller, $pubkey, $owner, Request::create('/profile/stream'), $cache, $views,
             new RedisViewFactory($cache, $logger), $em, $bus,
             new PublicationIndexStream($indexEvents, $access, $security, $keys),
+            new ProfileFeaturedContent($events, $access, $security, $keys),
         );
         self::assertSame(
-            $owner ? ['magazine', 'reading_list', 'draft', 'article', 'follow_pack'] : ['magazine', 'reading_list', 'article', 'follow_pack'],
+            ['magazine', ...($cached ? ['reading_list'] : []), ...($owner ? ['draft'] : []), 'article', ...($cached ? ['follow_pack'] : [])],
             array_column($data['rows'], 'type'),
         );
         self::assertSame('Signed book', $data['rows'][0]['item']['title']);
         self::assertSame(str_repeat('b', 64), $data['rows'][0]['item']['indexEventId']);
         self::assertStringNotContainsString('Stale', serialize($data['rows']));
         self::assertStringNotContainsString('Private index', serialize($data['rows']));
-        self::assertFalse($data['editorialPending']);
+        self::assertSame(!$cached || $stale, $data['editorialPending']);
+        self::assertSame($cached ? ['Signed people'] : [], array_column(array_column($data['featuredRows'], 'item'), 'title'));
         if (!$owner) {
             self::assertStringNotContainsString('secret', serialize($data['rows']));
             self::assertStringNotContainsString('Private draft', serialize($data['rows']));
@@ -136,7 +149,11 @@ final class AuthorStreamTest extends TestCase
 
     public static function viewers(): iterable
     {
-        yield 'visitor' => [false];
-        yield 'owner' => [true];
+        yield 'visitor' => [false, true, false];
+        yield 'owner' => [true, true, false];
+        yield 'visitor stale overview' => [false, true, true];
+        yield 'owner stale overview' => [true, true, true];
+        yield 'visitor cold overview' => [false, false, false];
+        yield 'owner cold overview' => [true, false, false];
     }
 }

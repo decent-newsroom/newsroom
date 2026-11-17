@@ -1,4 +1,9 @@
 <turbo-frame id="profile-stream-content" data-content--stream-target="frame" data-turbo-action="advance">
+    {% if app.request.headers.get('Turbo-Frame') == 'profile-stream-content' %}
+        <turbo-stream action="update" target="profile-featured-content">
+            <template>{% include 'profile/_featured.html.twig' %}</template>
+        </turbo-stream>
+    {% endif %}
     {% if editorialPending|default(false) %}
         <p class="stream-pending" role="status">{{ 'content_stream.editorial_pending'|trans }}</p>
     {% endif %}

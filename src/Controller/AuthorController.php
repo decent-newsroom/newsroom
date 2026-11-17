@@ -23,6 +23,7 @@ use App\Service\VanityNameService;
 use App\Service\Reader\ContentAuthorAccessPolicy;
 use App\Service\Reader\ContentStreamBuilder;
 use App\Service\Reader\PublicationIndexStream;
+use App\Service\Reader\ProfileFeaturedContent;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -842,6 +843,7 @@ class AuthorController extends AbstractController
         RedisViewFactory $viewFactory,
         EntityManagerInterface $em,
         PublicationIndexStream $publicationIndexes,
+        ProfileFeaturedContent $featuredContent,
         ?string $npub = null,
         ?string $vanity = null
     ): Response {
@@ -875,7 +877,7 @@ class AuthorController extends AbstractController
         }
 
         if ($tab === 'stream') {
-            $data = $this->getProfileStreamData($pubkey, $isOwner, $request, $redisCacheService, $viewStore, $viewFactory, $em, $messageBus, $publicationIndexes);
+            $data = $this->getProfileStreamData($pubkey, $isOwner, $request, $redisCacheService, $viewStore, $viewFactory, $em, $messageBus, $publicationIndexes, $featuredContent);
             $response = $this->render(
                 $request->headers->get('Turbo-Frame') === 'profile-stream-content'
                     ? 'profile/_stream.html.twig' : 'profile/author-tabs.html.twig',
@@ -1120,6 +1122,7 @@ class AuthorController extends AbstractController
         EntityManagerInterface $em,
         MessageBusInterface $bus,
         PublicationIndexStream $publicationIndexes,
+        ProfileFeaturedContent $featuredContent,
     ): array {
         $sources = [
             ['type' => 'article', 'items' => $this->getAuthorArticles($pubkey, $isOwner, $views, $factory)],
@@ -1174,6 +1177,7 @@ class AuthorController extends AbstractController
             'rows' => iterator_to_array($pager->getCurrentPageResults()),
             'pager' => $pager,
             'editorialPending' => !$overview['isCached'] || $overview['isStale'],
+            'featuredRows' => $featuredContent->load($editorial),
         ];
     }
 

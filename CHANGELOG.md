@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Improvement] Restore a dedicated "Featured in" profile sidebar for magazines, reading lists and follow packs, alongside the existing stream and recommended writers.
 - [Feature] Unify free local subscriptions across profiles, magazines and follow packs with a dedicated change-aware feed, shared revision history and explicit read state; retire Updates Pro purchases while preserving payment history.
 - [Improvement] Restore compact topic, My Interests and named interest-set shortcuts below the home-page search bar.
 - [Feature] Separate the sole featured article above index entries in Bookshelf publication tables of contents, including nested indexes.

@@ -865,6 +865,7 @@ editor:
 
 # ── Perfil / Página de autor ─────────────────────────────────────────────────
 profile:
+    featured_in: 'Aparece en'
     articles: 'Artículos'
     media: 'Medios'
     highlights: 'Destacados'

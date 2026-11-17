@@ -865,6 +865,7 @@ editor:
 
 # ── Profil / Page auteur ────────────────────────────────────────────
 profile:
+    featured_in: 'Figure dans'
     articles: 'Articles'
     media: 'Médias'
     highlights: 'Points forts'

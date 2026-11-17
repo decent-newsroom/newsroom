@@ -845,6 +845,7 @@ editor:
 
 # ── Profile / Author page ────────────────────────────────────────
 profile:
+    featured_in: 'Presente in'
     articles: 'Articoli'
     media: 'Media'
     highlights: 'In evidenza'

@@ -30,6 +30,8 @@
 {% endblock %}
 
 {% block aside %}
+    <div id="profile-featured-content">{% include 'profile/_featured.html.twig' %}</div>
+
     {# Follow Pack sidebar — reuses FeaturedWriters styles #}
     {% if isOwner and selectedFollowPackCoordinate|default('') %}
         {% set coordParts = selectedFollowPackCoordinate|split(':', 3) %}
