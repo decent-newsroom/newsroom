@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Bookshelf;
 
 use App\Bookshelf\BookshelfRelayBookLoader;
+use App\Bookshelf\BookshelfReaderContents;
+use App\Service\UserMuteListService;
 use AsciiDocConverter;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
@@ -27,9 +29,11 @@ final class BookshelfReadController extends AbstractController
         Request $request,
         MercuryBookService $bookService,
         BookshelfRelayBookLoader $relayBookLoader,
+        BookshelfReaderContents $readerContents,
         BookshelfDirectoryService $directoryService,
         AsciiDocConverter $asciiDocConverter,
         LoggerInterface $logger,
+        UserMuteListService $muteList,
     ): Response {
         $query = trim((string) $request->query->get('q', ''));
         $directoryContext = $this->directoryContext($directoryService);
@@ -46,9 +50,25 @@ final class BookshelfReadController extends AbstractController
             $available = false;
         }
 
+        $source = $readerContents->source(strtolower($id));
+        if ($book === null && $source !== null) {
+            $book = $relayBookLoader->bookFromEvent($source);
+        }
         $book ??= $relayBookLoader->getBook(strtolower($id));
         if ($book !== null) {
+            if ($source === null) {
+                $logger->warning('Bookshelf index unavailable; nested contents could not be checked.', ['event_id' => $id]);
+            }
             $book = $relayBookLoader->fillMissingChapters($book);
+            if ($source !== null) {
+                $muted = [];
+                if ($this->getUser() !== null) {
+                    $pubkey = PublicKey::fromBech32($this->getUser()->getUserIdentifier())?->toHex()
+                        ?? throw $this->createAccessDeniedException();
+                    $muted = $muteList->getMutedPubkeysStrict($pubkey);
+                }
+                $book = $readerContents->expand($book, $source, $muted);
+            }
             $available = true;
             $this->renderChapters($book, $asciiDocConverter, $logger);
         }
@@ -59,7 +79,10 @@ final class BookshelfReadController extends AbstractController
             'book' => $book,
             'available' => $available,
             'query' => $query,
-        ], new Response(status: $book === null && !$available ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_OK));
+        ], new Response(
+            status: $book === null && !$available ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_OK,
+            headers: ['Cache-Control' => 'private, no-store'],
+        ));
     }
 
     /** @param array<string, mixed> $book */

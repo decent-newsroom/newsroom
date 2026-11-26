@@ -43,4 +43,22 @@ final class BookshelfRelayBookReaderTest extends TestCase
         self::assertSame('Chapter one', $book['chapters'][0]['title']);
         self::assertSame('= Chapter one', $book['chapters'][0]['content']);
     }
+
+    public function testItRecognizesAnIndexContainingOnlyNestedIndexes(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $bookId = str_repeat('b', 64);
+        $index = (object) [
+            'id' => $bookId, 'kind' => 30040, 'pubkey' => $pubkey, 'created_at' => 10,
+            'tags' => [['d', 'book'], ['a', '30040:' . $pubkey . ':part']],
+        ];
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::once())->method('getEventsByIds')->with([$bookId], [])->willReturn([$bookId => $index]);
+        $client->expects(self::never())->method('getEventsByCoordinates');
+
+        $book = (new BookshelfRelayBookLoader($client, $this->createStub(LoggerInterface::class)))->getBook($bookId);
+
+        self::assertNotNull($book);
+        self::assertSame(1, $book['chapterCount']);
+    }
 }

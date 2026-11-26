@@ -115,6 +115,7 @@ final class EventPublicationIndexTargetRepositoryTest extends TestCase
         $currentTie = $this->event(str_repeat('c', 64), $author, 'index', 200);
         $currentHigherId = $this->event(str_repeat('d', 64), $author, 'index', 200);
         $wrongKindPin = $this->event(str_repeat('e', 64), $author, 'chapter', 300, 30041);
+        $wrongKindPin->setContent('Chapter body');
         $duplicateDTagDecoy = $this->event(str_repeat('f', 64), $author, 'index', 400);
         $duplicateDTagDecoy->setTags([['d', 'other'], ['d', 'index']]);
         foreach ([$old, $currentTie, $currentHigherId, $wrongKindPin, $duplicateDTagDecoy] as $event) {
@@ -152,6 +153,15 @@ final class EventPublicationIndexTargetRepositoryTest extends TestCase
         self::assertStringNotContainsString('e.*', $queries[0]);
         self::assertSame('', $workspace['eventIds'][str_repeat('b', 64)]->getContent());
         $queries = [];
+        $reader = $repository->findBookshelfReaderTargets(
+            ['30040:' . $author . ':index', '30041:' . $author . ':chapter'],
+            [str_repeat('b', 64)],
+        );
+        self::assertCount(1, $queries);
+        self::assertSame(str_repeat('c', 64), $reader['coordinates']['30040:' . $author . ':index']->getId());
+        self::assertSame('Chapter body', $reader['coordinates']['30041:' . $author . ':chapter']->getContent());
+        self::assertSame(str_repeat('b', 64), $reader['eventIds'][str_repeat('b', 64)]->getId());
+        $queries = [];
         self::assertSame(['coordinates' => [], 'eventIds' => []], $repository->findWorkspacePreviewTargets([], []));
         self::assertCount(0, $queries);
 
@@ -163,6 +173,13 @@ final class EventPublicationIndexTargetRepositoryTest extends TestCase
         $repository = new EventRepository($this->createMock(ManagerRegistry::class));
         $this->expectException(\InvalidArgumentException::class);
         $repository->findWorkspacePreviewTargets([], array_fill(0, 51, str_repeat('a', 64)));
+    }
+
+    public function testBookshelfLookupRejectsMoreThanItsReaderLimit(): void
+    {
+        $repository = new EventRepository($this->createMock(ManagerRegistry::class));
+        $this->expectException(\InvalidArgumentException::class);
+        $repository->findBookshelfReaderTargets([], array_fill(0, 501, str_repeat('a', 64)));
     }
 
     private function event(

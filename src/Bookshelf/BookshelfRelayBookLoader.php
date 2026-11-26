@@ -74,11 +74,17 @@ final class BookshelfRelayBookLoader
     public function getBook(string $eventId): ?array
     {
         $events = $this->fetchById([$eventId], []);
-        $event = $events[$eventId] ?? reset($events);
-        if (!$event instanceof \stdClass && !is_object($event)) {
+        $event = $events[$eventId] ?? null;
+        if (!is_object($event)) {
             return null;
         }
 
+        return $this->bookFromEvent($event);
+    }
+
+    /** @return array<string, mixed>|null */
+    public function bookFromEvent(object $event): ?array
+    {
         $book = $this->mapBook($event, null);
         if ($book === null) {
             return null;
@@ -416,7 +422,8 @@ final class BookshelfRelayBookLoader
     {
         $coordinates = [];
         foreach ($tags as $tag) {
-            if (($tag[0] ?? null) === 'a' && is_string($tag[1] ?? null) && str_starts_with($tag[1], self::PUBLICATION_CONTENT_KIND . ':')) {
+            if (($tag[0] ?? null) === 'a' && is_string($tag[1] ?? null)
+                && ($this->isChapterCoordinate($tag[1]) || $this->isPublicationCoordinate($tag[1]))) {
                 $coordinates[$tag[1]] = true;
             }
         }

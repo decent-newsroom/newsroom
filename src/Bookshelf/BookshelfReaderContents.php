@@ -1,0 +1,391 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Bookshelf;
+
+use App\Entity\Event;
+use App\Repository\DeletedEventRepository;
+use App\Repository\EventRepository;
+use App\Repository\HiddenCoordinateRepository;
+use App\Service\EventWorkspace\EventWorkspaceScopePolicy;
+use App\Service\Nostr\NostrClient;
+use App\Service\Reader\ContentAuthorAccessPolicy;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClientInterface;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\Model\MercuryEvent;
+use Psr\Log\LoggerInterface;
+
+/** Reconstructs a continuous reader from the signed order of publication indexes. */
+final readonly class BookshelfReaderContents
+{
+    private const MAX_ENTRIES = 500;
+    private const MAX_DEPTH = 6;
+    private const MAX_RELAY_HINTS = 5;
+    private const MAX_RELAY_GROUPS = 20;
+
+    public function __construct(
+        private MercuryApiClientInterface $api,
+        private NostrClient $nostr,
+        private EventRepository $events,
+        private ContentAuthorAccessPolicy $authors,
+        private DeletedEventRepository $deletions,
+        private HiddenCoordinateRepository $hidden,
+        private LoggerInterface $logger,
+    ) {}
+
+    public function source(string $id): ?object
+    {
+        $local = $this->events->findByIds([$id])[$id] ?? null;
+        if ($local instanceof Event && $local->getKind() === 30040) {
+            return $this->wireEvent($local);
+        }
+        try {
+            $event = $this->api->getEvent($id);
+            if ($event !== null && $event->id === $id && $event->kind === 30040) {
+                return (object) $event->toArray();
+            }
+        } catch (MercuryApiException $exception) {
+            $this->logger->warning('Could not read the bookshelf index from Mercury.', ['exception' => $exception]);
+        }
+
+        try {
+            $event = $this->nostr->getEventsByIds([$id])[$id] ?? null;
+            return is_object($event) && ($event->id ?? null) === $id && ($event->kind ?? null) === 30040
+                ? $event : null;
+        } catch (\Throwable $exception) {
+            $this->logger->warning('Could not read the bookshelf index from relays.', ['exception' => $exception]);
+            return null;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $book
+     * @param list<string> $muted
+     * @return array<string, mixed>
+     */
+    public function expand(array $book, object $source, array $muted): array
+    {
+        $rootCoordinate = $this->coordinate($source);
+        $rootReferences = $this->references($source);
+        if ($rootCoordinate === null || !array_filter($rootReferences, static fn (array $ref): bool => $ref['kind'] === 30040)) {
+            return $book;
+        }
+        if ($this->readableTargets(['root' => $source], $muted) === []) {
+            throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
+        }
+
+        // The nodes form a tree of occurrences, not a set of unique coordinates.
+        $nodes = [];
+        $frontier = [['event' => $source, 'parent' => null, 'path' => [$rootCoordinate]]];
+        $truncated = false;
+        for ($depth = 1; $frontier !== [] && $depth <= self::MAX_DEPTH; ++$depth) {
+            $pending = [];
+            foreach ($frontier as $parent) {
+                foreach ($this->references($parent['event']) as $reference) {
+                    if (count($nodes) + count($pending) >= self::MAX_ENTRIES) {
+                        $truncated = true;
+                        break 2;
+                    }
+                    $pending[] = ['reference' => $reference, 'parent' => $parent['parent'], 'path' => $parent['path']];
+                }
+            }
+            $targets = $this->readableTargets($this->targets(array_column($pending, 'reference')), $muted);
+            $frontier = [];
+            foreach ($pending as $item) {
+                $ref = $item['reference'];
+                $event = $targets[$ref['key']] ?? null;
+                $cycle = $ref['kind'] === 30040 && in_array($ref['coordinate'], $item['path'], true);
+                $available = !$cycle && $event !== null;
+                $nodeId = count($nodes);
+                $nodes[] = [
+                    'parent' => $item['parent'],
+                    'reference' => $ref,
+                    'event' => $available ? $event : null,
+                    'depth' => $depth,
+                ];
+                if ($available && $ref['kind'] === 30040) {
+                    if ($depth === self::MAX_DEPTH) {
+                        $truncated = $truncated || $this->references($event) !== [];
+                    } else {
+                        $frontier[] = ['event' => $event, 'parent' => $nodeId, 'path' => [...$item['path'], $ref['coordinate']]];
+                    }
+                }
+            }
+        }
+
+        $children = [];
+        foreach ($nodes as $id => $node) {
+            $children[$node['parent'] ?? -1][] = $id;
+        }
+        $chapters = [];
+        $walk = function (int $parent) use (&$walk, &$chapters, $children, $nodes): void {
+            foreach ($children[$parent] ?? [] as $id) {
+                $node = $nodes[$id];
+                $ref = $node['reference'];
+                $event = $node['event'];
+                $tags = is_object($event) && is_array($event->tags ?? null) ? $event->tags : [];
+                $chapters[] = [
+                    'coordinate' => $ref['coordinate'], 'pubkey' => $ref['pubkey'],
+                    'identifier' => $ref['identifier'], 'relay' => $ref['relay'], 'eventId' => $ref['pin'],
+                    'position' => count($chapters) + 1, 'depth' => $node['depth'], 'kind' => $ref['kind'],
+                    'available' => $event !== null,
+                    'title' => $event === null ? $ref['identifier'] : ($this->tag($tags, 'title') ?? $ref['identifier']),
+                    'summary' => $event === null ? null : $this->tag($tags, 'summary'),
+                    'content' => $event === null ? null : (string) ($event->content ?? ''),
+                    'id' => $event->id ?? null, 'createdAt' => $event->created_at ?? null,
+                ];
+                $walk($id);
+            }
+        };
+        $walk(-1);
+        $book['chapters'] = $chapters;
+        $book['chapterCount'] = count($chapters);
+        $book['availableChapterCount'] = count(array_filter($chapters, static fn (array $chapter): bool => $chapter['available']));
+        $book['missingChapterCount'] = count($chapters) - $book['availableChapterCount'];
+        $book['truncated'] = $truncated;
+
+        return $book;
+    }
+
+    /** @return list<array{kind: int, coordinate: string, pubkey: string, identifier: string, relay: ?string, pin: ?string, key: string, invalid: bool}> */
+    private function references(object $event): array
+    {
+        $refs = [];
+        foreach (is_array($event->tags ?? null) ? $event->tags : [] as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? null) !== 'a' || !is_string($tag[1] ?? null)) {
+                continue;
+            }
+            $parts = explode(':', $tag[1], 3);
+            if (!in_array($parts[0], ['30040', '30041'], true)) {
+                continue;
+            }
+            $validAddress = count($parts) === 3 && preg_match('/^[0-9a-f]{64}$/iD', $parts[1]) === 1;
+            $pubkey = strtolower($parts[1] ?? '');
+            $identifier = $parts[2] ?? $tag[1];
+            $coordinate = $validAddress ? $parts[0] . ':' . $pubkey . ':' . $identifier : $tag[1];
+            $rawPin = array_key_exists(3, $tag) ? $tag[3] : '';
+            $invalid = !$validAddress || !is_string($rawPin) || ($rawPin !== '' && preg_match('/^[0-9a-f]{64}$/iD', $rawPin) !== 1);
+            $pin = !$invalid && $rawPin !== '' ? strtolower($rawPin) : null;
+            $relay = is_string($tag[2] ?? null) && in_array(parse_url($tag[2], PHP_URL_SCHEME), ['ws', 'wss'], true)
+                && parse_url($tag[2], PHP_URL_HOST) ? $tag[2] : null;
+            $refs[] = [
+                'kind' => (int) $parts[0], 'coordinate' => $coordinate, 'pubkey' => $pubkey,
+                'identifier' => $identifier, 'relay' => $relay, 'pin' => $pin, 'invalid' => $invalid,
+                'key' => $coordinate . "\0" . ($invalid ? 'invalid' : ($pin ?? 'latest')),
+            ];
+        }
+        return $refs;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $refs
+     * @return array<string, object>
+     */
+    private function targets(array $refs): array
+    {
+        $ids = $coordinates = $relays = [];
+        foreach ($refs as $ref) {
+            if ($ref['invalid']) {
+                continue;
+            }
+            if ($ref['pin'] !== null) {
+                $ids[$ref['pin']] = true;
+            } else {
+                $coordinates[$ref['coordinate']] = true;
+            }
+            if ($ref['relay'] !== null && count($relays) < self::MAX_RELAY_HINTS) {
+                $relays[$ref['relay']] = true;
+            }
+        }
+        $local = $this->events->findBookshelfReaderTargets(array_keys($coordinates), array_keys($ids));
+        $events = array_map($this->wireEvent(...), array_values($local['coordinates'] + $local['eventIds']));
+        if ($ids !== []) {
+            $events = array_merge($events,
+                $this->apiEvents(fn (): array => $this->api->getPublicationEventsByIds(array_keys($ids))),
+                $this->apiEvents(fn (): array => $this->api->getEventsByIds(array_keys($ids))),
+            );
+        }
+        foreach ([30040, 30041] as $kind) {
+            $matching = array_values(array_filter($refs, static fn (array $ref): bool => !$ref['invalid'] && $ref['pin'] === null && $ref['kind'] === $kind));
+            if ($matching === []) {
+                continue;
+            }
+            $authors = array_values(array_unique(array_column($matching, 'pubkey')));
+            $identifiers = array_values(array_unique(array_column($matching, 'identifier')));
+            $events = array_merge($events, $this->apiEvents(fn (): array => $kind === 30040
+                ? $this->api->getPublicationsByAuthors($authors, self::MAX_ENTRIES, $identifiers)
+                : $this->api->getChaptersByAuthors($authors, self::MAX_ENTRIES, $identifiers)));
+        }
+        $result = $this->matchTargets($refs, $events);
+        $missingIds = $missingCoordinates = [];
+        foreach ($refs as $ref) {
+            if ($ref['invalid'] || isset($result[$ref['key']])) {
+                continue;
+            }
+            if ($ref['pin'] !== null) {
+                $missingIds[$ref['pin']] = true;
+            } else {
+                $missingCoordinates[$ref['coordinate']] = true;
+            }
+        }
+        $groups = [];
+        $boundedCoordinates = [];
+        foreach (array_keys($missingCoordinates) as $coordinate) {
+            [$kind, $pubkey] = explode(':', $coordinate, 3);
+            $group = $kind . ':' . $pubkey;
+            if (!isset($groups[$group]) && count($groups) >= self::MAX_RELAY_GROUPS) {
+                continue;
+            }
+            $groups[$group] = true;
+            $boundedCoordinates[] = $coordinate;
+        }
+        if (count($boundedCoordinates) < count($missingCoordinates)) {
+            $this->logger->warning('Bookshelf relay lookup reached its author and kind limit.', [
+                'remaining_coordinates' => count($missingCoordinates) - count($boundedCoordinates),
+            ]);
+        }
+        if ($missingIds !== []) {
+            try {
+                $events = array_merge($events, array_values($this->nostr->getEventsByIds(array_keys($missingIds), array_keys($relays))));
+            } catch (\Throwable $exception) {
+                $this->logger->warning('Could not resolve bookshelf event IDs from relays.', ['exception' => $exception]);
+            }
+        }
+        if ($boundedCoordinates !== []) {
+            try {
+                $events = array_merge($events, array_values($this->nostr->getEventsByCoordinates($boundedCoordinates, array_keys($relays))));
+            } catch (\Throwable $exception) {
+                $this->logger->warning('Could not resolve bookshelf coordinates from relays.', ['exception' => $exception]);
+            }
+        }
+        return $this->matchTargets($refs, $events);
+    }
+
+    /**
+     * @param callable(): list<MercuryEvent> $fetch
+     * @return list<object>
+     */
+    private function apiEvents(callable $fetch): array
+    {
+        try {
+            return array_map(static fn (MercuryEvent $event): object => (object) $event->toArray(), $fetch());
+        } catch (MercuryApiException $exception) {
+            $this->logger->warning('Could not resolve bookshelf contents from Mercury.', ['exception' => $exception]);
+            return [];
+        }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $refs
+     * @param list<object> $events
+     * @return array<string, object>
+     */
+    private function matchTargets(array $refs, array $events): array
+    {
+        $result = [];
+        foreach ($events as $event) {
+            $coordinate = $this->coordinate($event);
+            if ($coordinate === null || !is_string($event->id ?? null)) {
+                continue;
+            }
+            foreach ($refs as $ref) {
+                if ($ref['invalid'] || $ref['coordinate'] !== $coordinate
+                    || ($ref['pin'] !== null && $ref['pin'] !== strtolower($event->id))) {
+                    continue;
+                }
+                $current = $result[$ref['key']] ?? null;
+                if ($current === null || ($event->created_at ?? 0) > ($current->created_at ?? 0)
+                    || (($event->created_at ?? 0) === ($current->created_at ?? 0) && strcmp($event->id, $current->id) < 0)) {
+                    $result[$ref['key']] = $event;
+                }
+            }
+        }
+        return $result;
+    }
+
+    private function coordinate(object $event): ?string
+    {
+        $kind = $event->kind ?? null;
+        $pubkey = $event->pubkey ?? null;
+        $identifier = $this->tag(is_array($event->tags ?? null) ? $event->tags : [], 'd');
+        if (!in_array($kind, [30040, 30041], true) || !is_string($pubkey)
+            || preg_match('/^[0-9a-f]{64}$/iD', $pubkey) !== 1 || $identifier === null) {
+            return null;
+        }
+        return $kind . ':' . strtolower($pubkey) . ':' . $identifier;
+    }
+
+    private function wireEvent(Event $event): object
+    {
+        return (object) [
+            'id' => $event->getId(), 'kind' => $event->getKind(), 'pubkey' => $event->getPubkey(),
+            'created_at' => $event->getCreatedAt(), 'tags' => $event->getTags(), 'content' => $event->getContent(),
+        ];
+    }
+
+    /**
+     * @param array<string, object> $targets
+     * @param list<string> $muted
+     * @return array<string, object>
+     */
+    private function readableTargets(array $targets, array $muted): array
+    {
+        $candidates = $entities = $coordinates = $pubkeys = [];
+        foreach ($targets as $key => $event) {
+            $coordinate = $this->coordinate($event);
+            $tags = is_array($event->tags ?? null) ? $event->tags : [];
+            if ($coordinate === null || !is_string($event->id ?? null)
+                || preg_match('/^[0-9a-f]{64}$/iD', $event->id) !== 1
+                || !is_int($event->created_at ?? null)
+                || ($event->kind === 30040
+                    ? EventWorkspaceScopePolicy::isScopedInventoryList($event->kind, $tags)
+                    : EventWorkspaceScopePolicy::isScopedTarget($event->kind, $tags))
+                || in_array(strtolower($event->pubkey), $muted, true)) {
+                continue;
+            }
+            $entity = new Event();
+            $entity->setId(strtolower($event->id));
+            $entity->setPubkey(strtolower($event->pubkey));
+            $entity->setKind($event->kind);
+            $entity->setCreatedAt($event->created_at);
+            $entity->setTags(array_values(array_filter($tags, static fn ($tag): bool =>
+                is_array($tag) && is_string($tag[0] ?? null)
+                && (!in_array($tag[0], ['t', 'L'], true) || !isset($tag[1]) || is_string($tag[1]))
+            )));
+            if ($entity->isNSFW()) {
+                continue;
+            }
+            $candidates[$key] = [$event, $entity, $coordinate];
+            $entities[$entity->getId()] = $entity;
+            $coordinates[$coordinate] = true;
+            $pubkeys[$entity->getPubkey()] = true;
+        }
+        if ($candidates === []) {
+            return [];
+        }
+        $suppressed = array_fill_keys($this->authors->suppressedPubkeys(array_keys($pubkeys)), true);
+        $hidden = array_fill_keys($this->hidden->findHiddenCoordinates(array_keys($coordinates)), true);
+        $deleted = array_fill_keys($this->deletions->findSuppressedEventIds(array_values($entities)), true);
+        $readable = [];
+        foreach ($candidates as $key => [$event, $entity, $coordinate]) {
+            if (!isset($suppressed[$entity->getPubkey()])
+                && !isset($hidden[$coordinate])
+                && !isset($deleted[$entity->getId()])) {
+                $readable[$key] = $event;
+            }
+        }
+        return $readable;
+    }
+
+    /** @param array<array-key, mixed> $tags */
+    private function tag(array $tags, string $name): ?string
+    {
+        foreach ($tags as $tag) {
+            if (is_array($tag) && ($tag[0] ?? null) === $name && is_string($tag[1] ?? null)) {
+                return $tag[1];
+            }
+        }
+        return null;
+    }
+}

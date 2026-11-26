@@ -56,6 +56,23 @@ Feature: Raw-event presentations for the event workspace
     When its references are enumerated
     Then the coordinate and version event id are retained separately
 
+  Scenario: A bookshelf reader expands mixed publication contents
+    Given a book index contains kind:30041 sections and nested kind:30040 indexes
+    When the continuous reader opens the book
+    Then the table of contents and reader include the indexes and their sections in signed order
+    And repeated references remain separate occurrences
+
+  Scenario: A nested publication pin cannot resolve to another revision
+    Given a book index pins a nested kind:30040 reference to an unavailable event id
+    When the continuous reader opens the book
+    Then the reference remains unavailable instead of using the latest revision
+
+  Scenario: A cyclic or inaccessible nested publication does not expose its contents
+    Given a nested index refers to an ancestor or is restricted for the reader
+    When the continuous reader opens the book
+    Then the reference remains visible as unavailable
+    And its contents are not expanded
+
   Scenario: A follow list identifies its public members
     Given a kind:3 follow list has public "p" tags
     When its references are enumerated

@@ -36,7 +36,27 @@ version pin therefore intentionally keeps that saved revision. Refresh does not
 rewrite the signed directory or change exact-ID reader URLs.
 
 
-When a reader opens a Nostr-native book, its kind `30040` index is used to collect kind `30041` chapter references and relay hints. Missing chapters are fetched from those hints first; any unresolved chapter identifiers then fan out to the chapter author's regular relays.
+When a reader opens a book, the continuous reader obtains its exact kind
+`30040` source from local storage, the Books API/Mercury or relays. If it contains nested
+indexes, the reader expands both kind `30040` indexes and kind `30041`
+sections in signed tag order. Indexes appear as headings in the table of
+contents and the reading stream, followed by their sections. Repeated
+references remain separate occurrences. Missing or invalid references stay
+visible as unavailable; version pins are resolved only by their exact event
+IDs and must match the referenced coordinate. Local and Mercury/Books API
+lookups are batched by level, with relay-hint and author-relay fallback for missing
+targets. Each level uses at most five relay hints and falls back for at most
+20 distinct author/kind groups; additional unresolved references stay visible
+as unavailable.
+
+Traversal is bounded to 500 occurrences and six levels; the existing
+truncation notice is shown when either limit is reached. Cycles are detected
+on the current path, so a shared index can still appear elsewhere. Nested
+indexes and sections are checked for reader mutes, author suppression,
+hidden coordinates, deletion, scope and sensitive tags before their metadata
+or contents are exposed; blocked references remain unavailable and are not
+expanded. The response is private and not cached. If the source index cannot
+be obtained, the existing reader result is retained and a warning is logged.
 ## Flow
 
 1. An authenticated reader opens `/bookshelf/my-books`.

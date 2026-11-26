@@ -594,6 +594,20 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<string> $coordinates
+     * @param list<string> $eventIds
+     * @return array{coordinates: array<string, Event>, eventIds: array<string, Event>}
+     */
+    public function findBookshelfReaderTargets(array $coordinates, array $eventIds): array
+    {
+        if (count($coordinates) + count($eventIds) > 500) {
+            throw new \InvalidArgumentException('Bookshelf reader target lookup is limited to 500 references.');
+        }
+
+        return $this->findBoundedReferenceTargets($coordinates, $eventIds, [30040, 30041]);
+    }
+
+    /**
      * DB-only target lookup for one workspace page. Exact IDs may return
      * non-public kinds; callers must authorize before exposing any metadata.
      * Returned Events are detached metadata-only read objects, not complete
