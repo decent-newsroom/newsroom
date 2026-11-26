@@ -57,7 +57,27 @@
 {# Toast notification system #}
 {% include 'components/Toast.html.twig' %}
 
-<main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign utility--login-modal" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
+<main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign utility--login-modal{% if not article.id %} editor--recovery{% endif %}" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}"
+    {% if not article.id %}
+        data-editor--recovery-owner-value="{{ app.user ? app.user.userIdentifier|toHex : 'anonymous' }}"
+        data-editor--recovery-url-value="{{ app.user ? path('editor_recovery_list') : '' }}"
+        data-editor--recovery-token-value="{{ app.user ? csrf_token('article_recovery') : '' }}"
+        data-editor--recovery-labels-value="{{ {
+            browser: 'article_recovery.browser'|trans,
+            server: 'article_recovery.server'|trans,
+            untitled: 'article_recovery.untitled'|trans,
+            restore: 'article_recovery.restore'|trans,
+            delete: 'article_recovery.delete'|trans,
+            confirm_restore: 'article_recovery.confirm_restore'|trans,
+            confirm_delete: 'article_recovery.confirm_delete'|trans,
+            saved_both: 'article_recovery.saved_both'|trans,
+            saved_browser: 'article_recovery.saved_browser'|trans,
+            saved_local_only: 'article_recovery.saved_local_only'|trans,
+            browser_failed: 'article_recovery.browser_failed'|trans,
+            server_failed: 'article_recovery.server_failed'|trans,
+            invalid_file: 'article_recovery.invalid_file'|trans
+        }|json_encode|e('html_attr') }}"
+    {% endif %}>
     {{ form_start(form, {'attr': {'id': 'editor-form'}}) }}
     <div class="editor-main">
         <div class="editor-mobile-layout-controls" data-editor--layout-target="mobileLayoutControls">
@@ -90,6 +110,19 @@
         } %}
         {# Center editor area (middle grid column) #}
         <div class="editor-center">
+            {% if not article.id %}
+                <section class="panel-section" aria-label="{{ 'article_recovery.title'|trans }}">
+                    <p>{{ 'article_recovery.explanation'|trans }}</p>
+                    <p data-editor--recovery-target="status" role="status" aria-live="polite"></p>
+                    <details>
+                        <summary>{{ 'article_recovery.title'|trans }}</summary>
+                        <button type="button" class="btn btn-secondary btn-sm" data-action="editor--recovery#saveNow">{{ 'article_recovery.save'|trans }}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-action="editor--recovery#exportCopy">{{ 'article_recovery.export'|trans }}</button>
+                        <label>{{ 'article_recovery.import'|trans }} <input type="file" accept="application/json,.json" data-action="change->editor--recovery#importCopy"></label>
+                        <ul data-editor--recovery-target="list"></ul>
+                    </details>
+                </section>
+            {% endif %}
             <div class="editor-center-tabs">
                 <button
                     type="button"

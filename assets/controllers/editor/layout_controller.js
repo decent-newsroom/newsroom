@@ -180,8 +180,7 @@ export default class extends Controller {
     }
 
     persistState() {
-        // Save state to localStorage and hidden fields
-        localStorage.setItem('editorState', JSON.stringify(this.state));
+        // Keep the hidden fields in sync with the editor state.
         const deltaField = document.getElementById('contentDelta');
         const nmdField = document.getElementById('contentNMD');
         if (deltaField) deltaField.value = JSON.stringify(this.state.content_delta || {});
@@ -536,6 +535,11 @@ export default class extends Controller {
             });
             this.updateMarkdownEditor();
             console.log('[Editor] Synced Quill content to markdown');
+        } else if (this.state.active_source === 'md') {
+            const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
+            this.state.content_NMD = markdownInput?._codemirror
+                ? markdownInput._codemirror.state.doc.toString()
+                : (markdownInput?.value ?? this.state.content_NMD);
         }
     }
 

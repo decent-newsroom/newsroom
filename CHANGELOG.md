@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Feature] Automatically preserve new articles in browser and private account recovery copies, with restore and file import/export independent of Nostr publishing.
 - [Fix] Keep cached latest-feed articles available when their persisted author metadata event is missing.
 - [Fix] Honor pinned article event IDs when matching subscribed collections.
 - [Improvement] Upgrade FrankenPHP, MCP, gateway and frontend dependencies within compatible major versions, preserving existing Mercure subscriptions.

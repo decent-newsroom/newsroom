@@ -76,6 +76,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 
 - [AsciiDoc Support](Editor/asciidoc-support.md)
 - [Article Editor](Editor/editor.md)
+- [Article recovery copies](Editor/article-recovery.md)
 - [Extra Metadata for Articles: Sources and Media Attachments](Editor/extra-metadata-sources-imeta.md)
 - [Links, Mentions and Embeds in Articles](Editor/links-mentions-embeds.md)
 - [Math in the Quill Editor: Implementation Plan](Editor/math-editor-plan.md)
