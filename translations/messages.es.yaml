@@ -491,6 +491,25 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    reader_load_index: 'Cargar índice'
+    reader_load_more: 'Cargar más contenido'
+    reader_unavailable: 'Este contenido no está disponible.'
+    table_of_contents: 'Índice'
+    chapter_unavailable_short: 'no disponible'
+    back: 'Volver a la biblioteca'
+    by_author: 'por %author%'
+    language: 'Idioma'
+    released: 'Publicado'
+    version: 'Versión'
+    original_source: 'Ver fuente original'
+    truncated_description: 'Este índice supera el límite de 500 entradas del lector.'
+    add_to_my_books: 'Añadir a mis libros'
+    remove_from_my_books: 'Eliminar de mis libros'
+    saved_to_my_books: 'Añadido a mis libros.'
+    removed_from_my_books: 'Eliminado de mis libros.'
+    directory_publish_failed: 'No se pudieron actualizar tus libros. Inténtalo de nuevo.'
+    directory_signer_unavailable: 'No hay un firmante Nostr disponible. Conecta uno e inténtalo de nuevo.'
+    directory_limit_reached: 'Mis libros está limitado a %limit% elementos.'
     promo:
         eyebrow: 'Tu próximo capítulo, donde quieras'
         description: 'Un lector de libros en Nostr para Android. Guarda un libro, elige tu estilo de lectura y lleva tu próximo capítulo sin conexión.'

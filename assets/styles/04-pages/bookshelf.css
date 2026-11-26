@@ -471,6 +471,28 @@
     font-size: var(--font-size-xs);
 }
 
+.bookshelf-reader turbo-frame {
+    display: block;
+    min-width: 0;
+}
+
+.bookshelf-reader__index > summary,
+.bookshelf-reader__more > summary {
+    cursor: pointer;
+    color: var(--color-text);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.bookshelf-reader__index > summary {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.bookshelf-reader__index > turbo-frame,
+.bookshelf-reader__more > turbo-frame {
+    margin-top: var(--spacing-5);
+}
+
 .bookshelf-chapters {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

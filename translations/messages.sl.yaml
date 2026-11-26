@@ -491,6 +491,25 @@ newsstand:
 
 # TODO: translate Mercury bookshelf strings
 bookshelf:
+    reader_load_index: 'Naloži kazalo'
+    reader_load_more: 'Naloži več vsebine'
+    reader_unavailable: 'Ta vsebina ni na voljo.'
+    table_of_contents: 'Kazalo'
+    chapter_unavailable_short: 'ni na voljo'
+    back: 'Nazaj na knjižno polico'
+    by_author: 'avtor: %author%'
+    language: 'Jezik'
+    released: 'Objavljeno'
+    version: 'Različica'
+    original_source: 'Ogled izvirnega vira'
+    truncated_description: 'To kazalo presega omejitev 500 vnosov v bralniku.'
+    add_to_my_books: 'Dodaj med moje knjige'
+    remove_from_my_books: 'Odstrani iz mojih knjig'
+    saved_to_my_books: 'Dodano med moje knjige.'
+    removed_from_my_books: 'Odstranjeno iz mojih knjig.'
+    directory_publish_failed: 'Mojih knjig ni bilo mogoče posodobiti. Poskusi znova.'
+    directory_signer_unavailable: 'Podpisovalnik Nostr ni na voljo. Poveži ga in poskusi znova.'
+    directory_limit_reached: 'Moje knjige so omejene na %limit% vnosov.'
     promo:
         eyebrow: 'Naslednje poglavje, kjer koli'
         description: 'Bralnik za Android za knjige na Nostru. Shranite knjigo, izberite svoj slog branja in vzemite naslednje poglavje s seboj brez povezave.'

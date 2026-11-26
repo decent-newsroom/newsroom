@@ -407,6 +407,25 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    reader_load_index: 'Carica indice'
+    reader_load_more: 'Carica altri contenuti'
+    reader_unavailable: 'Questo contenuto non è disponibile.'
+    truncated_description: 'Questo indice supera il limite di 500 voci del lettore.'
+    table_of_contents: 'Indice'
+    chapter_unavailable_short: 'non disponibile'
+    back: 'Torna alla Libreria'
+    by_author: 'di %author%'
+    language: 'Lingua'
+    released: 'Pubblicato'
+    version: 'Versione'
+    original_source: 'Vedi fonte originale'
+    add_to_my_books: 'Aggiungi ai miei libri'
+    remove_from_my_books: 'Rimuovi dai miei libri'
+    saved_to_my_books: 'Salvato nei miei libri.'
+    removed_from_my_books: 'Rimosso dai miei libri.'
+    directory_publish_failed: 'Impossibile aggiornare I miei libri ora. Riprova.'
+    directory_signer_unavailable: 'Nessun signer Nostr disponibile. Collega un signer e riprova.'
+    directory_limit_reached: 'I miei libri è limitato a %limit% elementi.'
     promo:
         eyebrow: 'Il tuo prossimo capitolo, ovunque'
         description: 'Un lettore Android per i libri su Nostr. Salva un libro, scegli il tuo stile di lettura e porta il prossimo capitolo offline.'

@@ -25,6 +25,156 @@ use Twig\TwigFunction;
 
 final class BookshelfReaderContentsTest extends TestCase
 {
+    public function testLazyPagesResolveOnlySectionsAndTheSelectedIndex(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [
+            ['a', "30041:$pubkey:first"], ['a', "30040:$pubkey:part"],
+            ['a', "30040:$pubkey:part"], ['a', "30040:$pubkey:other"],
+        ]);
+        $part = $this->event('c', $pubkey, 30040, 'part', [
+            ['a', "30041:$pubkey:second"], ['a', "30040:$pubkey:book"],
+        ]);
+        $first = $this->event('d', $pubkey, 30041, 'first', [], 'First');
+        $second = $this->event('e', $pubkey, 30041, 'second', [], 'Second');
+        $api = $this->createMock(MercuryApiClientInterface::class);
+        $indexFetches = 0;
+        $api->expects(self::exactly(2))->method('getPublicationsByAuthors')
+            ->with([$pubkey], 500, ['part'])->willReturnCallback(
+                static function () use (&$indexFetches, $part): array {
+                    ++$indexFetches;
+                    return [$part];
+                },
+            );
+        $api->expects(self::exactly(2))->method('getChaptersByAuthors')
+            ->willReturnCallback(static fn (array $authors, int $limit, array $identifiers): array =>
+                $identifiers === ['first'] ? [$first] : [$second]);
+        $service = $this->service($api, $this->createStub(NostrClient::class));
+        $source = (object) $root->toArray();
+        $page = $service->childrenPage($source, [], 1);
+        self::assertSame(0, $indexFetches);
+        self::assertSame(['first', 'part', 'part', 'other'], array_column($page['entries'], 'title'));
+        self::assertSame([1, 2, 3, 4], array_column($page['entries'], 'position'));
+        self::assertSame('First', $page['entries'][0]['content']);
+        $index = $service->indexAtPath($source, [3], []);
+        self::assertNotNull($index);
+        self::assertSame(1, $indexFetches);
+        $nested = $service->childrenPage($index, [], 1);
+        self::assertSame('Second', $nested['entries'][0]['content']);
+        self::assertNull($service->indexAtPath($source, [3, 2], []));
+    }
+
+    public function testLazyPathEnforcesPinsScopeAndDepth(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [
+            ['a', "30040:$pubkey:part", '', str_repeat('f', 64)],
+            ['a', "30040:$pubkey:private"],
+        ]);
+        $wrong = $this->event('f', $pubkey, 30040, 'other');
+        $private = $this->event('c', $pubkey, 30040, 'private', [['s', 'private']]);
+        $api = $this->createStub(MercuryApiClientInterface::class);
+        $api->method('getPublicationEventsByIds')->willReturn([$wrong]);
+        $api->method('getPublicationsByAuthors')->willReturn([$private]);
+        $service = $this->service($api, $this->createStub(NostrClient::class));
+        $source = (object) $root->toArray();
+        self::assertNull($service->indexAtPath($source, [1], []));
+        self::assertNull($service->indexAtPath($source, [2], []));
+        self::assertNull($service->indexAtPath($source, [], [$pubkey]));
+        self::assertNull($service->indexAtPath($source, [0, 0, 0, 0, 0, 0], []));
+        self::assertNull($service->indexAtPath($source, [500], []));
+    }
+
+    public function testLazyPathRechecksEveryAncestorAndExactVersion(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $other = str_repeat('f', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [
+            ['a', "30040:$other:part", '', str_repeat('c', 64)],
+        ]);
+        $part = $this->event('c', $other, 30040, 'part', [['a', "30040:$pubkey:leaf"]]);
+        $leaf = $this->event('d', $pubkey, 30040, 'leaf', [], 'Leaf body');
+        $api = $this->createStub(MercuryApiClientInterface::class);
+        $api->method('getPublicationEventsByIds')->willReturn([$part]);
+        $api->method('getPublicationsByAuthors')->willReturn([$leaf]);
+        $hidden = $this->createStub(HiddenCoordinateRepository::class);
+        $hidden->method('findHiddenCoordinates')->willReturnCallback(static fn (array $coordinates): array =>
+            in_array("30040:$other:part", $coordinates, true) ? ["30040:$other:part"] : []);
+        $service = new BookshelfReaderContents(
+            $api, $this->createStub(NostrClient::class), $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $hidden, $this->createStub(LoggerInterface::class),
+            $this->createStub(MercuryApiClientInterface::class),
+        );
+        self::assertNull($service->indexAtPath((object) $root->toArray(), [1, 1], []));
+
+        $readable = $this->service($api, $this->createStub(NostrClient::class));
+        $result = $readable->indexAtPath((object) $root->toArray(), [1, 1], []);
+        self::assertNotNull($result);
+        self::assertSame('Leaf body', $result->content);
+        self::assertNull($readable->indexAtPath((object) $root->toArray(), [1, 1], [$other]));
+    }
+
+    public function testLazyPageBoundsAndCollapsedMarkup(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $tags = array_fill(0, 501, ['a', "30040:$pubkey:part"]);
+        $source = (object) $this->event('b', $pubkey, 30040, 'book', $tags)->toArray();
+        $api = $this->createMock(MercuryApiClientInterface::class);
+        $api->expects(self::never())->method('getPublicationsByAuthors');
+        $service = $this->service($api, $this->createStub(NostrClient::class));
+        $page = $service->childrenPage($source, [], 1);
+        self::assertCount(50, $page['entries']);
+        self::assertTrue($page['hasNext']);
+        $last = $service->childrenPage($source, [], 10);
+        self::assertFalse($last['hasNext']);
+        self::assertTrue($last['truncated']);
+
+        $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates'), ['strict_variables' => true]);
+        $twig->addFilter(new TwigFilter('trans', static fn (string $key): string => $key));
+        $twig->addFunction(new TwigFunction('path', static fn (): string => '/contents'));
+        $html = $twig->render('bookshelf/_reader_contents.html.twig', [
+            'rootId' => str_repeat('b', 64), 'path' => [], 'page' => 1,
+            'contents' => $page, 'indexBody' => null, 'indexMetadata' => null,
+        ]);
+        $crawler = new Crawler($html);
+        self::assertCount(50, $crawler->filter('details.bookshelf-reader__index:not([open])'));
+        self::assertCount(50, $crawler->filter('details.bookshelf-reader__index turbo-frame[loading="lazy"]'));
+        self::assertCount(50, $crawler->filter('.bookshelf-toc li'));
+    }
+
+    public function testNestedReaderTemplateIncludesFirstPageWithoutOpeningIndexes(): void
+    {
+        $files = new FilesystemLoader(dirname(__DIR__, 3) . '/templates');
+        $files->addPath(dirname(__DIR__, 3) . '/vendor/decent-newsroom/bookshelf-bundle/src/Resources/views', 'Bookshelf');
+        $twig = new Environment(new ChainLoader([
+            new ArrayLoader(['@Bookshelf/bookshelf-layout.html.twig' => '{% block title %}{% endblock %}{% block ogtags %}{% endblock %}{% block body %}{% endblock %}{% block aside %}{% endblock %}']),
+            $files,
+        ]), ['strict_variables' => true]);
+        $twig->addFilter(new TwigFilter('trans', static fn (string $key): string => $key));
+        $twig->addFunction(new TwigFunction('path', static fn (): string => '/contents'));
+        $twig->addFunction(new TwigFunction('ux_icon', static fn (): string => ''));
+        $twig->addFunction(new TwigFunction('csrf_token', static fn (): string => 'csrf'));
+        $book = [
+            'id' => str_repeat('b', 64), 'title' => 'Book', 'type' => 'book', 'authors' => [],
+            'summary' => null, 'coverImage' => null, 'language' => null, 'source' => null,
+            'releaseDate' => null, 'version' => null,
+        ];
+        $html = $twig->render('bookshelf/read_nested.html.twig', [
+            'app' => ['user' => null, 'request' => ['uri' => 'https://example.test/bookshelf']],
+            'book' => $book, 'query' => '', 'contents' => [
+                'entries' => [
+                    ['position' => 0, 'kind' => 30041, 'title' => 'First', 'summary' => null, 'available' => true, 'html' => '<p>Text</p>'],
+                    ['position' => 1, 'kind' => 30040, 'title' => 'Part', 'invalid' => false],
+                ],
+                'hasNext' => false, 'truncated' => false,
+            ],
+        ]);
+        $crawler = new Crawler($html);
+        self::assertSame('Text', $crawler->filter('.bookshelf-chapter__content')->text());
+        self::assertSame('Part', $crawler->filter('details.bookshelf-reader__index:not([open]) > summary')->text());
+        self::assertCount(2, $crawler->filter('.bookshelf-toc li'));
+    }
+
     public function testMixedReferencesExpandInOrderIncludingDuplicatesAndCycles(): void
     {
         $pubkey = str_repeat('a', 64);

@@ -75,6 +75,79 @@ final readonly class BookshelfReaderContents
     }
 
     /**
+     * Resolve an index by following occurrence positions from the exact root.
+     * Every ancestor and target is reauthorized on each request.
+     *
+     * @param list<int> $path
+     * @param list<string> $muted
+     */
+    public function indexAtPath(object $root, array $path, array $muted): ?object
+    {
+        if (count($path) > 5 || $this->readableTargets(['source' => $root], $muted) === []) {
+            return null;
+        }
+        $source = $root;
+        $ancestors = [$this->coordinate($root)];
+        foreach ($path as $position) {
+            $reference = null;
+            foreach (array_slice($this->references($source), 0, self::MAX_ENTRIES) as $candidate) {
+                if ($candidate['position'] === $position) {
+                    $reference = $candidate;
+                    break;
+                }
+            }
+            if ($reference === null || $reference['kind'] !== 30040 || $reference['invalid']
+                || in_array($reference['coordinate'], $ancestors, true)) {
+                return null;
+            }
+            $targets = $this->readableTargets($this->targets([$reference]), $muted);
+            $source = $targets[$reference['key']] ?? null;
+            if ($source === null) {
+                return null;
+            }
+            $ancestors[] = $reference['coordinate'];
+        }
+        return $source;
+    }
+
+    /** @return array{title: ?string, summary: ?string} */
+    public function indexMetadata(object $source): array
+    {
+        $tags = is_array($source->tags ?? null) ? $source->tags : [];
+        return ['title' => $this->tag($tags, 'title'), 'summary' => $this->tag($tags, 'summary')];
+    }
+
+    /**
+     * Return one bounded page of direct children. Nested index targets are
+     * deliberately not fetched until their disclosure is opened.
+     *
+     * @param list<string> $muted
+     * @return array{entries: list<array<string, mixed>>, page: int, hasNext: bool, truncated: bool}
+     */
+    public function childrenPage(object $source, array $muted, int $page): array
+    {
+        $references = $this->references($source);
+        $selected = array_slice($references, ($page - 1) * 50, 50, true);
+        $sections = array_values(array_filter($selected, static fn (array $ref): bool => $ref['kind'] === 30041));
+        $targets = $this->readableTargets($this->targets($sections), $muted);
+        $entries = [];
+        foreach ($selected as $ref) {
+            $event = $ref['kind'] === 30041 ? ($targets[$ref['key']] ?? null) : null;
+            $tags = is_object($event) && is_array($event->tags ?? null) ? $event->tags : [];
+            $entries[] = [
+                'position' => $ref['position'], 'kind' => $ref['kind'],
+                'title' => $event === null ? $ref['identifier'] : ($this->tag($tags, 'title') ?? $ref['identifier']),
+                'summary' => $event === null ? null : $this->tag($tags, 'summary'),
+                'available' => $event !== null, 'invalid' => $ref['invalid'],
+                'content' => $event === null ? null : (string) ($event->content ?? ''),
+                'id' => $event->id ?? null,
+            ];
+        }
+        return ['entries' => $entries, 'page' => $page, 'hasNext' => $page < 10 && count($references) > $page * 50,
+            'truncated' => $page === 10 && count($references) > self::MAX_ENTRIES];
+    }
+
+    /**
      * @param array<string, mixed> $book
      * @param list<string> $muted
      * @return array<string, mixed>
@@ -162,11 +235,13 @@ final readonly class BookshelfReaderContents
         return $book;
     }
 
-    /** @return list<array{kind: int, coordinate: string, pubkey: string, identifier: string, relay: ?string, pin: ?string, key: string, invalid: bool}> */
+    /** @return list<array{position: int, kind: int, coordinate: string, pubkey: string, identifier: string, relay: ?string, pin: ?string, key: string, invalid: bool}> */
     private function references(object $event): array
     {
         $refs = [];
+        $position = -1;
         foreach (is_array($event->tags ?? null) ? $event->tags : [] as $tag) {
+            ++$position;
             if (!is_array($tag) || ($tag[0] ?? null) !== 'a' || !is_string($tag[1] ?? null)) {
                 continue;
             }
@@ -184,7 +259,7 @@ final readonly class BookshelfReaderContents
             $relay = is_string($tag[2] ?? null) && in_array(parse_url($tag[2], PHP_URL_SCHEME), ['ws', 'wss'], true)
                 && parse_url($tag[2], PHP_URL_HOST) ? $tag[2] : null;
             $refs[] = [
-                'kind' => (int) $parts[0], 'coordinate' => $coordinate, 'pubkey' => $pubkey,
+                'position' => $position, 'kind' => (int) $parts[0], 'coordinate' => $coordinate, 'pubkey' => $pubkey,
                 'identifier' => $identifier, 'relay' => $relay, 'pin' => $pin, 'invalid' => $invalid,
                 'key' => $coordinate . "\0" . ($invalid ? 'invalid' : ($pin ?? 'latest')),
             ];
@@ -198,6 +273,9 @@ final readonly class BookshelfReaderContents
      */
     private function targets(array $refs): array
     {
+        if ($refs === []) {
+            return [];
+        }
         $ids = $coordinates = $relays = [];
         foreach ($refs as $ref) {
             if ($ref['invalid']) {

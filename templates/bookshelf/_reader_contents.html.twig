@@ -1,0 +1,66 @@
+{% set frameId = 'bookshelf-reader-' ~ rootId ~ '-' ~ (path is empty ? 'root' : path|join('-')) ~ '-' ~ page %}
+<turbo-frame id="{{ frameId }}">
+    {% if contents is null %}
+        <p class="bookshelf-chapter__missing">{{ 'bookshelf.reader_unavailable'|trans }}</p>
+    {% else %}
+        {% if indexMetadata is not null %}
+            <header class="bookshelf-reader__index-header">
+                {% if indexMetadata.title %}<h2>{{ indexMetadata.title }}</h2>{% endif %}
+                {% if indexMetadata.summary %}<p>{{ indexMetadata.summary }}</p>{% endif %}
+            </header>
+        {% endif %}
+        {% if indexBody is not null %}
+            <div class="bookshelf-chapter__content" data-controller="utility--katex" data-utility--katex-display-value="true">{{ indexBody|raw }}</div>
+        {% endif %}
+        {% if contents.entries is not empty %}
+            <details class="bookshelf-toc">
+                <summary>{{ 'bookshelf.table_of_contents'|trans }}</summary>
+                <ol>
+                    {% for entry in contents.entries %}
+                        <li><a href="#reader-entry-{{ frameId }}-{{ entry.position }}" data-turbo-frame="_top">{{ entry.title }}</a>{% if entry.kind == 30041 and not entry.available %} <span>{{ 'bookshelf.chapter_unavailable_short'|trans }}</span>{% endif %}</li>
+                    {% endfor %}
+                </ol>
+            </details>
+        {% endif %}
+        <div class="bookshelf-chapters">
+            {% for entry in contents.entries %}
+                <article class="bookshelf-chapter" id="reader-entry-{{ frameId }}-{{ entry.position }}">
+                    {% if entry.kind == 30040 %}
+                        {% if not entry.invalid and path|length < 5 %}
+                            {% set childPath = path|merge([entry.position]) %}
+                            {% set childFrame = 'bookshelf-reader-' ~ rootId ~ '-' ~ childPath|join('-') ~ '-1' %}
+                            {% set childUrl = path('bookshelf_reader_contents', {id: rootId, path: childPath|join('.')}) %}
+                            <details class="bookshelf-reader__index" data-controller="ui--workspace-fragment"
+                                data-action="toggle->ui--workspace-fragment#toggle turbo:before-fetch-request->ui--workspace-fragment#beforeRequest">
+                                <summary>{{ entry.title }}</summary>
+                                <turbo-frame id="{{ childFrame }}" src="{{ childUrl }}" loading="lazy"><a href="{{ childUrl }}">{{ 'bookshelf.reader_load_index'|trans }}</a></turbo-frame>
+                            </details>
+                        {% else %}
+                            <header><h2>{{ entry.title }}</h2></header>
+                            <p>{{ (entry.invalid ? 'bookshelf.reader_unavailable' : 'reading_nook.toc.depth_limit')|trans }}</p>
+                        {% endif %}
+                    {% else %}
+                        <header><h2>{{ entry.title }}</h2>{% if entry.summary %}<p>{{ entry.summary }}</p>{% endif %}</header>
+                        {% if entry.available %}
+                            <div class="bookshelf-chapter__content" data-controller="utility--katex" data-utility--katex-display-value="true">{{ entry.html|raw }}</div>
+                        {% else %}
+                            <p class="bookshelf-chapter__missing">{{ 'bookshelf.reader_unavailable'|trans }}</p>
+                        {% endif %}
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+        {% if contents.hasNext %}
+            {% set nextPage = page + 1 %}
+            {% set nextFrame = 'bookshelf-reader-' ~ rootId ~ '-' ~ (path is empty ? 'root' : path|join('-')) ~ '-' ~ nextPage %}
+            {% set nextUrl = path('bookshelf_reader_contents', {id: rootId, path: path|join('.'), page: nextPage}) %}
+            <details class="bookshelf-reader__more" data-controller="ui--workspace-fragment"
+                data-action="toggle->ui--workspace-fragment#toggle turbo:before-fetch-request->ui--workspace-fragment#beforeRequest">
+                <summary>{{ 'bookshelf.reader_load_more'|trans }}</summary>
+                <turbo-frame id="{{ nextFrame }}" src="{{ nextUrl }}" loading="lazy"><a href="{{ nextUrl }}">{{ 'bookshelf.reader_load_more'|trans }}</a></turbo-frame>
+            </details>
+        {% elseif contents.truncated %}
+            <p>{{ 'bookshelf.truncated_description'|trans }}</p>
+        {% endif %}
+    {% endif %}
+</turbo-frame>

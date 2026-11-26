@@ -67,28 +67,94 @@ final class BookshelfReadController extends AbstractController
                 $book = $relayBookLoader->fillMissingChapters($book);
             }
             if ($source !== null) {
-                $muted = [];
-                if ($this->getUser() !== null) {
-                    $pubkey = PublicKey::fromBech32($this->getUser()->getUserIdentifier())?->toHex()
-                        ?? throw $this->createAccessDeniedException();
-                    $muted = $muteList->getMutedPubkeysStrict($pubkey);
+                $muted = $this->mutedPubkeys($muteList);
+                if ($nested) {
+                    if ($readerContents->indexAtPath($source, [], $muted) === null) {
+                        throw $this->createNotFoundException();
+                    }
+                    $contents = $readerContents->childrenPage($source, $muted, 1);
+                    $this->renderEntries($contents['entries'], $asciiDocConverter, $logger);
+                } else {
+                    $book = $readerContents->expand($book, $source, $muted);
                 }
-                $book = $readerContents->expand($book, $source, $muted);
             }
             $available = true;
-            $this->renderChapters($book, $asciiDocConverter, $logger);
+            if (!$nested) {
+                $this->renderChapters($book, $asciiDocConverter, $logger);
+            }
         }
 
-        return $this->render('@Bookshelf/bookshelf/read.html.twig', [
+        return $this->render($nested && $book !== null ? 'bookshelf/read_nested.html.twig' : '@Bookshelf/bookshelf/read.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
             ...$directoryContext,
             'book' => $book,
             'available' => $available,
             'query' => $query,
+            'contents' => $contents ?? null,
         ], new Response(
             status: $book === null && !$available ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_OK,
             headers: ['Cache-Control' => 'private, no-store'],
         ));
+    }
+
+    #[Route('/bookshelf/{id}/contents', name: 'bookshelf_reader_contents', requirements: ['id' => '[a-fA-F0-9]{64}'], methods: ['GET'])]
+    public function contents(
+        string $id,
+        Request $request,
+        BookshelfReaderContents $readerContents,
+        AsciiDocConverter $converter,
+        LoggerInterface $logger,
+        UserMuteListService $muteList,
+    ): Response {
+        $rawPath = $request->query->get('path', '');
+        $rawPage = $request->query->get('page', '1');
+        if (($rawPath !== '' && !preg_match('/^(?:0|[1-9][0-9]{0,8})(?:\.(?:0|[1-9][0-9]{0,8})){0,4}$/D', $rawPath))
+            || !preg_match('/^(?:[1-9]|10)$/D', $rawPage)) {
+            throw $this->createNotFoundException();
+        }
+        $path = $rawPath === '' ? [] : array_map(intval(...), explode('.', $rawPath));
+        $page = (int) $rawPage;
+        $id = strtolower($id);
+        $muted = $this->mutedPubkeys($muteList);
+        $root = $readerContents->source($id);
+        $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $muted);
+        $contents = $source === null ? null : $readerContents->childrenPage($source, $muted, $page);
+        $body = null;
+        $indexMetadata = null;
+        if ($contents !== null) {
+            $this->renderEntries($contents['entries'], $converter, $logger);
+            if ($path !== [] && $page === 1) {
+                $indexMetadata = $readerContents->indexMetadata($source);
+                if (($source->content ?? '') !== '') {
+                    $entry = [['available' => true, 'content' => $source->content, 'id' => $source->id]];
+                    $this->renderEntries($entry, $converter, $logger);
+                    $body = $entry[0]['html'];
+                }
+            }
+        }
+
+        return $this->render('bookshelf/_reader_contents.html.twig', [
+            'rootId' => $id, 'path' => $path, 'page' => $page,
+            'contents' => $contents, 'indexBody' => $body, 'indexMetadata' => $indexMetadata,
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
+    }
+
+    /** @return list<string> */
+    private function mutedPubkeys(UserMuteListService $muteList): array
+    {
+        if ($this->getUser() === null) {
+            return [];
+        }
+        $pubkey = PublicKey::fromBech32($this->getUser()->getUserIdentifier())?->toHex()
+            ?? throw $this->createAccessDeniedException();
+        return $muteList->getMutedPubkeysStrict($pubkey);
+    }
+
+    /** @param list<array<string, mixed>> $entries */
+    private function renderEntries(array &$entries, AsciiDocConverter $converter, LoggerInterface $logger): void
+    {
+        $book = ['chapters' => &$entries];
+        $this->renderChapters($book, $converter, $logger);
     }
 
     /** @param array<string, mixed> $book */

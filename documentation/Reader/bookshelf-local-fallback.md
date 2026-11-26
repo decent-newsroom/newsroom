@@ -38,24 +38,26 @@ rewrite the signed directory or change exact-ID reader URLs.
 
 When a reader opens a book, the continuous reader obtains its exact kind
 `30040` source from local storage, the Books API/Mercury or relays. If it contains nested
-indexes, the reader expands both kind `30040` indexes and kind `30041`
-sections in signed tag order. Indexes appear as headings in the table of
-contents and the reading stream, followed by their sections. Repeated
-references remain separate occurrences. Missing or invalid references stay
-visible as unavailable; version pins are resolved only by their exact event
-IDs and must match the referenced coordinate. The reader uses local events
-first, then the Books API, Mercury and relay fallback only for unresolved
-targets. Nested books skip the legacy separate chapter-loading pass. Lookups
-are batched by level. Each API
+indexes, the reader displays direct kind `30040` and `30041` references in
+signed tag order. Nested indexes start collapsed, using their signed identifier
+as the label; opening one loads its own body and direct children. Each loaded
+index has its own table of contents. Repeated references remain separate
+occurrences. Missing or invalid references stay visible as unavailable;
+version pins are resolved only by their exact event IDs and must match the
+referenced coordinate. The reader uses local events first, then the Books API,
+Mercury and relay fallback only for unresolved targets. Nested books skip the
+legacy separate chapter-loading pass. Each API
 gets up to three passes for still-missing references: returned duplicate
 revisions can otherwise fill a batch before all requested coordinates appear.
 Each level uses at most five relay hints and falls back for at most
 20 distinct author/kind groups; additional unresolved references stay visible
 as unavailable.
 
-Traversal is bounded to 500 occurrences and six levels; the existing
-truncation notice is shown when either limit is reached. Cycles are detected
-on the current path, so a shared index can still appear elsewhere. Nested
+Each index is paged in batches of 50, up to 500 occurrences, and traversal is
+limited to six levels. Cycles are detected on the current path, so a shared
+index can still appear elsewhere. Each fragment re-resolves its occurrence path
+from the exact root and rechecks every ancestor; browser-supplied paths do not
+grant access. Nested
 indexes and sections are checked for reader mutes, author suppression,
 hidden coordinates, deletion, scope and sensitive tags before their metadata
 or contents are exposed; blocked references remain unavailable and are not

@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Load nested Bookshelf reader indexes only when opened, with collapsed disclosures and bounded pages.
 - [Fix] Skip empty article recovery saves without overwriting existing copies.
 - [Fix] Keep Bookshelf reader grids within the main content area, wrapping long text and locally scrolling wide chapter content.
 - [Fix] Avoid redundant remote lookups and use the Books API when expanding nested Bookshelf readers, preventing timeouts for indexed books.

@@ -524,6 +524,25 @@ newsstand:
 
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
+    reader_load_index: 'Load index'
+    reader_load_more: 'Load more contents'
+    reader_unavailable: 'This content is unavailable.'
+    truncated_description: 'This index exceeds the 500-entry reader limit.'
+    table_of_contents: 'Table of contents'
+    chapter_unavailable_short: 'unavailable'
+    back: 'Back to Bookshelf'
+    by_author: 'by %author%'
+    language: 'Language'
+    released: 'Released'
+    version: 'Version'
+    original_source: 'View original source'
+    add_to_my_books: 'Add to My Books'
+    remove_from_my_books: 'Remove from My Books'
+    saved_to_my_books: 'Saved to My Books.'
+    removed_from_my_books: 'Removed from My Books.'
+    directory_publish_failed: 'Could not update My Books right now. Please try again.'
+    directory_signer_unavailable: 'No Nostr signer is available. Connect a signer and try again.'
+    directory_limit_reached: 'My Books is limited to %limit% items.'
     promo:
         eyebrow: 'Your next chapter, anywhere'
         description: 'An Android ereader for books on Nostr. Save a book, settle into your own reading style, and take your next chapter offline.'
