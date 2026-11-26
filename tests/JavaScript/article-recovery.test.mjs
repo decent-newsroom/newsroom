@@ -39,10 +39,20 @@ async function fixture() {
     };
     const requests = [];
     let fetchImpl = async () => ({ ok: true });
+    const document = {
+        createElement(tagName) {
+            return {
+                tagName, children: [],
+                append(...children) { this.children.push(...children); },
+                addEventListener() {},
+            };
+        },
+    };
     const context = createContext({
         console, structuredClone, setTimeout, clearTimeout, localStorage: storage,
         crypto: { randomUUID: () => 'new-id' },
         window: { confirm: () => true },
+        document,
         fetch: (...args) => { requests.push(args); return fetchImpl(...args); },
     });
     const module = new SourceTextModule(source, { context });
@@ -195,4 +205,25 @@ test('recreates sparse advanced metadata collection entries', async () => {
     });
     assert.deepEqual(calls, [['zap', '2'], ['source', '4'], ['media', '1']]);
     assert.equal(metadata.sourcesContainerTarget.dataset.index, '5');
+});
+
+test('renders recovery entries with translated and styled actions', async () => {
+    const { controller, values } = await fixture();
+    controller.labelsValue.browser = 'browser';
+    controller.labelsValue.restore = 'Restore';
+    controller.labelsValue.delete = 'Delete';
+    controller.listTarget = {
+        children: [],
+        replaceChildren() { this.children = []; },
+        append(item) { this.children.push(item); },
+    };
+    delete controller.renderList;
+    values.set('article-recovery:v1:alice:one', JSON.stringify(controller.capture()));
+    controller.renderList();
+    const item = controller.listTarget.children[0];
+    assert.equal(item.className, 'editor-recovery__item');
+    assert.match(item.children[0].textContent, /My article/);
+    const actions = item.children[1].children;
+    assert.deepEqual(actions.map((button) => button.textContent), ['Restore', 'Delete']);
+    assert.ok(actions.every((button) => button.className.includes('btn-secondary')));
 });

@@ -2,6 +2,8 @@
 
 ## v0.1.0
 
+- [Improvement] Place article recovery controls below relay settings in the editor sidebar.
+- [Fix] Restore editor recovery translations and make recovery controls fit desktop and mobile layouts.
 - [Fix] Include nested publication indexes and their sections in the Bookshelf continuous reader and table of contents, preserving signed order and pinned versions.
 - [Feature] Automatically preserve new articles in browser and private account recovery copies, with restore and file import/export independent of Nostr publishing.
 - [Fix] Keep cached latest-feed articles available when their persisted author metadata event is missing.

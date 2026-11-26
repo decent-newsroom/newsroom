@@ -209,18 +209,26 @@ export default class extends Controller {
             for (const [source, snapshot] of [['browser', local.get(id)], ['server', this.remote.get(id)]]) {
                 if (!this.valid(snapshot)) continue;
                 const item = document.createElement('li');
+                item.className = 'editor-recovery__item';
                 const title = snapshot.fields['editor[title]']?.value || this.labelsValue.untitled;
                 const date = new Date(snapshot.timestamp).toLocaleString();
-                item.append(document.createTextNode(`${title} — ${date} (${this.labelsValue[source]}) `));
+                const description = document.createElement('span');
+                description.className = 'editor-recovery__item-description';
+                description.textContent = `${title} — ${date} (${this.labelsValue[source]})`;
                 const restore = document.createElement('button');
                 restore.type = 'button';
+                restore.className = 'btn btn-secondary btn-sm';
                 restore.textContent = this.labelsValue.restore;
                 restore.addEventListener('click', () => this.restore(snapshot));
                 const remove = document.createElement('button');
                 remove.type = 'button';
+                remove.className = 'btn btn-secondary btn-sm';
                 remove.textContent = this.labelsValue.delete;
                 remove.addEventListener('click', () => this.deleteCopy(id, source));
-                item.append(restore, remove);
+                const actions = document.createElement('div');
+                actions.className = 'editor-recovery__item-actions';
+                actions.append(restore, remove);
+                item.append(description, actions);
                 this.listTarget.append(item);
             }
         }

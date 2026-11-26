@@ -8,8 +8,10 @@ browser or server copies, or export and import a JSON recovery file.
 
 Changes are saved in browser local storage at short intervals while editing.
 Signed-in writers also save to their account on the server at a longer interval; the
-status reports storage failures. The **Recovery copies** panel lists browser
-and server copies separately. Restoring first saves the current editor contents
+status reports storage failures. Open **Relays** in the right-hand settings
+sidebar (on mobile, open **Show Settings** first) to find **Recovery copies**
+below the relay settings. It lists browser and server copies separately.
+Restoring first saves the current editor contents
 in the browser and then opens the selected copy as a new working copy. A failed
 browser save prevents replacement of the current work.
 

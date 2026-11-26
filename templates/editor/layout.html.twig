@@ -110,19 +110,6 @@
         } %}
         {# Center editor area (middle grid column) #}
         <div class="editor-center">
-            {% if not article.id %}
-                <section class="panel-section" aria-label="{{ 'article_recovery.title'|trans }}">
-                    <p>{{ 'article_recovery.explanation'|trans }}</p>
-                    <p data-editor--recovery-target="status" role="status" aria-live="polite"></p>
-                    <details>
-                        <summary>{{ 'article_recovery.title'|trans }}</summary>
-                        <button type="button" class="btn btn-secondary btn-sm" data-action="editor--recovery#saveNow">{{ 'article_recovery.save'|trans }}</button>
-                        <button type="button" class="btn btn-secondary btn-sm" data-action="editor--recovery#exportCopy">{{ 'article_recovery.export'|trans }}</button>
-                        <label>{{ 'article_recovery.import'|trans }} <input type="file" accept="application/json,.json" data-action="change->editor--recovery#importCopy"></label>
-                        <ul data-editor--recovery-target="list"></ul>
-                    </details>
-                </section>
-            {% endif %}
             <div class="editor-center-tabs">
                 <button
                     type="button"
@@ -336,6 +323,27 @@
                     data-panel="relays"
                 >
                     {% include 'editor/panels/_relays.html.twig' with { form: form } %}
+
+                    {% if not article.id %}
+                        <section class="editor-recovery" aria-label="{{ 'article_recovery.title'|trans }}">
+                            <details class="editor-recovery__details">
+                                <summary>{{ 'article_recovery.title'|trans }}</summary>
+                                <div class="editor-recovery__content">
+                                    <p>{{ 'article_recovery.explanation'|trans }}</p>
+                                    <div class="editor-recovery__actions">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-action="editor--recovery#saveNow">{{ 'article_recovery.save'|trans }}</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" data-action="editor--recovery#exportCopy">{{ 'article_recovery.export'|trans }}</button>
+                                    </div>
+                                    <label class="editor-recovery__import">
+                                        {{ 'article_recovery.import'|trans }}
+                                        <input type="file" accept="application/json,.json" data-action="change->editor--recovery#importCopy">
+                                    </label>
+                                    <ul class="editor-recovery__list" data-editor--recovery-target="list"></ul>
+                                </div>
+                            </details>
+                            <p class="editor-recovery__status" data-editor--recovery-target="status" role="status" aria-live="polite"></p>
+                        </section>
+                    {% endif %}
 
                     {# Consume every conditional/unrendered form field here.
                        Otherwise form_end() appends Essayist checkboxes after
