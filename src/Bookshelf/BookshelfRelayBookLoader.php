@@ -83,7 +83,7 @@ final class BookshelfRelayBookLoader
     }
 
     /** @return array<string, mixed>|null */
-    public function bookFromEvent(object $event): ?array
+    public function bookFromEvent(object $event, bool $loadChapters = true): ?array
     {
         $book = $this->mapBook($event, null);
         if ($book === null) {
@@ -105,7 +105,7 @@ final class BookshelfRelayBookLoader
         $book['missingChapterCount'] = count($refs);
         $book['truncated'] = false;
 
-        return $this->fillMissingChapters($book);
+        return $loadChapters ? $this->fillMissingChapters($book) : $book;
     }
 
     /** @param array<string, mixed> $book

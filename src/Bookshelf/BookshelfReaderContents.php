@@ -23,6 +23,7 @@ final readonly class BookshelfReaderContents
     private const MAX_DEPTH = 6;
     private const MAX_RELAY_HINTS = 5;
     private const MAX_RELAY_GROUPS = 20;
+    private const MAX_API_PASSES = 3;
 
     public function __construct(
         private MercuryApiClientInterface $api,
@@ -32,6 +33,7 @@ final readonly class BookshelfReaderContents
         private DeletedEventRepository $deletions,
         private HiddenCoordinateRepository $hidden,
         private LoggerInterface $logger,
+        private MercuryApiClientInterface $booksApi,
     ) {}
 
     public function source(string $id): ?object
@@ -40,13 +42,15 @@ final readonly class BookshelfReaderContents
         if ($local instanceof Event && $local->getKind() === 30040) {
             return $this->wireEvent($local);
         }
-        try {
-            $event = $this->api->getEvent($id);
-            if ($event !== null && $event->id === $id && $event->kind === 30040) {
-                return (object) $event->toArray();
+        foreach ([$this->booksApi, $this->api] as $client) {
+            try {
+                $event = $client->getEvent($id);
+                if ($event !== null && $event->id === $id && $event->kind === 30040) {
+                    return (object) $event->toArray();
+                }
+            } catch (MercuryApiException $exception) {
+                $this->logger->warning('Could not read the bookshelf index from an API.', ['exception' => $exception]);
             }
-        } catch (MercuryApiException $exception) {
-            $this->logger->warning('Could not read the bookshelf index from Mercury.', ['exception' => $exception]);
         }
 
         try {
@@ -59,6 +63,17 @@ final readonly class BookshelfReaderContents
         }
     }
 
+    public function hasNestedIndexes(object $source): bool
+    {
+        foreach ($this->references($source) as $reference) {
+            if ($reference['kind'] === 30040) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * @param array<string, mixed> $book
      * @param list<string> $muted
@@ -67,8 +82,7 @@ final readonly class BookshelfReaderContents
     public function expand(array $book, object $source, array $muted): array
     {
         $rootCoordinate = $this->coordinate($source);
-        $rootReferences = $this->references($source);
-        if ($rootCoordinate === null || !array_filter($rootReferences, static fn (array $ref): bool => $ref['kind'] === 30040)) {
+        if ($rootCoordinate === null || !$this->hasNestedIndexes($source)) {
             return $book;
         }
         if ($this->readableTargets(['root' => $source], $muted) === []) {
@@ -200,24 +214,27 @@ final readonly class BookshelfReaderContents
         }
         $local = $this->events->findBookshelfReaderTargets(array_keys($coordinates), array_keys($ids));
         $events = array_map($this->wireEvent(...), array_values($local['coordinates'] + $local['eventIds']));
-        if ($ids !== []) {
-            $events = array_merge($events,
-                $this->apiEvents(fn (): array => $this->api->getPublicationEventsByIds(array_keys($ids))),
-                $this->apiEvents(fn (): array => $this->api->getEventsByIds(array_keys($ids))),
-            );
+        $localMatches = $this->matchTargets($refs, $events);
+        $missing = array_values(array_filter($refs, static fn (array $ref): bool =>
+            !$ref['invalid'] && !isset($localMatches[$ref['key']])
+        ));
+        if ($missing === []) {
+            return $localMatches;
         }
-        foreach ([30040, 30041] as $kind) {
-            $matching = array_values(array_filter($refs, static fn (array $ref): bool => !$ref['invalid'] && $ref['pin'] === null && $ref['kind'] === $kind));
-            if ($matching === []) {
-                continue;
+        $result = $localMatches;
+        foreach ([$this->booksApi, $this->api] as $client) {
+            for ($pass = 0; $pass < self::MAX_API_PASSES; ++$pass) {
+                $unresolved = array_values(array_filter($missing, static fn (array $ref): bool => !isset($result[$ref['key']])));
+                if ($unresolved === []) {
+                    break 2;
+                }
+                $matched = $this->matchTargets($unresolved, $this->apiTargets($client, $unresolved));
+                if ($matched === []) {
+                    break;
+                }
+                $result += $matched;
             }
-            $authors = array_values(array_unique(array_column($matching, 'pubkey')));
-            $identifiers = array_values(array_unique(array_column($matching, 'identifier')));
-            $events = array_merge($events, $this->apiEvents(fn (): array => $kind === 30040
-                ? $this->api->getPublicationsByAuthors($authors, self::MAX_ENTRIES, $identifiers)
-                : $this->api->getChaptersByAuthors($authors, self::MAX_ENTRIES, $identifiers)));
         }
-        $result = $this->matchTargets($refs, $events);
         $missingIds = $missingCoordinates = [];
         foreach ($refs as $ref) {
             if ($ref['invalid'] || isset($result[$ref['key']])) {
@@ -247,19 +264,45 @@ final readonly class BookshelfReaderContents
         }
         if ($missingIds !== []) {
             try {
-                $events = array_merge($events, array_values($this->nostr->getEventsByIds(array_keys($missingIds), array_keys($relays))));
+                $result += $this->matchTargets($missing, array_values($this->nostr->getEventsByIds(array_keys($missingIds), array_keys($relays))));
             } catch (\Throwable $exception) {
                 $this->logger->warning('Could not resolve bookshelf event IDs from relays.', ['exception' => $exception]);
             }
         }
         if ($boundedCoordinates !== []) {
             try {
-                $events = array_merge($events, array_values($this->nostr->getEventsByCoordinates($boundedCoordinates, array_keys($relays))));
+                $result += $this->matchTargets($missing, array_values($this->nostr->getEventsByCoordinates($boundedCoordinates, array_keys($relays))));
             } catch (\Throwable $exception) {
                 $this->logger->warning('Could not resolve bookshelf coordinates from relays.', ['exception' => $exception]);
             }
         }
-        return $this->matchTargets($refs, $events);
+        return $result;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $refs
+     * @return list<object>
+     */
+    private function apiTargets(MercuryApiClientInterface $client, array $refs): array
+    {
+        $events = [];
+        foreach ([30040, 30041] as $kind) {
+            $matching = array_values(array_filter($refs, static fn (array $ref): bool => $ref['kind'] === $kind));
+            $ids = array_values(array_unique(array_filter(array_column($matching, 'pin'), 'is_string')));
+            if ($ids !== []) {
+                $events = array_merge($events, $this->apiEvents(fn (): array => $kind === 30040
+                    ? $client->getPublicationEventsByIds($ids) : $client->getEventsByIds($ids)));
+            }
+            $unpinned = array_values(array_filter($matching, static fn (array $ref): bool => $ref['pin'] === null));
+            if ($unpinned !== []) {
+                $authors = array_values(array_unique(array_column($unpinned, 'pubkey')));
+                $identifiers = array_values(array_unique(array_column($unpinned, 'identifier')));
+                $events = array_merge($events, $this->apiEvents(fn (): array => $kind === 30040
+                    ? $client->getPublicationsByAuthors($authors, self::MAX_ENTRIES, $identifiers)
+                    : $client->getChaptersByAuthors($authors, self::MAX_ENTRIES, $identifiers)));
+            }
+        }
+        return $events;
     }
 
     /**
@@ -271,7 +314,7 @@ final readonly class BookshelfReaderContents
         try {
             return array_map(static fn (MercuryEvent $event): object => (object) $event->toArray(), $fetch());
         } catch (MercuryApiException $exception) {
-            $this->logger->warning('Could not resolve bookshelf contents from Mercury.', ['exception' => $exception]);
+            $this->logger->warning('Could not resolve bookshelf contents from an API.', ['exception' => $exception]);
             return [];
         }
     }

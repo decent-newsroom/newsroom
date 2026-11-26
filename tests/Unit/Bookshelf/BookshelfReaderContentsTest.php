@@ -148,6 +148,79 @@ final class BookshelfReaderContentsTest extends TestCase
         self::assertSame('Relay text', $result['chapters'][1]['content']);
     }
 
+    public function testBooksApiResolvesRootAndNestedContentsBeforeMercuryOrRelays(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [['a', "30040:$pubkey:part"]]);
+        $part = $this->event('c', $pubkey, 30040, 'part', [['a', "30041:$pubkey:section"]]);
+        $section = $this->event('d', $pubkey, 30041, 'section', [], 'Section text');
+        $books = $this->createMock(MercuryApiClientInterface::class);
+        $books->expects(self::once())->method('getEvent')->with($root->id)->willReturn($root);
+        $books->expects(self::once())->method('getPublicationsByAuthors')
+            ->with([$pubkey], 500, ['part'])->willReturn([$part]);
+        $books->expects(self::once())->method('getChaptersByAuthors')
+            ->with([$pubkey], 500, ['section'])->willReturn([$section]);
+        $mercury = $this->createMock(MercuryApiClientInterface::class);
+        $mercury->expects(self::never())->method('getEvent');
+        $mercury->expects(self::never())->method('getPublicationsByAuthors');
+        $mercury->expects(self::never())->method('getChaptersByAuthors');
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::never())->method('getEventsByIds');
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $service = new BookshelfReaderContents(
+            $mercury, $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(LoggerInterface::class), $books,
+        );
+
+        $source = $service->source($root->id);
+        self::assertNotNull($source);
+        $result = $service->expand([], $source, []);
+        self::assertSame(['part', 'section'], array_column($result['chapters'], 'identifier'));
+        self::assertSame('Section text', $result['chapters'][1]['content']);
+    }
+
+    public function testBooksApiRetriesMissingCoordinatesWhenBatchContainsRevisions(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [
+            ['a', "30040:$pubkey:part"],
+            ['a', "30041:$pubkey:first"],
+            ['a', "30041:$pubkey:second"],
+        ]);
+        $part = $this->event('c', $pubkey, 30040, 'part', [['a', "30041:$pubkey:first"]]);
+        $first = $this->event('d', $pubkey, 30041, 'first');
+        $old = $this->event('e', $pubkey, 30041, 'first');
+        $second = $this->event('f', $pubkey, 30041, 'second');
+        $books = $this->createMock(MercuryApiClientInterface::class);
+        $books->expects(self::once())->method('getPublicationsByAuthors')->willReturn([$part]);
+        $books->expects(self::exactly(3))->method('getChaptersByAuthors')
+            ->willReturnCallback(static function (array $authors, int $limit, array $identifiers) use ($pubkey, $first, $old, $second): array {
+                self::assertSame([$pubkey], $authors);
+                return match ($identifiers) {
+                    ['first', 'second'] => [$first, $old],
+                    ['second'] => [$second],
+                    ['first'] => [$first],
+                    default => self::fail('Unexpected chapter coordinates.'),
+                };
+            });
+        $mercury = $this->createMock(MercuryApiClientInterface::class);
+        $mercury->expects(self::never())->method('getChaptersByAuthors');
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $service = new BookshelfReaderContents(
+            $mercury, $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(LoggerInterface::class), $books,
+        );
+
+        $result = $service->expand([], (object) $root->toArray(), []);
+
+        self::assertSame(['part', 'first', 'first', 'second'], array_column($result['chapters'], 'identifier'));
+        self::assertSame(4, $result['availableChapterCount']);
+        self::assertSame(0, $result['missingChapterCount']);
+    }
+
     public function testLocalIndexAndTargetsRemainReadableWhenRemoteSourcesAreEmpty(): void
     {
         $pubkey = str_repeat('a', 64);
@@ -160,12 +233,16 @@ final class BookshelfReaderContentsTest extends TestCase
         ]);
         $api = $this->createMock(MercuryApiClientInterface::class);
         $api->expects(self::never())->method('getEvent');
+        $api->expects(self::never())->method('getPublicationsByAuthors');
+        $api->expects(self::never())->method('getChaptersByAuthors');
+        $api->expects(self::never())->method('getPublicationEventsByIds');
+        $api->expects(self::never())->method('getEventsByIds');
         $nostr = $this->createMock(NostrClient::class);
         $nostr->expects(self::never())->method('getEventsByCoordinates');
         $service = new BookshelfReaderContents(
             $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
             $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
-            $this->createStub(LoggerInterface::class),
+            $this->createStub(LoggerInterface::class), $api,
         );
 
         $source = $service->source($root->id);
@@ -173,6 +250,36 @@ final class BookshelfReaderContentsTest extends TestCase
         $result = $service->expand([], $source, []);
         self::assertSame('Local part', $result['chapters'][0]['title']);
         self::assertTrue($result['chapters'][0]['available']);
+    }
+
+    public function testOnlyMissingTargetsAreSentToRemoteSources(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [
+            ['a', "30040:$pubkey:local"],
+            ['a', "30040:$pubkey:remote"],
+        ]);
+        $local = $this->event('c', $pubkey, 30040, 'local');
+        $remote = $this->event('d', $pubkey, 30040, 'remote');
+        $events = $this->createStub(EventRepository::class);
+        $events->method('findBookshelfReaderTargets')->willReturn([
+            'coordinates' => ["30040:$pubkey:local" => $this->entity($local)], 'eventIds' => [],
+        ]);
+        $api = $this->createMock(MercuryApiClientInterface::class);
+        $api->expects(self::once())->method('getPublicationsByAuthors')
+            ->with([$pubkey], 500, ['remote'])->willReturn([$remote]);
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $service = new BookshelfReaderContents(
+            $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(LoggerInterface::class), $this->createStub(MercuryApiClientInterface::class),
+        );
+
+        $result = $service->expand([], (object) $root->toArray(), []);
+
+        self::assertSame(['local', 'remote'], array_column($result['chapters'], 'identifier'));
+        self::assertSame([true, true], array_column($result['chapters'], 'available'));
     }
 
     public function testReaderLimitsOccurrencesAndReportsTruncation(): void
@@ -249,7 +356,7 @@ final class BookshelfReaderContentsTest extends TestCase
         $service = new BookshelfReaderContents(
             $this->createStub(MercuryApiClientInterface::class), $nostr, $this->events(),
             $this->createStub(ContentAuthorAccessPolicy::class), $this->createStub(DeletedEventRepository::class),
-            $this->createStub(HiddenCoordinateRepository::class), $logger,
+            $this->createStub(HiddenCoordinateRepository::class), $logger, $this->createStub(MercuryApiClientInterface::class),
         );
 
         $result = $service->expand([], (object) $root->toArray(), []);
@@ -274,7 +381,7 @@ final class BookshelfReaderContentsTest extends TestCase
         $deletedRepository->method('findSuppressedEventIds')->willReturn([str_repeat('d', 64)]);
         $service = new BookshelfReaderContents(
             $api, $this->createStub(NostrClient::class), $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
-            $deletedRepository, $hiddenRepository, $this->createStub(LoggerInterface::class),
+            $deletedRepository, $hiddenRepository, $this->createStub(LoggerInterface::class), $this->createStub(MercuryApiClientInterface::class),
         );
 
         $result = $service->expand([], (object) $root->toArray(), []);
@@ -289,7 +396,7 @@ final class BookshelfReaderContentsTest extends TestCase
         return new BookshelfReaderContents(
             $api, $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
             $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
-            $this->createStub(LoggerInterface::class),
+            $this->createStub(LoggerInterface::class), $this->createStub(MercuryApiClientInterface::class),
         );
     }
 

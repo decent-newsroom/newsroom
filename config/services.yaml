@@ -509,6 +509,10 @@ services:
             $excludeBotProfiles: '%newsroom.latest_articles.exclude_bot_profiles%'
 
     # BookshelfBundle host integration
+    App\Bookshelf\BookshelfReaderContents:
+        arguments:
+            $booksApi: '@bookshelf.primary_search_api_client'
+
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface:
         alias: App\Bookshelf\BookshelfEventStore
 

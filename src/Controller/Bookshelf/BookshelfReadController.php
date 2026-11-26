@@ -39,27 +39,33 @@ final class BookshelfReadController extends AbstractController
         $directoryContext = $this->directoryContext($directoryService);
         $available = true;
 
-        try {
-            $book = $bookService->getBook(strtolower($id));
-        } catch (MercuryApiException $exception) {
-            $logger->warning('Mercury bookshelf request failed; trying direct Nostr lookup.', [
-                'event_id' => $id,
-                'error' => $exception->getMessage(),
-            ]);
-            $book = null;
-            $available = false;
-        }
-
         $source = $readerContents->source(strtolower($id));
-        if ($book === null && $source !== null) {
-            $book = $relayBookLoader->bookFromEvent($source);
+        $nested = $source !== null && $readerContents->hasNestedIndexes($source);
+        if ($nested) {
+            $book = $relayBookLoader->bookFromEvent($source, loadChapters: false);
+        } else {
+            try {
+                $book = $bookService->getBook(strtolower($id));
+            } catch (MercuryApiException $exception) {
+                $logger->warning('Mercury bookshelf request failed; trying direct Nostr lookup.', [
+                    'event_id' => $id,
+                    'error' => $exception->getMessage(),
+                ]);
+                $book = null;
+                $available = false;
+            }
+            if ($book === null && $source !== null) {
+                $book = $relayBookLoader->bookFromEvent($source);
+            }
         }
         $book ??= $relayBookLoader->getBook(strtolower($id));
         if ($book !== null) {
             if ($source === null) {
                 $logger->warning('Bookshelf index unavailable; nested contents could not be checked.', ['event_id' => $id]);
             }
-            $book = $relayBookLoader->fillMissingChapters($book);
+            if (!$nested) {
+                $book = $relayBookLoader->fillMissingChapters($book);
+            }
             if ($source !== null) {
                 $muted = [];
                 if ($this->getUser() !== null) {

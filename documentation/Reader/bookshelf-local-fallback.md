@@ -43,9 +43,13 @@ sections in signed tag order. Indexes appear as headings in the table of
 contents and the reading stream, followed by their sections. Repeated
 references remain separate occurrences. Missing or invalid references stay
 visible as unavailable; version pins are resolved only by their exact event
-IDs and must match the referenced coordinate. Local and Mercury/Books API
-lookups are batched by level, with relay-hint and author-relay fallback for missing
-targets. Each level uses at most five relay hints and falls back for at most
+IDs and must match the referenced coordinate. The reader uses local events
+first, then the Books API, Mercury and relay fallback only for unresolved
+targets. Nested books skip the legacy separate chapter-loading pass. Lookups
+are batched by level. Each API
+gets up to three passes for still-missing references: returned duplicate
+revisions can otherwise fill a batch before all requested coordinates appear.
+Each level uses at most five relay hints and falls back for at most
 20 distinct author/kind groups; additional unresolved references stay visible
 as unavailable.
 

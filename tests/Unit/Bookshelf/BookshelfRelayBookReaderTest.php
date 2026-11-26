@@ -61,4 +61,22 @@ final class BookshelfRelayBookReaderTest extends TestCase
         self::assertNotNull($book);
         self::assertSame(1, $book['chapterCount']);
     }
+
+    public function testMappingNestedBookCanSkipLegacyChapterFetching(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $index = (object) [
+            'id' => str_repeat('b', 64), 'kind' => 30040, 'pubkey' => $pubkey, 'created_at' => 10,
+            'tags' => [['d', 'book'], ['a', '30041:' . $pubkey . ':chapter'], ['a', '30040:' . $pubkey . ':part']],
+        ];
+        $client = $this->createMock(NostrClient::class);
+        $client->expects(self::never())->method('getEventsByCoordinates');
+
+        $book = (new BookshelfRelayBookLoader($client, $this->createStub(LoggerInterface::class)))
+            ->bookFromEvent($index, loadChapters: false);
+
+        self::assertNotNull($book);
+        self::assertSame('book', $book['title']);
+        self::assertFalse($book['chapters'][0]['available']);
+    }
 }
