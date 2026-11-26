@@ -1,6 +1,5 @@
 # Versions
-# Pin the digest once upstream publishes an image containing PHP 8.5.12 or later.
-FROM dunglas/frankenphp:1.12.7-php8.5 AS frankenphp_upstream
+FROM dunglas/frankenphp:1.14.0-php8.5@sha256:b8e0919047838ea32771ef573d74df9a9128de1e908a999366e26c11bc6e7ba4 AS frankenphp_upstream
 
 # The different stages of this Dockerfile are meant to be built into separate images
 # https://docs.docker.com/develop/develop-images/multistage-build/#stop-at-a-specific-build-stage
@@ -11,6 +10,8 @@ FROM dunglas/frankenphp:1.12.7-php8.5 AS frankenphp_upstream
 FROM frankenphp_upstream AS frankenphp_base
 
 WORKDIR /app
+
+RUN php -r 'if (PHP_VERSION_ID < 80512 || PHP_VERSION_ID >= 80600) { fwrite(STDERR, "PHP 8.5.12 or later on the 8.5 branch is required; found ".PHP_VERSION.".\n"); exit(1); }'
 
 # persistent / runtime deps
 # hadolint ignore=DL3008
@@ -78,7 +79,7 @@ CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
 FROM frankenphp_base AS frankenphp_prod
 
 ENV APP_ENV=prod
-ARG SWC_VERSION=v1.3.92
+ARG SWC_VERSION=v1.16.22
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 

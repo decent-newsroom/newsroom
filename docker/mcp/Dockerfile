@@ -1,7 +1,7 @@
 # Standalone MCP service image — independent of the newsroom app image.
-FROM php:8.3.36-cli-alpine@sha256:337098ca8278d07fb9c80e92967df00a46e5982990e78b3905de4b4f97c2c655
+FROM php:8.3.37-cli-alpine@sha256:6af812ec8035623727a7a9bfa41c6e8838e93dcad82e9119f33d9da130c5a472
 
-RUN php -r 'if (PHP_VERSION_ID < 80336 || PHP_VERSION_ID >= 80400) { fwrite(STDERR, "PHP 8.3.36 or later on the 8.3 branch is required; found ".PHP_VERSION.".\n"); exit(1); }'
+RUN php -r 'if (PHP_VERSION_ID < 80337 || PHP_VERSION_ID >= 80400) { fwrite(STDERR, "PHP 8.3.37 or later on the 8.3 branch is required; found ".PHP_VERSION.".\n"); exit(1); }'
 
 COPY conf.d/10-security.ini /usr/local/etc/php/conf.d/10-security.ini
 

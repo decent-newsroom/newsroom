@@ -48,7 +48,7 @@ return [
         'version' => '2.0.3',
     ],
     'lodash-es' => [
-        'version' => '4.17.22',
+        'version' => '4.18.1',
     ],
     'parchment' => [
         'version' => '3.0.0',
@@ -57,7 +57,7 @@ return [
         'version' => '5.1.0',
     ],
     'eventemitter3' => [
-        'version' => '5.0.1',
+        'version' => '5.0.4',
     ],
     'fast-diff' => [
         'version' => '1.3.0',
@@ -77,7 +77,7 @@ return [
         'type' => 'css',
     ],
     'es-module-shims' => [
-        'version' => '2.8.0',
+        'version' => '2.8.4',
     ],
     'nostr-tools' => [
         'version' => '2.19.4',
@@ -89,7 +89,7 @@ return [
         'version' => '1.1.1',
     ],
     '@noble/ciphers/aes' => [
-        'version' => '2.1.1',
+        'version' => '2.4.0',
     ],
     '@noble/ciphers/chacha' => [
         'version' => '0.5.3',
@@ -101,23 +101,23 @@ return [
         'version' => '2.19.4',
     ],
     'chart.js/auto' => [
-        'version' => '4.5.1',
+        'version' => '4.6.2',
     ],
     '@kurkle/color' => [
-        'version' => '0.4.0',
+        'version' => '0.6.6',
     ],
     'katex' => [
-        'version' => '0.16.27',
+        'version' => '0.16.47',
     ],
     'katex/dist/contrib/auto-render.mjs' => [
-        'version' => '0.16.27',
+        'version' => '0.16.47',
     ],
     'katex/dist/katex.min.css' => [
-        'version' => '0.16.27',
+        'version' => '0.16.47',
         'type' => 'css',
     ],
     'katex/dist/katex.min.js' => [
-        'version' => '0.16.27',
+        'version' => '0.16.47',
     ],
     'prism-react' => [
         'version' => '1.0.2',
@@ -126,7 +126,7 @@ return [
         'version' => '1.0.2',
     ],
     'react' => [
-        'version' => '19.2.3',
+        'version' => '19.3.1',
     ],
     'recompose' => [
         'version' => '0.30.0',
@@ -172,55 +172,58 @@ return [
         'version' => '6.0.2',
     ],
     '@codemirror/lang-markdown' => [
-        'version' => '6.5.0',
+        'version' => '6.5.2',
     ],
     '@codemirror/theme-one-dark' => [
         'version' => '6.1.3',
     ],
     '@codemirror/view' => [
-        'version' => '6.39.11',
+        'version' => '6.44.1',
     ],
     '@codemirror/state' => [
-        'version' => '6.5.4',
+        'version' => '6.7.6',
     ],
     '@codemirror/language' => [
-        'version' => '6.12.1',
+        'version' => '6.13.1',
+    ],
+    '@codemirror/streamparser' => [
+        'version' => '6.0.0',
     ],
     '@codemirror/commands' => [
-        'version' => '6.10.1',
+        'version' => '6.11.2',
     ],
     '@codemirror/search' => [
-        'version' => '6.6.0',
+        'version' => '6.7.3',
     ],
     '@codemirror/autocomplete' => [
-        'version' => '6.20.0',
+        'version' => '6.20.4',
     ],
     '@codemirror/lint' => [
-        'version' => '6.9.2',
+        'version' => '6.9.8',
     ],
     '@lezer/markdown' => [
-        'version' => '1.6.3',
+        'version' => '1.8.2',
     ],
     '@codemirror/lang-html' => [
-        'version' => '6.4.11',
+        'version' => '6.4.12',
     ],
     '@lezer/common' => [
-        'version' => '1.5.0',
+        'version' => '1.5.7',
     ],
     '@lezer/highlight' => [
-        'version' => '1.2.3',
+        'version' => '1.2.5',
     ],
     'style-mod' => [
-        'version' => '4.1.3',
+        'version' => '4.1.5',
     ],
     'w3c-keyname' => [
         'version' => '2.2.8',
     ],
     'crelt' => [
-        'version' => '1.0.6',
+        'version' => '1.0.7',
     ],
     '@marijn/find-cluster-break' => [
-        'version' => '1.0.2',
+        'version' => '1.0.4',
     ],
     '@lezer/html' => [
         'version' => '1.3.13',
@@ -229,16 +232,16 @@ return [
         'version' => '6.3.1',
     ],
     '@codemirror/lang-javascript' => [
-        'version' => '6.2.4',
+        'version' => '6.2.5',
     ],
     '@lezer/lr' => [
-        'version' => '1.4.7',
+        'version' => '1.4.13',
     ],
     '@lezer/css' => [
-        'version' => '1.3.0',
+        'version' => '1.3.9',
     ],
     '@lezer/javascript' => [
-        'version' => '1.5.4',
+        'version' => '1.5.7',
     ],
     '@codemirror/lang-json' => [
         'version' => '6.0.2',
@@ -247,28 +250,28 @@ return [
         'version' => '1.0.3',
     ],
     '@noble/hashes/sha2.js' => [
-        'version' => '2.0.1',
+        'version' => '2.4.0',
     ],
     '@noble/hashes/utils.js' => [
-        'version' => '2.0.1',
+        'version' => '2.4.0',
     ],
     '@noble/hashes/hmac.js' => [
-        'version' => '2.0.1',
+        'version' => '2.4.0',
     ],
     '@babel/runtime/helpers/esm/extends' => [
-        'version' => '7.0.0',
+        'version' => '7.29.15',
     ],
     '@babel/runtime/helpers/esm/inheritsLoose' => [
-        'version' => '7.0.0',
+        'version' => '7.29.15',
     ],
     'react-lifecycles-compat' => [
         'version' => '3.0.4',
     ],
     '@babel/runtime/helpers/esm/objectWithoutPropertiesLoose' => [
-        'version' => '7.0.0',
+        'version' => '7.29.15',
     ],
     'react-is' => [
-        'version' => '16.12.0',
+        'version' => '16.13.1',
     ],
     'nostr-tools/utils' => [
         'version' => '2.19.4',

@@ -79,7 +79,7 @@ try {
     Assert-Docker
 
     # Public SWC compiler only; this download container has no repository mount.
-    docker run --rm --mount "type=volume,source=$varVolume,target=/fixture" --entrypoint sh node:22 -c 'curl -fLsS https://github.com/swc-project/swc/releases/download/v1.3.92/swc-linux-x64-gnu -o /fixture/swc-linux-x64-gnu && chmod +x /fixture/swc-linux-x64-gnu'
+    docker run --rm --mount "type=volume,source=$varVolume,target=/fixture" --entrypoint sh node:22 -c 'curl -fLsS https://github.com/swc-project/swc/releases/download/v1.16.22/swc-linux-x64-gnu -o /fixture/swc-linux-x64-gnu && chmod +x /fixture/swc-linux-x64-gnu'
     Assert-Docker
     docker run -d --name $app --network $network --network-alias newsroom-workspace-browser-app `
         --mount "type=bind,source=$root,target=/app,readonly" --mount $vendorMount `

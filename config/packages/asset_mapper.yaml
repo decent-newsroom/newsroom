@@ -1,3 +1,6 @@
+parameters:
+    app.typescript_source_dirs: [ '%kernel.project_dir%/assets/typescript' ]
+
 framework:
     asset_mapper:
         # The paths to make available to the asset mapper.
@@ -7,9 +10,15 @@ framework:
         missing_import_mode: strict
 
 sensiolabs_typescript:
-    source_dir: [ '%kernel.project_dir%/assets/typescript' ]
+    source_dir: '%app.typescript_source_dirs%'
 
 when@prod:
+    parameters:
+        # SWC 1.16 strips the source directory prefix, but the bundle expects
+        # output paths relative to the project root. Add new TypeScript files here.
+        app.typescript_source_dirs:
+            - '%kernel.project_dir%/assets/typescript/app.ts'
+            - '%kernel.project_dir%/assets/typescript/nostr-utils.ts'
     framework:
         asset_mapper:
             missing_import_mode: warn

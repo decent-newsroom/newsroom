@@ -35,10 +35,10 @@
 #     b) Include both the domain AND wildcard: yourdomain.com, *.yourdomain.com
 #
 # For local development:
-#   - Set SERVER_NAME=localhost,*.localhost (matches both main and subdomains)
+#   - Set SERVER_NAME=localhost, *.localhost (matches both main and subdomains)
 #   - Set RELAY_DOMAIN=relay.localhost
 #   - Symfony's UnfoldRequestListener handles subdomain routing
-{$SERVER_NAME:localhost,*.localhost} {
+{$SERVER_NAME:localhost, *.localhost} {
 	log {
 		{$CADDY_SERVER_LOG_OPTIONS}
 		# Redact the authorization query parameter that can be set by Mercure
@@ -144,6 +144,7 @@
 		encode @notSse gzip
 
 		mercure {
+			name newsroom
 			transport bolt {
 				path /data/mercure.db
 				size 100000
@@ -151,6 +152,9 @@
 			}
 
 			# JWT key for both publisher and subscriber
+			# Preserve existing 0.x topic parameters and Mercure JWT claims.
+			protocol_version_compatibility 8
+			cookie_name mercureAuthorization
 			publisher_jwt {env.MERCURE_JWT_SECRET}
 			subscriber_jwt {env.MERCURE_JWT_SECRET}
 
@@ -161,7 +165,7 @@
 			# Keep SSE connections alive through proxies and Docker networking.
 			# Without this, idle connections are closed before the default 40s
 			# heartbeat fires, causing visible reconnect cycling in browsers.
-			heartbeat_interval 15s
+			heartbeat 15s
 
 			{$MERCURE_EXTRA_DIRECTIVES}
 		}
@@ -221,6 +225,6 @@
 #   Caddy automatically obtains TLS certificates for domain + all subdomains
 #
 # Local development:
-#   SERVER_NAME=localhost,*.localhost
+#   SERVER_NAME=localhost, *.localhost
 #   RELAY_DOMAIN=relay.localhost
 #   Handles both main site and Unfold subdomains locally

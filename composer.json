@@ -34,7 +34,7 @@
         "doctrine/instantiator": "^1.5",
         "doctrine/orm": "^3.3",
         "embed/embed": "^4.4",
-        "endroid/installer": "1.4.4",
+        "endroid/installer": "1.5.0",
         "endroid/qr-code": "6.0.*",
         "endroid/qr-code-bundle": "6.0.0",
         "friendsofsymfony/elastica-bundle": "^6.5",
