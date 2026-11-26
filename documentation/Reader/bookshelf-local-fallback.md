@@ -70,6 +70,16 @@ be obtained, the existing reader result is retained and a warning is logged.
 5. `MercuryBookService` resolves the references through the bundle's Books API and Mercury clients, merges duplicate coordinates, and restores directory order.
 6. `BookshelfRelayBookLoader` refreshes unpinned coordinates and retrieves missing exact references from regular relays, then merges them into the same order.
 
+## Continuous reader layout
+
+The continuous reader and chapter list use shrinkable single-column grid tracks
+in `assets/styles/04-pages/bookshelf.css`. Grid items can shrink within the
+application shell's main column; long titles, metadata and links wrap without
+expanding it. Chapters retain their 76ch reading measure. Images and embedded
+media are capped to the chapter width, while wide code blocks, tables and display
+math scroll locally. The chapter body also provides horizontal scrolling for
+other oversized rendered content instead of clipping it or widening the viewport.
+
 ## Book detail navigation
 
 Book detail pages at `/bookshelf/book/{slug}` also link directly to the

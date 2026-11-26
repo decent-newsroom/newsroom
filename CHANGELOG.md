@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Keep Bookshelf reader grids within the main content area, wrapping long text and locally scrolling wide chapter content.
 - [Fix] Avoid redundant remote lookups and use the Books API when expanding nested Bookshelf readers, preventing timeouts for indexed books.
 - [Improvement] Place article recovery controls below relay settings in the editor sidebar.
 - [Fix] Restore editor recovery translations and make recovery controls fit desktop and mobile layouts.
