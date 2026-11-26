@@ -341,6 +341,7 @@ final class DefaultControllerExactPreviewTest extends TestCase
                     TestCase::assertSame([], $parameters, 'Warning-only rendering must not receive Event, Article or presentation metadata.');
                 }
                 $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates'), ['strict_variables' => true]);
+                $twig->addGlobal('app', ['user' => null]);
                 $twig->addFilter(new TwigFilter('trans', static fn (string $key, array $parameters = []): string => strtr($key, $parameters)));
                 return new Response($twig->render($view, $parameters));
             }

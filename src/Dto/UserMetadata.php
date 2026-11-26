@@ -76,6 +76,24 @@ class UserMetadata
     }
 
     /**
+     * Read a profile snapshot embedded in a normalized Redis base object.
+     *
+     * @param array<string, mixed> $baseObject
+     */
+    public static function fromRedisBaseObject(array $baseObject, string $pubkey): ?self
+    {
+        $profile = $baseObject['profiles'][$pubkey] ?? null;
+        if (!is_array($profile) || ($profile['pubkey'] ?? null) !== $pubkey) {
+            $profile = $baseObject['author'] ?? null;
+        }
+        if (!is_array($profile) || ($profile['pubkey'] ?? null) !== $pubkey) {
+            return null;
+        }
+
+        return self::fromStdClass((object) $profile);
+    }
+
+    /**
      * Create default metadata for a given pubkey (used when no metadata is cached).
      */
     public static function createDefault(string $pubkeyHex): self

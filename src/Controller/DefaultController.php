@@ -314,7 +314,7 @@ class DefaultController extends AbstractController
                 $articlePayload = $baseObject['article'];
                 $articlePubkey = $articlePayload['pubkey'] ?? null;
 
-                if (!is_string($articlePubkey) || !isset($authorsMetadataStd[$articlePubkey])) {
+                if (!is_string($articlePubkey) || $articlePubkey === '') {
                     continue;
                 }
 
@@ -322,7 +322,11 @@ class DefaultController extends AbstractController
                     continue;
                 }
 
-                $authorMetadata = $authorsMetadataStd[$articlePubkey];
+                $authorMetadata = $authorsMetadataStd[$articlePubkey]
+                    ?? UserMetadata::fromRedisBaseObject($baseObject, $articlePubkey)?->toStdClass();
+                if ($authorMetadata !== null) {
+                    $authorsMetadataStd[$articlePubkey] = $authorMetadata;
+                }
 
                 if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
                     continue;
@@ -410,7 +414,7 @@ class DefaultController extends AbstractController
                 $articlePayload = $baseObject['article'];
                 $articlePubkey = $articlePayload['pubkey'] ?? null;
 
-                if (!is_string($articlePubkey) || !isset($authorsMetadata[$articlePubkey])) {
+                if (!is_string($articlePubkey) || $articlePubkey === '') {
                     continue;
                 }
 
@@ -418,7 +422,11 @@ class DefaultController extends AbstractController
                     continue;
                 }
 
-                $authorMetadata = $authorsMetadata[$articlePubkey];
+                $authorMetadata = $authorsMetadata[$articlePubkey]
+                    ?? UserMetadata::fromRedisBaseObject($baseObject, $articlePubkey);
+                if ($authorMetadata !== null) {
+                    $authorsMetadata[$articlePubkey] = $authorMetadata;
+                }
 
                 if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
                     continue;

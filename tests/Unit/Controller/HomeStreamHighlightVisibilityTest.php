@@ -120,6 +120,58 @@ final class HomeStreamHighlightVisibilityTest extends TestCase
         self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
     }
 
+    public function testCachedLatestArticlesUseTheirProfileWhenMetadataEventIsMissing(): void
+    {
+        $article = ['pubkey' => self::AUTHOR, 'slug' => 'article', 'title' => 'Cached article'];
+        $profile = ['pubkey' => self::AUTHOR, 'name' => 'Cached writer', 'display_name' => 'Cached writer'];
+        $views = $this->createMock(RedisViewStore::class);
+        $views->expects(self::once())->method('fetchLatestArticles')->willReturn([[
+            'article' => $article,
+            'author' => null,
+            'profiles' => [self::AUTHOR => $profile],
+        ]]);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findLatestMetadataByPubkeys')
+            ->with([self::AUTHOR])->willReturn([]);
+        $exclusionPolicy = $this->createMock(LatestArticlesExclusionPolicy::class);
+        $exclusionPolicy->expects(self::once())->method('shouldExcludeArticleData')
+            ->with($article, self::callback(static function (\stdClass $metadata): bool {
+                return $metadata->name === 'Cached writer' && $metadata->display_name === 'Cached writer';
+            }))
+            ->willReturn(false);
+        $nip19 = new NostrNip19Service();
+        $subscriptionFeed = new SubscriptionFeed(
+            $this->createMock(UpdateRepository::class),
+            $events,
+            $this->createMock(ArticleRepository::class),
+            $this->createMock(SubscriptionChangeRepository::class),
+            new SubscriptionSource($nip19, $events),
+            $this->makeHighlightPreviewAccess($this->createMock(Security::class)),
+            $this->createMock(UpdateMatcher::class),
+            $nip19,
+        );
+        $controller = new class($subscriptionFeed) extends HomeFeedController {
+            protected function getUser(): ?UserInterface
+            {
+                return null;
+            }
+        };
+        $latestArticlesData = new \ReflectionMethod(HomeFeedController::class, 'latestArticlesData');
+
+        $result = $latestArticlesData->invoke(
+            $controller,
+            $views,
+            $exclusionPolicy,
+            $this->createMock(ContentSearchService::class),
+            $this->createMock(UserMuteListService::class),
+            $events,
+        );
+
+        self::assertCount(1, $result['articles']);
+        self::assertEquals((object) $article, $result['articles'][0]);
+        self::assertSame('Cached writer', $result['authorsMetadata'][self::AUTHOR]->name);
+    }
+
     private function event(string $id, int $kind, array $tags): Event
     {
         $event = new Event();

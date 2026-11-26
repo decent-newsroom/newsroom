@@ -78,7 +78,8 @@ class UpdateMatcher
                 } elseif (!$matches && $event->getKind() === 30023) {
                     foreach ($this->differ->members($source->getKind(), $source->getTags()) as $member) {
                         if (($member['type'] === 'profile' && $member['target'] === $event->getPubkey())
-                            || ($member['type'] === 'address' && $member['target'] === self::coordinateOf($event))
+                            || ($member['type'] === 'address' && $member['target'] === self::coordinateOf($event)
+                                && ($member['pin'] === null || $member['pin'] === $event->getId()))
                             || ($member['type'] === 'event_id' && $member['target'] === $event->getId())) {
                             $matches = true;
                             break;

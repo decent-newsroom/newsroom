@@ -179,9 +179,16 @@ class HomeFeedController extends AbstractController
                         continue;
                     }
 
-                    $authorMetadata = $articlePubkey ? ($authorsMetadata[$articlePubkey] ?? null) : null;
+                    if (!is_string($articlePubkey) || $articlePubkey === '') {
+                        continue;
+                    }
 
-                    if ($authorMetadata === null || $exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
+                    $authorMetadata = $authorsMetadata[$articlePubkey]
+                        ?? UserMetadata::fromRedisBaseObject($baseObject, $articlePubkey)?->toStdClass();
+                    if ($authorMetadata !== null) {
+                        $authorsMetadata[$articlePubkey] = $authorMetadata;
+                    }
+                    if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
                         continue;
                     }
 

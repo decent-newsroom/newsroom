@@ -396,6 +396,36 @@ final class SubscriptionsTest extends TestCase
         self::assertCount(1, $this->matcher->match($article), 'Overlapping subscriptions produce one delivery.');
     }
 
+    public function testPublicationAddressPinsMatchOnlyTheReferencedArticleRevision(): void
+    {
+        $user = $this->user();
+        $pinnedId = str_repeat('c', 64);
+        $coordinate = '30023:' . str_repeat('b', 64) . ':article';
+        $publication = $this->event(1, 30040, time() + 10, [
+            ['d', 'magazine'], ['a', $coordinate, '', $pinnedId],
+        ]);
+        $subscription = new UpdateSubscription(
+            $user,
+            UpdateSourceTypeEnum::PUBLICATION,
+            UpdateMatcher::coordinateOf($publication),
+        );
+        $this->em->persist($subscription);
+        $this->em->flush();
+
+        $article = new Event();
+        $article->setId(str_repeat('d', 64));
+        $article->setKind(30023);
+        $article->setPubkey(str_repeat('b', 64));
+        $article->setCreatedAt(time() + 20);
+        $article->setTags([['d', 'article']]);
+        $article->extractAndSetDTag();
+
+        self::assertSame([], $this->matcher->match($article), 'A later revision is not the event pinned by the list.');
+
+        $article->setId($pinnedId);
+        self::assertSame([$subscription], $this->matcher->match($article));
+    }
+
     public function testFeedHidesMutedDeletedAndScopedSourcesFromRowsAndCounts(): void
     {
         $user = $this->user();
