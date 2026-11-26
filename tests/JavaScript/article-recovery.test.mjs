@@ -35,7 +35,7 @@ async function fixture() {
     const element = { querySelector: () => null };
     const labels = {
         browser_failed: 'browser failed', server_failed: 'server failed', saved_browser: 'browser saved',
-        saved_both: 'both saved', saved_local_only: 'local only', confirm_restore: 'restore?',
+        saved_both: 'both saved', saved_local_only: 'local only', confirm_restore: 'restore?', empty: 'empty',
     };
     const requests = [];
     let fetchImpl = async () => ({ ok: true });
@@ -70,8 +70,95 @@ async function fixture() {
         application: { getControllerForElementAndIdentifier: () => layout },
         renderList() {},
     });
-    return { controller, layout, fields, storage, values, requests, setFetch: (fn) => { fetchImpl = fn; } };
+    return { controller, layout, fields, markdown, storage, values, requests, setFetch: (fn) => { fetchImpl = fn; } };
 }
+
+test('does not save or queue an empty or whitespace-only article', async () => {
+    const { controller, fields, markdown, values, requests } = await fixture();
+    fields.namedItem('editor[title]').value = ' \n ';
+    markdown._codemirror.state.doc.toString = () => '\n  ';
+    assert.equal(controller.saveSnapshot(), 'empty');
+    controller.saveNow();
+    assert.equal(controller.statusTarget.textContent, 'empty');
+    assert.equal(values.size, 0);
+    assert.equal(controller.pending.size, 0);
+    await controller.flushServer();
+    assert.equal(requests.length, 0);
+});
+
+test('saves an article with only a title or Markdown content', async () => {
+    const { controller, fields, markdown, values } = await fixture();
+    markdown._codemirror.state.doc.toString = () => '';
+    assert.equal(controller.saveSnapshot(), true);
+    clearTimeout(controller.serverTimer);
+    fields.namedItem('editor[title]').value = '';
+    markdown._codemirror.state.doc.toString = () => 'body';
+    assert.equal(controller.saveSnapshot(), true);
+    clearTimeout(controller.serverTimer);
+    assert.equal(JSON.parse(values.get('article-recovery:v1:alice:first-id')).editorState.content_NMD, 'body');
+});
+
+test('checks current rich text rather than stale Markdown and preserves embedded content', async () => {
+    const { controller, fields, layout, values } = await fixture();
+    fields.namedItem('editor[title]').value = '';
+    layout.state.active_source = 'quill';
+    layout.state.content_NMD = 'old content';
+    layout.state.content_delta = { ops: [{ insert: '\n' }] };
+    assert.equal(controller.saveSnapshot(), 'empty');
+    layout.state.content_delta = { ops: [{ insert: { image: 'https://example.test/image' } }, { insert: '\n' }] };
+    assert.equal(controller.saveSnapshot(), true);
+    clearTimeout(controller.serverTimer);
+    assert.equal(values.size, 1);
+});
+
+test('clearing an article does not overwrite its saved or queued copy', async () => {
+    const { controller, fields, markdown, values } = await fixture();
+    controller.saveSnapshot();
+    clearTimeout(controller.serverTimer);
+    const saved = values.get('article-recovery:v1:alice:first-id');
+    const pending = controller.pending.get('first-id');
+    fields.namedItem('editor[title]').value = '';
+    markdown._codemirror.state.doc.toString = () => '';
+    assert.equal(controller.saveSnapshot(), 'empty');
+    assert.equal(values.get('article-recovery:v1:alice:first-id'), saved);
+    assert.equal(controller.pending.get('first-id'), pending);
+});
+
+test('restoring into an empty editor skips its backup but retains the restored copy', async () => {
+    const { controller, fields, markdown, values } = await fixture();
+    const snapshot = controller.capture();
+    fields.namedItem('editor[title]').value = '';
+    markdown._codemirror.state.doc.toString = () => '';
+    controller.restore(snapshot);
+    clearTimeout(controller.serverTimer);
+    assert.equal(values.has('article-recovery:v1:alice:first-id'), false);
+    assert.equal(values.has('article-recovery:v1:alice:new-id'), true);
+});
+
+test('restoring preserves metadata-only work even without a title or content', async () => {
+    const { controller, fields, markdown, values } = await fixture();
+    const snapshot = controller.capture();
+    fields.namedItem('editor[title]').value = '';
+    fields.push({ name: 'editor[summary]', value: 'Unsaved summary', type: 'textarea' });
+    markdown._codemirror.state.doc.toString = () => '';
+    assert.equal(controller.saveSnapshot(), 'empty');
+    controller.restore(snapshot);
+    clearTimeout(controller.serverTimer);
+    assert.equal(JSON.parse(values.get('article-recovery:v1:alice:first-id')).fields['editor[summary]'].value, 'Unsaved summary');
+});
+
+test('preserves manually edited event JSON with an empty form', async () => {
+    const { controller, fields, markdown, layout, values } = await fixture();
+    fields.namedItem('editor[title]').value = '';
+    markdown._codemirror.state.doc.toString = () => '';
+    const json = { closest: () => ({}) };
+    controller.element.querySelector = (selector) => selector === '#json-editor-textarea' ? json : null;
+    controller.application.getControllerForElementAndIdentifier = (_element, identifier) =>
+        identifier === 'editor--layout' ? layout : { jsonEdited: true, getCurrentJson: () => '{"content":"work"}' };
+    assert.equal(controller.saveSnapshot(), true);
+    clearTimeout(controller.serverTimer);
+    assert.equal(JSON.parse(values.get('article-recovery:v1:alice:first-id')).json, '{"content":"work"}');
+});
 
 test('captures current Markdown and form values without identity or CSRF fields', async () => {
     const { controller } = await fixture();

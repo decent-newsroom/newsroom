@@ -1851,6 +1851,7 @@ article_recovery:
     saved_both: 'Obnovitveni kopiji sta shranjeni v brskalniku in na strežniku.'
     saved_browser: 'Obnovitvena kopija je shranjena v brskalniku. Shranjevanje na strežnik morda še poteka.'
     saved_local_only: 'Obnovitvena kopija je shranjena v brskalniku. Prijavite se, da jo shranite tudi na strežnik.'
+    empty: 'Pred shranjevanjem obnovitvene kopije dodajte naslov ali vsebino.'
     browser_failed: 'Shranjevanje v brskalnik ni uspelo. Preverite kopijo na strežniku ali izvozite datoteko.'
     server_failed: 'Obnovitev s strežnika ni na voljo ali pa shranjevanje še poteka. Preverite kopijo v brskalniku ali izvozite datoteko.'
     invalid_file: 'Obnovitvene kopije ni bilo mogoče prebrati ali obnoviti.'

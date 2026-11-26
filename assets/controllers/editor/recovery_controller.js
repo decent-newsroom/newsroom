@@ -87,7 +87,9 @@ export default class extends Controller {
 
     saveNow() {
         clearTimeout(this.localTimer);
-        this.saveSnapshot(true);
+        if (this.saveSnapshot(true) === 'empty') {
+            this.statusTarget.textContent = this.labelsValue.empty;
+        }
     }
 
     restorableField(name) {
@@ -95,7 +97,30 @@ export default class extends Controller {
             && !/\[(?:_token|pubkey|loginMethod)\]$/.test(name);
     }
 
-    saveSnapshot(immediate = false) {
+    hasArticleContent(snapshot) {
+        const title = snapshot.fields['editor[title]']?.value;
+        if (typeof title === 'string' && title.trim()) return true;
+
+        const state = snapshot.editorState;
+        if (state.active_source === 'quill') {
+            if (Array.isArray(state.content_delta?.ops) && state.content_delta.ops.some(({ insert }) =>
+                typeof insert === 'string' ? insert.trim().length > 0 : insert != null
+            )) return true;
+        } else if (typeof state.content_NMD === 'string' && state.content_NMD.trim()) {
+            return true;
+        }
+
+        return snapshot.jsonEdited && typeof snapshot.json === 'string' && snapshot.json.trim().length > 0;
+    }
+
+    hasArticleMetadata(snapshot) {
+        return Object.entries(snapshot.fields).some(([name, field]) =>
+            (/^editor\[(?:slug|summary|image|topics)\]$/.test(name) || name.startsWith('editor[advancedMetadata]'))
+            && (field?.checked === true || (typeof field?.value === 'string' && field.value.trim() && field.checked === undefined))
+        );
+    }
+
+    saveSnapshot(immediate = false, preserveMetadata = false) {
         this.localTimer = null;
         let snapshot;
         try {
@@ -105,6 +130,7 @@ export default class extends Controller {
             this.statusTarget.textContent = this.labelsValue.browser_failed;
             return false;
         }
+        if (!this.hasArticleContent(snapshot) && !(preserveMetadata && this.hasArticleMetadata(snapshot))) return 'empty';
         this.browserSaved = false;
         try {
             localStorage.setItem(this.prefix + this.id, JSON.stringify(snapshot));
@@ -238,7 +264,7 @@ export default class extends Controller {
         if (!this.valid(snapshot) || !window.confirm(this.labelsValue.confirm_restore)) return;
         // Preserve the work currently in the editor before replacing it.
         clearTimeout(this.localTimer);
-        if (!this.saveSnapshot(true)) return;
+        if (this.saveSnapshot(true, true) === false) return;
         this.id = crypto.randomUUID();
         this.restoring = true;
         try {

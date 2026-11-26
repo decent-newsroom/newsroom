@@ -2201,6 +2201,7 @@ article_recovery:
     saved_both: 'Recovery copies saved in this browser and on the server.'
     saved_browser: 'Recovery copy saved in this browser. Server save may still be pending.'
     saved_local_only: 'Recovery copy saved in this browser. Sign in to also save to the server.'
+    empty: 'Add a title or content before saving a recovery copy.'
     browser_failed: 'Browser recovery storage failed. Check the server copy or export a file.'
     server_failed: 'Server recovery is unavailable or still saving. Check your browser copy or export a file.'
     invalid_file: 'The recovery copy could not be read or restored.'

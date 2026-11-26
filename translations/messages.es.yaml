@@ -1852,6 +1852,7 @@ article_recovery:
     saved_both: 'Copias de recuperación guardadas en este navegador y en el servidor.'
     saved_browser: 'Copia de recuperación guardada en este navegador. Es posible que aún esté pendiente el guardado en el servidor.'
     saved_local_only: 'Copia de recuperación guardada en este navegador. Inicia sesión para guardarla también en el servidor.'
+    empty: 'Añade un título o contenido antes de guardar una copia de recuperación.'
     browser_failed: 'No se pudo guardar la copia en el navegador. Comprueba la copia del servidor o exporta un archivo.'
     server_failed: 'La recuperación del servidor no está disponible o sigue guardando. Comprueba la copia del navegador o exporta un archivo.'
     invalid_file: 'No se pudo leer o restaurar la copia de recuperación.'

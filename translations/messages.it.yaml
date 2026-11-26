@@ -1558,6 +1558,7 @@ article_recovery:
     saved_both: 'Copie di recupero salvate in questo browser e sul server.'
     saved_browser: 'Copia di recupero salvata in questo browser. Il salvataggio sul server potrebbe essere ancora in corso.'
     saved_local_only: 'Copia di recupero salvata in questo browser. Accedi per salvarla anche sul server.'
+    empty: 'Aggiungi un titolo o del contenuto prima di salvare una copia di recupero.'
     browser_failed: 'Salvataggio nel browser non riuscito. Controlla la copia sul server o esporta un file.'
     server_failed: 'Il recupero sul server non è disponibile o il salvataggio è ancora in corso. Controlla la copia nel browser o esporta un file.'
     invalid_file: 'Impossibile leggere o ripristinare la copia di recupero.'

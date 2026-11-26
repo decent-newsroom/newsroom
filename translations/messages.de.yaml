@@ -1862,6 +1862,7 @@ article_recovery:
     saved_both: 'Wiederherstellungskopien im Browser und auf dem Server gespeichert.'
     saved_browser: 'Wiederherstellungskopie im Browser gespeichert. Das Speichern auf dem Server steht möglicherweise noch aus.'
     saved_local_only: 'Wiederherstellungskopie im Browser gespeichert. Melden Sie sich an, um auch auf dem Server zu speichern.'
+    empty: 'Fügen Sie einen Titel oder Inhalt hinzu, bevor Sie eine Wiederherstellungskopie speichern.'
     browser_failed: 'Die Speicherung im Browser ist fehlgeschlagen. Prüfen Sie die Serverkopie oder exportieren Sie eine Datei.'
     server_failed: 'Die Serverwiederherstellung ist nicht verfügbar oder speichert noch. Prüfen Sie Ihre Browserkopie oder exportieren Sie eine Datei.'
     invalid_file: 'Die Wiederherstellungskopie konnte nicht gelesen oder wiederhergestellt werden.'

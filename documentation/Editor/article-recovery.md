@@ -7,11 +7,14 @@ browser or server copies, or export and import a JSON recovery file.
 ## How it works
 
 Changes are saved in browser local storage at short intervals while editing.
+Blank articles with neither a title nor content are not saved, and clearing
+an article does not overwrite its last recovery copy. Manually edited event
+JSON is preserved even if the form has no title or content.
 Signed-in writers also save to their account on the server at a longer interval; the
 status reports storage failures. Open **Relays** in the right-hand settings
 sidebar (on mobile, open **Show Settings** first) to find **Recovery copies**
 below the relay settings. It lists browser and server copies separately.
-Restoring first saves the current editor contents
+Restoring first saves any current article or metadata changes
 in the browser and then opens the selected copy as a new working copy. A failed
 browser save prevents replacement of the current work.
 

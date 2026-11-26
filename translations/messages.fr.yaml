@@ -1849,6 +1849,7 @@ article_recovery:
     saved_both: 'Copies de récupération enregistrées dans ce navigateur et sur le serveur.'
     saved_browser: 'Copie de récupération enregistrée dans ce navigateur. L’enregistrement sur le serveur peut être encore en cours.'
     saved_local_only: 'Copie de récupération enregistrée dans ce navigateur. Connectez-vous pour l’enregistrer aussi sur le serveur.'
+    empty: 'Ajoutez un titre ou du contenu avant d’enregistrer une copie de récupération.'
     browser_failed: 'L’enregistrement dans le navigateur a échoué. Vérifiez la copie sur le serveur ou exportez un fichier.'
     server_failed: 'La récupération sur le serveur est indisponible ou l’enregistrement est en cours. Vérifiez la copie du navigateur ou exportez un fichier.'
     invalid_file: 'La copie de récupération n’a pas pu être lue ou restaurée.'
