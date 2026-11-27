@@ -41,7 +41,10 @@
             {{ book.coordinate in directoryCoordinates ? 'bookshelf.remove_from_my_books'|trans : 'bookshelf.add_to_my_books'|trans }}
         </button>
     {% endif %}
-    {% include 'bookshelf/_reader_contents.html.twig' with {rootId: book.id, path: [], page: 1, indexBody: null, indexMetadata: null} %}
+    {% set contentsUrl = path('bookshelf_reader_contents', {id: book.id}) %}
+    <turbo-frame id="bookshelf-reader-{{ book.id }}-root-1" src="{{ contentsUrl }}">
+        <a href="{{ contentsUrl }}">{{ 'bookshelf.table_of_contents'|trans }}</a>
+    </turbo-frame>
 </section>
 {% endblock %}
 

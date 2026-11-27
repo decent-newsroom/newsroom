@@ -1137,7 +1137,7 @@ unfold:
     unfoldDesc1: 'Unfold pretvori definicijo vaše revije v čisto, strukturirano spletno revijo — z navigacijo, kategorijami in posameznimi stranmi člankov.'
     unfoldDesc2: 'Ko se vaši osnovni Nostr dogodki spremenijo, se vaša revija samodejno posodobi. Brez ponovnih namestitev. Brez ritualov predpomnilnika.'
     unfoldHosting: 'Zaženite svojo revijo na namenski poddomeni. Za produkcijsko gostovanje in upodabljanje Unfold poskrbimo mi.'
-    unfoldPrice: '120.000 satov / leto'
+    unfoldPrice: '5.000 satov / leto'
     unfoldPriceDesc: 'Letno upravljano gostovanje za eno revijo.'
     launchMagazine: 'Zaženi svojo revijo'
     seeInAction: 'Oglejte si v akciji'
@@ -1179,7 +1179,7 @@ journey:
         subdomain:
             heading: 'Dajte ji lasten naslov'
             eyebrow: 'vašeime.decentnewsroom.com'
-            description: 'Svojo revijo lahko objavite na namenski poddomeni, s čimer ji zagotovite stabilen spletni dom in povezave do člankov, ki jih lahko delite kjerkoli. Gostujoče poddomene so na voljo za 120.000 satov na leto prek Lightninga.'
+            description: 'Svojo revijo lahko objavite na namenski poddomeni, s čimer ji zagotovite stabilen spletni dom in povezave do člankov, ki jih lahko delite kjerkoli. Gostujoče poddomene so na voljo za 5.000 satov na leto prek Lightninga.'
         ready:
             heading: 'Začnite s članki, ki jih že imate'
             description: 'Če objavljate eseje na Nostru, jih lahko v le nekaj minutah spremenite v organizirano revijo z lastno spletno prisotnostjo.'

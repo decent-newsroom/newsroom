@@ -165,6 +165,18 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
         self::assertCount(0, $crawler->filter('#publication-containing-indexes'));
     }
 
+    public function testRootTocIsAnIndependentFrameWithoutHydratedRows(): void
+    {
+        $crawler = new Crawler($this->renderIndex($this->presentation([
+            ['a', '30040:' . self::AUTHOR . ':secret-child'],
+        ])));
+        $frame = $crawler->filter('turbo-frame#nook-toc-' . self::EVENT_ID);
+        self::assertCount(1, $frame);
+        self::assertSame('/bookshelf/index/' . self::EVENT_ID . '/contents?page=1', $frame->attr('src'));
+        self::assertCount(0, $frame->filter('.event-toc-list li'));
+        self::assertStringNotContainsString('secret-child', $frame->text());
+    }
+
     public function testArticleLeavesUseTheTranslatedArticlesHeading(): void
     {
         $presentation = $this->presentation([
@@ -198,7 +210,9 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
         $crawler = new Crawler($html);
         $frame = $crawler->filter('#nook-toc-' . self::EVENT_ID);
 
-        self::assertSame($this->trans('bookshelf.publication.contents'), $crawler->filter('#bookshelf-index-contents')->text());
+        self::assertSame($this->trans('bookshelf.publication.contents'), (new Crawler($this->renderIndex(
+            $presentation, tocHeading: 'bookshelf.publication.contents',
+        )))->filter('#bookshelf-index-contents')->text());
         self::assertSame([
             $this->trans('bookshelf.publication.featured_article'),
             $this->trans('bookshelf.publication.indexes'),
@@ -358,17 +372,19 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
         array $containingIndexes = [],
         ?array $tocPage = null,
     ): string {
+        if ($tocPage !== null) {
+            return self::getContainer()->get('twig')->render('reader/reading_nook/_publication_toc.html.twig', [
+                'tocPage' => $tocPage,
+                'tocBookshelfLinks' => true,
+            ]);
+        }
         return self::getContainer()->get('twig')->render('bookshelf/index.html.twig', [
             'presentation' => $presentation,
             'authorMetadata' => ($author ?? new UserMetadata())->toStdClass(),
             'isBook' => $isBook,
             'tocHeading' => $tocHeading,
             'containingIndexes' => $containingIndexes,
-            'tocBookshelfLinks' => true,
-            'tocPage' => $tocPage ?? [
-                'eventId' => self::EVENT_ID, 'page' => 1, 'entries' => [],
-                'hasPrevious' => false, 'hasNext' => false,
-            ],
+            'tocPageNumber' => 1,
         ]);
     }
 
@@ -421,6 +437,7 @@ final class BookshelfIndexTemplateTestKernel extends Kernel
     {
         $routes->add('bookshelf', '/bookshelf');
         $routes->add('bookshelf_index', '/bookshelf/index/{eventId}');
+        $routes->add('bookshelf_index_contents', '/bookshelf/index/{eventId}/contents');
         $routes->add('bookshelf_read_native_fallback', '/bookshelf/{id}');
         $routes->add('author-profile', '/p/{npub}');
     }

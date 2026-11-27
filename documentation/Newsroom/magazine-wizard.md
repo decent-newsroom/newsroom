@@ -2,7 +2,7 @@
 
 ## Overview
 
-The magazine wizard has been upgraded from a 2-step flow into a 6-step flow with improved UX for each step. Magazine creation is free; subdomain hosting is a paid service (120,000 sats/year via Lightning).
+The magazine wizard has been upgraded from a 2-step flow into a 6-step flow with improved UX for each step. Magazine creation is free; subdomain hosting is a paid service (5,000 sats/year via Lightning).
 
 ## Steps
 
@@ -38,7 +38,7 @@ The magazine wizard has been upgraded from a 2-step flow into a 6-step flow with
 - **What it does:** Offers paid subdomain hosting for the just-published magazine.
 - **Payment flow:** The form posts directly to the existing `publication_subdomain_create` route, which creates a subscription and generates a Lightning invoice. The user is redirected to the invoice page with a QR code.
 - **Magazine coordinate auto-fill:** The magazine coordinate (`30040:pubkey:slug`) is automatically built from the wizard draft's slug and the user's npub, passed as a hidden field.
-- **Pricing:** Displays the current price (120,000 sats/year) inline using `PublicationSubdomainSubscription::PRICE_SATS`.
+- **Pricing:** Displays the current price (5,000 sats/year) inline using `PublicationSubdomainSubscription::PRICE_SATS`.
 - **Subdomain availability:** Uses the existing `blog--subdomain-check` Stimulus controller to check availability in real time. The submit button is disabled until availability is confirmed.
 - **Error handling:** On validation or creation errors, the user is redirected back to the wizard subdomain step (not the standalone subscribe page) via an `_error_redirect` hidden field.
 - **Skip option:** Users can skip subdomain setup and proceed directly to the launched/done step.
@@ -93,4 +93,3 @@ When categories are reordered via drag-and-drop, the `sortable_controller.js` up
 
 ### Category Dropdown Data
 The dropdown is populated from `ReadingListManager::getUserReadingLists()` which returns kind 30040 events (reading lists/categories) owned by the current user, excluding magazine indexes (30040 events that reference other 30040 events).
-

@@ -1260,7 +1260,7 @@ unfold:
     unfoldDesc1: 'Unfold trasforma la definizione della tua rivista in una rivista web pulita e strutturata — con navigazione, categorie e pagine individuali degli articoli.'
     unfoldDesc2: 'Quando i tuoi eventi Nostr sottostanti cambiano, la tua rivista si aggiorna automaticamente. Nessun rideploy. Nessun rituale di cache.'
     unfoldHosting: 'Lancia la tua rivista su un sottodominio dedicato. L''hosting pronto per la produzione e il rendering Unfold sono gestiti per te.'
-    unfoldPrice: '120.000 sat / anno'
+    unfoldPrice: '5.000 sat / anno'
     unfoldPriceDesc: 'Hosting annuale gestito per una rivista.'
     launchMagazine: 'Lancia la tua rivista'
     seeInAction: 'Guardalo in azione'
@@ -1416,7 +1416,7 @@ journey:
         subdomain:
             heading: 'Dagli il proprio indirizzo'
             eyebrow: 'tuonome.decentnewsroom.com'
-            description: 'Puoi pubblicare la tua rivista su un sottodominio dedicato, dandole una casa web stabile e link agli articoli puliti da condividere ovunque. I sottodomini ospitati sono disponibili per 120.000 sat all''anno tramite Lightning.'
+            description: 'Puoi pubblicare la tua rivista su un sottodominio dedicato, dandole una casa web stabile e link agli articoli puliti da condividere ovunque. I sottodomini ospitati sono disponibili per 5.000 sat all''anno tramite Lightning.'
         ready:
             heading: 'Inizia con gli articoli che hai già'
             description: 'Se pubblichi longform su Nostr, puoi trasformarlo in una rivista organizzata con la propria presenza web in pochi minuti.'

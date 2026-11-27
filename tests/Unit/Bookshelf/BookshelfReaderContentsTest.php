@@ -5,17 +5,27 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Bookshelf;
 
 use App\Bookshelf\BookshelfReaderContents;
+use App\Bookshelf\BookshelfRelayBookLoader;
+use App\Bookshelf\BookshelfReaderTraversalSigner;
+use App\Controller\Bookshelf\BookshelfReadController;
 use App\Entity\Event;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Nostr\NostrClient;
 use App\Service\Reader\ContentAuthorAccessPolicy;
+use App\Service\UserMuteListService;
+use AsciiDocConverter;
+use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface;
+use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClientInterface;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Model\MercuryEvent;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 use Twig\Loader\ChainLoader;
@@ -25,6 +35,355 @@ use Twig\TwigFunction;
 
 final class BookshelfReaderContentsTest extends TestCase
 {
+    /** @dataProvider rootReaderKinds */
+    public function testReaderControllerDoesNotResolveOrConvertRootChildren(?int $kind, string $childIdentifier = 'child', string $rootIdentifier = 'book'): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->entity($this->event('b', $pubkey, 30040, $rootIdentifier,
+            $kind === null ? [['title', 'Metadata only']] : [['a', "$kind:$pubkey:$childIdentifier"]]));
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findByIds')->willReturn([$root->getId() => $root]);
+        $events->expects(self::never())->method('findBookshelfReaderTargets');
+        $api = $this->createMock(MercuryApiClientInterface::class);
+        $api->expects(self::never())->method('getChaptersByAuthors');
+        $api->expects(self::never())->method('getPublicationsByAuthors');
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $nostr->expects(self::never())->method('getEventsByIds');
+        $logger = $this->createStub(LoggerInterface::class);
+        $contents = new BookshelfReaderContents(
+            $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $logger, $this->createStub(MercuryApiClientInterface::class),
+        );
+        $controller = new BookshelfReadController();
+        $container = new Container();
+        $container->set('security.token_storage', new TokenStorage());
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->willReturnCallback(
+            static function (string $template, array $parameters) use ($rootIdentifier, $pubkey): string {
+                self::assertSame('bookshelf/read_nested.html.twig', $template);
+                self::assertArrayNotHasKey('contents', $parameters);
+                self::assertSame("30040:$pubkey:$rootIdentifier", $parameters['book']['coordinate']);
+                return 'reader shell';
+            },
+        );
+        $container->set('twig', $twig);
+        $controller->setContainer($container);
+        $converter = $this->createMock(AsciiDocConverter::class);
+        $converter->expects(self::never())->method('convert');
+        $api->expects(self::never())->method('getEvent');
+        $response = $controller->read(
+            $root->getId(), new Request(), new BookshelfRelayBookLoader($nostr, $logger),
+            $contents, new BookshelfDirectoryService($this->createStub(DirectoryEventStoreInterface::class)), $logger,
+            $this->createStub(UserMuteListService::class),
+        );
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public static function rootReaderKinds(): iterable
+    {
+        yield 'flat chapter' => [30041];
+        yield 'nested index' => [30040];
+        yield 'empty chapter identifier' => [30041, ''];
+        yield 'empty root identifier and no children' => [null, '', ''];
+        yield 'metadata-only index' => [null];
+    }
+
+    public function testReaderFragmentResolvesAndConvertsOnlyItsOwnPage(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $tags = [];
+        for ($i = 1; $i <= 6; ++$i) {
+            $tags[] = ['a', "30041:$pubkey:chapter-$i"];
+        }
+        $root = $this->entity($this->event('b', $pubkey, 30040, 'book', $tags));
+        $chapter = $this->entity($this->event('c', $pubkey, 30041, 'chapter-6', [['title', 'Sixth']], 'Body six'));
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findByIds')->willReturn([$root->getId() => $root]);
+        $events->expects(self::once())->method('findBookshelfReaderTargets')
+            ->with(["30041:$pubkey:chapter-6"], [])
+            ->willReturn(['coordinates' => ["30041:$pubkey:chapter-6" => $chapter], 'eventIds' => []]);
+        $api = $this->createMock(MercuryApiClientInterface::class);
+        $api->expects(self::never())->method('getChaptersByAuthors');
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $logger = $this->createStub(LoggerInterface::class);
+        $reader = new BookshelfReaderContents(
+            $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $logger, $this->createStub(MercuryApiClientInterface::class),
+        );
+        $controller = new BookshelfReadController();
+        $container = new Container();
+        $container->set('security.token_storage', new TokenStorage());
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->willReturnCallback(
+            static function (string $template, array $parameters): string {
+                self::assertSame('bookshelf/_reader_contents.html.twig', $template);
+                self::assertSame([], $parameters['path']);
+                self::assertSame(2, $parameters['page']);
+                self::assertSame(['Sixth'], array_column($parameters['contents']['entries'], 'title'));
+                self::assertSame('<p>Six</p>', $parameters['contents']['entries'][0]['html']);
+                return 'page two';
+            },
+        );
+        $container->set('twig', $twig);
+        $controller->setContainer($container);
+        $converter = $this->createMock(AsciiDocConverter::class);
+        $converter->expects(self::once())->method('convert')->with('Body six')->willReturn('<p>Six</p>');
+        $response = $controller->contents(
+            $root->getId(), new Request(['page' => '2']), $reader, $converter, $logger,
+            $this->createStub(UserMuteListService::class), new BookshelfReaderTraversalSigner('test-secret'),
+        );
+        self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function testUnopenedOrUnavailableRootNeverTriggersLegacyChapterLoading(): void
+    {
+        $id = str_repeat('b', 64);
+        $events = $this->createStub(EventRepository::class);
+        $events->method('findByIds')->willReturn([]);
+        $events->method('findBookshelfReaderTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $api = $this->createMock(MercuryApiClientInterface::class);
+        $api->expects(self::once())->method('getEvent')->with($id)->willReturn(null);
+        $api->expects(self::never())->method('getEventsByIds');
+        $api->expects(self::never())->method('getChaptersByAuthors');
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::once())->method('getEventsByIds')->with([$id])->willReturn([]);
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with('Bookshelf index unavailable; reader can be retried.', ['event_id' => $id]);
+        $reader = new BookshelfReaderContents(
+            $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $logger, $this->createStub(MercuryApiClientInterface::class),
+        );
+        $container = new Container();
+        $container->set('security.token_storage', new TokenStorage());
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->willReturnCallback(static function (string $template, array $parameters): string {
+            self::assertSame('bookshelf/read_unavailable.html.twig', $template);
+            self::assertFalse($parameters['available']);
+            return 'unavailable';
+        });
+        $container->set('twig', $twig);
+        $controller = new BookshelfReadController();
+        $controller->setContainer($container);
+        $response = $controller->read(
+            $id, new Request(), new BookshelfRelayBookLoader($nostr, $logger), $reader,
+            new BookshelfDirectoryService($this->createStub(DirectoryEventStoreInterface::class)),
+            $logger, $this->createStub(UserMuteListService::class),
+        );
+        self::assertSame(503, $response->getStatusCode());
+    }
+
+    public function testReaderPaginationBindsOpenedRevisionAndRejectsTampering(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->entity($this->event('b', $pubkey, 30040, 'book', [['a', "30040:$pubkey:part"]]));
+        $tags = array_fill(0, 6, ['a', "30040:$pubkey:section"]);
+        $old = $this->entity($this->event('c', $pubkey, 30040, 'part', $tags));
+        $new = $this->entity($this->event('d', $pubkey, 30040, 'part', [['a', "30040:$pubkey:new"]]));
+        $events = $this->createMock(EventRepository::class);
+        $events->method('findByIds')->willReturn([$root->getId() => $root]);
+        $events->expects(self::exactly(2))->method('findBookshelfReaderTargets')->willReturnCallback(
+            static function (array $coordinates, array $ids) use ($old, $new, $pubkey): array {
+                if ($ids === []) {
+                    self::assertSame(["30040:$pubkey:part"], $coordinates);
+                    return ['coordinates' => ["30040:$pubkey:part" => $old], 'eventIds' => []];
+                }
+                self::assertSame([$old->getId()], $ids);
+                return ['coordinates' => [], 'eventIds' => [$old->getId() => $old, $new->getId() => $new]];
+            },
+        );
+        $logger = $this->createStub(LoggerInterface::class);
+        $reader = new BookshelfReaderContents(
+            $this->createStub(MercuryApiClientInterface::class), $this->createStub(NostrClient::class), $events,
+            $this->createStub(ContentAuthorAccessPolicy::class), $this->createStub(DeletedEventRepository::class),
+            $this->createStub(HiddenCoordinateRepository::class), $logger, $this->createStub(MercuryApiClientInterface::class),
+        );
+        $captured = [];
+        $twig = $this->createMock(Environment::class);
+        $twig->method('render')->willReturnCallback(static function (string $template, array $parameters) use (&$captured): string {
+            $captured = $parameters;
+            return 'fragment';
+        });
+        $container = new Container();
+        $container->set('security.token_storage', new TokenStorage());
+        $container->set('twig', $twig);
+        $controller = new BookshelfReadController();
+        $controller->setContainer($container);
+        $signer = new BookshelfReaderTraversalSigner('test-secret');
+        $converter = $this->createMock(AsciiDocConverter::class);
+        $converter->expects(self::never())->method('convert');
+        $mutes = $this->createStub(UserMuteListService::class);
+        $controller->contents($root->getId(), new Request([
+            'path' => '1', 'signature' => $signer->sign($root->getId(), [1], []),
+        ]), $reader, $converter, $logger, $mutes, $signer);
+        self::assertSame([$old->getId()], $captured['revisions']);
+        self::assertTrue($captured['contents']['hasNext']);
+        $signature = $captured['pageSignature'];
+        $controller->contents($root->getId(), new Request([
+            'path' => '1', 'page' => '2', 'revisions' => $old->getId(), 'signature' => $signature,
+        ]), $reader, $converter, $logger, $mutes, $signer);
+        self::assertSame(['section'], array_column($captured['contents']['entries'], 'title'));
+        self::assertSame([$old->getId()], $captured['revisions']);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        $controller->contents($root->getId(), new Request([
+            'path' => '1', 'page' => '2', 'revisions' => $new->getId(), 'signature' => $signature,
+        ]), $reader, $converter, $logger, $mutes, $signer);
+    }
+
+    public function testRemotePageQueriesOnlyExactNonblankCoordinates(): void
+    {
+        $authors = array_map(static fn (int $i): string => str_repeat((string) $i, 64), range(1, 5));
+        $tags = [];
+        foreach ($authors as $i => $author) {
+            $tags[] = ['a', '30041:' . $author . ':' . ($i === 4 ? '' : 'chapter-' . $i)];
+        }
+        $root = (object) $this->event('b', str_repeat('a', 64), 30040, 'book', $tags)->toArray();
+        $api = $this->createMock(MercuryApiClientInterface::class);
+        $calls = [];
+        $api->expects(self::exactly(4))->method('getChaptersByAuthors')->willReturnCallback(
+            static function (array $pubkeys, int $limit, array $identifiers) use (&$calls): array {
+                $calls[] = [$pubkeys, $limit, $identifiers];
+                return [];
+            },
+        );
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::once())->method('getEventsByCoordinates')->willReturnCallback(
+            static function (array $coordinates) use ($authors): array {
+                self::assertContains('30041:' . $authors[4] . ':', $coordinates);
+                return [];
+            },
+        );
+        $page = $this->service($api, $nostr)->childrenPage($root, [], 1);
+        self::assertCount(5, $page['entries']);
+        foreach ($calls as $i => [$pubkeys, $limit, $identifiers]) {
+            self::assertSame([$authors[$i]], $pubkeys);
+            self::assertSame(1, $limit);
+            self::assertSame(['chapter-' . $i], $identifiers);
+        }
+    }
+
+    public function testBoundNestedAncestryRechecksPinsCoordinatesAndVisibility(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [['a', "30040:$pubkey:part", '', str_repeat('c', 64)]]);
+        $part = $this->event('c', $pubkey, 30040, 'part', [['a', "30040:$pubkey:leaf"]]);
+        $leaf = $this->event('d', $pubkey, 30040, 'leaf');
+        $api = $this->createStub(MercuryApiClientInterface::class);
+        $api->method('getPublicationEventsByIds')->willReturnCallback(static fn (array $ids): array =>
+            in_array(str_repeat('c', 64), $ids, true) ? [$part] : [$leaf]);
+        $reader = $this->service($api, $this->createStub(NostrClient::class));
+        $resolved = [];
+        self::assertNotNull($reader->indexAtPath((object) $root->toArray(), [1, 1], [], [
+            str_repeat('c', 64), str_repeat('d', 64),
+        ], $resolved));
+        self::assertSame([str_repeat('c', 64), str_repeat('d', 64)], $resolved);
+        self::assertNull($reader->indexAtPath((object) $root->toArray(), [1], [], [str_repeat('d', 64)]));
+        self::assertNull($reader->indexAtPath((object) $root->toArray(), [1, 1], [$pubkey], [
+            str_repeat('c', 64), str_repeat('d', 64),
+        ]));
+    }
+
+    public function testReaderSelectsNewestThenLowestIdAmongReturnedRevisions(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = (object) $this->event('b', $pubkey, 30040, 'book', [['a', "30041:$pubkey:section"]])->toArray();
+        $laterId = $this->event('e', $pubkey, 30041, 'section', [], 'later ID');
+        $lowerId = $this->event('c', $pubkey, 30041, 'section', [], 'lower ID');
+        $api = $this->createStub(MercuryApiClientInterface::class);
+        $api->method('getChaptersByAuthors')->willReturn([$laterId, $lowerId]);
+        $entries = $this->service($api, $this->createStub(NostrClient::class))->childrenPage($root, [], 1)['entries'];
+        self::assertSame(str_repeat('c', 64), $entries[0]['id']);
+        self::assertSame('lower ID', $entries[0]['content']);
+    }
+
+    /** @dataProvider coordinateKinds */
+    public function testOrderedBooksApiIsPreferredToAmbiguouslyOrderedMercury(int $kind): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = (object) $this->event('b', $pubkey, 30040, 'book', [['a', "$kind:$pubkey:section"]])->toArray();
+        $winner = $this->event('c', $pubkey, $kind, 'section', [], 'Books winner');
+        $higherId = $this->event('e', $pubkey, $kind, 'section', [], 'Mercury tie');
+        $books = $this->createMock(MercuryApiClientInterface::class);
+        $method = $kind === 30040 ? 'getPublicationsByAuthors' : 'getChaptersByAuthors';
+        $books->expects(self::once())->method($method)
+            ->with([$pubkey], 1, ['section'])->willReturn([$winner]);
+        $mercury = $this->createMock(MercuryApiClientInterface::class);
+        $mercury->expects(self::never())->method($method)->willReturn([$higherId]);
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $reader = new BookshelfReaderContents(
+            $mercury, $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(LoggerInterface::class), $books,
+        );
+        if ($kind === 30040) {
+            self::assertSame($winner->id, $reader->indexAtPath($root, [1], [])->id);
+        } else {
+            self::assertSame($winner->id, $reader->childrenPage($root, [], 1)['entries'][0]['id']);
+        }
+    }
+
+    /** @dataProvider coordinateKinds */
+    public function testUnavailableBooksApiDoesNotUseUnorderedMercuryCoordinate(int $kind): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $coordinate = "$kind:$pubkey:section";
+        $root = (object) $this->event('b', $pubkey, 30040, 'book', [['a', $coordinate]])->toArray();
+        $low = $this->event('c', $pubkey, $kind, 'section', [], 'Relay winner');
+        $high = $this->event('e', $pubkey, $kind, 'section', [], 'Mercury tie');
+        $books = $this->createMock(MercuryApiClientInterface::class);
+        $method = $kind === 30040 ? 'getPublicationsByAuthors' : 'getChaptersByAuthors';
+        $books->expects(self::once())->method($method)->willReturn([]);
+        $mercury = $this->createMock(MercuryApiClientInterface::class);
+        $mercury->expects(self::never())->method($method)->willReturn([$high]);
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::once())->method('getEventsByCoordinates')->with([$coordinate], [])
+            ->willReturn([$coordinate => (object) $low->toArray()]);
+        $reader = new BookshelfReaderContents(
+            $mercury, $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
+            $this->createStub(LoggerInterface::class), $books,
+        );
+        if ($kind === 30040) {
+            self::assertSame($low->id, $reader->indexAtPath($root, [1], [])->id);
+        } else {
+            self::assertSame($low->id, $reader->childrenPage($root, [], 1)['entries'][0]['id']);
+        }
+    }
+
+    public static function coordinateKinds(): iterable
+    {
+        yield 'nested index' => [30040];
+        yield 'chapter' => [30041];
+    }
+
+    public function testUnavailableReaderHasDirectRetryLink(): void
+    {
+        $files = new FilesystemLoader(dirname(__DIR__, 3) . '/templates');
+        $files->addPath(dirname(__DIR__, 3) . '/vendor/decent-newsroom/bookshelf-bundle/src/Resources/views', 'Bookshelf');
+        $twig = new Environment(new ChainLoader([
+            new ArrayLoader(['@Bookshelf/bookshelf-layout.html.twig' => '{% block title %}{% endblock %}{% block ogtags %}{% endblock %}{% block body %}{% endblock %}{% block aside %}{% endblock %}']),
+            $files,
+        ]), ['strict_variables' => true]);
+        $twig->addFilter(new TwigFilter('trans', static fn (string $key): string => $key));
+        $twig->addFunction(new TwigFunction('path', static fn (string $route, array $params = []): string =>
+            $route === 'bookshelf_read_native_fallback' ? '/bookshelf/' . $params['id'] : '/bookshelf'));
+        $twig->addFunction(new TwigFunction('csrf_token', static fn (): string => 'csrf'));
+        $twig->addFunction(new TwigFunction('ux_icon', static fn (): string => ''));
+        $id = str_repeat('b', 64);
+        $html = $twig->render('bookshelf/read_unavailable.html.twig', [
+            'book' => null, 'available' => false, 'query' => '', 'readerId' => $id,
+            'app' => ['user' => null],
+        ]);
+        self::assertSame('/bookshelf/' . $id, (new Crawler($html))->filter('.bookshelf-unavailable a')->first()->attr('href'));
+    }
+
     public function testLazyPagesResolveOnlySectionsAndTheSelectedIndex(): void
     {
         $pubkey = str_repeat('a', 64);
@@ -40,7 +399,7 @@ final class BookshelfReaderContentsTest extends TestCase
         $api = $this->createMock(MercuryApiClientInterface::class);
         $indexFetches = 0;
         $api->expects(self::exactly(2))->method('getPublicationsByAuthors')
-            ->with([$pubkey], 500, ['part'])->willReturnCallback(
+            ->with([$pubkey], 1, ['part'])->willReturnCallback(
                 static function () use (&$indexFetches, $part): array {
                     ++$indexFetches;
                     return [$part];
@@ -123,9 +482,9 @@ final class BookshelfReaderContentsTest extends TestCase
         $api->expects(self::never())->method('getPublicationsByAuthors');
         $service = $this->service($api, $this->createStub(NostrClient::class));
         $page = $service->childrenPage($source, [], 1);
-        self::assertCount(50, $page['entries']);
+        self::assertCount(5, $page['entries']);
         self::assertTrue($page['hasNext']);
-        $last = $service->childrenPage($source, [], 10);
+        $last = $service->childrenPage($source, [], BookshelfReaderContents::MAX_PAGES);
         self::assertFalse($last['hasNext']);
         self::assertTrue($last['truncated']);
 
@@ -135,14 +494,43 @@ final class BookshelfReaderContentsTest extends TestCase
         $html = $twig->render('bookshelf/_reader_contents.html.twig', [
             'rootId' => str_repeat('b', 64), 'path' => [], 'page' => 1,
             'contents' => $page, 'indexBody' => null, 'indexMetadata' => null,
+            'revisions' => [], 'childSignatures' => array_fill_keys([1, 2, 3, 4, 5], 'signed'), 'pageSignature' => null,
         ]);
         $crawler = new Crawler($html);
-        self::assertCount(50, $crawler->filter('details.bookshelf-reader__index:not([open])'));
-        self::assertCount(50, $crawler->filter('details.bookshelf-reader__index turbo-frame[loading="lazy"]'));
-        self::assertCount(50, $crawler->filter('.bookshelf-toc li'));
+        self::assertCount(5, $crawler->filter('details.bookshelf-reader__index:not([open])'));
+        self::assertCount(5, $crawler->filter('details.bookshelf-reader__index turbo-frame[loading="lazy"]'));
+        self::assertCount(5, $crawler->filter('.bookshelf-toc li'));
     }
 
-    public function testNestedReaderTemplateIncludesFirstPageWithoutOpeningIndexes(): void
+    public function testNestedReaderLinksCarryBoundRevisionsAndIndependentSignatures(): void
+    {
+        $id = str_repeat('b', 64);
+        $revision = str_repeat('c', 64);
+        $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates'), ['strict_variables' => true]);
+        $twig->addFilter(new TwigFilter('trans', static fn (string $key): string => $key));
+        $twig->addFunction(new TwigFunction('path', static fn (string $route, array $params): string =>
+            '/contents?' . http_build_query($params)));
+        $html = $twig->render('bookshelf/_reader_contents.html.twig', [
+            'rootId' => $id, 'path' => [3], 'page' => 1,
+            'contents' => ['entries' => [
+                ['kind' => 30040, 'position' => 7, 'title' => 'Part', 'invalid' => false],
+            ], 'hasNext' => true, 'truncated' => false],
+            'indexBody' => null, 'indexMetadata' => null,
+            'revisions' => [$revision], 'childSignatures' => [7 => 'child-signature'], 'pageSignature' => 'page-signature',
+        ]);
+        $crawler = new Crawler($html);
+        $child = $crawler->filter('details.bookshelf-reader__index turbo-frame');
+        parse_str((string) parse_url($child->attr('src'), PHP_URL_QUERY), $childQuery);
+        self::assertSame(['id' => $id, 'path' => '3.7', 'revisions' => $revision, 'signature' => 'child-signature'], $childQuery);
+        self::assertSame($child->attr('src'), $child->filter('a')->attr('href'));
+        $more = $crawler->filter('details.bookshelf-reader__more turbo-frame');
+        parse_str((string) parse_url($more->attr('src'), PHP_URL_QUERY), $pageQuery);
+        self::assertSame(['id' => $id, 'path' => '3', 'page' => '2', 'revisions' => $revision, 'signature' => 'page-signature'], $pageQuery);
+        self::assertSame('bookshelf-reader-' . $id . '-3-2', $more->attr('id'));
+        self::assertSame($more->attr('src'), $more->filter('a')->attr('href'));
+    }
+
+    public function testReaderShellLoadsContentsInIndependentRootFrame(): void
     {
         $files = new FilesystemLoader(dirname(__DIR__, 3) . '/templates');
         $files->addPath(dirname(__DIR__, 3) . '/vendor/decent-newsroom/bookshelf-bundle/src/Resources/views', 'Bookshelf');
@@ -170,9 +558,10 @@ final class BookshelfReaderContentsTest extends TestCase
             ],
         ]);
         $crawler = new Crawler($html);
-        self::assertSame('Text', $crawler->filter('.bookshelf-chapter__content')->text());
-        self::assertSame('Part', $crawler->filter('details.bookshelf-reader__index:not([open]) > summary')->text());
-        self::assertCount(2, $crawler->filter('.bookshelf-toc li'));
+        self::assertCount(0, $crawler->filter('.bookshelf-chapter__content, .bookshelf-toc li, details.bookshelf-reader__index'));
+        $frame = $crawler->filter('turbo-frame#bookshelf-reader-' . $book['id'] . '-root-1');
+        self::assertCount(1, $frame);
+        self::assertSame('/contents', $frame->attr('src'));
     }
 
     public function testMixedReferencesExpandInOrderIncludingDuplicatesAndCycles(): void
@@ -307,9 +696,9 @@ final class BookshelfReaderContentsTest extends TestCase
         $books = $this->createMock(MercuryApiClientInterface::class);
         $books->expects(self::once())->method('getEvent')->with($root->id)->willReturn($root);
         $books->expects(self::once())->method('getPublicationsByAuthors')
-            ->with([$pubkey], 500, ['part'])->willReturn([$part]);
+            ->with([$pubkey], 1, ['part'])->willReturn([$part]);
         $books->expects(self::once())->method('getChaptersByAuthors')
-            ->with([$pubkey], 500, ['section'])->willReturn([$section]);
+            ->with([$pubkey], 1, ['section'])->willReturn([$section]);
         $mercury = $this->createMock(MercuryApiClientInterface::class);
         $mercury->expects(self::never())->method('getEvent');
         $mercury->expects(self::never())->method('getPublicationsByAuthors');
@@ -417,13 +806,13 @@ final class BookshelfReaderContentsTest extends TestCase
         ]);
         $api = $this->createMock(MercuryApiClientInterface::class);
         $api->expects(self::once())->method('getPublicationsByAuthors')
-            ->with([$pubkey], 500, ['remote'])->willReturn([$remote]);
+            ->with([$pubkey], 1, ['remote'])->willReturn([$remote]);
         $nostr = $this->createMock(NostrClient::class);
         $nostr->expects(self::never())->method('getEventsByCoordinates');
         $service = new BookshelfReaderContents(
-            $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(MercuryApiClientInterface::class), $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
             $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
-            $this->createStub(LoggerInterface::class), $this->createStub(MercuryApiClientInterface::class),
+            $this->createStub(LoggerInterface::class), $api,
         );
 
         $result = $service->expand([], (object) $root->toArray(), []);
@@ -544,9 +933,9 @@ final class BookshelfReaderContentsTest extends TestCase
     private function service(MercuryApiClientInterface $api, NostrClient $nostr): BookshelfReaderContents
     {
         return new BookshelfReaderContents(
-            $api, $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
+            $this->createStub(MercuryApiClientInterface::class), $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
             $this->createStub(DeletedEventRepository::class), $this->createStub(HiddenCoordinateRepository::class),
-            $this->createStub(LoggerInterface::class), $this->createStub(MercuryApiClientInterface::class),
+            $this->createStub(LoggerInterface::class), $api,
         );
     }
 

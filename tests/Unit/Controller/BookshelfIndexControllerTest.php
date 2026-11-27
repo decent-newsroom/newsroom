@@ -95,13 +95,65 @@ final class BookshelfIndexControllerTest extends TestCase
 
     public function testRoutesArePublicReadOnlyAndUseExactIdentity(): void
     {
-        foreach (['show' => 'bookshelf_index', 'toc' => 'bookshelf_index_toc'] as $method => $name) {
+        foreach (['show' => 'bookshelf_index', 'contents' => 'bookshelf_index_contents', 'toc' => 'bookshelf_index_toc'] as $method => $name) {
             $reflection = new \ReflectionMethod(IndexController::class, $method);
             $route = $reflection->getAttributes(Route::class)[0]->newInstance();
             self::assertSame($name, $route->name);
             self::assertSame(['GET'], $route->methods);
             self::assertSame('[0-9a-f]{64}', $route->requirements['eventId']);
             self::assertSame([], $reflection->getAttributes(\Symfony\Component\Security\Http\Attribute\IsGranted::class));
+        }
+    }
+
+    public function testRootShellDoesNotResolveOrEnrichChildrenAndFragmentPaginatesIndependently(): void
+    {
+        $tags = [['d', 'root']];
+        for ($i = 0; $i < 51; ++$i) {
+            $tags[] = ['a', '30040:' . self::FOREIGN . ':missing-' . $i];
+        }
+        $this->stored = [self::ROOT => $this->event(self::ROOT, self::AUTHOR, $tags)];
+        $this->events->expects(self::exactly(2))->method('findPublicationIndexTargets')
+            ->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $controller = $this->controller();
+        $controller->show(self::ROOT, new Request(['page' => '2']), new PublicationIndexClassifier());
+        self::assertArrayNotHasKey('tocPage', $this->captured);
+        self::assertSame(2, $this->captured['tocPageNumber']);
+
+        $controller->contents(self::ROOT, new Request());
+        $first = $this->captured['tocPage'];
+        self::assertSame('bookshelf_index_contents', $first['routeName']);
+        self::assertCount(50, $first['entries']);
+        self::assertTrue($first['hasNext']);
+        $controller->contents(self::ROOT, new Request(['page' => '2']));
+        $second = $this->captured['tocPage'];
+        self::assertSame($first['frameId'], $second['frameId']);
+        self::assertSame([51], array_column(array_column($second['entries'], 'reference'), 'position'));
+        self::assertTrue($second['hasPrevious']);
+    }
+
+    /** @dataProvider restrictedRootFragments */
+    public function testRootFragmentReauthorizesSource(string $restriction): void
+    {
+        $event = $this->event(self::ROOT, self::AUTHOR, [['d', 'root']]);
+        if ($restriction === 'scoped') {
+            $event->setTags([['d', 'root'], ['s', 'private']]);
+        }
+        $this->stored = [self::ROOT => $event];
+        $this->hidden->method('isHidden')->willReturn($restriction === 'hidden');
+        $this->deletions->method('isSuppressed')->willReturn($restriction === 'deleted');
+        $this->mutes->method('getMutedPubkeysStrict')->willReturn($restriction === 'muted' ? [self::AUTHOR] : []);
+        if ($restriction === 'suppressed') {
+            $this->authors->method('assertReadable')->willThrowException(new NotFoundHttpException());
+        }
+        $this->events->expects(self::never())->method('findPublicationIndexTargets');
+        $this->expectException(NotFoundHttpException::class);
+        $this->controller(authenticated: true, renders: false)->contents(self::ROOT, new Request());
+    }
+
+    public static function restrictedRootFragments(): iterable
+    {
+        foreach (['hidden', 'deleted', 'muted', 'scoped', 'suppressed'] as $restriction) {
+            yield $restriction => [$restriction];
         }
     }
 
@@ -133,10 +185,11 @@ final class BookshelfIndexControllerTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertFalse($response->isRedirection());
         self::assertSame('bookshelf/index.html.twig', $this->template);
-        self::assertSame('bookshelf_index_toc', $this->captured['tocNestedRoute']);
         self::assertFalse($this->captured['isBook']);
         self::assertSame(self::AUTHOR, $this->captured['presentation']->authorPubkey);
         self::assertSame('bookshelf.publication.chapters', $this->captured['tocHeading']);
+        self::assertArrayNotHasKey('tocPage', $this->captured);
+        $controller->contents(self::ROOT, new Request());
         $entries = $this->captured['tocPage']['entries'];
         self::assertSame([1, 2], array_column(array_column($entries, 'reference'), 'position'));
         self::assertSame(self::CHILD, $entries[0]['target']['eventId']);
@@ -307,6 +360,7 @@ final class BookshelfIndexControllerTest extends TestCase
         $this->controller()->show(self::ROOT, new Request(), new PublicationIndexClassifier());
 
         self::assertSame('bookshelf.publication.contents', $this->captured['tocHeading']);
+        $this->controller()->contents(self::ROOT, new Request());
         self::assertSame(2, $this->captured['tocPage']['featuredEntry']['reference']->position);
         self::assertSame('featured', $this->captured['tocPage']['featuredEntry']['reference']->targetIdentifier);
         self::assertNull($this->captured['tocPage']['featuredEntry']['target']);
@@ -334,7 +388,7 @@ final class BookshelfIndexControllerTest extends TestCase
             ->willReturn(['coordinates' => [$childCoordinate => $this->stored[self::CHILD]], 'eventIds' => []]);
         $this->articleTargets = [2 => $article];
         $controller = $this->controller();
-        $controller->show(self::ROOT, new Request(), new PublicationIndexClassifier());
+        $controller->contents(self::ROOT, new Request());
         self::assertSame('Story title', $this->captured['tocPage']['featuredEntry']['target']['title']);
         $entry = $this->captured['tocPage']['entries'][0];
 
@@ -364,7 +418,7 @@ final class BookshelfIndexControllerTest extends TestCase
         $this->events->expects(self::never())->method('findWorkspaceDriveArticleTargets');
         $controller = $this->controller();
 
-        $controller->show(self::ROOT, new Request(), new PublicationIndexClassifier());
+        $controller->contents(self::ROOT, new Request());
         $parentEntry = $this->captured['tocPage']['entries'][0];
         $query = [
             'path' => implode(',', $parentEntry['nestedPath']),
@@ -436,7 +490,7 @@ final class BookshelfIndexControllerTest extends TestCase
         $this->deletions->method('findSuppressedEventIds')->willReturn($restriction === 'deleted' ? [self::CHILD] : []);
         $this->mutes->method('getMutedPubkeysStrict')->willReturn($restriction === 'muted' ? [self::FOREIGN] : []);
 
-        $response = $this->controller(authenticated: true)->show(self::ROOT, new Request(), new PublicationIndexClassifier());
+        $response = $this->controller(authenticated: true)->contents(self::ROOT, new Request());
         self::assertSame(200, $response->getStatusCode());
         $entries = $this->captured['tocPage']['entries'];
         self::assertCount(1, $entries);

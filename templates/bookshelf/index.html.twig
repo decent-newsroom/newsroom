@@ -34,7 +34,10 @@
         {% include 'bookshelf/_containing_indexes.html.twig' with {containingIndexes: containingIndexes} only %}
         <section class="bookshelf-publication__chapters" aria-labelledby="bookshelf-index-contents">
             <h2 id="bookshelf-index-contents">{{ tocHeading|trans }}</h2>
-            {% include 'reader/reading_nook/_publication_toc.html.twig' %}
+            {% set tocUrl = path('bookshelf_index_contents', {eventId: presentation.eventId, page: tocPageNumber}) %}
+            <turbo-frame id="nook-toc-{{ presentation.eventId }}" src="{{ tocUrl }}">
+                <a href="{{ tocUrl }}">{{ 'reading_nook.toc.load'|trans }}</a>
+            </turbo-frame>
         </section>
     </section>
 {% endblock %}

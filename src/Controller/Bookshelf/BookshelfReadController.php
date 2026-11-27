@@ -6,12 +6,11 @@ namespace App\Controller\Bookshelf;
 
 use App\Bookshelf\BookshelfRelayBookLoader;
 use App\Bookshelf\BookshelfReaderContents;
+use App\Bookshelf\BookshelfReaderTraversalSigner;
 use App\Service\UserMuteListService;
 use AsciiDocConverter;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
-use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
-use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,72 +26,32 @@ final class BookshelfReadController extends AbstractController
     public function read(
         string $id,
         Request $request,
-        MercuryBookService $bookService,
         BookshelfRelayBookLoader $relayBookLoader,
         BookshelfReaderContents $readerContents,
         BookshelfDirectoryService $directoryService,
-        AsciiDocConverter $asciiDocConverter,
         LoggerInterface $logger,
         UserMuteListService $muteList,
     ): Response {
         $query = trim((string) $request->query->get('q', ''));
         $directoryContext = $this->directoryContext($directoryService);
-        $available = true;
-
         $source = $readerContents->source(strtolower($id));
-        $nested = $source !== null && $readerContents->hasNestedIndexes($source);
-        if ($nested) {
-            $book = $relayBookLoader->bookFromEvent($source, loadChapters: false);
-        } else {
-            try {
-                $book = $bookService->getBook(strtolower($id));
-            } catch (MercuryApiException $exception) {
-                $logger->warning('Mercury bookshelf request failed; trying direct Nostr lookup.', [
-                    'event_id' => $id,
-                    'error' => $exception->getMessage(),
-                ]);
-                $book = null;
-                $available = false;
-            }
-            if ($book === null && $source !== null) {
-                $book = $relayBookLoader->bookFromEvent($source);
-            }
+        if ($source !== null && $readerContents->indexAtPath($source, [], $this->mutedPubkeys($muteList)) === null) {
+            throw $this->createNotFoundException();
         }
-        $book ??= $relayBookLoader->getBook(strtolower($id));
-        if ($book !== null) {
-            if ($source === null) {
-                $logger->warning('Bookshelf index unavailable; nested contents could not be checked.', ['event_id' => $id]);
-            }
-            if (!$nested) {
-                $book = $relayBookLoader->fillMissingChapters($book);
-            }
-            if ($source !== null) {
-                $muted = $this->mutedPubkeys($muteList);
-                if ($nested) {
-                    if ($readerContents->indexAtPath($source, [], $muted) === null) {
-                        throw $this->createNotFoundException();
-                    }
-                    $contents = $readerContents->childrenPage($source, $muted, 1);
-                    $this->renderEntries($contents['entries'], $asciiDocConverter, $logger);
-                } else {
-                    $book = $readerContents->expand($book, $source, $muted);
-                }
-            }
-            $available = true;
-            if (!$nested) {
-                $this->renderChapters($book, $asciiDocConverter, $logger);
-            }
+        $book = $source === null ? null : $relayBookLoader->bookFromEvent($source, loadChapters: false);
+        if ($source === null) {
+            $logger->warning('Bookshelf index unavailable; reader can be retried.', ['event_id' => $id]);
         }
 
-        return $this->render($nested && $book !== null ? 'bookshelf/read_nested.html.twig' : '@Bookshelf/bookshelf/read.html.twig', [
+        return $this->render($book !== null ? 'bookshelf/read_nested.html.twig' : 'bookshelf/read_unavailable.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
             ...$directoryContext,
             'book' => $book,
-            'available' => $available,
+            'available' => $source !== null,
             'query' => $query,
-            'contents' => $contents ?? null,
+            'readerId' => strtolower($id),
         ], new Response(
-            status: $book === null && !$available ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_OK,
+            status: $source === null ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_OK,
             headers: ['Cache-Control' => 'private, no-store'],
         ));
     }
@@ -105,24 +64,54 @@ final class BookshelfReadController extends AbstractController
         AsciiDocConverter $converter,
         LoggerInterface $logger,
         UserMuteListService $muteList,
+        BookshelfReaderTraversalSigner $signer,
     ): Response {
         $rawPath = $request->query->get('path', '');
         $rawPage = $request->query->get('page', '1');
         if (($rawPath !== '' && !preg_match('/^(?:0|[1-9][0-9]{0,8})(?:\.(?:0|[1-9][0-9]{0,8})){0,4}$/D', $rawPath))
-            || !preg_match('/^(?:[1-9]|10)$/D', $rawPage)) {
+            || !preg_match('/^(?:[1-9][0-9]?|100)$/D', $rawPage)) {
             throw $this->createNotFoundException();
         }
         $path = $rawPath === '' ? [] : array_map(intval(...), explode('.', $rawPath));
         $page = (int) $rawPage;
         $id = strtolower($id);
+        $rawRevisions = $request->query->get('revisions', '');
+        $signature = $request->query->get('signature', '');
+        if (!is_string($rawRevisions) || !is_string($signature)
+            || strlen($rawRevisions) > 5 * 65) {
+            throw $this->createNotFoundException();
+        }
+        $revisions = $rawRevisions === '' ? [] : explode(',', $rawRevisions);
+        foreach ($revisions as $revision) {
+            if (preg_match('/^[0-9a-f]{64}$/D', $revision) !== 1) {
+                throw $this->createNotFoundException();
+            }
+        }
+        if ($path !== []) {
+            $boundCount = count($revisions);
+            if (($boundCount !== count($path) && !($page === 1 && $boundCount === count($path) - 1))
+                || !$signer->isValid($id, $path, $revisions, $signature)) {
+                throw $this->createNotFoundException();
+            }
+        }
+        if ($path === [] && ($revisions !== [] || $signature !== '')) {
+            throw $this->createNotFoundException();
+        }
         $muted = $this->mutedPubkeys($muteList);
         $root = $readerContents->source($id);
-        $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $muted);
+        $resolvedRevisions = [];
+        $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $muted, $revisions, $resolvedRevisions);
         $contents = $source === null ? null : $readerContents->childrenPage($source, $muted, $page);
+        $childSignatures = [];
         $body = null;
         $indexMetadata = null;
         if ($contents !== null) {
             $this->renderEntries($contents['entries'], $converter, $logger);
+            foreach ($contents['entries'] as $entry) {
+                if ($entry['kind'] === 30040 && !$entry['invalid'] && count($path) < 5) {
+                    $childSignatures[$entry['position']] = $signer->sign($id, [...$path, $entry['position']], $resolvedRevisions);
+                }
+            }
             if ($path !== [] && $page === 1) {
                 $indexMetadata = $readerContents->indexMetadata($source);
                 if (($source->content ?? '') !== '') {
@@ -136,6 +125,9 @@ final class BookshelfReadController extends AbstractController
         return $this->render('bookshelf/_reader_contents.html.twig', [
             'rootId' => $id, 'path' => $path, 'page' => $page,
             'contents' => $contents, 'indexBody' => $body, 'indexMetadata' => $indexMetadata,
+            'revisions' => $resolvedRevisions,
+            'childSignatures' => $childSignatures,
+            'pageSignature' => $path === [] ? null : $signer->sign($id, $path, $resolvedRevisions),
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 

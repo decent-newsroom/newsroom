@@ -1,0 +1,12 @@
+{% extends '@Bookshelf/bookshelf/read.html.twig' %}
+
+{% block body %}
+    <section class="bookshelf-reader">
+        <div class="bookshelf-unavailable">
+            <h1>{{ 'bookshelf.not_available'|trans }}</h1>
+            <p>{{ (available ? 'bookshelf.not_found_description' : 'bookshelf.unavailable_description')|trans }}</p>
+            <a class="btn" href="{{ path('bookshelf_read_native_fallback', {id: readerId}) }}">{{ 'bookshelf.reader_load_index'|trans }}</a>
+            <a class="btn" href="{{ path('bookshelf', query ? {q: query} : {}) }}">{{ 'bookshelf.search_again'|trans }}</a>
+        </div>
+    </section>
+{% endblock %}

@@ -56,20 +56,30 @@ final class IndexController extends AbstractController
             ? $this->profileCache->getMetadata($pubkey, refreshOnMiss: false)
             : UserMetadata::fromMetadataEvent($metadataEvent);
         $presentation = $this->presentations->fromAuthorizedEvent($event);
-        $tocPage = $this->tocArticles->enrich($this->pages->fromAuthorizedEvent(
-            $event, $this->pageNumber($request), routeName: 'bookshelf_index',
-            readerMutedPubkeys: $muted, separateFeaturedArticle: true,
-        ));
 
         return $this->render('bookshelf/index.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
             'presentation' => $presentation,
             'authorMetadata' => $authorMetadata->toStdClass(),
-            'tocHeading' => $tocPage['featuredEntry'] === null
-                ? $this->tocHeading($presentation) : 'bookshelf.publication.contents',
+            'tocHeading' => $this->tocHeading($presentation),
+            'tocPageNumber' => $this->pageNumber($request),
             'isBook' => $classifier->isBook($event->getTags()),
             'containingIndexes' => $this->containingIndexes->forBook($event, $muted),
-            'tocPage' => $tocPage,
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
+    }
+
+    #[Route('/bookshelf/index/{eventId}/contents', name: 'bookshelf_index_contents', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'], priority: 10)]
+    public function contents(string $eventId, Request $request): Response
+    {
+        $page = $this->pageNumber($request);
+        $muted = $this->mutedPubkeys();
+        $event = $this->sources->read($eventId, $muted);
+
+        return $this->render('reader/reading_nook/_publication_toc.html.twig', [
+            'tocPage' => $this->tocArticles->enrich($this->pages->fromAuthorizedEvent(
+                $event, $page, routeName: 'bookshelf_index_contents',
+                readerMutedPubkeys: $muted, separateFeaturedArticle: true,
+            )),
             'tocNestedRoute' => 'bookshelf_index_toc',
             'tocBookshelfLinks' => true,
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
@@ -142,13 +152,24 @@ final class IndexController extends AbstractController
     private function tocHeading(EventPresentation $presentation): string
     {
         $leafKinds = [];
+        $articleCount = 0;
+        $hasIndex = false;
+        $onlyArticlesAndIndexes = true;
         foreach ($presentation->references as $reference) {
-            if ($reference->role !== EventReferenceRole::Content
-                || $reference->targetKind === null
-                || $reference->targetKind === 30040) {
+            if ($reference->role !== EventReferenceRole::Content) {
+                continue;
+            }
+            $articleCount += $reference->targetKind === 30023 ? 1 : 0;
+            $hasIndex = $hasIndex || $reference->targetKind === 30040;
+            $onlyArticlesAndIndexes = $onlyArticlesAndIndexes && in_array($reference->targetKind, [30023, 30040], true);
+            if ($reference->targetKind === null || $reference->targetKind === 30040) {
                 continue;
             }
             $leafKinds[$reference->targetKind] = true;
+        }
+
+        if ($articleCount === 1 && $hasIndex && $onlyArticlesAndIndexes) {
+            return 'bookshelf.publication.contents';
         }
 
         return match (array_keys($leafKinds)) {

@@ -747,7 +747,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
             ]),
             $twig->getLoader(),
         ]));
-        $page['routeName'] = 'bookshelf_index';
+        $page['routeName'] = 'bookshelf_index_contents';
         $page['hasNext'] = true;
         $factory = new EventPresentationFactory($identities, new NostrNip19Service());
         $parameters = [
@@ -755,9 +755,13 @@ final class EventMemberDisclosureTest extends KernelTestCase
             'authorMetadata' => new \stdClass(),
             'tocHeading' => 'bookshelf.publication.chapters',
             'containingIndexes' => [],
-            'tocPage' => $page, 'tocNestedRoute' => 'bookshelf_index_toc', 'tocBookshelfLinks' => true,
+            'tocPageNumber' => 1,
         ];
-        $html = $twig->render('bookshelf/index.html.twig', $parameters);
+        $shell = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
+        self::assertCount(0, $shell->filter('.event-toc-list li'));
+        self::assertStringStartsWith('/bookshelf/index/' . self::ID . '/contents?', $shell->filter('turbo-frame')->attr('src'));
+        $fragment = ['tocPage' => $page, 'tocNestedRoute' => 'bookshelf_index_toc', 'tocBookshelfLinks' => true];
+        $html = $twig->render('reader/reading_nook/_publication_toc.html.twig', $fragment);
         $crawler = new Crawler($html);
         self::assertCount(2, $crawler->selectLink('Open in Bookshelf'));
         self::assertSame('/bookshelf/index/' . $childId, $crawler->selectLink('Open in Bookshelf')->first()->attr('href'));
@@ -768,7 +772,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
             self::assertStringStartsWith('/bookshelf/index/' . $childId . '/toc?', $frame->getAttribute('src'));
             self::assertStringContainsString('signature=', $frame->getAttribute('src'));
         }
-        self::assertStringStartsWith('/bookshelf/index/' . self::ID . '?page=2', $crawler->filter('a[rel="next"]')->attr('href'));
+        self::assertStringStartsWith('/bookshelf/index/' . self::ID . '/contents?page=2', $crawler->filter('a[rel="next"]')->attr('href'));
         self::assertCount(0, $crawler->filter('a[href*="/mag"], a[href*="/reading-nook"], img, script, iframe'));
         self::assertStringNotContainsString('child body must not render', $html);
         self::assertStringNotContainsString('private.example', $html);
@@ -779,8 +783,8 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $withoutTitles['entries'][0]['target']['sensitive'] = true;
         $withoutTitles['entries'][1]['target']['title'] = null;
         $withoutTitles['entries'][1]['target']['summary'] = null;
-        $parameters['tocPage'] = $withoutTitles;
-        $crawler = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
+        $fragment['tocPage'] = $withoutTitles;
+        $crawler = new Crawler($twig->render('reader/reading_nook/_publication_toc.html.twig', $fragment));
         $rows = $crawler->filter('.event-toc-list > li');
         self::assertStringNotContainsString('nested', strtolower($rows->eq(0)->text()));
         self::assertStringNotContainsString('nested', strtolower($rows->eq(1)->text()));
@@ -788,7 +792,6 @@ final class EventMemberDisclosureTest extends KernelTestCase
             self::assertStringContainsString('Sensitive index metadata hidden', $rows->eq(0)->filter('summary')->text());
             self::assertStringContainsString('Untitled event', $rows->eq(1)->filter('summary')->text());
         }
-        $parameters['tocPage'] = $page;
         $parameters['isBook'] = true;
         $crawler = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
         self::assertSame('/bookshelf/' . self::ID, $crawler->selectLink('Read this book')->attr('href'));
@@ -800,17 +803,17 @@ final class EventMemberDisclosureTest extends KernelTestCase
         $parameters['presentation'] = $factory->fromAuthorizedEvent($source);
         $parameters['isBook'] = false;
         $parameters['tocHeading'] = 'bookshelf.publication.contents';
-        $parameters['tocPage'] = $pages->fromAuthorizedEvent(
-            $source, routeName: 'bookshelf_index', separateFeaturedArticle: true,
+        $fragment['tocPage'] = $pages->fromAuthorizedEvent(
+            $source, routeName: 'bookshelf_index_contents', separateFeaturedArticle: true,
         );
-        $html = $twig->render('bookshelf/index.html.twig', $parameters);
+        $html = $twig->render('reader/reading_nook/_publication_toc.html.twig', $fragment);
         $crawler = new Crawler($html);
 
         self::assertSame(
             ['Featured article', 'Indexes'],
-            $crawler->filter('.bookshelf-publication__chapters h3')->each(static fn (Crawler $heading): string => $heading->text()),
+            $crawler->filter('h3')->each(static fn (Crawler $heading): string => $heading->text()),
         );
-        self::assertSame(['2', '1', '3'], $crawler->filter('.bookshelf-publication__chapters li')->extract(['data-source-tag-position']));
+        self::assertSame(['2', '1', '3'], $crawler->filter('li')->extract(['data-source-tag-position']));
         self::assertCount(2, $crawler->selectLink('Open in Bookshelf'));
         self::assertCount($enabled ? 2 : 0, $crawler->filter('turbo-frame[loading="lazy"]'));
         foreach ($crawler->filter('turbo-frame[loading="lazy"]') as $frame) {
@@ -1090,6 +1093,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
         $routes->add('bookshelf_read', '/bookshelf/{id}');
         $routes->add('bookshelf_read_native_fallback', '/bookshelf/{id}');
         $routes->add('bookshelf_index', '/bookshelf/index/{eventId}');
+        $routes->add('bookshelf_index_contents', '/bookshelf/index/{eventId}/contents');
         $routes->add('bookshelf_index_toc', '/bookshelf/index/{eventId}/toc');
         $routes->add('nevent', '/e/{nevent}');
         $routes->add('magazine-chapter', '/magazine/{mag}/chapter/{slug}');

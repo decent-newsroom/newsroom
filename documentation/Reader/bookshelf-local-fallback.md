@@ -37,32 +37,38 @@ rewrite the signed directory or change exact-ID reader URLs.
 
 
 When a reader opens a book, the continuous reader obtains its exact kind
-`30040` source from local storage, the Books API/Mercury or relays. If it contains nested
-indexes, the reader displays direct kind `30040` and `30041` references in
+`30040` source from local storage, the Books API/Mercury or relays. The reader
+displays direct kind `30040` and `30041` references in
 signed tag order. Nested indexes start collapsed, using their signed identifier
 as the label; opening one loads its own body and direct children. Each loaded
 index has its own table of contents. Repeated references remain separate
 occurrences. Missing or invalid references stay visible as unavailable;
 version pins are resolved only by their exact event IDs and must match the
 referenced coordinate. The reader uses local events first, then the Books API,
-Mercury and relay fallback only for unresolved targets. Nested books skip the
-legacy separate chapter-loading pass. Each API
-gets up to three passes for still-missing references: returned duplicate
-revisions can otherwise fill a batch before all requested coordinates appear.
+Mercury and relay fallback only for unresolved targets. All books skip the
+legacy separate chapter-loading pass. Unpinned API lookups select one exact
+nonblank coordinate per call through the Books API, which orders revisions by
+newest timestamp and then lowest event ID.
+They do not use Mercury's ambiguous equal-time ordering or combine multiple
+authors and identifiers. Exact-ID lookups retain both APIs. Blank identifiers
+bypass APIs that strip them and use exact-coordinate relay lookup, never an
+author-only API query. Metadata-only indexes can still render a reader shell.
 Each level uses at most five relay hints and falls back for at most
 20 distinct author/kind groups; additional unresolved references stay visible
 as unavailable.
 
-Each index is paged in batches of 50, up to 500 occurrences, and traversal is
-limited to six levels. Cycles are detected on the current path, so a shared
-index can still appear elsewhere. Each fragment re-resolves its occurrence path
+Each reader index is paged in batches of five, up to 500 occurrences, and
+traversal is limited to six levels. Cycles are detected on the current path, so a
+shared index can still appear elsewhere. Each fragment re-resolves its occurrence path
 from the exact root and rechecks every ancestor; browser-supplied paths do not
 grant access. Nested
 indexes and sections are checked for reader mutes, author suppression,
 hidden coordinates, deletion, scope and sensitive tags before their metadata
 or contents are exposed; blocked references remain unavailable and are not
 expanded. The response is private and not cached. If the source index cannot
-be obtained, the existing reader result is retained and a warning is logged.
+be obtained, the reader returns an explicit unavailable page with a retry link
+and logs a warning, rather than retrying an eager whole-book chapter fetch.
+
 ## Flow
 
 1. An authenticated reader opens `/bookshelf/my-books`.
@@ -71,6 +77,24 @@ be obtained, the existing reader result is retained and a warning is logged.
 4. `BookshelfDirectoryService` reads the resulting local directory and extracts book references.
 5. `MercuryBookService` resolves the references through the bundle's Books API and Mercury clients, merges duplicate coordinates, and restores directory order.
 6. `BookshelfRelayBookLoader` refreshes unpinned coordinates and retrieves missing exact references from regular relays, then merges them into the same order.
+
+## Asynchronous book loading
+
+The initial reader and public index pages render a shell rather than resolving
+their entire table of contents inline. Turbo loads the root contents separately.
+Reader fragments resolve and render at most five direct occurrences; public
+index TOC fragments retain their 50-occurrence local-metadata pages.
+Nested indexes remain collapsed and request their own contents only when opened;
+loading one index does not recursively load its descendants. Pagination stays
+inside the corresponding contents frame instead of replacing the book page.
+Nested pagination carries HMAC-bound occurrence paths and exact resolved index
+revisions so later pages cannot silently switch to a newer index revision.
+
+These are separate HTTP requests, not a new Messenger ingestion pipeline.
+Every fragment still checks its source and traversal access independently.
+Signed order, duplicate occurrences, exact version pins, and unavailable entries
+are retained. Public index TOCs remain local-only; the continuous reader still
+acquires its exact source from local storage, the APIs, or relays.
 
 ## Continuous reader layout
 
@@ -105,7 +129,8 @@ This public Bookshelf index viewer shows the tag-derived publication title as
 the page heading and links its author to their profile, using locally stored
 kind `0` metadata or cached profile data for the display name and a shortened
 identifier when unavailable. Sensitive titles remain hidden. It composes the
-shared tag-only event preview and ordered TOC. Books retain the exact-ID
+shared tag-only event preview and ordered TOC, fetched independently through
+`/bookshelf/index/{eventId}/contents`. Books retain the exact-ID
 continuous-reader link. TOC headings distinguish Article-only leaves,
 chapter-only leaves, and mixed or other content. Each TOC page resolves at
 most 50 visible local occurrences. Known, readable indexes and articles show

@@ -85,7 +85,7 @@ final class BookshelfRelayBookLoader
     /** @return array<string, mixed>|null */
     public function bookFromEvent(object $event, bool $loadChapters = true): ?array
     {
-        $book = $this->mapBook($event, null);
+        $book = $this->mapBook($event, null, allowEmptyIndex: !$loadChapters);
         if ($book === null) {
             return null;
         }
@@ -296,7 +296,7 @@ final class BookshelfRelayBookLoader
     }
 
     /** @return array<string, mixed>|null */
-    private function mapBook(object $event, ?string $relay): ?array
+    private function mapBook(object $event, ?string $relay, bool $allowEmptyIndex = false): ?array
     {
         if ((int) ($event->kind ?? 0) !== self::PUBLICATION_INDEX_KIND) {
             return null;
@@ -307,7 +307,8 @@ final class BookshelfRelayBookLoader
         $id = (string) ($event->id ?? '');
         $pubkey = (string) ($event->pubkey ?? '');
         $chapterCount = $this->chapterCount($tags);
-        if ($id === '' || $pubkey === '' || $identifier === null || $identifier === '' || $chapterCount === 0) {
+        if ($id === '' || $pubkey === '' || $identifier === null
+            || (!$allowEmptyIndex && ($identifier === '' || $chapterCount === 0))) {
             return null;
         }
 

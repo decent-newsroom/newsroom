@@ -20,6 +20,8 @@ use Psr\Log\LoggerInterface;
 final readonly class BookshelfReaderContents
 {
     private const MAX_ENTRIES = 500;
+    public const PAGE_SIZE = 5;
+    public const MAX_PAGES = self::MAX_ENTRIES / self::PAGE_SIZE;
     private const MAX_DEPTH = 6;
     private const MAX_RELAY_HINTS = 5;
     private const MAX_RELAY_GROUPS = 20;
@@ -80,15 +82,21 @@ final readonly class BookshelfReaderContents
      *
      * @param list<int> $path
      * @param list<string> $muted
+     * @param list<string> $boundRevisions exact IDs for already opened ancestors
+     * @param list<string> $resolvedRevisions
      */
-    public function indexAtPath(object $root, array $path, array $muted): ?object
+    public function indexAtPath(object $root, array $path, array $muted, array $boundRevisions = [], ?array &$resolvedRevisions = null): ?object
     {
+        $resolvedRevisions = [];
+        if (count($boundRevisions) > count($path)) {
+            return null;
+        }
         if (count($path) > 5 || $this->readableTargets(['source' => $root], $muted) === []) {
             return null;
         }
         $source = $root;
         $ancestors = [$this->coordinate($root)];
-        foreach ($path as $position) {
+        foreach ($path as $index => $position) {
             $reference = null;
             foreach (array_slice($this->references($source), 0, self::MAX_ENTRIES) as $candidate) {
                 if ($candidate['position'] === $position) {
@@ -100,11 +108,21 @@ final readonly class BookshelfReaderContents
                 || in_array($reference['coordinate'], $ancestors, true)) {
                 return null;
             }
+            if (isset($boundRevisions[$index])) {
+                $bound = $boundRevisions[$index];
+                if (preg_match('/^[0-9a-f]{64}$/D', $bound) !== 1
+                    || ($reference['pin'] !== null && $reference['pin'] !== $bound)) {
+                    return null;
+                }
+                $reference['pin'] = $bound;
+                $reference['key'] = $reference['coordinate'] . "\0" . $bound;
+            }
             $targets = $this->readableTargets($this->targets([$reference]), $muted);
             $source = $targets[$reference['key']] ?? null;
             if ($source === null) {
                 return null;
             }
+            $resolvedRevisions[] = strtolower($source->id);
             $ancestors[] = $reference['coordinate'];
         }
         return $source;
@@ -127,7 +145,7 @@ final readonly class BookshelfReaderContents
     public function childrenPage(object $source, array $muted, int $page): array
     {
         $references = $this->references($source);
-        $selected = array_slice($references, ($page - 1) * 50, 50, true);
+        $selected = array_slice($references, ($page - 1) * self::PAGE_SIZE, self::PAGE_SIZE, true);
         $sections = array_values(array_filter($selected, static fn (array $ref): bool => $ref['kind'] === 30041));
         $targets = $this->readableTargets($this->targets($sections), $muted);
         $entries = [];
@@ -143,8 +161,8 @@ final readonly class BookshelfReaderContents
                 'id' => $event->id ?? null,
             ];
         }
-        return ['entries' => $entries, 'page' => $page, 'hasNext' => $page < 10 && count($references) > $page * 50,
-            'truncated' => $page === 10 && count($references) > self::MAX_ENTRIES];
+        return ['entries' => $entries, 'page' => $page, 'hasNext' => $page < self::MAX_PAGES && count($references) > $page * self::PAGE_SIZE,
+            'truncated' => $page === self::MAX_PAGES && count($references) > self::MAX_ENTRIES];
     }
 
     /**
@@ -300,13 +318,18 @@ final readonly class BookshelfReaderContents
             return $localMatches;
         }
         $result = $localMatches;
-        foreach ([$this->booksApi, $this->api] as $client) {
+        foreach ([[$this->booksApi, true], [$this->api, false]] as [$client, $orderedCoordinates]) {
             for ($pass = 0; $pass < self::MAX_API_PASSES; ++$pass) {
                 $unresolved = array_values(array_filter($missing, static fn (array $ref): bool => !isset($result[$ref['key']])));
                 if ($unresolved === []) {
                     break 2;
                 }
-                $matched = $this->matchTargets($unresolved, $this->apiTargets($client, $unresolved));
+                // The direct Books API guarantees created_at DESC, id ASC.
+                // Mercury's coordinate filter does not guarantee tie ordering,
+                // so its one-result sample is unsafe for unpinned references.
+                $matched = $this->matchTargets($unresolved, $this->apiTargets(
+                    $client, $unresolved, $orderedCoordinates,
+                ));
                 if ($matched === []) {
                     break;
                 }
@@ -361,7 +384,7 @@ final readonly class BookshelfReaderContents
      * @param list<array<string, mixed>> $refs
      * @return list<object>
      */
-    private function apiTargets(MercuryApiClientInterface $client, array $refs): array
+    private function apiTargets(MercuryApiClientInterface $client, array $refs, bool $orderedCoordinates): array
     {
         $events = [];
         foreach ([30040, 30041] as $kind) {
@@ -371,13 +394,20 @@ final readonly class BookshelfReaderContents
                 $events = array_merge($events, $this->apiEvents(fn (): array => $kind === 30040
                     ? $client->getPublicationEventsByIds($ids) : $client->getEventsByIds($ids)));
             }
-            $unpinned = array_values(array_filter($matching, static fn (array $ref): bool => $ref['pin'] === null));
-            if ($unpinned !== []) {
-                $authors = array_values(array_unique(array_column($unpinned, 'pubkey')));
-                $identifiers = array_values(array_unique(array_column($unpinned, 'identifier')));
+            $unpinned = $orderedCoordinates
+                ? array_values(array_filter($matching, static fn (array $ref): bool => $ref['pin'] === null))
+                : [];
+            $seen = [];
+            foreach ($unpinned as $ref) {
+                // Mercury strips blank identifiers and otherwise turns this
+                // into a broad author-only query. Let exact relay lookup handle it.
+                if (trim($ref['identifier']) === '' || isset($seen[$ref['coordinate']])) {
+                    continue;
+                }
+                $seen[$ref['coordinate']] = true;
                 $events = array_merge($events, $this->apiEvents(fn (): array => $kind === 30040
-                    ? $client->getPublicationsByAuthors($authors, self::MAX_ENTRIES, $identifiers)
-                    : $client->getChaptersByAuthors($authors, self::MAX_ENTRIES, $identifiers)));
+                    ? $client->getPublicationsByAuthors([$ref['pubkey']], 1, [$ref['identifier']])
+                    : $client->getChaptersByAuthors([$ref['pubkey']], 1, [$ref['identifier']])));
             }
         }
         return $events;

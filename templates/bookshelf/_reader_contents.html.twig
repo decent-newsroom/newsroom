@@ -29,7 +29,7 @@
                         {% if not entry.invalid and path|length < 5 %}
                             {% set childPath = path|merge([entry.position]) %}
                             {% set childFrame = 'bookshelf-reader-' ~ rootId ~ '-' ~ childPath|join('-') ~ '-1' %}
-                            {% set childUrl = path('bookshelf_reader_contents', {id: rootId, path: childPath|join('.')}) %}
+                            {% set childUrl = path('bookshelf_reader_contents', {id: rootId, path: childPath|join('.'), revisions: revisions|join(','), signature: childSignatures[entry.position]}) %}
                             <details class="bookshelf-reader__index" data-controller="ui--workspace-fragment"
                                 data-action="toggle->ui--workspace-fragment#toggle turbo:before-fetch-request->ui--workspace-fragment#beforeRequest">
                                 <summary>{{ entry.title }}</summary>
@@ -53,7 +53,11 @@
         {% if contents.hasNext %}
             {% set nextPage = page + 1 %}
             {% set nextFrame = 'bookshelf-reader-' ~ rootId ~ '-' ~ (path is empty ? 'root' : path|join('-')) ~ '-' ~ nextPage %}
-            {% set nextUrl = path('bookshelf_reader_contents', {id: rootId, path: path|join('.'), page: nextPage}) %}
+            {% set nextParams = {id: rootId, path: path|join('.'), page: nextPage} %}
+            {% if path is not empty %}
+                {% set nextParams = nextParams|merge({revisions: revisions|join(','), signature: pageSignature}) %}
+            {% endif %}
+            {% set nextUrl = path('bookshelf_reader_contents', nextParams) %}
             <details class="bookshelf-reader__more" data-controller="ui--workspace-fragment"
                 data-action="toggle->ui--workspace-fragment#toggle turbo:before-fetch-request->ui--workspace-fragment#beforeRequest">
                 <summary>{{ 'bookshelf.reader_load_more'|trans }}</summary>
