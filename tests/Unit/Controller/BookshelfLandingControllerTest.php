@@ -50,16 +50,17 @@ final class BookshelfLandingControllerTest extends TestCase
         }
         $store = $this->createMock(DirectoryEventStoreInterface::class);
         $store->expects(self::never())->method('findAllByPubkeyAndKind');
-        $response = $this->controller()->index(
+        $response = $this->controller(featuredDirectoryNaddr: 'naddr-configured')->index(
             new Request(['q' => $query]), new MercuryBookService($api),
-            new BookshelfDirectoryService($store), $this->featured(), new NullLogger(),
+            new BookshelfDirectoryService($store), new NullLogger(),
         );
         self::assertSame('@Bookshelf/pages/bookshelf.html.twig', $this->template);
         self::assertSame(trim($query), $this->captured['query']);
         self::assertSame($searched, $this->captured['searched']);
         self::assertSame($tooShort, $this->captured['queryTooShort']);
         self::assertSame(!$fails, $this->captured['available']);
-        self::assertSame('unconfigured', $this->captured['featured']['state']);
+        self::assertSame(!$searched, $this->captured['showFeaturedPreview']);
+        self::assertArrayNotHasKey('featured', $this->captured);
         self::assertSame(200, $response->getStatusCode());
         self::assertTrue($response->headers->hasCacheControlDirective('private'));
         self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
@@ -88,10 +89,11 @@ final class BookshelfLandingControllerTest extends TestCase
         $store->expects(self::once())->method('findAllByPubkeyAndKind')->with($pubkey, 30045, 50)->willReturn([$source]);
         $this->controller($user)->index(
             new Request(), new MercuryBookService($this->createStub(MercuryApiClientInterface::class)),
-            new BookshelfDirectoryService($store), $this->featured(), new NullLogger(),
+            new BookshelfDirectoryService($store), new NullLogger(),
         );
         self::assertSame(['30040:' . $pubkey . ':book'], $this->captured['directoryCoordinates']);
         self::assertSame($source->getTags(), $this->captured['directoryTags']);
+        self::assertFalse($this->captured['showFeaturedPreview']);
     }
 
     /** @dataProvider invalidPages */
@@ -117,7 +119,17 @@ final class BookshelfLandingControllerTest extends TestCase
         $this->controller()->directory(new Request(), $this->featured());
     }
 
-    private function controller(?User $user = null): LandingController
+    public function testUnconfiguredPreviewReturnsAnEmptyFragment(): void
+    {
+        $response = $this->controller()->featuredPreview($this->featured());
+
+        self::assertSame('bookshelf/_featured_preview.html.twig', $this->template);
+        self::assertSame('unconfigured', $this->captured['featured']['state']);
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+    }
+
+    private function controller(?User $user = null, string $featuredDirectoryNaddr = ''): LandingController
     {
         $storage = new TokenStorage();
         if ($user !== null) {
@@ -133,7 +145,7 @@ final class BookshelfLandingControllerTest extends TestCase
         $container = new Container();
         $container->set('security.token_storage', $storage);
         $container->set('twig', $twig);
-        $controller = new LandingController();
+        $controller = new LandingController($featuredDirectoryNaddr);
         $controller->setContainer($container);
 
         return $controller;

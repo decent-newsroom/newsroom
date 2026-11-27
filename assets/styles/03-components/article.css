@@ -106,9 +106,9 @@ article {
 }
 
 blockquote {
-    border-left: 6px solid var(--color-bg-light);
+    border-left: 3px solid var(--color-primary);
     padding-left: var(--spacing-1);
-    margin: var(--spacing-6) 0 var(--spacing-6) var(--spacing-1);
+    margin: var(--spacing-6) 0 var(--spacing-6) 0;
 }
 
 blockquote > p {

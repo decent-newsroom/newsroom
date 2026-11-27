@@ -29,7 +29,9 @@ final class BookshelfReaderCacheTest extends TestCase
         self::assertNotNull($source);
         $outline = $first->outline($source);
 
-        $second = $this->reader($cache, $api);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::never())->method('findByIds');
+        $second = $this->reader($cache, $api, events: $events);
         self::assertEquals($source, $second->source($root->id));
         self::assertSame($outline, $second->outline($source));
         self::assertCount(1, $outline['entries']);
@@ -57,7 +59,11 @@ final class BookshelfReaderCacheTest extends TestCase
         $first = $this->reader($cache, $api, hidden: $hidden);
         self::assertSame('Cached chapter', $first->chapter($root, 1)['content']);
 
-        $second = $this->reader($cache, $api, hidden: $hidden);
+        $events = $this->createMock(EventRepository::class);
+        $events->expects(self::once())->method('findBookshelfReaderTargets')
+            ->with(["30041:$pubkey:chapter"], [])
+            ->willReturn(['coordinates' => [], 'eventIds' => []]);
+        $second = $this->reader($cache, $api, events: $events, hidden: $hidden);
         self::assertSame($chapter->id, $second->chapter($root, 1)['id']);
         self::assertSame($chapter->id, $second->chapter($root, 2)['id']);
         $blocked = true;

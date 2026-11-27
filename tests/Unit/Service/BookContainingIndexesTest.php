@@ -6,7 +6,6 @@ namespace App\Tests\Unit\Service;
 
 use App\Bookshelf\BookContainingIndexes;
 use App\Entity\Event;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
@@ -24,9 +23,7 @@ final class BookContainingIndexesTest extends TestCase
     public function testCurrentParentMembership(
         array $references,
         bool $suppressed,
-        bool $deleted,
         bool $hidden,
-        bool $muted,
         bool $sensitive,
         bool $visible,
     ): void {
@@ -45,41 +42,37 @@ final class BookContainingIndexesTest extends TestCase
             ->with([$coordinate], [])->willReturn(['coordinates' => [$coordinate => $parent], 'eventIds' => []]);
         $authors = $this->createMock(ContentAuthorAccessPolicy::class);
         $authors->method('suppressedPubkeys')->willReturn($suppressed ? [$pubkey] : []);
-        $deletions = $this->createMock(DeletedEventRepository::class);
-        $deletions->method('findSuppressedEventIds')->willReturn($deleted ? [$parent->getId()] : []);
         $hiddenCoordinates = $this->createMock(HiddenCoordinateRepository::class);
         $hiddenCoordinates->method('isHidden')->with($coordinate)->willReturn($hidden);
         $nip19 = new NostrNip19Service();
         $service = new BookContainingIndexes(
             $events, new EventPresentationFactory(new RecordIdentityService(), $nip19),
-            $authors, $deletions, $hiddenCoordinates,
+            $authors, $hiddenCoordinates,
         );
 
         self::assertSame($visible ? [[
             'title' => '<Parent>',
             'eventId' => $parent->getId(),
-        ]] : [], $service->forBook($book, $muted ? [$pubkey] : []));
+        ]] : [], $service->forBook($book));
     }
 
-    /** @return iterable<string, array{list<list<string>>, bool, bool, bool, bool, bool, bool}> */
+    /** @return iterable<string, array{list<list<string>>, bool, bool, bool, bool}> */
     public static function parentCases(): iterable
     {
         $ref = ['a', '30040:' . str_repeat('a', 64) . ':book'];
-        yield 'coordinate' => [[$ref], false, false, false, false, false, true];
-        yield 'duplicate' => [[$ref, $ref], false, false, false, false, false, true];
-        yield 'matching pin' => [[[$ref[0], $ref[1], '', str_repeat('b', 64)]], false, false, false, false, false, true];
-        yield 'uppercase matching pin' => [[[$ref[0], $ref[1], '', str_repeat('B', 64)]], false, false, false, false, false, true];
-        yield 'wrong pin' => [[[$ref[0], $ref[1], '', str_repeat('d', 64)]], false, false, false, false, false, false];
-        yield 'malformed pin' => [[[$ref[0], $ref[1], '', 'bad-pin']], false, false, false, false, false, false];
-        yield 'removed in current revision' => [[], false, false, false, false, false, false];
-        yield 'suppressed author' => [[$ref], true, false, false, false, false, false];
-        yield 'deleted' => [[$ref], false, true, false, false, false, false];
-        yield 'hidden' => [[$ref], false, false, true, false, false, false];
-        yield 'muted' => [[$ref], false, false, false, true, false, false];
-        yield 'sensitive' => [[$ref], false, false, false, false, true, false];
-        yield 'scoped audience' => [[$ref, ['s', 'members']], false, false, false, false, false, false];
-        yield 'malformed scope marker' => [[$ref, ['s']], false, false, false, false, false, false];
-        yield 'community scope' => [[$ref, ['a', '34550:' . str_repeat('a', 64) . ':community']], false, false, false, false, false, false];
+        yield 'coordinate' => [[$ref], false, false, false, true];
+        yield 'duplicate' => [[$ref, $ref], false, false, false, true];
+        yield 'matching pin' => [[[$ref[0], $ref[1], '', str_repeat('b', 64)]], false, false, false, true];
+        yield 'uppercase matching pin' => [[[$ref[0], $ref[1], '', str_repeat('B', 64)]], false, false, false, true];
+        yield 'wrong pin' => [[[$ref[0], $ref[1], '', str_repeat('d', 64)]], false, false, false, false];
+        yield 'malformed pin' => [[[$ref[0], $ref[1], '', 'bad-pin']], false, false, false, false];
+        yield 'removed in current revision' => [[], false, false, false, false];
+        yield 'suppressed author' => [[$ref], true, false, false, false];
+        yield 'hidden' => [[$ref], false, true, false, false];
+        yield 'sensitive' => [[$ref], false, false, true, false];
+        yield 'scoped audience' => [[$ref, ['s', 'members']], false, false, false, false];
+        yield 'malformed scope marker' => [[$ref, ['s']], false, false, false, false];
+        yield 'community scope' => [[$ref, ['a', '34550:' . str_repeat('a', 64) . ':community']], false, false, false, false];
     }
 
     public function testMultipleForeignParentsAreDeduplicatedAndKeptDistinct(): void
@@ -108,7 +101,6 @@ final class BookContainingIndexesTest extends TestCase
         $service = new BookContainingIndexes(
             $events, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
             $this->createMock(ContentAuthorAccessPolicy::class),
-            $this->createMock(DeletedEventRepository::class),
             $this->createMock(HiddenCoordinateRepository::class),
         );
 
@@ -118,17 +110,12 @@ final class BookContainingIndexesTest extends TestCase
         ], $service->forBook($child));
     }
 
-    /**
-     * @dataProvider parentAuthorRestrictions
-     * @param list<string> $suppressed
-     * @param list<string> $muted
-     */
-    public function testParentAuthorRestrictionsAreCaseInsensitive(string $author, array $suppressed, array $muted): void
+    public function testSuppressedParentAuthorIsCaseInsensitive(): void
     {
         $bookPubkey = str_repeat('a', 64);
         $parentPubkey = str_repeat('c', 64);
         $book = $this->event(str_repeat('b', 64), $bookPubkey, [['d', 'book']]);
-        $parent = $this->event(str_repeat('d', 64), $author, [
+        $parent = $this->event(str_repeat('d', 64), strtoupper($parentPubkey), [
             ['d', 'parent'], ['title', 'Must remain hidden'], ['a', '30040:' . $bookPubkey . ':book'],
         ]);
         $events = $this->createMock(EventRepository::class);
@@ -137,24 +124,13 @@ final class BookContainingIndexesTest extends TestCase
             'coordinates' => ['30040:' . $parentPubkey . ':parent' => $parent], 'eventIds' => [],
         ]);
         $authors = $this->createMock(ContentAuthorAccessPolicy::class);
-        $authors->method('suppressedPubkeys')->willReturn($suppressed);
+        $authors->method('suppressedPubkeys')->willReturn([$parentPubkey]);
         $service = new BookContainingIndexes(
             $events, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
-            $authors, $this->createMock(DeletedEventRepository::class),
-            $this->createMock(HiddenCoordinateRepository::class),
+            $authors, $this->createMock(HiddenCoordinateRepository::class),
         );
 
-        self::assertSame([], $service->forBook($book, $muted));
-    }
-
-    /** @return iterable<string, array{string, list<string>, list<string>}> */
-    public static function parentAuthorRestrictions(): iterable
-    {
-        $lower = str_repeat('c', 64);
-        $upper = strtoupper($lower);
-        yield 'suppressed uppercase author' => [$upper, [$lower], []];
-        yield 'muted uppercase author' => [$upper, [], [$lower]];
-        yield 'uppercase mute' => [$lower, [], [$upper]];
+        self::assertSame([], $service->forBook($book));
     }
 
     /** @dataProvider unroutableParentIds */
@@ -173,7 +149,6 @@ final class BookContainingIndexesTest extends TestCase
         $service = new BookContainingIndexes(
             $events, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
             $this->createMock(ContentAuthorAccessPolicy::class),
-            $this->createMock(DeletedEventRepository::class),
             $this->createMock(HiddenCoordinateRepository::class),
         );
 
@@ -196,7 +171,6 @@ final class BookContainingIndexesTest extends TestCase
         $service = new BookContainingIndexes(
             $events, new EventPresentationFactory(new RecordIdentityService(), $nip19),
             $this->createMock(ContentAuthorAccessPolicy::class),
-            $this->createMock(DeletedEventRepository::class),
             $this->createMock(HiddenCoordinateRepository::class),
         );
         self::assertSame([], $service->forBook($this->event(
@@ -211,7 +185,6 @@ final class BookContainingIndexesTest extends TestCase
         $service = new BookContainingIndexes(
             $events, new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()),
             $this->createMock(ContentAuthorAccessPolicy::class),
-            $this->createMock(DeletedEventRepository::class),
             $this->createMock(HiddenCoordinateRepository::class),
         );
         self::assertSame([], $service->forBook($this->event(

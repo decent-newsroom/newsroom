@@ -7,9 +7,6 @@ namespace App\Bookshelf;
 use App\Service\Nostr\NostrClient;
 use Psr\Log\LoggerInterface;
 
-/**
- * Resolves directory references and refreshes unpinned book publications.
- */
 final class BookshelfRelayBookLoader
 {
     private const PUBLICATION_INDEX_KIND = 30040;
@@ -21,55 +18,12 @@ final class BookshelfRelayBookLoader
     ) {
     }
 
-    /**
-     * @param array<int, array{type: 'a'|'e', coordinate: ?string, relay: ?string, eventId: ?string, pubkey: ?string}> $references
-     * @param array<int, array<string, mixed>> $indexedBooks
-     * @return array<int, array<string, mixed>>
-     */
-    public function fillMissingBooks(array $references, array $indexedBooks): array
+    /** @return array<string, mixed>|null */
+    public function cardFromEvent(object $event, ?string $relay): ?array
     {
-        if ($references === []) {
-            return [];
-        }
-
-        $booksById = [];
-        $booksByCoordinate = [];
-        foreach ($indexedBooks as $book) {
-            if (is_string($book['id'] ?? null) && $book['id'] !== '') {
-                $booksById[$book['id']] = $book;
-            }
-            if (is_string($book['coordinate'] ?? null) && $book['coordinate'] !== '') {
-                if ($this->isNewerBook($book, $booksByCoordinate[$book['coordinate']] ?? null)) {
-                    $booksByCoordinate[$book['coordinate']] = $book;
-                }
-            }
-        }
-
-        [$eventIds, $coordinates, $relayHints] = $this->referencesToFetch($references, $booksById);
-        $eventsById = $this->fetchById($eventIds, $relayHints);
-        $eventsByCoordinate = $this->fetchByCoordinate($coordinates, $relayHints, true);
-
-        foreach ($eventsById as $event) {
-            $book = $this->mapBook($event, null);
-            if ($book !== null) {
-                $booksById[$book['id']] = $book;
-                if ($this->isNewerBook($book, $booksByCoordinate[$book['coordinate']] ?? null)) {
-                    $booksByCoordinate[$book['coordinate']] = $book;
-                }
-            }
-        }
-        foreach ($eventsByCoordinate as $event) {
-            $book = $this->mapBook($event, null);
-            if ($book !== null) {
-                $booksById[$book['id']] = $book;
-                if ($this->isNewerBook($book, $booksByCoordinate[$book['coordinate']] ?? null)) {
-                    $booksByCoordinate[$book['coordinate']] = $book;
-                }
-            }
-        }
-
-        return $this->orderedBooks($references, $booksById, $booksByCoordinate);
+        return $this->mapBook($event, $relay);
     }
+
     /** @return array<string, mixed>|null */
     public function getBook(string $eventId): ?array
     {
@@ -163,39 +117,6 @@ final class BookshelfRelayBookLoader
         return $book;
     }
 
-    /**
-     * @param array<int, array{type: 'a'|'e', coordinate: ?string, relay: ?string, eventId: ?string, pubkey: ?string}> $references
-     * @param array<string, array<string, mixed>> $booksById
-     * @return array{string[], string[], string[]}
-     */
-    private function referencesToFetch(array $references, array $booksById): array
-    {
-        $eventIds = [];
-        $coordinates = [];
-        $relayHints = [];
-        foreach ($references as $reference) {
-            $eventId = $reference['eventId'];
-            $coordinate = $reference['coordinate'];
-            $isResolved = $eventId !== null && isset($booksById[$eventId])
-                && ($coordinate === null || ($booksById[$eventId]['coordinate'] ?? null) === $coordinate);
-            if ($isResolved) {
-                continue;
-            }
-
-            if (is_string($eventId) && $eventId !== '') {
-                $eventIds[$eventId] = true;
-            }
-            if ($eventId === null && is_string($coordinate) && $this->isPublicationCoordinate($coordinate)) {
-                $coordinates[$coordinate] = true;
-            }
-            if (is_string($reference['relay']) && $this->isRelayUrl($reference['relay'])) {
-                $relayHints[$reference['relay']] = true;
-            }
-        }
-
-        return [array_keys($eventIds), array_keys($coordinates), array_keys($relayHints)];
-    }
-
     /** @param string[] $eventIds
      *  @param string[] $relayHints
      *  @return array<string, object>
@@ -222,16 +143,14 @@ final class BookshelfRelayBookLoader
      *  @param string[] $relayHints
      *  @return array<string, object>
      */
-    private function fetchByCoordinate(array $coordinates, array $relayHints, bool $refresh = false): array
+    private function fetchByCoordinate(array $coordinates, array $relayHints): array
     {
         if ($coordinates === []) {
             return [];
         }
 
         try {
-            return $refresh
-                ? $this->nostrClient->getEventsByCoordinates($coordinates, $relayHints, true)
-                : $this->nostrClient->getEventsByCoordinates($coordinates, $relayHints);
+            return $this->nostrClient->getEventsByCoordinates($coordinates, $relayHints);
         } catch (\Throwable $exception) {
             $this->logger->warning('Could not fetch Nostr-native bookshelf books by coordinate.', [
                 'coordinate_count' => count($coordinates),
@@ -242,59 +161,6 @@ final class BookshelfRelayBookLoader
         }
     }
 
-    /**
-     * @param array<int, array{type: 'a'|'e', coordinate: ?string, relay: ?string, eventId: ?string, pubkey: ?string}> $references
-     * @param array<string, array<string, mixed>> $booksById
-     * @param array<string, array<string, mixed>> $booksByCoordinate
-     * @return array<int, array<string, mixed>>
-     */
-    private function orderedBooks(array $references, array $booksById, array $booksByCoordinate): array
-    {
-        $books = [];
-        $seen = [];
-        foreach ($references as $reference) {
-            $book = $reference['eventId'] !== null ? ($booksById[$reference['eventId']] ?? null) : null;
-            if ($reference['eventId'] === null) {
-                $book = $reference['coordinate'] !== null ? ($booksByCoordinate[$reference['coordinate']] ?? null) : null;
-            } elseif ($reference['coordinate'] !== null && ($book['coordinate'] ?? null) !== $reference['coordinate']) {
-                $book = null;
-            }
-            if ($book === null) {
-                continue;
-            }
-
-            if (($book['relay'] ?? null) === null && is_string($reference['relay']) && $this->isRelayUrl($reference['relay'])) {
-                $book['relay'] = $reference['relay'];
-            }
-
-            $deduplicationKey = (string) ($book['coordinate'] ?? $book['id'] ?? '');
-            if ($deduplicationKey === '' || isset($seen[$deduplicationKey])) {
-                continue;
-            }
-
-            $seen[$deduplicationKey] = true;
-            $books[] = $book;
-        }
-
-        return $books;
-    }
-
-    /**
-     * @param array<string, mixed> $candidate
-     * @param array<string, mixed>|null $current
-     */
-    private function isNewerBook(array $candidate, ?array $current): bool
-    {
-        if ($current === null) {
-            return true;
-        }
-        $timestamp = (int) ($candidate['createdAt'] ?? 0);
-        $currentTimestamp = (int) ($current['createdAt'] ?? 0);
-
-        return $timestamp > $currentTimestamp
-            || ($timestamp === $currentTimestamp && strcmp((string) $candidate['id'], (string) $current['id']) < 0);
-    }
-
     /** @return array<string, mixed>|null */
     private function mapBook(object $event, ?string $relay, bool $allowEmptyIndex = false): ?array
     {
@@ -303,7 +169,7 @@ final class BookshelfRelayBookLoader
         }
 
         $tags = $this->normalizeTags($event->tags ?? []);
-        $identifier = $this->firstTagValue($tags, 'd');
+        $identifier = $this->firstTagValue($tags, 'd', trim: false);
         $id = (string) ($event->id ?? '');
         $pubkey = (string) ($event->pubkey ?? '');
         $chapterCount = $this->chapterCount($tags);
@@ -433,11 +299,11 @@ final class BookshelfRelayBookLoader
     }
 
     /** @param array<int, array<int, mixed>> $tags */
-    private function firstTagValue(array $tags, string $name): ?string
+    private function firstTagValue(array $tags, string $name, bool $trim = true): ?string
     {
         foreach ($tags as $tag) {
             if (($tag[0] ?? null) === $name && is_string($tag[1] ?? null)) {
-                return trim($tag[1]);
+                return $trim ? trim($tag[1]) : $tag[1];
             }
         }
 

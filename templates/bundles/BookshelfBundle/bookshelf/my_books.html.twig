@@ -2,5 +2,15 @@
 
 {% block body %}
     {{ parent() }}
+    {% if (hasPrevious|default(false)) or (hasNext|default(false)) %}
+        <nav class="event-member-pagination" aria-label="{{ 'bookshelf.references.pagination'|trans }}">
+            {% if hasPrevious %}
+                <a rel="prev" href="{{ path('bookshelf_my_books_local_fallback', {page: page - 1}) }}">{{ 'reading_nook.toc.previous'|trans }}</a>
+            {% endif %}
+            {% if hasNext %}
+                <a rel="next" href="{{ path('bookshelf_my_books_local_fallback', {page: page + 1}) }}">{{ 'reading_nook.toc.next'|trans }}</a>
+            {% endif %}
+        </nav>
+    {% endif %}
     <twig:Molecules:BookshelfDirectoryDisclosure :url="path('bookshelf_directory_references')" />
 {% endblock %}

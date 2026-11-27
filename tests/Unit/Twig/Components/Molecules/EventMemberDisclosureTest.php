@@ -237,7 +237,7 @@ final class EventMemberDisclosureTest extends KernelTestCase
         self::assertCount(0, $crawler->filter('ol'));
     }
 
-    public function testBookDetailLinksToContinuousReaderAndEscapedContainingIndexes(): void
+    public function testBookDetailLinksToContinuousReaderAndDefersContainingIndexes(): void
     {
         self::bootKernel();
         $twig = self::getContainer()->get('twig');
@@ -262,19 +262,15 @@ final class EventMemberDisclosureTest extends KernelTestCase
                 'event' => ['title' => 'Chapter', 'slug' => 'chapter'],
                 'coordinate' => '30041:' . str_repeat('b', 64) . ':chapter',
             ]],
-            'containingIndexes' => [['title' => '<script>Parent</script>', 'eventId' => str_repeat('c', 64)]],
         ];
         $crawler = new Crawler($twig->render('bookshelf/publication.html.twig', $parameters));
         self::assertSame('/bookshelf/' . self::ID, $crawler->selectLink('Read this book')->attr('href'));
-        self::assertSame('Contained in index', $crawler->filter('#publication-containing-indexes')->text());
-        self::assertSame('/bookshelf/index/' . str_repeat('c', 64), $crawler->selectLink('<script>Parent</script>')->attr('href'));
-        self::assertSame(0, $crawler->filter('script')->count());
+        $containingFrame = $crawler->filter('turbo-frame#bookshelf-containing-indexes-' . self::ID);
+        self::assertSame('/bookshelf/index/' . self::ID . '/containing-indexes', $containingFrame->attr('src'));
+        self::assertSame('lazy', $containingFrame->attr('loading'));
+        self::assertCount(0, $containingFrame->filter('#publication-containing-indexes'));
         self::assertSame('Chapter', $crawler->filter('.bookshelf-publication__chapters li')->text());
         self::assertSame('/magazine/book/chapter/chapter', $crawler->selectLink('Chapter')->attr('href'));
-        $parameters['containingIndexes'] = [];
-        $crawler = new Crawler($twig->render('bookshelf/publication.html.twig', $parameters));
-        self::assertSame(0, $crawler->filter('#publication-containing-indexes')->count());
-        self::assertCount(1, $crawler->selectLink('Read this book'));
     }
 
     public function testBookshelfFragmentKeepsOccurrencesPinsAndEscapesInvalidValues(): void
@@ -754,12 +750,11 @@ final class EventMemberDisclosureTest extends KernelTestCase
             'presentation' => $factory->fromAuthorizedEvent($source), 'isBook' => false,
             'authorMetadata' => new \stdClass(),
             'tocHeading' => 'bookshelf.publication.chapters',
-            'containingIndexes' => [],
             'tocPageNumber' => 1,
         ];
         $shell = new Crawler($twig->render('bookshelf/index.html.twig', $parameters));
         self::assertCount(0, $shell->filter('.event-toc-list li'));
-        self::assertStringStartsWith('/bookshelf/index/' . self::ID . '/contents?', $shell->filter('turbo-frame')->attr('src'));
+        self::assertStringStartsWith('/bookshelf/index/' . self::ID . '/contents?', $shell->filter('turbo-frame#nook-toc-' . self::ID)->attr('src'));
         $fragment = ['tocPage' => $page, 'tocNestedRoute' => 'bookshelf_index_toc', 'tocBookshelfLinks' => true];
         $html = $twig->render('reader/reading_nook/_publication_toc.html.twig', $fragment);
         $crawler = new Crawler($html);
@@ -1093,6 +1088,7 @@ final class EventMemberDisclosureTestKernel extends Kernel
         $routes->add('bookshelf_read', '/bookshelf/{id}');
         $routes->add('bookshelf_read_native_fallback', '/bookshelf/{id}');
         $routes->add('bookshelf_index', '/bookshelf/index/{eventId}');
+        $routes->add('bookshelf_index_containing_indexes', '/bookshelf/index/{eventId}/containing-indexes');
         $routes->add('bookshelf_index_contents', '/bookshelf/index/{eventId}/contents');
         $routes->add('bookshelf_index_toc', '/bookshelf/index/{eventId}/toc');
         $routes->add('nevent', '/e/{nevent}');

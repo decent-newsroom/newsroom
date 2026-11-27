@@ -1,10 +1,15 @@
-{% if containingIndexes is not empty %}
-    <section class="bookshelf-publication__details" aria-labelledby="publication-containing-indexes">
-        <h2 id="publication-containing-indexes">{{ 'bookshelf.contained_in_index'|trans }}</h2>
-        <ul>
-            {% for index in containingIndexes %}
-                <li><a href="{{ path('bookshelf_index', {eventId: index.eventId}) }}" data-turbo-frame="_top">{{ index.title }}</a></li>
-            {% endfor %}
-        </ul>
-    </section>
-{% endif %}
+<turbo-frame id="bookshelf-containing-indexes-{{ eventId }}" class="d-block"
+    {% if containingIndexes is null %}src="{{ path('bookshelf_index_containing_indexes', {eventId: eventId}) }}" loading="lazy"{% endif %}>
+    {% if containingIndexes is null %}
+        <p class="text-muted" role="status">{{ 'bookshelf.reader_loading'|trans }}</p>
+    {% elseif containingIndexes is not empty %}
+        <section class="bookshelf-publication__details" aria-labelledby="publication-containing-indexes">
+            <h2 id="publication-containing-indexes">{{ 'bookshelf.contained_in_index'|trans }}</h2>
+            <ul>
+                {% for index in containingIndexes %}
+                    <li><a href="{{ path('bookshelf_index', {eventId: index.eventId}) }}" data-turbo-frame="_top">{{ index.title }}</a></li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+</turbo-frame>

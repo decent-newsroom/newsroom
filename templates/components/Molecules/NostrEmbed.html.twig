@@ -12,7 +12,7 @@
         <p class="event-preview__sensitive">{{ 'event_workspace.preview.sensitive'|trans }}</p>
     </div>
 {% elseif presentation is not null %}
-    <div class="embedded-event-card">
+    <div>
         {% include 'components/Molecules/EventPreview.html.twig' with {presentation: presentation} only %}
         <div class="event-footer"><a href="{{ href }}" class="view-full">{{ 'event.details'|trans }}</a></div>
     </div>

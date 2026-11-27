@@ -2,6 +2,10 @@
 
 ## v0.1.0
 
+- [Improvement] Read exact Bookshelf revisions from cache first, reuse parsed index references, and batch chapter visibility checks.
+- [Improvement] Paginate My Books and use the Books API, Mercury, and local relay only for unresolved references without refreshing the directory on page load.
+- [Improvement] Release workspace Turbo request slots through frame completion and failure events, avoiding duplicate reads of chapter responses.
+- [Improvement] Load featured Bookshelf previews and containing-index links independently of the landing and book pages.
 - [Improvement] Remove read-time viewer mute and deletion lookups from Bookshelf book, chapter, and public index loading.
 - [Improvement] Start Bookshelf loading with the first two index entries, load later chapters in the viewport, and show loading skeletons and retry controls.
 - [Improvement] Cache Bookshelf reader events, TOC outlines and converted bodies for one year, and unpinned lookups for 30 days, while rechecking access rules.

@@ -13,7 +13,7 @@
                         <img class="bookshelf-featured__cover" src="{{ image }}" alt="" loading="lazy" decoding="async">
                     {% endif %}
                     {% set heading = directoryView|default(false) ? 'h2' : 'h3' %}
-                    <{{ heading }}><a href="{{ path('bookshelf_read', {id: book.eventId}) }}">{{ book.title ?? 'event_workspace.preview.untitled'|trans }}</a></{{ heading }}>
+                    <{{ heading }}><a href="{{ path('bookshelf_read', {id: book.eventId}) }}" data-turbo-frame="_top">{{ book.title ?? 'event_workspace.preview.untitled'|trans }}</a></{{ heading }}>
                     {% if book.description %}
                         <p class="line-clamp-3">{{ book.description|slice(0, 220) }}</p>
                     {% endif %}

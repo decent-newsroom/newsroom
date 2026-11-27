@@ -6,7 +6,7 @@ import { SourceTextModule, createContext } from 'node:vm';
 const source = await readFile(new URL('../../assets/controllers/ui/workspace_fragment_controller.js', import.meta.url), 'utf8');
 
 async function fixture() {
-    const context = createContext({ AbortController });
+    const context = createContext({ AbortController, queueMicrotask });
     const module = new SourceTextModule(source, { context });
     await module.link(async () => {
         const stimulus = new SourceTextModule('export class Controller {}', { context });
@@ -42,7 +42,7 @@ test('workspace frame requests share four slots and continue after responses or 
     assert.deepEqual(rows.map(row => row.resumes), [1, 1, 1, 1, 0, 0]);
     assert.ok(rows.every(row => row.prevented));
 
-    rows[0].frame.dispatchEvent(new Event('turbo:before-fetch-response'));
+    rows[0].frame.dispatchEvent(new Event('turbo:frame-load'));
     assert.equal(rows[4].resumes, 1);
     rows[1].frame.dispatchEvent(new Event('turbo:fetch-request-error'));
     assert.equal(rows[5].resumes, 1);
@@ -54,7 +54,7 @@ test('a queued closed disclosure waits until reopened', async () => {
     const rows = Array.from({ length: 6 }, make);
     rows.forEach(row => row.controller.beforeRequest(row.event));
     rows[4].element.open = false;
-    rows[0].frame.dispatchEvent(new Event('turbo:before-fetch-response'));
+    rows[0].frame.dispatchEvent(new Event('turbo:frame-load'));
     assert.equal(rows[4].resumes, 0);
     assert.equal(rows[5].resumes, 1);
     rows[4].element.open = true;
@@ -74,7 +74,7 @@ test('chapter frames outside disclosures load automatically and share the four r
         chapter.controller.beforeRequest(chapter.event);
     }
     assert.deepEqual(chapters.map(chapter => chapter.resumes), [1, 1, 1, 1, 0]);
-    chapters[0].frame.dispatchEvent(new Event('turbo:before-fetch-response'));
+    chapters[0].frame.dispatchEvent(new Event('turbo:frame-load'));
     assert.equal(chapters[4].resumes, 1);
     chapters.slice(1).forEach(chapter => chapter.abort.abort());
 });
@@ -119,24 +119,31 @@ test('disconnect aborts an active frame before releasing its slot', async () => 
     rows.slice(1).forEach(row => row.abort.abort());
 });
 
-test('a response retains its slot until its streamed body finishes', async () => {
+test('headers leave the slot occupied until Turbo handles the response', async () => {
     const make = await fixture();
     const rows = Array.from({ length: 5 }, make);
     rows.forEach(row => row.controller.beforeRequest(row.event));
-    let stream;
-    const body = new ReadableStream({ start(controller) { stream = controller; } });
     const response = new Event('turbo:before-fetch-response');
-    Object.defineProperty(response, 'detail', { value: { fetchResponse: { response: new Response(body) } } });
+    const fetchResponse = { response: { clone: () => assert.fail('Turbo should be the only body reader') } };
+    Object.defineProperty(response, 'detail', { value: { fetchResponse } });
     rows[0].frame.dispatchEvent(response);
     assert.equal(rows[4].resumes, 0);
-    stream.enqueue(new Uint8Array([1]));
-    await new Promise(resolve => setTimeout(resolve, 10));
+    rows[0].frame.dispatchEvent(new Event('turbo:frame-missing'));
+    assert.equal(rows[4].resumes, 1);
+    rows.slice(1).forEach(row => row.abort.abort());
+});
+
+test('a Turbo response with no frame event releases its slot through the loaded promise', async () => {
+    const make = await fixture();
+    const rows = Array.from({ length: 5 }, make);
+    rows.forEach(row => row.controller.beforeRequest(row.event));
+    let resolveLoad;
+    rows[0].frame.loaded = new Promise(resolve => { resolveLoad = resolve; });
+    await Promise.resolve();
     assert.equal(rows[4].resumes, 0);
-    stream.close();
-    const deadline = Date.now() + 1000;
-    while (rows[4].resumes === 0 && Date.now() < deadline) {
-        await new Promise(resolve => setTimeout(resolve, 10));
-    }
+
+    resolveLoad();
+    await rows[0].frame.loaded;
     assert.equal(rows[4].resumes, 1);
     rows.slice(1).forEach(row => row.abort.abort());
 });

@@ -46,13 +46,15 @@ final readonly class BookshelfReaderContents
 
     public function source(string $id): ?object
     {
-        $local = $this->events->findByIds([$id])[$id] ?? null;
-        if ($local instanceof Event && $local->getKind() === 30040) {
-            return $this->wireEvent($local);
-        }
         $cached = $this->cachedEvent('event:' . $id);
         if ($cached !== null && $cached->id === $id && $cached->kind === 30040) {
             return $cached;
+        }
+        $local = $this->events->findByIds([$id])[$id] ?? null;
+        if ($local instanceof Event && $local->getKind() === 30040) {
+            $source = $this->wireEvent($local);
+            $this->rememberEvent($source);
+            return $source;
         }
         foreach ([$this->booksApi, $this->api] as $client) {
             try {
@@ -103,22 +105,38 @@ final readonly class BookshelfReaderContents
     public function indexAtPath(object $root, array $path, array $boundRevisions = [], ?array &$resolvedRevisions = null): ?object
     {
         $resolvedRevisions = [];
-        if (count($boundRevisions) > count($path)) {
+        $revisions = $pendingVisibility = [];
+        $source = $this->followIndexPath($root, $path, $boundRevisions, $revisions, $pendingVisibility);
+        if ($source === null || $this->blockedCoordinates($pendingVisibility) !== []) {
             return null;
         }
-        if (count($path) > 5 || $this->readableTargets(['source' => $root]) === []) {
+
+        $resolvedRevisions = $revisions;
+        return $source;
+    }
+
+    /**
+     * @param list<int> $path
+     * @param list<string> $boundRevisions
+     * @param list<string> $resolvedRevisions
+     * @param array<string, string> $pendingVisibility Coordinates and authors awaiting one visibility check
+     */
+    private function followIndexPath(
+        object $root,
+        array $path,
+        array $boundRevisions,
+        array &$resolvedRevisions,
+        array &$pendingVisibility,
+    ): ?object {
+        $rootCoordinate = $this->publicCoordinate($root);
+        if ($rootCoordinate === null || count($path) >= self::MAX_DEPTH || count($boundRevisions) > count($path)) {
             return null;
         }
         $source = $root;
-        $ancestors = [$this->coordinate($root)];
+        $ancestors = [$rootCoordinate];
+        $pendingVisibility[$rootCoordinate] = strtolower($root->pubkey);
         foreach ($path as $index => $position) {
-            $reference = null;
-            foreach (array_slice($this->references($source), 0, self::MAX_ENTRIES) as $candidate) {
-                if ($candidate['position'] === $position) {
-                    $reference = $candidate;
-                    break;
-                }
-            }
+            $reference = array_slice($this->references($source), 0, self::MAX_ENTRIES, true)[$position] ?? null;
             if ($reference === null || $reference['kind'] !== 30040 || $reference['invalid']
                 || in_array($reference['coordinate'], $ancestors, true)) {
                 return null;
@@ -132,9 +150,17 @@ final readonly class BookshelfReaderContents
                 $reference['pin'] = $bound;
                 $reference['key'] = $reference['coordinate'] . "\0" . $bound;
             }
-            $targets = $this->readableTargets($this->targets([$reference]));
-            $source = $targets[$reference['key']] ?? null;
+            $pendingVisibility[$reference['coordinate']] = $reference['pubkey'];
+            $source = $reference['pin'] === null ? null : $this->cachedTarget($reference);
             if ($source === null) {
+                // Check the traversed prefix before any uncached descendant lookup.
+                if ($this->blockedCoordinates($pendingVisibility) !== []) {
+                    return null;
+                }
+                $pendingVisibility = [];
+                $source = $this->targets([$reference])[$reference['key']] ?? null;
+            }
+            if ($source === null || $this->publicCoordinate($source) === null) {
                 return null;
             }
             $resolvedRevisions[] = strtolower($source->id);
@@ -192,25 +218,58 @@ final readonly class BookshelfReaderContents
     /** @return array<string, mixed>|null */
     public function chapter(object $source, int $position): ?array
     {
-        foreach (array_slice($this->references($source), 0, self::MAX_ENTRIES) as $reference) {
-            if ($reference['position'] !== $position || $reference['kind'] !== 30041 || $reference['invalid']) {
-                continue;
-            }
-            $target = $this->readableTargets($this->targets([$reference]))[$reference['key']] ?? null;
-            if ($target === null) {
-                return null;
-            }
+        return $this->resolveChapter($source, $position, []);
+    }
 
-            return [
-                'id' => $target->id,
-                'available' => true,
-                'title' => $this->tag($target->tags ?? [], 'title') ?? $reference['identifier'],
-                'summary' => $this->tag($target->tags ?? [], 'summary'),
-                'content' => (string) ($target->content ?? ''),
-            ];
+    /**
+     * @param list<int> $path
+     * @param list<string> $boundRevisions
+     * @return array<string, mixed>|null
+     */
+    public function chapterAtPath(object $root, array $path, array $boundRevisions, int $position): ?array
+    {
+        $resolvedRevisions = $pendingVisibility = [];
+        $source = $this->followIndexPath($root, $path, $boundRevisions, $resolvedRevisions, $pendingVisibility);
+        if ($source === null) {
+            return null;
+        }
+        if ($position === -1) {
+            return $this->blockedCoordinates($pendingVisibility) === []
+                ? ['id' => $source->id, 'available' => true, 'content' => (string) ($source->content ?? '')]
+                : null;
         }
 
-        return null;
+        return $this->resolveChapter($source, $position, $pendingVisibility);
+    }
+
+    /**
+     * @param array<string, string> $pendingVisibility
+     * @return array<string, mixed>|null
+     */
+    private function resolveChapter(object $source, int $position, array $pendingVisibility): ?array
+    {
+        $reference = array_slice($this->references($source), 0, self::MAX_ENTRIES, true)[$position] ?? null;
+        if ($reference === null || $reference['kind'] !== 30041 || $reference['invalid']) {
+            return null;
+        }
+
+        $pendingVisibility[$reference['coordinate']] = $reference['pubkey'];
+        if ($this->blockedCoordinates($pendingVisibility) !== []) {
+            return null;
+        }
+
+        $target = $this->targets([$reference])[$reference['key']] ?? null;
+        if ($target === null || $this->publicCoordinate($target) === null) {
+            return null;
+        }
+
+        return [
+            'id' => $target->id,
+            'available' => true,
+            'title' => $this->tag($target->tags ?? [], 'title') ?? $reference['identifier'],
+            'summary' => $this->tag($target->tags ?? [], 'summary'),
+            'content' => (string) ($target->content ?? ''),
+        ];
     }
 
     /**
@@ -329,9 +388,16 @@ final readonly class BookshelfReaderContents
         return $book;
     }
 
-    /** @return list<array{position: int, kind: int, coordinate: string, pubkey: string, identifier: string, relay: ?string, pin: ?string, key: string, invalid: bool}> */
+    /** @return array<int, array{position: int, kind: int, coordinate: string, pubkey: string, identifier: string, relay: ?string, pin: ?string, key: string, invalid: bool}> */
     private function references(object $event): array
     {
+        $key = is_string($event->id ?? null) && preg_match('/^[0-9a-f]{64}$/iD', $event->id) === 1
+            ? 'references:' . strtolower($event->id) : null;
+        $cached = $key === null ? null : $this->cacheRead($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
         $refs = [];
         $position = -1;
         foreach (is_array($event->tags ?? null) ? $event->tags : [] as $tag) {
@@ -352,12 +418,16 @@ final readonly class BookshelfReaderContents
             $pin = !$invalid && $rawPin !== '' ? strtolower($rawPin) : null;
             $relay = is_string($tag[2] ?? null) && in_array(parse_url($tag[2], PHP_URL_SCHEME), ['ws', 'wss'], true)
                 && parse_url($tag[2], PHP_URL_HOST) ? $tag[2] : null;
-            $refs[] = [
+            $refs[$position] = [
                 'position' => $position, 'kind' => (int) $parts[0], 'coordinate' => $coordinate, 'pubkey' => $pubkey,
                 'identifier' => $identifier, 'relay' => $relay, 'pin' => $pin, 'invalid' => $invalid,
                 'key' => $coordinate . "\0" . ($invalid ? 'invalid' : ($pin ?? 'latest')),
             ];
         }
+        if ($key !== null) {
+            $this->cacheWrite($key, $refs, self::EXACT_CACHE_TTL);
+        }
+
         return $refs;
     }
 
@@ -367,15 +437,18 @@ final readonly class BookshelfReaderContents
      */
     private function targets(array $refs): array
     {
-        if ($refs === []) {
-            return [];
-        }
+        $result = $uncached = [];
         $ids = $coordinates = $relays = [];
         foreach ($refs as $ref) {
             if ($ref['invalid']) {
                 continue;
             }
             if ($ref['pin'] !== null) {
+                $cached = $this->cachedTarget($ref);
+                if ($cached !== null) {
+                    $result[$ref['key']] = $cached;
+                    continue;
+                }
                 $ids[$ref['pin']] = true;
             } else {
                 $coordinates[$ref['coordinate']] = true;
@@ -383,26 +456,37 @@ final readonly class BookshelfReaderContents
             if ($ref['relay'] !== null && count($relays) < self::MAX_RELAY_HINTS) {
                 $relays[$ref['relay']] = true;
             }
+            $uncached[] = $ref;
         }
+        if ($uncached === []) {
+            return $result;
+        }
+
         $local = $this->events->findBookshelfReaderTargets(array_keys($coordinates), array_keys($ids));
         $events = array_map($this->wireEvent(...), array_values($local['coordinates'] + $local['eventIds']));
-        $localMatches = $this->matchTargets($refs, $events);
-        foreach ($refs as $ref) {
-            if ($ref['invalid'] || isset($localMatches[$ref['key']])) {
+        $localMatches = $this->matchTargets($uncached, $events);
+        foreach ($localMatches as $event) {
+            if ($event->kind === 30040 || isset($ids[$event->id])) {
+                // Opened indexes and pinned sections can serve later exact-ID reads.
+                $this->rememberEvent($event);
+            }
+        }
+        $result += $localMatches;
+        foreach ($uncached as $ref) {
+            if ($ref['pin'] !== null || isset($result[$ref['key']])) {
                 continue;
             }
-            $cached = $this->cachedEvent($ref['pin'] === null ? 'coordinate:' . $ref['coordinate'] : 'event:' . $ref['pin']);
+            $cached = $this->cachedTarget($ref);
             if ($cached !== null) {
-                $localMatches += $this->matchTargets([$ref], [$cached]);
+                $result[$ref['key']] = $cached;
             }
         }
-        $missing = array_values(array_filter($refs, static fn (array $ref): bool =>
-            !$ref['invalid'] && !isset($localMatches[$ref['key']])
+        $missing = array_values(array_filter($uncached, static fn (array $ref): bool =>
+            !isset($result[$ref['key']])
         ));
         if ($missing === []) {
-            return $localMatches;
+            return $result;
         }
-        $result = $localMatches;
         foreach ([[$this->booksApi, true], [$this->api, false]] as [$client, $orderedCoordinates]) {
             for ($pass = 0; $pass < self::MAX_API_PASSES; ++$pass) {
                 $unresolved = array_values(array_filter($missing, static fn (array $ref): bool => !isset($result[$ref['key']])));
@@ -422,8 +506,8 @@ final readonly class BookshelfReaderContents
             }
         }
         $missingIds = $missingCoordinates = [];
-        foreach ($refs as $ref) {
-            if ($ref['invalid'] || isset($result[$ref['key']])) {
+        foreach ($missing as $ref) {
+            if (isset($result[$ref['key']])) {
                 continue;
             }
             if ($ref['pin'] !== null) {
@@ -462,15 +546,26 @@ final readonly class BookshelfReaderContents
                 $this->logger->warning('Could not resolve bookshelf coordinates from relays.', ['exception' => $exception]);
             }
         }
-        foreach ($result as $event) {
+        foreach ($missing as $ref) {
+            $event = $result[$ref['key']] ?? null;
+            if ($event === null) {
+                continue;
+            }
             $this->rememberEvent($event);
-        }
-        foreach ($refs as $ref) {
-            if (!$ref['invalid'] && $ref['pin'] === null && isset($result[$ref['key']])) {
-                $this->cacheWrite('coordinate:' . $ref['coordinate'], (array) $result[$ref['key']], self::COORDINATE_CACHE_TTL);
+            if ($ref['pin'] === null) {
+                $this->cacheWrite('coordinate:' . $ref['coordinate'], (array) $event, self::COORDINATE_CACHE_TTL);
             }
         }
         return $result;
+    }
+
+    /** @param array<string, mixed> $reference */
+    private function cachedTarget(array $reference): ?object
+    {
+        $key = $reference['pin'] === null ? 'coordinate:' . $reference['coordinate'] : 'event:' . $reference['pin'];
+        $cached = $this->cachedEvent($key);
+
+        return $cached === null ? null : ($this->matchTargets([$reference], [$cached])[$reference['key']] ?? null);
     }
 
     private function cachedEvent(string $key): ?object
@@ -613,43 +708,67 @@ final readonly class BookshelfReaderContents
      */
     private function readableTargets(array $targets): array
     {
-        $candidates = $coordinates = $pubkeys = [];
+        $candidates = $pubkeysByCoordinate = [];
         foreach ($targets as $key => $event) {
-            $coordinate = $this->coordinate($event);
-            $tags = is_array($event->tags ?? null) ? $event->tags : [];
-            if ($coordinate === null || !is_string($event->id ?? null)
-                || preg_match('/^[0-9a-f]{64}$/iD', $event->id) !== 1
-                || !is_int($event->created_at ?? null)
-                || ($event->kind === 30040
-                    ? EventWorkspaceScopePolicy::isScopedInventoryList($event->kind, $tags)
-                    : EventWorkspaceScopePolicy::isScopedTarget($event->kind, $tags))) {
+            $coordinate = $this->publicCoordinate($event);
+            if ($coordinate === null) {
                 continue;
             }
-            $entity = new Event();
-            $entity->setTags(array_values(array_filter($tags, static fn ($tag): bool =>
-                is_array($tag) && is_string($tag[0] ?? null)
-                && (!in_array($tag[0], ['t', 'L'], true) || !isset($tag[1]) || is_string($tag[1]))
-            )));
-            if ($entity->isNSFW()) {
-                continue;
-            }
-            $pubkey = strtolower($event->pubkey);
-            $candidates[$key] = [$event, $pubkey, $coordinate];
-            $coordinates[$coordinate] = true;
-            $pubkeys[$pubkey] = true;
+            $candidates[$key] = [$event, $coordinate];
+            $pubkeysByCoordinate[$coordinate] = strtolower($event->pubkey);
         }
-        if ($candidates === []) {
-            return [];
-        }
-        $suppressed = array_fill_keys($this->authors->suppressedPubkeys(array_keys($pubkeys)), true);
-        $hidden = array_fill_keys($this->hidden->findHiddenCoordinates(array_keys($coordinates)), true);
+        $blocked = $this->blockedCoordinates($pubkeysByCoordinate);
         $readable = [];
-        foreach ($candidates as $key => [$event, $pubkey, $coordinate]) {
-            if (!isset($suppressed[$pubkey]) && !isset($hidden[$coordinate])) {
+        foreach ($candidates as $key => [$event, $coordinate]) {
+            if (!isset($blocked[$coordinate])) {
                 $readable[$key] = $event;
             }
         }
         return $readable;
+    }
+
+    /**
+     * @param array<string, string> $pubkeysByCoordinate
+     * @return array<string, true>
+     */
+    private function blockedCoordinates(array $pubkeysByCoordinate): array
+    {
+        if ($pubkeysByCoordinate === []) {
+            return [];
+        }
+
+        $pubkeys = array_values(array_unique($pubkeysByCoordinate));
+        $suppressed = array_fill_keys($this->authors->suppressedPubkeys($pubkeys), true);
+        $blocked = array_fill_keys($this->hidden->findHiddenCoordinates(array_keys($pubkeysByCoordinate)), true);
+        foreach ($pubkeysByCoordinate as $coordinate => $pubkey) {
+            if (isset($suppressed[$pubkey])) {
+                $blocked[$coordinate] = true;
+            }
+        }
+
+        return $blocked;
+    }
+
+    private function publicCoordinate(object $event): ?string
+    {
+        $coordinate = $this->coordinate($event);
+        $tags = is_array($event->tags ?? null) ? $event->tags : [];
+        if ($coordinate === null || !is_string($event->id ?? null)
+            || preg_match('/^[0-9a-f]{64}$/iD', $event->id) !== 1
+            || !is_int($event->created_at ?? null)
+            || ($event->kind === 30040
+                ? EventWorkspaceScopePolicy::isScopedInventoryList($event->kind, $tags)
+                : EventWorkspaceScopePolicy::isScopedTarget($event->kind, $tags))) {
+            return null;
+        }
+
+        $entity = new Event();
+        $entity->setTags(array_values(array_filter($tags, static fn ($tag): bool =>
+            is_array($tag) && is_string($tag[0] ?? null)
+            && (!in_array($tag[0], ['t', 'L'], true) || !isset($tag[1]) || is_string($tag[1]))
+        )));
+
+        return $entity->isNSFW() ? null : $coordinate;
     }
 
     /** @param array<array-key, mixed> $tags */

@@ -31,7 +31,7 @@
         {% if isBook %}
             <a class="btn btn-secondary btn-sm" href="{{ path('bookshelf_read_native_fallback', {id: presentation.eventId}) }}">{{ 'bookshelf.read_this_book'|trans }}</a>
         {% endif %}
-        {% include 'bookshelf/_containing_indexes.html.twig' with {containingIndexes: containingIndexes} only %}
+        {% include 'bookshelf/_containing_indexes.html.twig' with {eventId: presentation.eventId, containingIndexes: null} only %}
         <section class="bookshelf-publication__chapters" aria-labelledby="bookshelf-index-contents">
             <h2 id="bookshelf-index-contents">{{ tocHeading|trans }}</h2>
             {% set tocUrl = path('bookshelf_index_contents', {eventId: presentation.eventId, page: tocPageNumber}) %}

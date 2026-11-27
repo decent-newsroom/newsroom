@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
 const MAX_ACTIVE = 4;
+const COMPLETION_EVENTS = ['turbo:frame-load', 'turbo:frame-missing', 'turbo:fetch-request-error'];
 const waiting = [];
 const active = new Set();
 
@@ -14,9 +15,17 @@ function drain() {
         if (job.finished) continue;
         job.running = true;
         active.add(job);
-        job.frame.addEventListener('turbo:before-fetch-response', job.onResponse);
-        job.frame.addEventListener('turbo:fetch-request-error', job.onResponse);
+        for (const eventName of COMPLETION_EVENTS) {
+            job.frame.addEventListener(eventName, job.onComplete);
+        }
         job.resume();
+        // Turbo assigns `loaded` after dispatching before-fetch-request. It also
+        // settles responses that do not render a frame, such as an empty body.
+        queueMicrotask(() => {
+            if (!job.finished) {
+                job.frame.loaded?.then(job.finish, job.finish);
+            }
+        });
     }
 }
 
@@ -28,22 +37,11 @@ function finish(job) {
     active.delete(job);
     job.signal.removeEventListener('abort', job.onAbort);
     job.originalSignal.removeEventListener('abort', job.onOriginalAbort);
-    job.frame.removeEventListener('turbo:before-fetch-response', job.onResponse);
-    job.frame.removeEventListener('turbo:fetch-request-error', job.onResponse);
+    for (const eventName of COMPLETION_EVENTS) {
+        job.frame.removeEventListener(eventName, job.onComplete);
+    }
     job.controller.jobs.delete(job);
     drain();
-}
-
-async function waitForBody(response) {
-    const reader = response.clone().body?.getReader();
-    if (!reader) return;
-    try {
-        while (!(await reader.read()).done) {
-            // Discard the cloned stream; Turbo consumes its own response.
-        }
-    } finally {
-        reader.releaseLock();
-    }
 }
 
 export default class extends Controller {
@@ -78,13 +76,10 @@ export default class extends Controller {
             finished: false,
         };
         fetchOptions.signal = job.signal;
-        job.onResponse = response => {
-            if (response.target !== frame) return;
-            const body = response.detail?.fetchResponse?.response;
-            if (response.type === 'turbo:fetch-request-error' || !body) {
-                finish(job);
-            } else {
-                waitForBody(body).then(() => finish(job), () => finish(job));
+        job.finish = () => finish(job);
+        job.onComplete = event => {
+            if (event.target === frame) {
+                job.finish();
             }
         };
         job.onAbort = () => {

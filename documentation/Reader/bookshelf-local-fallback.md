@@ -9,31 +9,29 @@ publish/removal routes. It does not change freshness or containing-index lookup.
 See the [workspace iteration plan](event-workspace-iteration-plan.md#shared-step-2-disclosure-shell-and-rollback)
 for rollback and remaining Step 3+ deferrals.
 
-`/bookshelf/my-books` refreshes the signed My Books directory from the instance's local Nostr relay before rendering. The BookshelfBundle resolves saved publication references through the Decent Newsroom Books API and Mercury.
+`/bookshelf/my-books` reads the last locally synced or published copy of the signed directory and resolves one page of saved books at a time.
 
 ## Overview
 
-The My Books list is a parameterized replaceable kind `30045` event with the stable `d` tag `my-book-collection`. A browser may publish a newer copy through another client or relay, so a database-only lookup can be stale. The page probes the configured local relay on each My Books load and projects a returned event through the normal generic projector. NIP-01 replaceable-event ordering keeps the newest revision and ignores stale relay copies.
+The My Books list is a parameterized replaceable kind `30045` event with the
+stable `d` tag `my-book-collection`. Publishing and the existing login sync
+update the local directory. Opening the page reads that copy. A directory
+published elsewhere appears after the instance syncs it.
 
-The bundle queries both sources and merges their results by publication coordinate. For duplicate replaceable publications, the newest `createdAt` revision wins. The merged list retains the directory's declared order, so books found by only one source still appear in the expected position. A transport or HTTP failure from either source does not discard results returned by the other source.
+My Books resolves up to 10 references per page in signed order. The Decent
+Newsroom Books API receives the page lookup first. Mercury receives the
+remaining references, and the configured local strfry relay receives one
+subscription for any remaining IDs and coordinates. Each HTTP filter has a
+two-second budget and a single attempt. Successful matches survive a later
+provider failure.
 
-If the bundle's Books API and Mercury resolution both fail, My Books logs the
-failure and displays its unavailable notice. It does not bypass the REST API
-through a direct Elasticsearch query.
-
-`BookshelfRelayBookLoader` revalidates unpinned kind `30040` coordinates even
-when the Books API or Mercury already returned a book. The batched lookup checks
-the local relay and directory relay hints, then checks the author's regular
-relays even if a local revision exists. The newest `created_at` wins; equal
-timestamps prefer the lexicographically lowest event ID. Older relay copies
-cannot replace newer indexed books. An unavailable refresh logs a warning and
-retains the indexed result.
-
-Explicit `e` references and `a[3]` version pins remain exact: only missing pinned
-IDs are fetched, a pinned `a` result must also match its coordinate, and a
-missing pin never silently falls back to another revision. Saving a book with a
-version pin therefore intentionally keeps that saved revision. Refresh does not
-rewrite the signed directory or change exact-ID reader URLs.
+Explicit `e` references and `a[3]` version pins stay bound to their exact event
+IDs. A pinned address result must also match its coordinate. Unpinned
+coordinates use the first provider that resolves them. When a provider returns
+multiple candidates, the newest timestamp wins, with the lowest event ID as
+the tiebreaker. This keeps refresh work off the page at the cost of seeing a
+newer unpinned revision only once an earlier provider indexes it or stops
+returning the older revision.
 
 
 When a reader opens a book, the continuous reader obtains its exact kind
@@ -45,9 +43,9 @@ chapter bodies load independently. Each loaded
 index has its own table of contents. Repeated references remain separate
 occurrences. Missing or invalid references stay visible as unavailable;
 version pins are resolved only by their exact event IDs and must match the
-referenced coordinate. The reader uses local events first, then the Books API,
-Mercury and relay fallback only for unresolved targets. All books skip the
-legacy separate chapter-loading pass. Unpinned API lookups select one exact
+referenced coordinate. Root and pinned event reads start with the exact-ID
+cache. Cold exact IDs and unpinned targets can use local storage, the Books API,
+Mercury and the reader's relay fallback. Unpinned API lookups select one exact
 nonblank coordinate per call through the Books API, which orders revisions by
 newest timestamp and then lowest event ID.
 They do not use Mercury's ambiguous equal-time ordering or combine multiple
@@ -78,11 +76,9 @@ previews, and Reading Nook retain their own access policies.
 ## Flow
 
 1. An authenticated reader opens `/bookshelf/my-books`.
-2. `BookshelfDirectoryRefreshService` asks the configured local relay for `30045:<pubkey>:my-book-collection`.
-3. A returned event is persisted through `GenericEventProjector`; its replaceable-event checks retain only the current revision.
-4. `BookshelfDirectoryService` reads the resulting local directory and extracts book references.
-5. `MercuryBookService` resolves the references through the bundle's Books API and Mercury clients, merges duplicate coordinates, and restores directory order.
-6. `BookshelfRelayBookLoader` refreshes unpinned coordinates and retrieves missing exact references from regular relays, then merges them into the same order.
+2. `BookshelfDirectoryService` reads the signed directory from local storage and extracts book references.
+3. The controller slices the visible page before requesting publication metadata.
+4. The resolver tries the Books API, Mercury, and local strfry in order, passing unresolved references to each successive source.
 
 ## Asynchronous book loading
 
@@ -96,8 +92,10 @@ Each chapter uses a Turbo frame backed by `/bookshelf/{id}/chapter/{position}`.
 Only direct chapters among the first two entries in an index start immediately.
 After those requests settle, the reader starts later chapters one at a time as
 their placeholders enter the viewport. Each request resolves and converts one chapter
-and shares the workspace's four-request browser concurrency limit. Placeholders
-show a skeleton while waiting, and failed frame requests offer a retry.
+and shares the workspace's four-request browser concurrency limit. The queue
+releases slots through Turbo's completion and failure lifecycle. Turbo reads
+the chapter response for rendering. Placeholders show a skeleton while waiting,
+and failed frame requests offer a retry.
 
 Nested indexes load when opened via `/bookshelf/{id}/contents` with their signed
 occurrence path, then apply the same two-entry starting window. An optional
@@ -123,8 +121,8 @@ acquires its exact source from local storage, the APIs, or relays.
 
 The continuous reader uses Symfony's persistent filesystem-backed `cache.app`
 pool, shared across requests and users, under versioned `bookshelf_reader_v1_`
-keys. Exact remote event snapshots and tag-only outlines are retained for one
-year. Successful chapter/index-body conversion is cached for one year by exact
+keys. Exact event snapshots, parsed references, and tag-only outlines are
+retained for one year. Successful chapter/index-body conversion is cached for one year by exact
 event ID and content hash, independently of the occurrence-specific Turbo frame.
 Repeated or shared occurrences reuse that conversion without sharing DOM IDs.
 
@@ -137,7 +135,9 @@ conversion failures are not cached, so a retry can recover immediately.
 The cache stores data and rendered bodies, not authorization decisions or whole
 HTTP responses. Each request verifies signatures and ancestor relationships and
 checks author suppression, hidden coordinates, scope, and sensitivity before
-using cached content. Fragment responses remain private/no-store so a
+using cached content. On a warm chapter traversal, author and coordinate checks
+run in one batch. A cold nested index can require checking the traversed path
+before looking up the next index. Fragment responses remain private/no-store so a
 browser cache cannot bypass those checks. Cache read/write failures are logged;
 normal resolution and rendering remain available. Clearing `cache.app` also
 clears the reader cache.
@@ -156,7 +156,9 @@ other oversized rendered content instead of clipping it or widening the viewport
 
 Book detail pages at `/bookshelf/book/{slug}` also link directly to the
 continuous reader for the displayed book's exact event ID. Chapter links remain
-available. A "Contained in index" section lists locally known current kind
+available. A lazy "Contained in index" section loads through
+`/bookshelf/index/{eventId}/containing-indexes` when its frame enters the
+viewport. It lists locally known current kind
 `30040` indexes referencing that book coordinate, excluding mismatched version
 pins, hidden indexes, suppressed authors, and sensitive
 metadata. The same section appears on `/bookshelf/index/{eventId}` so readers
@@ -216,6 +218,11 @@ pagination. The expansion rollback flag hides lazy controls and disables the
 nested fragment endpoint, not the navigable detail pages. Local misses remain
 unavailable; this viewer does not add remote discovery or a new book reader.
 
+The Bookshelf landing page mounts the configured featured preview in its own
+viewport-loaded `/bookshelf/featured/preview` frame. Active searches display
+search results without the featured request. The full featured directory is
+available at `/bookshelf/featured` and retains exact-revision pagination.
+
 ## Ordered directory disclosure
 
 My Books also has a separate native disclosure for the raw signed directory's
@@ -256,19 +263,16 @@ for supported kinds, and no body/signature columns or media are loaded.
 No Books API, Mercury, relay, body conversion, persistence, or async work is
 triggered by the fragment. The Load link also works without JavaScript.
 Nested-directory traversal and book-content rendering remain out of scope.
-The normal book cards and their existing resolution pipeline are unchanged.
 
 ## Configuration
 
 | Parameter / environment variable | Default | Description |
 |---|---|---|
-| `NOSTR_DEFAULT_RELAY` | `ws://strfry:7777` in Docker | Local relay checked for the current directory |
+| `NOSTR_DEFAULT_RELAY` | `ws://strfry:7777` in Docker | Local relay fallback for unresolved My Books publication references |
 
 ## Limitations
 
-- If both Mercury and the Decent Newsroom Books API are unavailable, My Books logs
-  the failure and displays its normal availability notice.
-- The relay refresh is best-effort: an unavailable relay leaves the locally projected directory intact.
+- The saved directory reflects the most recent local publish or sync. An unavailable publication source leaves the directory intact, and successfully resolved cards remain visible.
 
 ## Related NIPs / NKBIPs
 

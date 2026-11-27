@@ -63,10 +63,14 @@ final class BookshelfReadController extends AbstractController
         BookshelfReaderContents $readerContents,
         BookshelfReaderTraversalSigner $signer,
     ): Response {
-        [$source, $path, $revisions] = $this->requestSource($id, $request, $readerContents, $signer);
+        $id = strtolower($id);
+        [$path, $boundRevisions] = $this->requestTraversal($id, $request, $signer);
+        $root = $readerContents->source($id);
+        $revisions = [];
+        $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $boundRevisions, $revisions);
 
         return $this->render('bookshelf/_reader_contents.html.twig',
-            $this->outlineParameters(strtolower($id), $path, $revisions, $source, $readerContents, $signer),
+            $this->outlineParameters($id, $path, $revisions, $source, $readerContents, $signer),
             new Response(headers: ['Cache-Control' => 'private, no-store']),
         );
     }
@@ -82,13 +86,10 @@ final class BookshelfReadController extends AbstractController
         AsciiDocConverter $converter,
         LoggerInterface $logger,
     ): Response {
-        [$source, $path] = $this->requestSource($id, $request, $readerContents, $signer, $position);
-        $chapter = null;
-        if ($source !== null) {
-            $chapter = $position === -1
-                ? ['id' => $source->id, 'available' => true, 'content' => (string) ($source->content ?? '')]
-                : $readerContents->chapter($source, $position);
-        }
+        $id = strtolower($id);
+        [$path, $revisions] = $this->requestTraversal($id, $request, $signer, $position);
+        $root = $readerContents->source($id);
+        $chapter = $root === null ? null : $readerContents->chapterAtPath($root, $path, $revisions, $position);
         if ($chapter !== null) {
             try {
                 $chapter['html'] = $readerContents->renderedBody(
@@ -104,15 +105,14 @@ final class BookshelfReadController extends AbstractController
         }
 
         return $this->render('bookshelf/_reader_chapter.html.twig', [
-            'rootId' => strtolower($id), 'path' => $path, 'position' => $position, 'chapter' => $chapter,
+            'rootId' => $id, 'path' => $path, 'position' => $position, 'chapter' => $chapter,
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
-    /** @return array{?object, list<int>, list<string>} */
-    private function requestSource(
+    /** @return array{list<int>, list<string>} */
+    private function requestTraversal(
         string $id,
         Request $request,
-        BookshelfReaderContents $readerContents,
         BookshelfReaderTraversalSigner $signer,
         ?int $chapterPosition = null,
     ): array {
@@ -124,7 +124,6 @@ final class BookshelfReadController extends AbstractController
         }
         $path = $rawPath === '' ? [] : array_map(intval(...), explode('.', $rawPath));
         $page = (int) $rawPage;
-        $id = strtolower($id);
         $rawRevisions = $request->query->get('revisions', '');
         $signature = $request->query->get('signature', '');
         if (!is_string($rawRevisions) || !is_string($signature)
@@ -152,10 +151,8 @@ final class BookshelfReadController extends AbstractController
         if ($chapterPosition === null && $path === [] && ($revisions !== [] || $signature !== '')) {
             throw $this->createNotFoundException();
         }
-        $root = $readerContents->source($id);
-        $resolvedRevisions = [];
-        $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $revisions, $resolvedRevisions);
-        return [$source, $path, $resolvedRevisions];
+
+        return [$path, $revisions];
     }
 
     /** @param list<int> $path @param list<string> $revisions @return array<string, mixed> */

@@ -81,7 +81,7 @@
         </div>
     </header>
 
-    {% include 'bookshelf/_containing_indexes.html.twig' with {containingIndexes: containingIndexes} only %}
+    {% include 'bookshelf/_containing_indexes.html.twig' with {eventId: publication.id, containingIndexes: null} only %}
 
     {% if metadata is not empty %}
         <section class="bookshelf-publication__details" aria-labelledby="publication-details">

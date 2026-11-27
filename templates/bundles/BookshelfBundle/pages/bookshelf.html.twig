@@ -25,19 +25,8 @@
 {% block body %}
     <div class="bookshelf-page bookshelf-landing">
         {{ include('partial/_bookshelf_app.html.twig') }}
-        {% if featured.state != 'unconfigured' %}
-            <section class="bookshelf-featured" aria-labelledby="bookshelf-featured-heading">
-                <header class="bookshelf-section-heading">
-                    <div>
-                        <p class="eyebrow">{{ 'bookshelf.promo.curated_eyebrow'|trans }}</p>
-                        <h2 id="bookshelf-featured-heading">{{ 'bookshelf.promo.curated_title'|trans }}</h2>
-                    </div>
-                    {% if featured.eventId %}
-                        <a href="{{ path('bookshelf_featured', {eventId: featured.eventId}) }}">{{ 'bookshelf.promo.view_directory'|trans }}</a>
-                    {% endif %}
-                </header>
-                {% include 'bookshelf/_featured_entries.html.twig' with {featured: featured} only %}
-            </section>
+        {% if showFeaturedPreview|default(false) %}
+            {% include 'bookshelf/_featured_preview.html.twig' with {featured: null} only %}
         {% endif %}
         {% include 'bookshelf/_landing_search.html.twig' %}
     </div>

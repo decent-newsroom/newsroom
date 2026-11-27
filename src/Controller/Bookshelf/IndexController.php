@@ -36,7 +36,6 @@ final class IndexController extends AbstractController
         private readonly PublicationTocTraversalSigner $signer,
         private readonly EventRepository $events,
         private readonly RedisCacheService $profileCache,
-        private readonly BookContainingIndexes $containingIndexes,
         private readonly BookshelfTocArticles $tocArticles,
         #[Autowire('%env(bool:EVENT_WORKSPACE_EXPANSION_ENABLED)%')]
         private readonly bool $expansionEnabled = true,
@@ -60,7 +59,17 @@ final class IndexController extends AbstractController
             'tocHeading' => $this->tocHeading($presentation),
             'tocPageNumber' => $this->pageNumber($request),
             'isBook' => $classifier->isBook($event->getTags()),
-            'containingIndexes' => $this->containingIndexes->forBook($event),
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
+    }
+
+    #[Route('/bookshelf/index/{eventId}/containing-indexes', name: 'bookshelf_index_containing_indexes', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'])]
+    public function containingIndexes(string $eventId, BookContainingIndexes $containingIndexes): Response
+    {
+        $event = $this->sources->read($eventId);
+
+        return $this->render('bookshelf/_containing_indexes.html.twig', [
+            'eventId' => $eventId,
+            'containingIndexes' => $containingIndexes->forBook($event),
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 

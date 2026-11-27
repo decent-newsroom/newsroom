@@ -43,6 +43,7 @@ final class BookshelfLandingTemplateTest extends TestCase
                 'bookshelf' => '/bookshelf',
                 'bookshelf_read' => '/bookshelf/' . $parameters['id'],
                 'bookshelf_featured' => '/bookshelf/featured',
+                'bookshelf_featured_preview' => '/bookshelf/featured/preview',
                 'bookshelf_directory_publish' => '/api/bookshelf/directory',
                 default => throw new \LogicException('Unexpected route: ' . $route),
             };
@@ -75,24 +76,41 @@ final class BookshelfLandingTemplateTest extends TestCase
         self::assertSame('Android', $metadata['operatingSystem']);
     }
 
-    public function testCuratedPreviewIsBetweenPromoAndSearchAndLinksUseExactIds(): void
+    public function testCuratedPreviewPlaceholderIsBetweenPromoAndSearch(): void
+    {
+        $html = $this->render(['showFeaturedPreview' => true]);
+        $crawler = new Crawler($html);
+        $frame = $crawler->filter('turbo-frame#bookshelf-featured-preview');
+
+        self::assertSame('/bookshelf/featured/preview', $frame->attr('src'));
+        self::assertSame('lazy', $frame->attr('loading'));
+        self::assertCount(0, $frame->filter('.bookshelf-featured__entry'));
+        self::assertLessThan(strpos($html, 'bookshelf-featured-heading'), strpos($html, 'bookshelf-app-title'));
+        self::assertLessThan(strpos($html, 'bookshelf-web-heading'), strpos($html, 'bookshelf-featured-heading'));
+        self::assertSame('/bookshelf/featured', $frame->selectLink('Explore the full selection')->attr('href'));
+    }
+
+    public function testCuratedPreviewFragmentUsesExactTopLevelLinks(): void
     {
         $book = (new EventPresentationFactory(new RecordIdentityService(), new NostrNip19Service()))->fromAuthorizedFields(
             str_repeat('a', 64), 30040, str_repeat('b', 64), 100,
             [['d', 'book'], ['title', '<script>Book</script>'], ['image', 'javascript:alert(1)']], '',
         );
-        $html = $this->render(['featured' => $this->selection([
+        $html = $this->twig->render('bookshelf/_featured_preview.html.twig', ['featured' => $this->selection([
             ['status' => 'available', 'book' => $book], ['status' => 'missing', 'book' => null],
         ])]);
         $crawler = new Crawler($html);
+        $frame = $crawler->filter('turbo-frame#bookshelf-featured-preview');
+        self::assertCount(1, $frame);
+        self::assertCount(0, $crawler->filter('turbo-frame[src]'));
         self::assertCount(2, $crawler->filter('.bookshelf-featured__entry'));
         self::assertSame('<script>Book</script>', $crawler->filter('.bookshelf-featured__entry h3')->text());
         self::assertSame('/bookshelf/' . str_repeat('a', 64), $crawler->filter('.bookshelf-featured__entry a')->attr('href'));
+        self::assertSame('_top', $crawler->filter('.bookshelf-featured__entry a')->attr('data-turbo-frame'));
         self::assertCount(0, $crawler->filter('.bookshelf-featured__entry img, .bookshelf-featured__entry script'));
         self::assertStringContainsString('not currently available', $crawler->filter('.bookshelf-featured__entry')->last()->text());
-        self::assertLessThan(strpos($html, 'bookshelf-featured-heading'), strpos($html, 'bookshelf-app-title'));
-        self::assertLessThan(strpos($html, 'bookshelf-web-heading'), strpos($html, 'bookshelf-featured-heading'));
         self::assertSame('/bookshelf/featured?eventId=' . str_repeat('c', 64), $crawler->selectLink('Explore the full selection')->attr('href'));
+        self::assertSame('_top', $crawler->selectLink('Explore the full selection')->attr('data-turbo-frame'));
     }
 
     public function testSearchResultsKeepAuthenticatedSaveControlsAndQueryLinks(): void
@@ -109,6 +127,7 @@ final class BookshelfLandingTemplateTest extends TestCase
             ]],
         ]);
         $crawler = new Crawler($html);
+        self::assertCount(0, $crawler->filter('#bookshelf-featured-preview'));
         self::assertSame('ui--bookshelf-directory', $crawler->filter('.bookshelf-web')->attr('data-controller'));
         self::assertSame('true', $crawler->filter('.bookshelf-directory-action')->attr('aria-pressed'));
         self::assertSame($coordinate, $crawler->filter('.bookshelf-directory-action')->attr('data-ui--bookshelf-directory-coordinate-param'));
@@ -116,15 +135,13 @@ final class BookshelfLandingTemplateTest extends TestCase
         self::assertSame('book', $crawler->filter('input[name="q"]')->attr('value'));
     }
 
-    public function testUnavailableCurationDoesNotHideDownloadsOrWorkingSearch(): void
+    public function testUnavailableCurationKeepsTheMatchingFrameAndStatus(): void
     {
         $selection = $this->selection([]);
         $selection['state'] = 'failed';
-        $crawler = new Crawler($this->render(['featured' => $selection, 'searched' => true, 'query' => 'book']));
+        $crawler = new Crawler($this->twig->render('bookshelf/_featured_preview.html.twig', ['featured' => $selection]));
+        self::assertCount(1, $crawler->filter('turbo-frame#bookshelf-featured-preview'));
         self::assertCount(1, $crawler->filter('.bookshelf-featured [role="status"]'));
-        self::assertCount(1, $crawler->filter('.bookshelf-app__badge'));
-        self::assertCount(1, $crawler->filter('.bookshelf-web form'));
-        self::assertCount(1, $crawler->filter('.bookshelf-web .bookshelf-empty'));
     }
 
     public function testFullDirectoryPaginationKeepsExactSourceRevision(): void
@@ -163,7 +180,7 @@ final class BookshelfLandingTemplateTest extends TestCase
         return $this->twig->render('@Bookshelf/pages/bookshelf.html.twig', $overrides + [
             'app' => ['user' => null], 'query' => '', 'searched' => false, 'available' => true, 'queryTooShort' => false,
             'books' => [], 'directoryTags' => [], 'directoryCoordinates' => [], 'directoryIdentifier' => 'my-book-collection',
-            'featured' => ['state' => 'unconfigured'],
+            'showFeaturedPreview' => false,
         ]);
     }
 }

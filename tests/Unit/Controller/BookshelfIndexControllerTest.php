@@ -93,7 +93,12 @@ final class BookshelfIndexControllerTest extends TestCase
 
     public function testRoutesArePublicReadOnlyAndUseExactIdentity(): void
     {
-        foreach (['show' => 'bookshelf_index', 'contents' => 'bookshelf_index_contents', 'toc' => 'bookshelf_index_toc'] as $method => $name) {
+        foreach ([
+            'show' => 'bookshelf_index',
+            'containingIndexes' => 'bookshelf_index_containing_indexes',
+            'contents' => 'bookshelf_index_contents',
+            'toc' => 'bookshelf_index_toc',
+        ] as $method => $name) {
             $reflection = new \ReflectionMethod(IndexController::class, $method);
             $route = $reflection->getAttributes(Route::class)[0]->newInstance();
             self::assertSame($name, $route->name);
@@ -110,11 +115,13 @@ final class BookshelfIndexControllerTest extends TestCase
             $tags[] = ['a', '30040:' . self::FOREIGN . ':missing-' . $i];
         }
         $this->stored = [self::ROOT => $this->event(self::ROOT, self::AUTHOR, $tags)];
+        $this->events->expects(self::never())->method('findReferencingEvents');
         $this->events->expects(self::exactly(2))->method('findPublicationIndexTargets')
             ->willReturn(['coordinates' => [], 'eventIds' => []]);
         $controller = $this->controller();
         $controller->show(self::ROOT, new Request(['page' => '2']), new PublicationIndexClassifier());
         self::assertArrayNotHasKey('tocPage', $this->captured);
+        self::assertArrayNotHasKey('containingIndexes', $this->captured);
         self::assertSame(2, $this->captured['tocPageNumber']);
 
         $controller->contents(self::ROOT, new Request());
@@ -130,7 +137,7 @@ final class BookshelfIndexControllerTest extends TestCase
     }
 
     /** @dataProvider restrictedRootFragments */
-    public function testRootFragmentReauthorizesSource(string $restriction): void
+    public function testRootFragmentReauthorizesSource(string $restriction, string $fragment): void
     {
         $event = $this->event(self::ROOT, self::AUTHOR, [['d', 'root']]);
         if ($restriction === 'scoped') {
@@ -141,15 +148,22 @@ final class BookshelfIndexControllerTest extends TestCase
         if ($restriction === 'suppressed') {
             $this->authors->method('assertReadable')->willThrowException(new NotFoundHttpException());
         }
+        $this->events->expects(self::never())->method('findReferencingEvents');
         $this->events->expects(self::never())->method('findPublicationIndexTargets');
         $this->expectException(NotFoundHttpException::class);
-        $this->controller(authenticated: true, renders: false)->contents(self::ROOT, new Request());
+        $controller = $this->controller(authenticated: true, renders: false);
+        if ($fragment === 'containing indexes') {
+            $controller->containingIndexes(self::ROOT, $this->containingIndexes());
+        } else {
+            $controller->contents(self::ROOT, new Request());
+        }
     }
 
     public static function restrictedRootFragments(): iterable
     {
         foreach (['hidden', 'scoped', 'suppressed'] as $restriction) {
-            yield $restriction => [$restriction];
+            yield 'contents, ' . $restriction => [$restriction, 'contents'];
+            yield 'containing indexes, ' . $restriction => [$restriction, 'containing indexes'];
         }
     }
 
@@ -166,7 +180,7 @@ final class BookshelfIndexControllerTest extends TestCase
             ['a', '30040:' . self::AUTHOR . ':same:slug', '', self::ROOT],
         ]);
         $this->stored = [self::ROOT => $parent, self::CHILD => $child];
-        $this->events->expects(self::once())->method('findReferencingEvents')->willReturn([]);
+        $this->events->expects(self::never())->method('findReferencingEvents');
         $this->events->expects(self::exactly(2))->method('findPublicationIndexTargets')
             ->willReturnCallback(function (array $coordinates, array $ids) use ($child, $parent): array {
                 self::assertSame([], $coordinates);
@@ -210,7 +224,7 @@ final class BookshelfIndexControllerTest extends TestCase
         self::assertSame([[self::AUTHOR, false]], $this->profileLookups);
     }
 
-    public function testIndexDetailLinksToCurrentContainingIndexesByExactEventId(): void
+    public function testContainingIndexesFragmentLinksToCurrentParentsByExactEventId(): void
     {
         $childCoordinate = '30040:' . self::FOREIGN . ':nested';
         $parentCoordinate = '30040:' . self::AUTHOR . ':parent';
@@ -226,14 +240,18 @@ final class BookshelfIndexControllerTest extends TestCase
             ->with([$parentCoordinate], [])
             ->willReturn(['coordinates' => [$parentCoordinate => $parent], 'eventIds' => []]);
 
-        $response = $this->controller(authenticated: true)->show(self::CHILD, new Request(), new PublicationIndexClassifier());
+        $response = $this->controller(authenticated: true)->containingIndexes(self::CHILD, $this->containingIndexes());
 
         self::assertSame(200, $response->getStatusCode());
+        self::assertSame('bookshelf/_containing_indexes.html.twig', $this->template);
+        self::assertSame(self::CHILD, $this->captured['eventId']);
         self::assertSame([['title' => 'Parent index', 'eventId' => self::ROOT]], $this->captured['containingIndexes']);
-        self::assertSame(self::FOREIGN, $this->captured['presentation']->authorPubkey);
+        self::assertSame([], $this->profileLookups);
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
     }
 
-    public function testIndexDetailDoesNotExposeAHiddenParent(): void
+    public function testContainingIndexesFragmentDoesNotExposeAHiddenParent(): void
     {
         $childCoordinate = '30040:' . self::AUTHOR . ':child';
         $parentCoordinate = '30040:' . self::FOREIGN . ':parent';
@@ -248,7 +266,7 @@ final class BookshelfIndexControllerTest extends TestCase
             ->willReturn(['coordinates' => [$parentCoordinate => $parent], 'eventIds' => []]);
         $this->hidden->method('isHidden')->willReturnMap([[$childCoordinate, false], [$parentCoordinate, true]]);
 
-        $this->controller(authenticated: true)->show(self::ROOT, new Request(), new PublicationIndexClassifier());
+        $this->controller(authenticated: true)->containingIndexes(self::ROOT, $this->containingIndexes());
 
         self::assertSame([], $this->captured['containingIndexes']);
         self::assertStringNotContainsString('Hidden parent', serialize($this->captured));
@@ -621,7 +639,6 @@ final class BookshelfIndexControllerTest extends TestCase
                 $this->deletions, $this->authors, $this->hidden, $this->signer,
             ),
             $this->signer, $this->events, $this->profiles,
-            new BookContainingIndexes($this->events, $this->presentations, $this->authors, $this->hidden),
             new BookshelfTocArticles($this->articleAccess),
             $enabled,
         );
@@ -645,6 +662,11 @@ final class BookshelfIndexControllerTest extends TestCase
         $controller->setContainer($container);
 
         return $controller;
+    }
+
+    private function containingIndexes(): BookContainingIndexes
+    {
+        return new BookContainingIndexes($this->events, $this->presentations, $this->authors, $this->hidden);
     }
 
     /** @param list<list<string>> $tags */

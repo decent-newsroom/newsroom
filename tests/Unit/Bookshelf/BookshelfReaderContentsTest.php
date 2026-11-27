@@ -20,6 +20,7 @@ use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClientInterface;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Model\MercuryEvent;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
@@ -319,21 +320,25 @@ final class BookshelfReaderContentsTest extends TestCase
         $new = $this->entity($this->event('d', $pubkey, 30040, 'part', [['a', "30040:$pubkey:new"]]));
         $chapter = $this->entity($this->event('e', $pubkey, 30041, 'section', [], 'Section body'));
         $events = $this->createMock(EventRepository::class);
-        $events->method('findByIds')->willReturn([$root->getId() => $root]);
-        $events->expects(self::exactly(3))->method('findBookshelfReaderTargets')->willReturnCallback(
-            static function (array $coordinates, array $ids) use ($old, $new, $chapter, $pubkey): array {
-                if ($ids === []) {
-                    return ['coordinates' => [$coordinates[0] => $coordinates[0] === "30040:$pubkey:part" ? $old : $chapter], 'eventIds' => []];
-                }
-                self::assertSame([$old->getId()], $ids);
-                return ['coordinates' => [], 'eventIds' => [$old->getId() => $old, $new->getId() => $new]];
-            },
-        );
+        $events->expects(self::once())->method('findByIds')->with([$root->getId()])->willReturn([$root->getId() => $root]);
+        $events->expects(self::exactly(2))->method('findBookshelfReaderTargets')
+            ->withConsecutive([["30040:$pubkey:part"], []], [["30041:$pubkey:section"], []])
+            ->willReturnOnConsecutiveCalls(
+                ['coordinates' => ["30040:$pubkey:part" => $old], 'eventIds' => []],
+                ['coordinates' => ["30041:$pubkey:section" => $chapter], 'eventIds' => []],
+            );
+        $authors = $this->createMock(ContentAuthorAccessPolicy::class);
+        $authors->expects(self::exactly(2))->method('suppressedPubkeys')->with([$pubkey])->willReturn([]);
+        $hidden = $this->createMock(HiddenCoordinateRepository::class);
+        $hidden->expects(self::exactly(2))->method('findHiddenCoordinates')
+            ->withConsecutive(
+                [["30040:$pubkey:book", "30040:$pubkey:part"]],
+                [["30040:$pubkey:book", "30040:$pubkey:part", "30041:$pubkey:section"]],
+            )->willReturn([]);
         $logger = $this->createStub(LoggerInterface::class);
         $reader = new BookshelfReaderContents(
             $this->createStub(MercuryApiClientInterface::class), $this->createStub(NostrClient::class), $events,
-            $this->createStub(ContentAuthorAccessPolicy::class),
-            $this->createStub(HiddenCoordinateRepository::class), $logger, $this->createStub(MercuryApiClientInterface::class),
+            $authors, $hidden, $logger, $this->createStub(MercuryApiClientInterface::class), new ArrayAdapter(),
         );
         $captured = [];
         $twig = $this->createMock(Environment::class);

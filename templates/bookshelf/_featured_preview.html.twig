@@ -1,0 +1,21 @@
+<turbo-frame id="bookshelf-featured-preview" class="d-block"
+    {% if featured is null %}src="{{ path('bookshelf_featured_preview') }}" loading="lazy"{% endif %}>
+    {% if featured is null or featured.state != 'unconfigured' %}
+        <section class="bookshelf-featured" aria-labelledby="bookshelf-featured-heading">
+            <header class="bookshelf-section-heading">
+                <div>
+                    <p class="eyebrow">{{ 'bookshelf.promo.curated_eyebrow'|trans }}</p>
+                    <h2 id="bookshelf-featured-heading">{{ 'bookshelf.promo.curated_title'|trans }}</h2>
+                </div>
+                {% if featured is null or featured.eventId %}
+                    <a href="{{ path('bookshelf_featured', featured is null ? {} : {eventId: featured.eventId}) }}" data-turbo-frame="_top">{{ 'bookshelf.promo.view_directory'|trans }}</a>
+                {% endif %}
+            </header>
+            {% if featured is null %}
+                <p class="bookshelf-notice" role="status">{{ 'bookshelf.reader_loading'|trans }}</p>
+            {% else %}
+                {% include 'bookshelf/_featured_entries.html.twig' with {featured: featured} only %}
+            {% endif %}
+        </section>
+    {% endif %}
+</turbo-frame>

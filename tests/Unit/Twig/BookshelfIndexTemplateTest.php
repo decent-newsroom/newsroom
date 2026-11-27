@@ -140,13 +140,18 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
     {
         $parentId = str_repeat('c', 64);
         $otherId = str_repeat('d', 64);
-        $html = $this->renderIndex($this->presentation([['title', 'Child index']]), containingIndexes: [
-            ['title' => '<script>Parent & first</script>', 'eventId' => $parentId],
-            ['title' => 'Another parent', 'eventId' => $otherId],
+        $html = self::getContainer()->get('twig')->render('bookshelf/_containing_indexes.html.twig', [
+            'eventId' => self::EVENT_ID,
+            'containingIndexes' => [
+                ['title' => '<script>Parent & first</script>', 'eventId' => $parentId],
+                ['title' => 'Another parent', 'eventId' => $otherId],
+            ],
         ]);
         $crawler = new Crawler($html);
         $links = $crawler->filter('[aria-labelledby="publication-containing-indexes"] li a');
 
+        self::assertCount(1, $crawler->filter('turbo-frame#bookshelf-containing-indexes-' . self::EVENT_ID));
+        self::assertCount(0, $crawler->filter('turbo-frame[src]'));
         self::assertSame($this->trans('bookshelf.contained_in_index'), $crawler->filter('#publication-containing-indexes')->text());
         self::assertCount(2, $links);
         self::assertSame('<script>Parent & first</script>', $links->first()->text());
@@ -160,8 +165,11 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
 
     public function testContainingIndexSectionIsHiddenWhenThereAreNoParents(): void
     {
-        $crawler = new Crawler($this->renderIndex($this->presentation([['title', 'Child index']])));
+        $crawler = new Crawler(self::getContainer()->get('twig')->render('bookshelf/_containing_indexes.html.twig', [
+            'eventId' => self::EVENT_ID, 'containingIndexes' => [],
+        ]));
 
+        self::assertCount(1, $crawler->filter('turbo-frame#bookshelf-containing-indexes-' . self::EVENT_ID));
         self::assertCount(0, $crawler->filter('#publication-containing-indexes'));
     }
 
@@ -175,6 +183,10 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
         self::assertSame('/bookshelf/index/' . self::EVENT_ID . '/contents?page=1', $frame->attr('src'));
         self::assertCount(0, $frame->filter('.event-toc-list li'));
         self::assertStringNotContainsString('secret-child', $frame->text());
+        $containingFrame = $crawler->filter('turbo-frame#bookshelf-containing-indexes-' . self::EVENT_ID);
+        self::assertSame('/bookshelf/index/' . self::EVENT_ID . '/containing-indexes', $containingFrame->attr('src'));
+        self::assertSame('lazy', $containingFrame->attr('loading'));
+        self::assertCount(0, $containingFrame->filter('#publication-containing-indexes'));
     }
 
     public function testArticleLeavesUseTheTranslatedArticlesHeading(): void
@@ -361,7 +373,6 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
     }
 
     /**
-     * @param list<array{title: string, eventId: string}> $containingIndexes
      * @param array<string, mixed>|null $tocPage
      */
     private function renderIndex(
@@ -369,7 +380,6 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
         ?UserMetadata $author = null,
         bool $isBook = false,
         string $tocHeading = 'bookshelf.publication.chapters',
-        array $containingIndexes = [],
         ?array $tocPage = null,
     ): string {
         if ($tocPage !== null) {
@@ -383,7 +393,6 @@ final class BookshelfIndexTemplateTest extends KernelTestCase
             'authorMetadata' => ($author ?? new UserMetadata())->toStdClass(),
             'isBook' => $isBook,
             'tocHeading' => $tocHeading,
-            'containingIndexes' => $containingIndexes,
             'tocPageNumber' => 1,
         ]);
     }
@@ -437,6 +446,7 @@ final class BookshelfIndexTemplateTestKernel extends Kernel
     {
         $routes->add('bookshelf', '/bookshelf');
         $routes->add('bookshelf_index', '/bookshelf/index/{eventId}');
+        $routes->add('bookshelf_index_containing_indexes', '/bookshelf/index/{eventId}/containing-indexes');
         $routes->add('bookshelf_index_contents', '/bookshelf/index/{eventId}/contents');
         $routes->add('bookshelf_read_native_fallback', '/bookshelf/{id}');
         $routes->add('author-profile', '/p/{npub}');

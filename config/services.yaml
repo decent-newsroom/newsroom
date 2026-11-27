@@ -513,6 +513,26 @@ services:
         arguments:
             $booksApi: '@bookshelf.primary_search_api_client'
 
+    bookshelf.my_books.http_options:
+        class: DecentNewsroom\BookshelfBundle\Service\Mercury\Model\MercuryHttpOptions
+        arguments:
+            $filterTimeout: 2.0
+            $filterMaxDuration: 2.0
+            $maxAttempts: 1
+
+    bookshelf.my_books.primary_client:
+        class: DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClient
+        arguments:
+            $mercuryApiBaseUrl: '%bookshelf.books_api_base_url%'
+            $options: '@bookshelf.my_books.http_options'
+            $apiPathPrefix: '/books/api'
+
+    bookshelf.my_books.mercury_client:
+        class: DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClient
+        arguments:
+            $mercuryApiBaseUrl: '%bookshelf.mercury_api_base_url%'
+            $options: '@bookshelf.my_books.http_options'
+
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface:
         alias: App\Bookshelf\BookshelfEventStore
 

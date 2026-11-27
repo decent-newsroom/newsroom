@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Bookshelf;
 
-use App\Bookshelf\BookContainingIndexes;
 use App\Service\Magazine\MagazineStructureService;
 use App\Service\Magazine\PublicationIndexClassifier;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
@@ -24,7 +23,6 @@ final class PublicationController extends AbstractController
         MagazineStructureService $magazineStructure,
         PublicationIndexClassifier $publicationIndexClassifier,
         BookshelfDirectoryService $directoryService,
-        BookContainingIndexes $containingIndexes,
     ): Response {
         $publication = $magazineStructure->findLatestIndexBySlug($book);
         if ($publication === null) {
@@ -49,7 +47,6 @@ final class PublicationController extends AbstractController
             'publicationType' => $this->firstTagValue($publication->getTags(), 'type') ?? 'book',
             'metadata' => $this->metadataTags($publication->getTags()),
             'chapters' => $chapters,
-            'containingIndexes' => $containingIndexes->forBook($publication),
             'rawEvent' => [
                 'id' => $publication->getId(),
                 'pubkey' => $publication->getPubkey(),

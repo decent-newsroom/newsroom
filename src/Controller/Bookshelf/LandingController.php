@@ -12,6 +12,7 @@ use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryBookService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -21,12 +22,16 @@ final class LandingController extends AbstractController
 {
     use BookshelfNavigationTrait;
 
+    public function __construct(
+        #[Autowire('%bookshelf.featured_directory_naddr%')]
+        private readonly string $featuredDirectoryNaddr,
+    ) {}
+
     #[Route('/bookshelf', name: 'bookshelf_landing', methods: ['GET'], priority: 20)]
     public function index(
         Request $request,
         MercuryBookService $bookService,
         BookshelfDirectoryService $directoryService,
-        FeaturedBookshelf $featured,
         LoggerInterface $logger,
     ): Response {
         $query = trim($request->query->getString('q'));
@@ -52,6 +57,14 @@ final class LandingController extends AbstractController
             'available' => $available, 'queryTooShort' => $queryTooShort,
             'directoryIdentifier' => BookshelfDirectoryService::IDENTIFIER,
             'directoryTags' => $tags, 'directoryCoordinates' => $coordinates,
+            'showFeaturedPreview' => !$searched && trim($this->featuredDirectoryNaddr) !== '',
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
+    }
+
+    #[Route('/bookshelf/featured/preview', name: 'bookshelf_featured_preview', methods: ['GET'])]
+    public function featuredPreview(FeaturedBookshelf $featured): Response
+    {
+        return $this->render('bookshelf/_featured_preview.html.twig', [
             'featured' => $featured->page(preview: true),
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
