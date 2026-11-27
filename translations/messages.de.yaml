@@ -1148,7 +1148,7 @@ unfold:
     unfoldDesc1: 'Unfold rendert Ihre Magazindefinition in ein sauberes, strukturiertes Web-Magazin — mit Navigation, Kategorien und einzelnen Artikelseiten.'
     unfoldDesc2: 'Wenn sich Ihre zugrunde liegenden Nostr-Events ändern, aktualisiert sich Ihr Magazin automatisch. Keine Neubereitstellungen. Keine Cache-Rituale.'
     unfoldHosting: 'Starten Sie Ihr Magazin auf einer dedizierten Subdomain. Produktionsreifes Hosting und Unfold-Rendering werden für Sie erledigt.'
-    unfoldPrice: '120.000 Sats / Jahr'
+    unfoldPrice: '5.000 Sats / Jahr'
     unfoldPriceDesc: 'Jährlich verwaltetes Hosting für ein Magazin.'
     launchMagazine: 'Magazin starten'
     seeInAction: 'In Aktion sehen'
@@ -1190,7 +1190,7 @@ journey:
         subdomain:
             heading: 'Geben Sie ihm eine eigene Adresse'
             eyebrow: 'ihrname.decentnewsroom.com'
-            description: 'Sie können Ihr Magazin auf einer dedizierten Subdomain veröffentlichen und ihm so ein stabiles Web-Zuhause und saubere Artikel-Links geben, die Sie überall teilen können. Gehostete Subdomains sind für 120.000 Sats pro Jahr über Lightning verfügbar.'
+            description: 'Sie können Ihr Magazin auf einer dedizierten Subdomain veröffentlichen und ihm so ein stabiles Web-Zuhause und saubere Artikel-Links geben, die Sie überall teilen können. Gehostete Subdomains sind für 5.000 Sats pro Jahr über Lightning verfügbar.'
         ready:
             heading: 'Starten Sie mit den Artikeln, die Sie bereits haben'
             description: 'Wenn Sie Langform-Inhalte auf Nostr veröffentlichen, können Sie sie in nur wenigen Minuten in ein organisiertes Magazin mit eigener Web-Präsenz verwandeln.'

@@ -1386,7 +1386,7 @@ unfold:
     unfoldDesc1: 'Unfold renders your magazine definition into a clean, structured web magazine — with navigation, categories, and individual article pages.'
     unfoldDesc2: 'When your underlying Nostr events change, your magazine updates automatically. No redeploys. No cache rituals.'
     unfoldHosting: 'Launch your magazine on a dedicated subdomain. Production-ready hosting and Unfold rendering are handled for you.'
-    unfoldPrice: '120,000 sats / year'
+    unfoldPrice: '5,000 sats / year'
     unfoldPriceDesc: 'Annual managed hosting for one magazine.'
     launchMagazine: 'Launch Your Magazine'
     seeInAction: 'See it in action'
@@ -1583,7 +1583,7 @@ journey:
         subdomain:
             heading: 'Give It Its Own Address'
             eyebrow: 'yourname.decentnewsroom.com'
-            description: 'You can publish your magazine on a dedicated subdomain, giving it a stable web home and clean article links you can share anywhere. Hosted subdomains are available for 120,000 sats per year via Lightning.'
+            description: 'You can publish your magazine on a dedicated subdomain, giving it a stable web home and clean article links you can share anywhere. Hosted subdomains are available for 5,000 sats per year via Lightning.'
         ready:
             heading: 'Start With the Articles You Already Have'
             description: 'If you publish longform on Nostr, you can turn it into an organized magazine with its own web presence in just a few minutes.'

@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Align Unfold and vanity-name pricing references in translated promotions and business documentation with the public pricing page.
 - [Fix] Redirect anonymous visitors to login when they open protected pages, while retaining JSON authentication errors for programmatic requests.
 - [Fix] Load nested Bookshelf reader indexes only when opened, with collapsed disclosures and bounded pages.
 - [Fix] Skip empty article recovery saves without overwriting existing copies.

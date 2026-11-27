@@ -67,8 +67,8 @@ According to NIP-05, the vanity name system must:
 
 | Value | Description |
 |-------|-------------|
-| subscription | 3-month recurring payment (5,000 sats) |
-| one_time | Single lifetime payment (100,000 sats) |
+| subscription | Legacy payment type; not offered in the current registration flow |
+| one_time | Single lifetime payment (1,000 sats) |
 | admin_granted | Free grant by admin |
 | free | @deprecated Legacy — no longer issued to new users |
 
@@ -224,8 +224,8 @@ php bin/console vanity:list --status=pending
 
 | Payment Type | Price (sats) | Duration | Notes |
 |--------------|-------------|----------|-------|
-| subscription | 5,000 | 1 month | Auto-renew or release |
-| one_time | 100,000 | Lifetime | One-time payment |
+| subscription | — | Legacy; not offered for new registrations | Retained for existing records |
+| one_time | 1,000 | Lifetime | Current self-service option |
 | admin_granted | 0 | Lifetime | Admin discretion |
 
 ## Security Considerations

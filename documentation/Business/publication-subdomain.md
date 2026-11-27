@@ -11,7 +11,7 @@ There are two entry points to subdomain subscription:
 ### Standalone flow
 1. **Landing page** (`/subscription/publication-subdomain`) — view pricing, existing subscription
 2. **Subscribe** (`/subscription/publication-subdomain/subscribe`) — choose subdomain name, enter magazine coordinate
-3. **Payment** (`/subscription/publication-subdomain/invoice`) — Lightning invoice QR code, 120,000 sats
+3. **Payment** (`/subscription/publication-subdomain/invoice`) — Lightning invoice QR code, 5,000 sats per year
 4. **Settings** (`/subscription/publication-subdomain/settings`) — view subscription details, expiration, publication URL
 5. **Cancel** (POST to `/subscription/publication-subdomain/cancel`) — cancel pending subscriptions to release subdomain reservation
 
@@ -61,4 +61,3 @@ Route: `/admin/publication-subdomains`
 - **Redirect loop on cancelled subscriptions**: The subscribe controller originally redirected ANY existing subscription to settings, including cancelled ones. Settings then redirected cancelled back to index, creating a loop. Fix: check subscription *status*, not just existence — only redirect ACTIVE/PENDING to settings.
 - **Ephemeral notice**: After cancellation, the index page shows an info notice about the previous subscription and allows re-subscribing.
 - **Service config required**: `PublicationSubdomainService` needs explicit `services.yaml` configuration for `$baseDomain` and `$recipientLud16` — Symfony can't autowire scalar parameters.
-

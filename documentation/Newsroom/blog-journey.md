@@ -4,7 +4,7 @@
 
 The Blog Journey provides a marketing landing page (`/blog/start`) that funnels creators into the magazine wizard. Publications on Decent Newsroom are called "magazines" because they natively support guest articles and remixing/syndication out of the box.
 
-The magazine wizard is a 6-step flow: **Magazine → Categories → Articles → Review → Subdomain → Done**. Steps 5 (Subdomain) and 6 (Done) are part of the default wizard for all users — after publishing, every user is offered paid subdomain hosting (120,000 sats/year via Lightning). The subdomain step can be skipped.
+The magazine wizard is a 6-step flow: **Magazine → Categories → Articles → Review → Subdomain → Done**. Steps 5 (Subdomain) and 6 (Done) are part of the default wizard for all users — after publishing, every user is offered paid subdomain hosting (5,000 sats/year via Lightning). The subdomain step can be skipped.
 
 ## Routes
 
