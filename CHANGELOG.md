@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Redirect anonymous visitors to login when they open protected pages, while retaining JSON authentication errors for programmatic requests.
 - [Fix] Load nested Bookshelf reader indexes only when opened, with collapsed disclosures and bounded pages.
 - [Fix] Skip empty article recovery saves without overwriting existing copies.
 - [Fix] Keep Bookshelf reader grids within the main content area, wrapping long text and locally scrolling wide chapter content.

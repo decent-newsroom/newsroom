@@ -49,7 +49,7 @@ final class SubscriptionsControllerTest extends WebTestCase
     {
         $client = static::createClient();
         $client->request('GET', '/subscriptions/items');
-        self::assertResponseStatusCodeSame(401);
+        self::assertResponseRedirects('/login');
     }
 
     /** @dataProvider retiredPurchaseLinks */

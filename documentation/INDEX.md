@@ -88,6 +88,7 @@ Each page owns one feature or operational topic. Pages explicitly labeled as pro
 
 ### Publishing and profiles
 
+- [Authentication entry point](Newsroom/authentication-entry-point.md)
 - [Active Indexing removal plan](Newsroom/active-indexing-removal-plan.md)
 - [Article Broadcast Feature](Newsroom/article-broadcast-feature.md)
 - [Author Profiles & User Metadata](Newsroom/author-profile.md)

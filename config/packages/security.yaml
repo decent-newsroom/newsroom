@@ -16,7 +16,7 @@ security:
                 - DecentNewsroom\IdentityBundle\Security\Authenticator\NostrAuthenticator
             logout:
                 path: /logout
-            entry_point: DecentNewsroom\IdentityBundle\Security\Authenticator\NostrAuthenticator
+            entry_point: App\Security\LoginEntryPoint
             access_denied_handler: App\Security\CustomAccessDeniedHandler
             # remember_me disabled until rememberme_token table exists on prod
             # remember_me:
@@ -43,4 +43,3 @@ security:
         # - { path: ^/search, roles: ROLE_USER }
         # - { path: ^/nzine, roles: ROLE_USER }
         # - { path: ^/profile, roles: ROLE_USER }
-
