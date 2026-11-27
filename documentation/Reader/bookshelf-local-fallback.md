@@ -112,6 +112,29 @@ Signed order, duplicate occurrences, exact version pins, and unavailable entries
 are retained. Public index TOCs remain local-only; the continuous reader still
 acquires its exact source from local storage, the APIs, or relays.
 
+### Reader cache
+
+The continuous reader uses Symfony's persistent filesystem-backed `cache.app`
+pool, shared across requests and users, under versioned `bookshelf_reader_v1_`
+keys. Exact remote event snapshots and tag-only outlines are retained for one
+year. Successful chapter/index-body conversion is cached for one year by exact
+event ID and content hash, independently of the occurrence-specific Turbo frame.
+Repeated or shared occurrences reuse that conversion without sharing DOM IDs.
+
+Unpinned coordinate lookups reuse their successful resolved event for 30
+days so later revisions can be discovered. Local database revisions take
+precedence over cached coordinate results. Exact version pins use only their
+exact cached event, never the unpinned coordinate mapping. Missing targets and
+conversion failures are not cached, so a retry can recover immediately.
+
+The cache stores data and rendered bodies, not authorization decisions or whole
+HTTP responses. Each request still verifies signatures, ancestor relationships,
+reader mutes, suppression, hidden coordinates, scope, sensitivity and deletions
+before using cached content. Fragment responses remain private/no-store so a
+browser cache cannot bypass those checks. Cache read/write failures are logged;
+normal resolution and rendering remain available. Clearing `cache.app` also
+clears the reader cache.
+
 ## Continuous reader layout
 
 The continuous reader and chapter list use shrinkable single-column grid tracks

@@ -95,7 +95,9 @@ final class BookshelfReadController extends AbstractController
         }
         if ($chapter !== null) {
             try {
-                $chapter['html'] = $converter->convert($chapter['content']);
+                $chapter['html'] = $readerContents->renderedBody(
+                    $chapter['id'], $chapter['content'], fn (): string => $converter->convert($chapter['content']),
+                );
             } catch (\Throwable $exception) {
                 $logger->warning('Bookshelf chapter conversion failed.', [
                     'event_id' => $chapter['id'],

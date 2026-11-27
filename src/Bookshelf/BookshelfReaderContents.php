@@ -14,7 +14,11 @@ use App\Service\Reader\ContentAuthorAccessPolicy;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClientInterface;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Model\MercuryEvent;
+use Psr\Cache\CacheException;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Cache\Adapter\NullAdapter;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /** Reconstructs a continuous reader from the signed order of publication indexes. */
 final readonly class BookshelfReaderContents
@@ -26,6 +30,8 @@ final readonly class BookshelfReaderContents
     private const MAX_RELAY_HINTS = 5;
     private const MAX_RELAY_GROUPS = 20;
     private const MAX_API_PASSES = 3;
+    private const EXACT_CACHE_TTL = 365 * 86400;
+    private const COORDINATE_CACHE_TTL = 30 * 86400;
 
     public function __construct(
         private MercuryApiClientInterface $api,
@@ -36,6 +42,8 @@ final readonly class BookshelfReaderContents
         private HiddenCoordinateRepository $hidden,
         private LoggerInterface $logger,
         private MercuryApiClientInterface $booksApi,
+        #[Autowire(service: 'cache.app')]
+        private CacheItemPoolInterface $cache = new NullAdapter(),
     ) {}
 
     public function source(string $id): ?object
@@ -44,11 +52,17 @@ final readonly class BookshelfReaderContents
         if ($local instanceof Event && $local->getKind() === 30040) {
             return $this->wireEvent($local);
         }
+        $cached = $this->cachedEvent('event:' . $id);
+        if ($cached !== null && $cached->id === $id && $cached->kind === 30040) {
+            return $cached;
+        }
         foreach ([$this->booksApi, $this->api] as $client) {
             try {
                 $event = $client->getEvent($id);
                 if ($event !== null && $event->id === $id && $event->kind === 30040) {
-                    return (object) $event->toArray();
+                    $source = (object) $event->toArray();
+                    $this->rememberEvent($source);
+                    return $source;
                 }
             } catch (MercuryApiException $exception) {
                 $this->logger->warning('Could not read the bookshelf index from an API.', ['exception' => $exception]);
@@ -57,12 +71,16 @@ final readonly class BookshelfReaderContents
 
         try {
             $event = $this->nostr->getEventsByIds([$id])[$id] ?? null;
-            return is_object($event) && ($event->id ?? null) === $id && ($event->kind ?? null) === 30040
-                ? $event : null;
         } catch (\Throwable $exception) {
             $this->logger->warning('Could not read the bookshelf index from relays.', ['exception' => $exception]);
             return null;
         }
+        if (is_object($event) && ($event->id ?? null) === $id && ($event->kind ?? null) === 30040) {
+            $this->rememberEvent($event);
+            return $event;
+        }
+
+        return null;
     }
 
     public function hasNestedIndexes(object $source): bool
@@ -138,6 +156,11 @@ final readonly class BookshelfReaderContents
     /** @return array{entries: list<array<string, mixed>>, hasNext: bool, truncated: bool} */
     public function outline(object $source): array
     {
+        $key = 'outline:' . $source->id;
+        $cached = $this->cacheRead($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
         $references = $this->references($source);
         $entries = [];
         foreach (array_slice($references, 0, self::MAX_ENTRIES) as $reference) {
@@ -149,7 +172,24 @@ final readonly class BookshelfReaderContents
             ];
         }
 
-        return ['entries' => $entries, 'hasNext' => false, 'truncated' => count($references) > self::MAX_ENTRIES];
+        $outline = ['entries' => $entries, 'hasNext' => false, 'truncated' => count($references) > self::MAX_ENTRIES];
+        $this->cacheWrite($key, $outline, self::EXACT_CACHE_TTL);
+
+        return $outline;
+    }
+
+    /** @param callable(): string $render */
+    public function renderedBody(string $eventId, string $content, callable $render): string
+    {
+        $key = 'html:' . $eventId . ':' . hash('sha256', $content);
+        $cached = $this->cacheRead($key);
+        if (is_string($cached)) {
+            return $cached;
+        }
+        $html = $render();
+        $this->cacheWrite($key, $html, self::EXACT_CACHE_TTL);
+
+        return $html;
     }
 
     /** @param list<string> $muted @return array<string, mixed>|null */
@@ -352,6 +392,15 @@ final readonly class BookshelfReaderContents
         $local = $this->events->findBookshelfReaderTargets(array_keys($coordinates), array_keys($ids));
         $events = array_map($this->wireEvent(...), array_values($local['coordinates'] + $local['eventIds']));
         $localMatches = $this->matchTargets($refs, $events);
+        foreach ($refs as $ref) {
+            if ($ref['invalid'] || isset($localMatches[$ref['key']])) {
+                continue;
+            }
+            $cached = $this->cachedEvent($ref['pin'] === null ? 'coordinate:' . $ref['coordinate'] : 'event:' . $ref['pin']);
+            if ($cached !== null) {
+                $localMatches += $this->matchTargets([$ref], [$cached]);
+            }
+        }
         $missing = array_values(array_filter($refs, static fn (array $ref): bool =>
             !$ref['invalid'] && !isset($localMatches[$ref['key']])
         ));
@@ -418,7 +467,54 @@ final readonly class BookshelfReaderContents
                 $this->logger->warning('Could not resolve bookshelf coordinates from relays.', ['exception' => $exception]);
             }
         }
+        foreach ($result as $event) {
+            $this->rememberEvent($event);
+        }
+        foreach ($refs as $ref) {
+            if (!$ref['invalid'] && $ref['pin'] === null && isset($result[$ref['key']])) {
+                $this->cacheWrite('coordinate:' . $ref['coordinate'], (array) $result[$ref['key']], self::COORDINATE_CACHE_TTL);
+            }
+        }
         return $result;
+    }
+
+    private function cachedEvent(string $key): ?object
+    {
+        $cached = $this->cacheRead($key);
+        return is_array($cached) && isset($cached['id'], $cached['kind'], $cached['pubkey'], $cached['tags'], $cached['created_at'])
+            ? (object) $cached : null;
+    }
+
+    private function rememberEvent(object $event): void
+    {
+        if (is_string($event->id ?? null) && preg_match('/^[0-9a-f]{64}$/D', $event->id) === 1
+            && $this->coordinate($event) !== null) {
+            $this->cacheWrite('event:' . $event->id, (array) $event, self::EXACT_CACHE_TTL);
+        }
+    }
+
+    private function cacheRead(string $key): mixed
+    {
+        try {
+            $item = $this->cache->getItem('bookshelf_reader_v1_' . hash('sha256', $key));
+            return $item->isHit() ? $item->get() : null;
+        } catch (CacheException $exception) {
+            $this->logger->warning('Bookshelf reader cache read failed.', ['exception' => $exception]);
+            return null;
+        }
+    }
+
+    private function cacheWrite(string $key, mixed $value, int $ttl): void
+    {
+        try {
+            $item = $this->cache->getItem('bookshelf_reader_v1_' . hash('sha256', $key));
+            $item->set($value)->expiresAfter($ttl);
+            if (!$this->cache->save($item)) {
+                $this->logger->warning('Bookshelf reader cache write failed.');
+            }
+        } catch (CacheException $exception) {
+            $this->logger->warning('Bookshelf reader cache write failed.', ['exception' => $exception]);
+        }
     }
 
     /**

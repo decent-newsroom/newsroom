@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Improvement] Cache Bookshelf reader events, TOC outlines and converted bodies for one year, and unpinned lookups for 30 days, while rechecking access and deletion rules.
 - [Fix] Render book TOCs without fetching chapter bodies, load each chapter independently and automatically, and defer only nested indexes until opened.
 - [Fix] Split Bookshelf tables of contents and nested reader indexes into smaller asynchronous Turbo requests instead of loading their contents with the initial page.
 - [Fix] Align Unfold and vanity-name pricing references in translated promotions and business documentation with the public pricing page.
