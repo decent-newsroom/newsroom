@@ -20,8 +20,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * Bounded TOC pages for an authorized root index or locally available nested
  * indexes. Callers authorize each source event; nested targets are batch-read
- * and filtered through hidden-coordinate, reader-mute, author-suppression, and
- * tombstone policy before metadata is exposed.
+ * and filtered through hidden-coordinate and author-suppression policy, along
+ * with the caller's reader-mute and deletion policy, before exposing metadata.
  */
 final readonly class PublicationTocPage
 {
@@ -62,6 +62,7 @@ final readonly class PublicationTocPage
         array $readerMutedPubkeys = [],
         ?int $resolutionPosition = null,
         bool $separateFeaturedArticle = false,
+        bool $filterDeletedTargets = true,
     ): array
     {
         if ($event->getKind() !== KindsEnum::PUBLICATION_INDEX->value || $page < 1) {
@@ -143,13 +144,21 @@ final readonly class PublicationTocPage
             $result['entries'][] = $this->entry($reference, $tags[$reference->position]);
         }
 
-        $this->resolveNestedIndexes($result['entries'], $eventPath, $occurrenceId, $readerMutedPubkeys, $resolutionPosition);
+        $this->resolveNestedIndexes(
+            $result['entries'],
+            $eventPath,
+            $occurrenceId,
+            $readerMutedPubkeys,
+            $resolutionPosition,
+            $filterDeletedTargets,
+        );
         $this->resolvePinnedChapters(
             $result['entries'],
             $readerMutedPubkeys,
             $resolutionPosition,
             $eventPath,
             $occurrenceId,
+            $filterDeletedTargets,
         );
         if ($result['hasNext'] && $occurrenceId !== null && $page < PHP_INT_MAX) {
             $result['pageSignatures']['next'] = $this->traversalSigner->sign(
@@ -236,6 +245,7 @@ final readonly class PublicationTocPage
         ?string $occurrenceId,
         array $readerMutedPubkeys,
         ?int $resolutionPosition,
+        bool $filterDeletedTargets,
     ): void
     {
         $coordinates = [];
@@ -335,10 +345,9 @@ final readonly class PublicationTocPage
             )))),
             true,
         );
-        $deletedEvents = array_fill_keys(
-            $this->deletions->findSuppressedEventIds(array_values($validTargets)),
-            true,
-        );
+        $deletedEvents = $filterDeletedTargets
+            ? array_fill_keys($this->deletions->findSuppressedEventIds(array_values($validTargets)), true)
+            : [];
 
         foreach ($requests as $index => $identity) {
             $targetId = $entries[$index]['candidateEventId'] ?? null;
@@ -401,6 +410,7 @@ final readonly class PublicationTocPage
         ?int $resolutionPosition,
         array $eventPath,
         ?string $occurrenceId,
+        bool $filterDeletedTargets,
     ): void {
         $requests = [];
         $eventIds = [];
@@ -479,10 +489,9 @@ final readonly class PublicationTocPage
             )))),
             true,
         );
-        $deletedEvents = array_fill_keys(
-            $this->deletions->findSuppressedEventIds(array_values($allowedTargets)),
-            true,
-        );
+        $deletedEvents = $filterDeletedTargets
+            ? array_fill_keys($this->deletions->findSuppressedEventIds(array_values($allowedTargets)), true)
+            : [];
         foreach ($requests as $index => $reference) {
             $targetId = $entries[$index]['candidateEventId'] ?? null;
             if (!is_string($targetId)) {

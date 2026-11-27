@@ -6,7 +6,6 @@ namespace App\Tests\Unit\Bookshelf;
 
 use App\Bookshelf\BookshelfReaderContents;
 use App\Entity\Event;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Nostr\NostrClient;
@@ -56,15 +55,14 @@ final class BookshelfReaderCacheTest extends TestCase
             },
         );
         $first = $this->reader($cache, $api, hidden: $hidden);
-        self::assertSame('Cached chapter', $first->chapter($root, 1, [])['content']);
+        self::assertSame('Cached chapter', $first->chapter($root, 1)['content']);
 
         $second = $this->reader($cache, $api, hidden: $hidden);
-        self::assertSame($chapter->id, $second->chapter($root, 1, [])['id']);
-        self::assertSame($chapter->id, $second->chapter($root, 2, [])['id']);
-        self::assertNull($second->chapter($root, 1, [$pubkey]));
+        self::assertSame($chapter->id, $second->chapter($root, 1)['id']);
+        self::assertSame($chapter->id, $second->chapter($root, 2)['id']);
         $blocked = true;
-        self::assertNull($second->chapter($root, 1, []));
-        self::assertNull($second->chapter($root, 2, []));
+        self::assertNull($second->chapter($root, 1));
+        self::assertNull($second->chapter($root, 2));
     }
 
     public function testNewLocalRevisionWinsOverCachedCoordinate(): void
@@ -75,7 +73,7 @@ final class BookshelfReaderCacheTest extends TestCase
         $root = (object) $this->event('b', 30040, 'book', [['a', $coordinate]])->toArray();
         $api = $this->createMock(MercuryApiClientInterface::class);
         $api->expects(self::once())->method('getChaptersByAuthors')->willReturn([$chapter]);
-        self::assertSame('Old', $this->reader($cache, $api)->chapter($root, 1, [])['content']);
+        self::assertSame('Old', $this->reader($cache, $api)->chapter($root, 1)['content']);
 
         $new = new Event();
         $new->setId(str_repeat('d', 64));
@@ -86,10 +84,10 @@ final class BookshelfReaderCacheTest extends TestCase
         $new->setContent('New');
         $events = $this->createStub(EventRepository::class);
         $events->method('findBookshelfReaderTargets')->willReturn(['coordinates' => [$coordinate => $new], 'eventIds' => []]);
-        self::assertSame('New', $this->reader($cache, $api, events: $events)->chapter($root, 1, [])['content']);
+        self::assertSame('New', $this->reader($cache, $api, events: $events)->chapter($root, 1)['content']);
     }
 
-    public function testCachedExactSourceStillHonorsNewDeletion(): void
+    public function testCachedExactSourceStillHonorsNewHiddenCoordinate(): void
     {
         $cache = new ArrayAdapter();
         $root = $this->event('b', 30040, 'book');
@@ -97,19 +95,14 @@ final class BookshelfReaderCacheTest extends TestCase
         $api->expects(self::once())->method('getEvent')->willReturn($root);
         $warm = $this->reader($cache, $api);
         $source = $warm->source($root->id);
-        self::assertNotNull($warm->indexAtPath($source, [], []));
+        self::assertNotNull($warm->indexAtPath($source, []));
 
-        $deletions = $this->createStub(DeletedEventRepository::class);
-        $deletions->method('findSuppressedEventIds')->willReturn([$root->id]);
-        $events = $this->createStub(EventRepository::class);
-        $events->method('findByIds')->willReturn([]);
-        $reader = new BookshelfReaderContents(
-            $api, $this->createStub(NostrClient::class), $events, $this->createStub(ContentAuthorAccessPolicy::class),
-            $deletions, $this->createStub(HiddenCoordinateRepository::class), $this->createStub(LoggerInterface::class),
-            $api, $cache,
-        );
+        $hidden = $this->createStub(HiddenCoordinateRepository::class);
+        $hidden->method('findHiddenCoordinates')->with(['30040:' . $root->pubkey . ':book'])
+            ->willReturn(['30040:' . $root->pubkey . ':book']);
+        $reader = $this->reader($cache, $api, hidden: $hidden);
         self::assertNotNull($reader->source($root->id));
-        self::assertNull($reader->indexAtPath($reader->source($root->id), [], []));
+        self::assertNull($reader->indexAtPath($reader->source($root->id), []));
     }
 
     public function testMissingChaptersRemainRetryableInsteadOfCachingUnavailableResults(): void
@@ -126,11 +119,11 @@ final class BookshelfReaderCacheTest extends TestCase
         $events->method('findBookshelfReaderTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
         $reader = new BookshelfReaderContents(
             $this->createStub(MercuryApiClientInterface::class), $nostr, $events,
-            $this->createStub(ContentAuthorAccessPolicy::class), $this->createStub(DeletedEventRepository::class),
+            $this->createStub(ContentAuthorAccessPolicy::class),
             $this->createStub(HiddenCoordinateRepository::class), $this->createStub(LoggerInterface::class), $api, $cache,
         );
-        self::assertNull($reader->chapter($root, 1, []));
-        self::assertSame('Arrived later', $reader->chapter($root, 1, [])['content']);
+        self::assertNull($reader->chapter($root, 1));
+        self::assertSame('Arrived later', $reader->chapter($root, 1)['content']);
     }
 
     public function testRenderedBodyIsSharedByExactEventAndContentNotOccurrence(): void
@@ -180,7 +173,7 @@ final class BookshelfReaderCacheTest extends TestCase
 
         return new BookshelfReaderContents(
             $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),
-            $this->createStub(DeletedEventRepository::class), $hidden ?? $this->createStub(HiddenCoordinateRepository::class),
+            $hidden ?? $this->createStub(HiddenCoordinateRepository::class),
             $this->createStub(LoggerInterface::class), $api, $cache,
         );
     }

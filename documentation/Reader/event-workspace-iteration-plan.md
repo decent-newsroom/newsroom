@@ -137,6 +137,8 @@ public sources/fragments (not the owner-only Reading Nook endpoints). See
 for the bounded local-only behavior, including the presentation-only featured
 article grouping. It retains signed occurrence identities and does not alter
 Reading Nook's ordered TOC; generic magazine routing is unchanged.
+The public Bookshelf TOC skips viewer-mute and deletion lookups for publication
+indexes and chapters. Reading Nook callers retain both checks.
 
 ### Shipped bounded shared target preview slice
 

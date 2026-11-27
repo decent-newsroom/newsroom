@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Bookshelf;
 
 use App\Entity\Event;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventWorkspaceScopePolicy;
@@ -38,7 +37,6 @@ final readonly class BookshelfReaderContents
         private NostrClient $nostr,
         private EventRepository $events,
         private ContentAuthorAccessPolicy $authors,
-        private DeletedEventRepository $deletions,
         private HiddenCoordinateRepository $hidden,
         private LoggerInterface $logger,
         private MercuryApiClientInterface $booksApi,
@@ -99,17 +97,16 @@ final readonly class BookshelfReaderContents
      * Every ancestor and target is reauthorized on each request.
      *
      * @param list<int> $path
-     * @param list<string> $muted
      * @param list<string> $boundRevisions exact IDs for already opened ancestors
      * @param list<string> $resolvedRevisions
      */
-    public function indexAtPath(object $root, array $path, array $muted, array $boundRevisions = [], ?array &$resolvedRevisions = null): ?object
+    public function indexAtPath(object $root, array $path, array $boundRevisions = [], ?array &$resolvedRevisions = null): ?object
     {
         $resolvedRevisions = [];
         if (count($boundRevisions) > count($path)) {
             return null;
         }
-        if (count($path) > 5 || $this->readableTargets(['source' => $root], $muted) === []) {
+        if (count($path) > 5 || $this->readableTargets(['source' => $root]) === []) {
             return null;
         }
         $source = $root;
@@ -135,7 +132,7 @@ final readonly class BookshelfReaderContents
                 $reference['pin'] = $bound;
                 $reference['key'] = $reference['coordinate'] . "\0" . $bound;
             }
-            $targets = $this->readableTargets($this->targets([$reference]), $muted);
+            $targets = $this->readableTargets($this->targets([$reference]));
             $source = $targets[$reference['key']] ?? null;
             if ($source === null) {
                 return null;
@@ -192,14 +189,14 @@ final readonly class BookshelfReaderContents
         return $html;
     }
 
-    /** @param list<string> $muted @return array<string, mixed>|null */
-    public function chapter(object $source, int $position, array $muted): ?array
+    /** @return array<string, mixed>|null */
+    public function chapter(object $source, int $position): ?array
     {
         foreach (array_slice($this->references($source), 0, self::MAX_ENTRIES) as $reference) {
             if ($reference['position'] !== $position || $reference['kind'] !== 30041 || $reference['invalid']) {
                 continue;
             }
-            $target = $this->readableTargets($this->targets([$reference]), $muted)[$reference['key']] ?? null;
+            $target = $this->readableTargets($this->targets([$reference]))[$reference['key']] ?? null;
             if ($target === null) {
                 return null;
             }
@@ -220,15 +217,14 @@ final readonly class BookshelfReaderContents
      * Return one bounded page of direct children. Nested index targets are
      * deliberately not fetched until their disclosure is opened.
      *
-     * @param list<string> $muted
      * @return array{entries: list<array<string, mixed>>, page: int, hasNext: bool, truncated: bool}
      */
-    public function childrenPage(object $source, array $muted, int $page): array
+    public function childrenPage(object $source, int $page): array
     {
         $references = $this->references($source);
         $selected = array_slice($references, ($page - 1) * self::PAGE_SIZE, self::PAGE_SIZE, true);
         $sections = array_values(array_filter($selected, static fn (array $ref): bool => $ref['kind'] === 30041));
-        $targets = $this->readableTargets($this->targets($sections), $muted);
+        $targets = $this->readableTargets($this->targets($sections));
         $entries = [];
         foreach ($selected as $ref) {
             $event = $ref['kind'] === 30041 ? ($targets[$ref['key']] ?? null) : null;
@@ -248,16 +244,15 @@ final readonly class BookshelfReaderContents
 
     /**
      * @param array<string, mixed> $book
-     * @param list<string> $muted
      * @return array<string, mixed>
      */
-    public function expand(array $book, object $source, array $muted): array
+    public function expand(array $book, object $source): array
     {
         $rootCoordinate = $this->coordinate($source);
         if ($rootCoordinate === null || !$this->hasNestedIndexes($source)) {
             return $book;
         }
-        if ($this->readableTargets(['root' => $source], $muted) === []) {
+        if ($this->readableTargets(['root' => $source]) === []) {
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
         }
 
@@ -276,7 +271,7 @@ final readonly class BookshelfReaderContents
                     $pending[] = ['reference' => $reference, 'parent' => $parent['parent'], 'path' => $parent['path']];
                 }
             }
-            $targets = $this->readableTargets($this->targets(array_column($pending, 'reference')), $muted);
+            $targets = $this->readableTargets($this->targets(array_column($pending, 'reference')));
             $frontier = [];
             foreach ($pending as $item) {
                 $ref = $item['reference'];
@@ -614,12 +609,11 @@ final readonly class BookshelfReaderContents
 
     /**
      * @param array<string, object> $targets
-     * @param list<string> $muted
      * @return array<string, object>
      */
-    private function readableTargets(array $targets, array $muted): array
+    private function readableTargets(array $targets): array
     {
-        $candidates = $entities = $coordinates = $pubkeys = [];
+        $candidates = $coordinates = $pubkeys = [];
         foreach ($targets as $key => $event) {
             $coordinate = $this->coordinate($event);
             $tags = is_array($event->tags ?? null) ? $event->tags : [];
@@ -628,15 +622,10 @@ final readonly class BookshelfReaderContents
                 || !is_int($event->created_at ?? null)
                 || ($event->kind === 30040
                     ? EventWorkspaceScopePolicy::isScopedInventoryList($event->kind, $tags)
-                    : EventWorkspaceScopePolicy::isScopedTarget($event->kind, $tags))
-                || in_array(strtolower($event->pubkey), $muted, true)) {
+                    : EventWorkspaceScopePolicy::isScopedTarget($event->kind, $tags))) {
                 continue;
             }
             $entity = new Event();
-            $entity->setId(strtolower($event->id));
-            $entity->setPubkey(strtolower($event->pubkey));
-            $entity->setKind($event->kind);
-            $entity->setCreatedAt($event->created_at);
             $entity->setTags(array_values(array_filter($tags, static fn ($tag): bool =>
                 is_array($tag) && is_string($tag[0] ?? null)
                 && (!in_array($tag[0], ['t', 'L'], true) || !isset($tag[1]) || is_string($tag[1]))
@@ -644,22 +633,19 @@ final readonly class BookshelfReaderContents
             if ($entity->isNSFW()) {
                 continue;
             }
-            $candidates[$key] = [$event, $entity, $coordinate];
-            $entities[$entity->getId()] = $entity;
+            $pubkey = strtolower($event->pubkey);
+            $candidates[$key] = [$event, $pubkey, $coordinate];
             $coordinates[$coordinate] = true;
-            $pubkeys[$entity->getPubkey()] = true;
+            $pubkeys[$pubkey] = true;
         }
         if ($candidates === []) {
             return [];
         }
         $suppressed = array_fill_keys($this->authors->suppressedPubkeys(array_keys($pubkeys)), true);
         $hidden = array_fill_keys($this->hidden->findHiddenCoordinates(array_keys($coordinates)), true);
-        $deleted = array_fill_keys($this->deletions->findSuppressedEventIds(array_values($entities)), true);
         $readable = [];
-        foreach ($candidates as $key => [$event, $entity, $coordinate]) {
-            if (!isset($suppressed[$entity->getPubkey()])
-                && !isset($hidden[$coordinate])
-                && !isset($deleted[$entity->getId()])) {
+        foreach ($candidates as $key => [$event, $pubkey, $coordinate]) {
+            if (!isset($suppressed[$pubkey]) && !isset($hidden[$coordinate])) {
                 $readable[$key] = $event;
             }
         }

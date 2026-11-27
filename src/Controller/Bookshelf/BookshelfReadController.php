@@ -7,7 +7,6 @@ namespace App\Controller\Bookshelf;
 use App\Bookshelf\BookshelfRelayBookLoader;
 use App\Bookshelf\BookshelfReaderContents;
 use App\Bookshelf\BookshelfReaderTraversalSigner;
-use App\Service\UserMuteListService;
 use AsciiDocConverter;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
@@ -30,13 +29,12 @@ final class BookshelfReadController extends AbstractController
         BookshelfReaderContents $readerContents,
         BookshelfDirectoryService $directoryService,
         LoggerInterface $logger,
-        UserMuteListService $muteList,
         BookshelfReaderTraversalSigner $signer,
     ): Response {
         $query = trim((string) $request->query->get('q', ''));
         $directoryContext = $this->directoryContext($directoryService);
         $source = $readerContents->source(strtolower($id));
-        if ($source !== null && $readerContents->indexAtPath($source, [], $this->mutedPubkeys($muteList)) === null) {
+        if ($source !== null && $readerContents->indexAtPath($source, []) === null) {
             throw $this->createNotFoundException();
         }
         $book = $source === null ? null : $relayBookLoader->bookFromEvent($source, loadChapters: false);
@@ -63,10 +61,9 @@ final class BookshelfReadController extends AbstractController
         string $id,
         Request $request,
         BookshelfReaderContents $readerContents,
-        UserMuteListService $muteList,
         BookshelfReaderTraversalSigner $signer,
     ): Response {
-        [$source, $path, $revisions] = $this->requestSource($id, $request, $readerContents, $muteList, $signer);
+        [$source, $path, $revisions] = $this->requestSource($id, $request, $readerContents, $signer);
 
         return $this->render('bookshelf/_reader_contents.html.twig',
             $this->outlineParameters(strtolower($id), $path, $revisions, $source, $readerContents, $signer),
@@ -81,17 +78,16 @@ final class BookshelfReadController extends AbstractController
         int $position,
         Request $request,
         BookshelfReaderContents $readerContents,
-        UserMuteListService $muteList,
         BookshelfReaderTraversalSigner $signer,
         AsciiDocConverter $converter,
         LoggerInterface $logger,
     ): Response {
-        [$source, $path] = $this->requestSource($id, $request, $readerContents, $muteList, $signer, $position);
+        [$source, $path] = $this->requestSource($id, $request, $readerContents, $signer, $position);
         $chapter = null;
         if ($source !== null) {
             $chapter = $position === -1
                 ? ['id' => $source->id, 'available' => true, 'content' => (string) ($source->content ?? '')]
-                : $readerContents->chapter($source, $position, $this->mutedPubkeys($muteList));
+                : $readerContents->chapter($source, $position);
         }
         if ($chapter !== null) {
             try {
@@ -117,7 +113,6 @@ final class BookshelfReadController extends AbstractController
         string $id,
         Request $request,
         BookshelfReaderContents $readerContents,
-        UserMuteListService $muteList,
         BookshelfReaderTraversalSigner $signer,
         ?int $chapterPosition = null,
     ): array {
@@ -157,10 +152,9 @@ final class BookshelfReadController extends AbstractController
         if ($chapterPosition === null && $path === [] && ($revisions !== [] || $signature !== '')) {
             throw $this->createNotFoundException();
         }
-        $muted = $this->mutedPubkeys($muteList);
         $root = $readerContents->source($id);
         $resolvedRevisions = [];
-        $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $muted, $revisions, $resolvedRevisions);
+        $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $revisions, $resolvedRevisions);
         return [$source, $path, $resolvedRevisions];
     }
 
@@ -196,17 +190,6 @@ final class BookshelfReadController extends AbstractController
             'bodySignature' => $path !== [] && ($source->content ?? '') !== ''
                 ? $signer->signChapter($id, $path, $revisions, -1) : null,
         ];
-    }
-
-    /** @return list<string> */
-    private function mutedPubkeys(UserMuteListService $muteList): array
-    {
-        if ($this->getUser() === null) {
-            return [];
-        }
-        $pubkey = PublicKey::fromBech32($this->getUser()->getUserIdentifier())?->toHex()
-            ?? throw $this->createAccessDeniedException();
-        return $muteList->getMutedPubkeysStrict($pubkey);
     }
 
     /** @return array{directoryTags: array<int, array<int, string>>, directoryCoordinates: string[], directoryIdentifier: string} */

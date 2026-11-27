@@ -8,14 +8,12 @@ use App\Bookshelf\FeaturedBookshelf;
 use App\Controller\Bookshelf\LandingController;
 use App\Entity\Event;
 use App\Entity\User;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\Graph\RecordIdentityService;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Reader\ContentAuthorAccessPolicy;
-use App\Service\UserMuteListService;
 use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryUnavailableException;
@@ -52,11 +50,9 @@ final class BookshelfLandingControllerTest extends TestCase
         }
         $store = $this->createMock(DirectoryEventStoreInterface::class);
         $store->expects(self::never())->method('findAllByPubkeyAndKind');
-        $mutes = $this->createMock(UserMuteListService::class);
-        $mutes->expects(self::never())->method('getMutedPubkeysStrict');
         $response = $this->controller()->index(
             new Request(['q' => $query]), new MercuryBookService($api),
-            new BookshelfDirectoryService($store), $this->featured(), $mutes, new NullLogger(),
+            new BookshelfDirectoryService($store), $this->featured(), new NullLogger(),
         );
         self::assertSame('@Bookshelf/pages/bookshelf.html.twig', $this->template);
         self::assertSame(trim($query), $this->captured['query']);
@@ -78,7 +74,7 @@ final class BookshelfLandingControllerTest extends TestCase
         yield 'api unavailable' => ['stories', true, false, true];
     }
 
-    public function testAuthenticatedDirectoryContextAndStrictMutesArePreserved(): void
+    public function testAuthenticatedDirectoryContextIsPreserved(): void
     {
         $nip19 = new NostrNip19Service();
         $pubkey = str_repeat('a', 64);
@@ -90,11 +86,9 @@ final class BookshelfLandingControllerTest extends TestCase
         $source->setTags([['d', BookshelfDirectoryService::IDENTIFIER], ['a', '30040:' . $pubkey . ':book']]);
         $store = $this->createMock(DirectoryEventStoreInterface::class);
         $store->expects(self::once())->method('findAllByPubkeyAndKind')->with($pubkey, 30045, 50)->willReturn([$source]);
-        $mutes = $this->createMock(UserMuteListService::class);
-        $mutes->expects(self::once())->method('getMutedPubkeysStrict')->with($pubkey)->willReturn([]);
         $this->controller($user)->index(
             new Request(), new MercuryBookService($this->createStub(MercuryApiClientInterface::class)),
-            new BookshelfDirectoryService($store), $this->featured(), $mutes, new NullLogger(),
+            new BookshelfDirectoryService($store), $this->featured(), new NullLogger(),
         );
         self::assertSame(['30040:' . $pubkey . ':book'], $this->captured['directoryCoordinates']);
         self::assertSame($source->getTags(), $this->captured['directoryTags']);
@@ -104,7 +98,7 @@ final class BookshelfLandingControllerTest extends TestCase
     public function testInvalidDirectoryPagingIsRejected(array $query): void
     {
         $this->expectException(BadRequestHttpException::class);
-        $this->controller()->directory(new Request($query), $this->featured(), $this->createStub(UserMuteListService::class));
+        $this->controller()->directory(new Request($query), $this->featured());
     }
 
     public static function invalidPages(): iterable
@@ -120,7 +114,7 @@ final class BookshelfLandingControllerTest extends TestCase
     public function testUnconfiguredDirectoryHasNoPublicBrowsePage(): void
     {
         $this->expectException(NotFoundHttpException::class);
-        $this->controller()->directory(new Request(), $this->featured(), $this->createStub(UserMuteListService::class));
+        $this->controller()->directory(new Request(), $this->featured());
     }
 
     private function controller(?User $user = null): LandingController
@@ -156,7 +150,6 @@ final class BookshelfLandingControllerTest extends TestCase
             '', $nip19, $this->createStub(EventRepository::class),
             new EventPresentationFactory(new RecordIdentityService(), $nip19), $api,
             $this->createStub(ContentAuthorAccessPolicy::class),
-            $this->createStub(DeletedEventRepository::class),
             $this->createStub(HiddenCoordinateRepository::class), new NullLogger(),
         );
     }

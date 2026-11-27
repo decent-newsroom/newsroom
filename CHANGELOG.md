@@ -2,8 +2,9 @@
 
 ## v0.1.0
 
+- [Improvement] Remove read-time viewer mute and deletion lookups from Bookshelf book, chapter, and public index loading.
 - [Improvement] Start Bookshelf loading with the first two index entries, load later chapters in the viewport, and show loading skeletons and retry controls.
-- [Improvement] Cache Bookshelf reader events, TOC outlines and converted bodies for one year, and unpinned lookups for 30 days, while rechecking access and deletion rules.
+- [Improvement] Cache Bookshelf reader events, TOC outlines and converted bodies for one year, and unpinned lookups for 30 days, while rechecking access rules.
 - [Fix] Render book TOCs without fetching chapter bodies and serve each chapter through a separate Turbo frame.
 - [Fix] Split Bookshelf tables of contents and nested reader indexes into smaller asynchronous Turbo requests instead of loading their contents with the initial page.
 - [Fix] Align Unfold and vanity-name pricing references in translated promotions and business documentation with the public pricing page.

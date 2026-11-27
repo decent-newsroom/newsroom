@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller\Bookshelf;
 
 use App\Bookshelf\FeaturedBookshelf;
-use App\Service\UserMuteListService;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
@@ -28,7 +27,6 @@ final class LandingController extends AbstractController
         MercuryBookService $bookService,
         BookshelfDirectoryService $directoryService,
         FeaturedBookshelf $featured,
-        UserMuteListService $mutes,
         LoggerInterface $logger,
     ): Response {
         $query = trim($request->query->getString('q'));
@@ -54,12 +52,12 @@ final class LandingController extends AbstractController
             'available' => $available, 'queryTooShort' => $queryTooShort,
             'directoryIdentifier' => BookshelfDirectoryService::IDENTIFIER,
             'directoryTags' => $tags, 'directoryCoordinates' => $coordinates,
-            'featured' => $featured->page($pubkey === null ? [] : $mutes->getMutedPubkeysStrict($pubkey), preview: true),
+            'featured' => $featured->page(preview: true),
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
     #[Route('/bookshelf/featured', name: 'bookshelf_featured', methods: ['GET'], priority: 20)]
-    public function directory(Request $request, FeaturedBookshelf $featured, UserMuteListService $mutes): Response
+    public function directory(Request $request, FeaturedBookshelf $featured): Response
     {
         $rawPage = $request->query->all()['page'] ?? '1';
         $eventId = $request->query->all()['eventId'] ?? null;
@@ -70,8 +68,7 @@ final class LandingController extends AbstractController
             || ($page > 1 && $eventId === null)) {
             throw new BadRequestHttpException('Invalid featured directory page.');
         }
-        $pubkey = $this->readerPubkey();
-        $directory = $featured->page($pubkey === null ? [] : $mutes->getMutedPubkeysStrict($pubkey), $page, $eventId);
+        $directory = $featured->page($page, $eventId);
         if ($directory['state'] === 'unconfigured') {
             throw $this->createNotFoundException();
         }

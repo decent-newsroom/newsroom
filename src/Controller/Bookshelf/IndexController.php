@@ -16,9 +16,7 @@ use App\Service\EventWorkspace\EventPresentationFactory;
 use App\Service\EventWorkspace\PublicationTocPage;
 use App\Service\EventWorkspace\PublicationTocTraversalSigner;
 use App\Service\Magazine\PublicationIndexClassifier;
-use App\Service\UserMuteListService;
 use DecentNewsroom\BookshelfBundle\Navigation\BookshelfNavigationTrait;
-use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,7 +34,6 @@ final class IndexController extends AbstractController
         private readonly EventPresentationFactory $presentations,
         private readonly PublicationTocPage $pages,
         private readonly PublicationTocTraversalSigner $signer,
-        private readonly UserMuteListService $muteList,
         private readonly EventRepository $events,
         private readonly RedisCacheService $profileCache,
         private readonly BookContainingIndexes $containingIndexes,
@@ -48,8 +45,7 @@ final class IndexController extends AbstractController
     #[Route('/bookshelf/index/{eventId}', name: 'bookshelf_index', requirements: ['eventId' => '[0-9a-f]{64}'], methods: ['GET'], priority: 10)]
     public function show(string $eventId, Request $request, PublicationIndexClassifier $classifier): Response
     {
-        $muted = $this->mutedPubkeys();
-        $event = $this->sources->read($eventId, $muted);
+        $event = $this->sources->read($eventId);
         $pubkey = strtolower($event->getPubkey());
         $metadataEvent = $this->events->findLatestMetadataByPubkey($pubkey);
         $authorMetadata = $metadataEvent === null
@@ -64,7 +60,7 @@ final class IndexController extends AbstractController
             'tocHeading' => $this->tocHeading($presentation),
             'tocPageNumber' => $this->pageNumber($request),
             'isBook' => $classifier->isBook($event->getTags()),
-            'containingIndexes' => $this->containingIndexes->forBook($event, $muted),
+            'containingIndexes' => $this->containingIndexes->forBook($event),
         ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
@@ -72,13 +68,12 @@ final class IndexController extends AbstractController
     public function contents(string $eventId, Request $request): Response
     {
         $page = $this->pageNumber($request);
-        $muted = $this->mutedPubkeys();
-        $event = $this->sources->read($eventId, $muted);
+        $event = $this->sources->read($eventId);
 
         return $this->render('reader/reading_nook/_publication_toc.html.twig', [
             'tocPage' => $this->tocArticles->enrich($this->pages->fromAuthorizedEvent(
                 $event, $page, routeName: 'bookshelf_index_contents',
-                readerMutedPubkeys: $muted, separateFeaturedArticle: true,
+                separateFeaturedArticle: true, filterDeletedTargets: false,
             )),
             'tocNestedRoute' => 'bookshelf_index_toc',
             'tocBookshelfLinks' => true,
@@ -115,13 +110,11 @@ final class IndexController extends AbstractController
         if (!$this->signer->isValid($eventId, $page, $path, $occurrence, $coordinate, $signature)) {
             throw new BadRequestHttpException('Invalid nested TOC signature.');
         }
-        $muted = $this->mutedPubkeys();
-        // Signed traversal state grants no permission, even if an ancestor was
-        // hidden/deleted/muted after the disclosure was rendered.
+        // Reauthorize each ancestor using the current public-index access rules.
         foreach ($path as $id) {
-            $this->sources->read($id, $muted);
+            $this->sources->read($id);
         }
-        $event = $this->sources->read($eventId, $muted);
+        $event = $this->sources->read($eventId);
         if (in_array($eventId, $path, true)
             || $this->presentations->fromAuthorizedEvent($event)->coordinate !== $coordinate) {
             throw $this->createNotFoundException();
@@ -129,8 +122,8 @@ final class IndexController extends AbstractController
 
         return $this->render('reader/reading_nook/_publication_toc.html.twig', [
             'tocPage' => $this->tocArticles->enrich($this->pages->fromAuthorizedEvent(
-                $event, $page, $path, $occurrence, 'bookshelf_index_toc', $muted,
-                separateFeaturedArticle: true,
+                $event, $page, $path, $occurrence, 'bookshelf_index_toc',
+                separateFeaturedArticle: true, filterDeletedTargets: false,
             )),
             'tocNestedRoute' => 'bookshelf_index_toc',
             'tocBookshelfLinks' => true,
@@ -177,18 +170,5 @@ final class IndexController extends AbstractController
             [30041], [] => 'bookshelf.publication.chapters',
             default => 'bookshelf.publication.contents',
         };
-    }
-
-    /** @return list<string> */
-    private function mutedPubkeys(): array
-    {
-        $user = $this->getUser();
-        if ($user === null) {
-            return [];
-        }
-        $pubkey = PublicKey::fromBech32($user->getUserIdentifier())?->toHex()
-            ?? throw $this->createAccessDeniedException();
-
-        return $this->muteList->getMutedPubkeysStrict($pubkey);
     }
 }

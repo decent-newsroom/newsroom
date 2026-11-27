@@ -6,7 +6,6 @@ namespace App\Bookshelf;
 
 use App\Dto\EventWorkspace\EventReferenceStatus;
 use App\Entity\Event;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
@@ -19,17 +18,15 @@ final readonly class BookContainingIndexes
         private EventRepository $events,
         private EventPresentationFactory $presentations,
         private ContentAuthorAccessPolicy $authors,
-        private DeletedEventRepository $deletions,
         private HiddenCoordinateRepository $hidden,
     ) {}
 
     /**
      * Find local parents of any kind-30040 publication index, including books.
      *
-     * @param list<string> $mutedPubkeys
      * @return list<array{title: string, eventId: string}>
      */
-    public function forBook(Event $book, array $mutedPubkeys = []): array
+    public function forBook(Event $book): array
     {
         if (EventWorkspaceScopePolicy::isScopedInventoryList($book->getKind(), $book->getTags())) {
             return [];
@@ -55,8 +52,6 @@ final readonly class BookContainingIndexes
             static fn (Event $event): string => $event->getPubkey(),
             $parents,
         ))));
-        $deleted = $this->deletions->findSuppressedEventIds($parents);
-        $mutedPubkeys = array_map('strtolower', $mutedPubkeys);
         $result = [];
         foreach ($parents as $parent) {
             if (preg_match('/^[0-9a-f]{64}$/D', $parent->getId()) !== 1
@@ -67,8 +62,6 @@ final readonly class BookContainingIndexes
             $parentPubkey = strtolower($parent->getPubkey());
             if ($presentation->coordinate === null
                 || in_array($parentPubkey, $suppressed, true)
-                || in_array($parentPubkey, $mutedPubkeys, true)
-                || in_array(strtolower($parent->getId()), $deleted, true)
                 || $this->hidden->isHidden($presentation->coordinate)
                 || $presentation->isSensitive) {
                 continue;

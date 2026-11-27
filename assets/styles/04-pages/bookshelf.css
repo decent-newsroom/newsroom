@@ -507,8 +507,7 @@
 }
 
 .bookshelf-chapter:not(:first-child) {
-    padding-top: var(--spacing-7);
-    border-top: 3px double var(--color-border-strong);
+    padding-top: var(--spacing-5);
 }
 
 .bookshelf-chapter > header {

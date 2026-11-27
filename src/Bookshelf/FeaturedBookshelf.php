@@ -9,7 +9,6 @@ use App\Dto\EventWorkspace\EventReference;
 use App\Dto\EventWorkspace\EventReferenceRole;
 use App\Dto\EventWorkspace\EventReferenceStatus;
 use App\Dto\EventWorkspace\EventReferenceType;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
@@ -35,16 +34,14 @@ final readonly class FeaturedBookshelf
         private EventPresentationFactory $presentations,
         private MercuryApiClientInterface $api,
         private ContentAuthorAccessPolicy $authors,
-        private DeletedEventRepository $deletions,
         private HiddenCoordinateRepository $hidden,
         private LoggerInterface $logger,
     ) {}
 
     /**
-     * @param list<string> $mutedPubkeys
      * @return array{state: string, entries: list<array{status: string, book: ?EventPresentation}>, eventId: ?string, page: int, hasPrevious: bool, hasNext: bool}
      */
-    public function page(array $mutedPubkeys = [], int $page = 1, ?string $eventId = null, bool $preview = false): array
+    public function page(int $page = 1, ?string $eventId = null, bool $preview = false): array
     {
         if ($page < 1 || $page > intdiv(PHP_INT_MAX, self::PAGE_SIZE)) {
             throw new \InvalidArgumentException('Invalid featured directory page.');
@@ -80,13 +77,12 @@ final readonly class FeaturedBookshelf
         if ($source === null) {
             return $result;
         }
-        $muted = array_map('strtolower', $mutedPubkeys);
         if ($source->getKind() !== 30045 || $source->getPubkey() !== $address['pubkey']
             || $this->identifier($source->getTags()) !== $address['identifier']
             || ($eventId !== null && $source->getId() !== $eventId)
             || $source->getContent() !== ''
             || EventWorkspaceScopePolicy::isScopedDirectory($source->getTags())
-            || !$this->readable($source->getId(), 30045, $source->getPubkey(), $source->getCreatedAt(), $source->getTags(), $muted)) {
+            || !$this->readable(30045, $source->getPubkey(), $source->getTags())) {
             return $result;
         }
         $result['eventId'] = $source->getId();
@@ -163,7 +159,7 @@ final readonly class FeaturedBookshelf
                         $entry['status'] = 'missing';
                     } elseif (EventWorkspaceScopePolicy::isScopedInventoryList(30040, $event->tags)
                         || $this->identifier($event->tags) === null
-                        || !$this->readable($event->id, 30040, $event->pubkey, $event->createdAt, $event->tags, $muted)) {
+                        || !$this->readable(30040, $event->pubkey, $event->tags)) {
                         $entry['status'] = 'restricted';
                     } else {
                         $entry = ['status' => 'available', 'book' => $this->presentations->fromAuthorizedFields(
@@ -190,16 +186,13 @@ final readonly class FeaturedBookshelf
         return null;
     }
 
-    /** @param array<array-key, mixed> $tags
-     *  @param list<string> $muted */
-    private function readable(string $id, int $kind, string $pubkey, int $createdAt, array $tags, array $muted): bool
+    /** @param array<array-key, mixed> $tags */
+    private function readable(int $kind, string $pubkey, array $tags): bool
     {
         $identifier = $this->identifier($tags);
 
-        return !in_array(strtolower($pubkey), $muted, true)
-            && !EventPresentation::hasSensitiveTagEvidence($tags)
+        return !EventPresentation::hasSensitiveTagEvidence($tags)
             && !$this->authors->isSuppressed($pubkey)
-            && !$this->hidden->isHidden($kind . ':' . $pubkey . ':' . $identifier)
-            && !$this->deletions->isSuppressed($id, $kind, $pubkey, $identifier, $createdAt);
+            && !$this->hidden->isHidden($kind . ':' . $pubkey . ':' . $identifier);
     }
 }

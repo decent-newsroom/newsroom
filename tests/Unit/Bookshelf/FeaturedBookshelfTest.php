@@ -6,7 +6,6 @@ namespace App\Tests\Unit\Bookshelf;
 
 use App\Bookshelf\FeaturedBookshelf;
 use App\Entity\Event;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\EventWorkspace\EventPresentationFactory;
@@ -29,7 +28,6 @@ final class FeaturedBookshelfTest extends TestCase
     private EventRepository&MockObject $events;
     private MercuryApiClientInterface&MockObject $api;
     private ContentAuthorAccessPolicy&MockObject $authors;
-    private DeletedEventRepository&MockObject $deletions;
     private HiddenCoordinateRepository&MockObject $hidden;
     private LoggerInterface&MockObject $logger;
     private NostrNip19Service $nip19;
@@ -52,7 +50,6 @@ final class FeaturedBookshelfTest extends TestCase
         $this->api->expects(self::never())->method('getChaptersByAuthors');
         $this->api->expects(self::never())->method('searchPublications');
         $this->authors = $this->createMock(ContentAuthorAccessPolicy::class);
-        $this->deletions = $this->createMock(DeletedEventRepository::class);
         $this->hidden = $this->createMock(HiddenCoordinateRepository::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->source = new Event();
@@ -109,19 +106,16 @@ final class FeaturedBookshelfTest extends TestCase
     public function testRestrictedDirectoriesDoNotExposeReferences(string $restriction): void
     {
         $this->source->setTags([['d', 'selected:Books'], ['e', self::BOOK]]);
-        $muted = [];
         switch ($restriction) {
             case 'encrypted': $this->source->setContent('encrypted private payload'); break;
             case 'scoped': $this->source->setTags([['d', 'selected:Books'], ['h', 'private']]); break;
             case 'sensitive': $this->source->setTags([['d', 'selected:Books'], ['content-warning', '']]); break;
             case 'author': $this->authors->method('isSuppressed')->willReturn(true); break;
-            case 'deleted': $this->deletions->method('isSuppressed')->willReturn(true); break;
             case 'hidden': $this->hidden->method('isHidden')->willReturn(true); break;
-            case 'muted': $muted = [strtoupper(self::AUTHOR)]; break;
             case 'identity': $this->source->setTags([['d', 'different']]); break;
         }
         $this->noMetadataRequests();
-        $page = $this->service()->page($muted);
+        $page = $this->service()->page();
         self::assertSame('unavailable', $page['state']);
         self::assertNull($page['eventId']);
         self::assertSame([], $page['entries']);
@@ -129,7 +123,7 @@ final class FeaturedBookshelfTest extends TestCase
 
     public static function sourceRestrictions(): iterable
     {
-        foreach (['encrypted', 'scoped', 'sensitive', 'author', 'deleted', 'hidden', 'muted', 'identity'] as $case) {
+        foreach (['encrypted', 'scoped', 'sensitive', 'author', 'hidden', 'identity'] as $case) {
             yield $case => [$case];
         }
     }
@@ -216,20 +210,17 @@ final class FeaturedBookshelfTest extends TestCase
     public function testApiTargetsAreIndependentlyAuthorized(string $restriction): void
     {
         $tags = [['d', 'book'], ['title', 'secret title'], ['summary', 'secret summary'], ['image', 'https://secret.example/cover']];
-        $muted = [];
         switch ($restriction) {
             case 'scoped': $tags[] = ['s', 'private']; break;
             case 'sensitive': $tags[] = ['content-warning', '']; break;
             case 'author': $this->authors->method('isSuppressed')->willReturnCallback(fn (string $key): bool => $key === self::BOOK_AUTHOR); break;
-            case 'deleted': $this->deletions->method('isSuppressed')->willReturnCallback(fn (string $id): bool => $id === self::BOOK); break;
             case 'hidden': $this->hidden->method('isHidden')->willReturnCallback(fn (string $coordinate): bool => str_starts_with($coordinate, '30040:')); break;
-            case 'muted': $muted = [self::BOOK_AUTHOR]; break;
         }
         $this->source->setTags([['d', 'selected:Books'], ['e', self::BOOK]]);
         $this->api->method('getPublicationEventsByIds')->willReturn([
             new MercuryEvent(self::BOOK, self::BOOK_AUTHOR, 30040, 100, '', '', $tags),
         ]);
-        $page = $this->service()->page($muted);
+        $page = $this->service()->page();
         self::assertSame('restricted', $page['entries'][0]['status']);
         self::assertNull($page['entries'][0]['book']);
         self::assertStringNotContainsString('secret', serialize($page));
@@ -237,7 +228,7 @@ final class FeaturedBookshelfTest extends TestCase
 
     public static function targetRestrictions(): iterable
     {
-        foreach (['scoped', 'sensitive', 'author', 'deleted', 'hidden', 'muted'] as $case) {
+        foreach (['scoped', 'sensitive', 'author', 'hidden'] as $case) {
             yield $case => [$case];
         }
     }
@@ -285,7 +276,7 @@ final class FeaturedBookshelfTest extends TestCase
             $naddr ?? $this->nip19->encodeAddr(self::AUTHOR, 'selected:Books', 30045),
             $this->nip19, $this->events,
             new EventPresentationFactory(new RecordIdentityService(), $this->nip19),
-            $this->api, $this->authors, $this->deletions, $this->hidden, $this->logger,
+            $this->api, $this->authors, $this->hidden, $this->logger,
         );
     }
 

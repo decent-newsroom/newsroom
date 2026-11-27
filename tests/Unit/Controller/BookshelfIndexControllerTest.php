@@ -24,7 +24,6 @@ use App\Service\Graph\RecordIdentityService;
 use App\Service\Magazine\PublicationIndexClassifier;
 use App\Service\Nostr\NostrNip19Service;
 use App\Service\Reader\ContentAuthorAccessPolicy;
-use App\Service\UserMuteListService;
 use Innis\Nostr\Core\Domain\ValueObject\Identity\PublicKey;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -48,7 +47,6 @@ final class BookshelfIndexControllerTest extends TestCase
     private DeletedEventRepository&MockObject $deletions;
     private HiddenCoordinateRepository&MockObject $hidden;
     private ContentAuthorAccessPolicy&MockObject $authors;
-    private UserMuteListService&MockObject $mutes;
     private RedisCacheService&MockObject $profiles;
     private UserMetadata $cachedProfile;
     private EventPresentationFactory $presentations;
@@ -77,9 +75,9 @@ final class BookshelfIndexControllerTest extends TestCase
         });
         $this->events->expects(self::never())->method('findByNaddr');
         $this->deletions = $this->createMock(DeletedEventRepository::class);
+        $this->deletions->expects(self::never())->method('findSuppressedEventIds');
         $this->hidden = $this->createMock(HiddenCoordinateRepository::class);
         $this->authors = $this->createMock(ContentAuthorAccessPolicy::class);
-        $this->mutes = $this->createMock(UserMuteListService::class);
         $this->profiles = $this->createMock(RedisCacheService::class);
         $this->cachedProfile = new UserMetadata();
         $this->profiles->method('getMetadata')->willReturnCallback(function (string $pubkey, bool $refreshOnMiss): UserMetadata {
@@ -140,8 +138,6 @@ final class BookshelfIndexControllerTest extends TestCase
         }
         $this->stored = [self::ROOT => $event];
         $this->hidden->method('isHidden')->willReturn($restriction === 'hidden');
-        $this->deletions->method('isSuppressed')->willReturn($restriction === 'deleted');
-        $this->mutes->method('getMutedPubkeysStrict')->willReturn($restriction === 'muted' ? [self::AUTHOR] : []);
         if ($restriction === 'suppressed') {
             $this->authors->method('assertReadable')->willThrowException(new NotFoundHttpException());
         }
@@ -152,7 +148,7 @@ final class BookshelfIndexControllerTest extends TestCase
 
     public static function restrictedRootFragments(): iterable
     {
-        foreach (['hidden', 'deleted', 'muted', 'scoped', 'suppressed'] as $restriction) {
+        foreach (['hidden', 'scoped', 'suppressed'] as $restriction) {
             yield $restriction => [$restriction];
         }
     }
@@ -229,7 +225,6 @@ final class BookshelfIndexControllerTest extends TestCase
         $this->events->expects(self::once())->method('findPublicationIndexTargets')
             ->with([$parentCoordinate], [])
             ->willReturn(['coordinates' => [$parentCoordinate => $parent], 'eventIds' => []]);
-        $this->mutes->expects(self::once())->method('getMutedPubkeysStrict')->with(self::AUTHOR)->willReturn([]);
 
         $response = $this->controller(authenticated: true)->show(self::CHILD, new Request(), new PublicationIndexClassifier());
 
@@ -238,26 +233,25 @@ final class BookshelfIndexControllerTest extends TestCase
         self::assertSame(self::FOREIGN, $this->captured['presentation']->authorPubkey);
     }
 
-    public function testIndexDetailDoesNotExposeAParentMutedByTheViewer(): void
+    public function testIndexDetailDoesNotExposeAHiddenParent(): void
     {
         $childCoordinate = '30040:' . self::AUTHOR . ':child';
         $parentCoordinate = '30040:' . self::FOREIGN . ':parent';
         $this->stored = [self::ROOT => $this->event(self::ROOT, self::AUTHOR, [['d', 'child']])];
         $parent = $this->event(self::CHILD, self::FOREIGN, [
-            ['d', 'parent'], ['title', 'Muted parent'], ['a', $childCoordinate],
+            ['d', 'parent'], ['title', 'Hidden parent'], ['a', $childCoordinate],
         ]);
         $this->events->expects(self::once())->method('findReferencingEvents')
             ->with('a', $childCoordinate, [30040], 50, true)->willReturn([$parent]);
         $this->events->expects(self::once())->method('findPublicationIndexTargets')
             ->with([$parentCoordinate], [])
             ->willReturn(['coordinates' => [$parentCoordinate => $parent], 'eventIds' => []]);
-        $this->mutes->expects(self::once())->method('getMutedPubkeysStrict')
-            ->with(self::AUTHOR)->willReturn([self::FOREIGN]);
+        $this->hidden->method('isHidden')->willReturnMap([[$childCoordinate, false], [$parentCoordinate, true]]);
 
         $this->controller(authenticated: true)->show(self::ROOT, new Request(), new PublicationIndexClassifier());
 
         self::assertSame([], $this->captured['containingIndexes']);
-        self::assertStringNotContainsString('Muted parent', serialize($this->captured));
+        self::assertStringNotContainsString('Hidden parent', serialize($this->captured));
     }
 
     public function testCollidingAuthorsAndOldExactRevisionsAreNotReplacedBySlug(): void
@@ -487,8 +481,6 @@ final class BookshelfIndexControllerTest extends TestCase
             ->willReturn(['coordinates' => [], 'eventIds' => $restriction === 'missing' ? [] : [self::CHILD => $child]]);
         $this->hidden->method('findHiddenCoordinates')->willReturn($restriction === 'hidden' ? [$coordinate] : []);
         $this->authors->method('suppressedPubkeys')->willReturn($restriction === 'suppressed' ? [self::FOREIGN] : []);
-        $this->deletions->method('findSuppressedEventIds')->willReturn($restriction === 'deleted' ? [self::CHILD] : []);
-        $this->mutes->method('getMutedPubkeysStrict')->willReturn($restriction === 'muted' ? [self::FOREIGN] : []);
 
         $response = $this->controller(authenticated: true)->contents(self::ROOT, new Request());
         self::assertSame(200, $response->getStatusCode());
@@ -508,7 +500,7 @@ final class BookshelfIndexControllerTest extends TestCase
     /** @return iterable<string, array{string, bool}> */
     public static function restrictedChildren(): iterable
     {
-        foreach (['hidden', 'suppressed', 'deleted', 'muted', 'draft', 'missing', 'mismatched pin', 'scoped'] as $restriction) {
+        foreach (['hidden', 'suppressed', 'draft', 'missing', 'mismatched pin', 'scoped'] as $restriction) {
             yield $restriction => [$restriction, false];
             yield $restriction . ' with featured article' => [$restriction, true];
         }
@@ -534,11 +526,9 @@ final class BookshelfIndexControllerTest extends TestCase
             static fn (string $coordinate): bool => $restriction === 'hidden'
                 || ($restriction === 'ancestor' && $coordinate === '30040:' . self::AUTHOR . ':root'),
         );
-        $this->deletions->method('isSuppressed')->willReturn($restriction === 'deleted');
         if ($restriction === 'suppressed') {
             $this->authors->method('assertReadable')->willThrowException(new NotFoundHttpException());
         }
-        $this->mutes->method('getMutedPubkeysStrict')->willReturn($restriction === 'muted' ? [self::FOREIGN] : []);
         $this->events->expects(self::never())->method('findReferencingEvents');
         $this->events->expects(self::never())->method('findPublicationIndexTargets');
         $this->events->expects(self::never())->method('findLatestMetadataByPubkey');
@@ -555,7 +545,7 @@ final class BookshelfIndexControllerTest extends TestCase
     /** @return iterable<string, array{string, bool}> */
     public static function restrictedSources(): iterable
     {
-        foreach (['draft', 'hidden', 'deleted', 'suppressed', 'muted', 'scoped'] as $restriction) {
+        foreach (['draft', 'hidden', 'suppressed', 'scoped'] as $restriction) {
             yield $restriction . ' detail' => [$restriction, false];
             yield $restriction . ' fragment' => [$restriction, true];
         }
@@ -624,14 +614,14 @@ final class BookshelfIndexControllerTest extends TestCase
     {
         $identities = new RecordIdentityService();
         $controller = new IndexController(
-            new BookshelfIndexSource($this->events, $this->presentations, $this->authors, $this->deletions, $this->hidden),
+            new BookshelfIndexSource($this->events, $this->presentations, $this->authors, $this->hidden),
             $this->presentations,
             new PublicationTocPage(
                 new EventWorkspaceSourceAdapter($identities), $this->presentations, $this->events,
                 $this->deletions, $this->authors, $this->hidden, $this->signer,
             ),
-            $this->signer, $this->mutes, $this->events, $this->profiles,
-            new BookContainingIndexes($this->events, $this->presentations, $this->authors, $this->deletions, $this->hidden),
+            $this->signer, $this->events, $this->profiles,
+            new BookContainingIndexes($this->events, $this->presentations, $this->authors, $this->hidden),
             new BookshelfTocArticles($this->articleAccess),
             $enabled,
         );

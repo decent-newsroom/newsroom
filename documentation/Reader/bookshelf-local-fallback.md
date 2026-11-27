@@ -60,15 +60,20 @@ as unavailable.
 
 Each reader index lists up to 500 direct occurrences without fetching child
 events. Traversal is limited to six levels. Cycles are detected on the current
-path, so a shared index can still appear elsewhere. Each fragment re-resolves its occurrence path
-from the exact root and rechecks every ancestor; browser-supplied paths do not
-grant access. Nested
-indexes and sections are checked for reader mutes, author suppression,
-hidden coordinates, deletion, scope and sensitive tags before their metadata
-or contents are exposed; blocked references remain unavailable and are not
-expanded. The response is private and not cached. If the source index cannot
+path, so a shared index can still appear elsewhere. Each fragment re-resolves its
+occurrence path from the exact root and rechecks every ancestor. The reader checks
+author suppression, hidden coordinates, scope, and sensitive tags before exposing
+metadata or contents. Blocked references stay unavailable. The response is
+private and no-store. If the source index cannot
 be obtained, the reader returns an explicit unavailable page with a retry link
 and logs a warning, rather than retrying an eager whole-book chapter fetch.
+
+The continuous reader, public Bookshelf indexes and chapters, containing-index
+links, and featured Bookshelf views skip read-time NIP-51 viewer-mute and NIP-09
+deletion lookups. A muted author's book or a deleted revision that is still
+available from a source or cache can appear in these views. Ingestion still
+applies NIP-09. The private directory-reference disclosure, linked article
+previews, and Reading Nook retain their own access policies.
 
 ## Flow
 
@@ -130,9 +135,9 @@ exact cached event, never the unpinned coordinate mapping. Missing targets and
 conversion failures are not cached, so a retry can recover immediately.
 
 The cache stores data and rendered bodies, not authorization decisions or whole
-HTTP responses. Each request still verifies signatures, ancestor relationships,
-reader mutes, suppression, hidden coordinates, scope, sensitivity and deletions
-before using cached content. Fragment responses remain private/no-store so a
+HTTP responses. Each request verifies signatures and ancestor relationships and
+checks author suppression, hidden coordinates, scope, and sensitivity before
+using cached content. Fragment responses remain private/no-store so a
 browser cache cannot bypass those checks. Cache read/write failures are logged;
 normal resolution and rendering remain available. Clearing `cache.app` also
 clears the reader cache.
@@ -153,7 +158,7 @@ Book detail pages at `/bookshelf/book/{slug}` also link directly to the
 continuous reader for the displayed book's exact event ID. Chapter links remain
 available. A "Contained in index" section lists locally known current kind
 `30040` indexes referencing that book coordinate, excluding mismatched version
-pins, hidden/deleted indexes, suppressed or reader-muted authors, and sensitive
+pins, hidden indexes, suppressed authors, and sensitive
 metadata. The same section appears on `/bookshelf/index/{eventId}` so readers
 can navigate up through locally known parent indexes. It uses the displayed
 index's exact event ID when checking version pins, and is omitted when no
@@ -194,9 +199,9 @@ pin stays visible as invalid.
 Other TOCs, including Reading Nook, retain their original ordering and 50-row
 pages. Exact pins never fall back to latest or a different author.
 
-Every page/fragment allows only locally stored public kind `30040` Events,
-checking hidden coordinates, reader mutes, author suppression, and NIP-09
-deletion before exposing source data. Signed fragment ancestry is also
+Every page/fragment allows only locally stored public kind `30040` events,
+checking hidden coordinates and author suppression before exposing source data.
+Signed fragment ancestry is also
 re-authorized on each request. Author metadata is read locally. Article metadata
 is shown only when the exact local Event has a matching Article projection and
 passes the existing entitlement, scope, sensitivity, author, mute, hidden
