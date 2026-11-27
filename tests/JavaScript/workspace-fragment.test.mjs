@@ -16,7 +16,7 @@ async function fixture() {
     await module.evaluate();
 
     return () => {
-        const element = { isConnected: true, open: true };
+        const element = { isConnected: true, open: true, tagName: 'DETAILS' };
         const frame = new EventTarget();
         frame.parentElement = element;
         const controller = new module.namespace.default();
@@ -63,6 +63,20 @@ test('a queued closed disclosure waits until reopened', async () => {
     rows[1].abort.abort();
     assert.equal(rows[4].resumes, 1);
     rows.slice(2).forEach(row => row.abort.abort());
+});
+
+test('chapter frames outside disclosures load automatically and share the four request limit', async () => {
+    const make = await fixture();
+    const chapters = Array.from({ length: 5 }, make);
+    for (const chapter of chapters) {
+        chapter.element.tagName = 'DIV';
+        delete chapter.element.open;
+        chapter.controller.beforeRequest(chapter.event);
+    }
+    assert.deepEqual(chapters.map(chapter => chapter.resumes), [1, 1, 1, 1, 0]);
+    chapters[0].frame.dispatchEvent(new Event('turbo:before-fetch-response'));
+    assert.equal(chapters[4].resumes, 1);
+    chapters.slice(1).forEach(chapter => chapter.abort.abort());
 });
 
 test('aborted and detached queued frames settle without starting a request', async () => {

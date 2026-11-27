@@ -40,7 +40,8 @@ When a reader opens a book, the continuous reader obtains its exact kind
 `30040` source from local storage, the Books API/Mercury or relays. The reader
 displays direct kind `30040` and `30041` references in
 signed tag order. Nested indexes start collapsed, using their signed identifier
-as the label; opening one loads its own body and direct children. Each loaded
+as the label; opening one loads its direct-reference outline. Its body and
+chapter bodies load independently. Each loaded
 index has its own table of contents. Repeated references remain separate
 occurrences. Missing or invalid references stay visible as unavailable;
 version pins are resolved only by their exact event IDs and must match the
@@ -57,9 +58,9 @@ Each level uses at most five relay hints and falls back for at most
 20 distinct author/kind groups; additional unresolved references stay visible
 as unavailable.
 
-Each reader index is paged in batches of five, up to 500 occurrences, and
-traversal is limited to six levels. Cycles are detected on the current path, so a
-shared index can still appear elsewhere. Each fragment re-resolves its occurrence path
+Each reader index lists up to 500 direct occurrences without fetching child
+events. Traversal is limited to six levels. Cycles are detected on the current
+path, so a shared index can still appear elsewhere. Each fragment re-resolves its occurrence path
 from the exact root and rechecks every ancestor; browser-supplied paths do not
 grant access. Nested
 indexes and sections are checked for reader mutes, author suppression,
@@ -80,15 +81,30 @@ and logs a warning, rather than retrying an eager whole-book chapter fetch.
 
 ## Asynchronous book loading
 
-The initial reader and public index pages render a shell rather than resolving
-their entire table of contents inline. Turbo loads the root contents separately.
-Reader fragments resolve and render at most five direct occurrences; public
-index TOC fragments retain their 50-occurrence local-metadata pages.
-Nested indexes remain collapsed and request their own contents only when opened;
-loading one index does not recursively load its descendants. Pagination stays
-inside the corresponding contents frame instead of replacing the book page.
-Nested pagination carries HMAC-bound occurrence paths and exact resolved index
-revisions so later pages cannot silently switch to a newer index revision.
+The continuous reader renders its TOC and ordered chapter placeholders inline
+from the authorized source's signed tags. It does not wait for chapter retrieval
+or conversion. TOC links are local anchors with Turbo navigation disabled, so
+clicking one scrolls to the existing occurrence rather than requesting the TOC
+again.
+
+Each chapter has an automatically loaded Turbo frame backed by
+`/bookshelf/{id}/chapter/{position}`. A request resolves and converts only that
+chapter. These frames share the workspace's four-request browser concurrency
+limit and do not require a disclosure click. Only nested indexes are collapsed
+and lazy: opening one requests `/bookshelf/{id}/contents` with its signed
+occurrence path, then mounts its own direct TOC and independent chapter frames.
+An index's optional introductory body uses a separate `/index-body` request,
+never conversion inside the TOC request.
+
+Chapter signatures bind the exact root, occurrence position, ancestry, and
+resolved ancestor revisions in a separate HMAC domain. Every chapter request
+rechecks source and target access; siblings remain mounted if one fails.
+Nested requests retain exact ancestor revisions rather than silently switching
+to a newer index. No recursive child-index retrieval occurs.
+
+The public index viewer remains distinct: its local-metadata TOC loads through
+`/bookshelf/index/{eventId}/contents`, with 50 occurrences per page. It does
+not load chapter bodies.
 
 These are separate HTTP requests, not a new Messenger ingestion pipeline.
 Every fragment still checks its source and traversal access independently.

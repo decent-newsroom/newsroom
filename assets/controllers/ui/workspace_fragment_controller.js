@@ -6,7 +6,8 @@ const active = new Set();
 
 function drain() {
     while (active.size < MAX_ACTIVE) {
-        const index = waiting.findIndex(job => !job.controller.disconnected && job.controller.element.isConnected && job.controller.element.open);
+        const index = waiting.findIndex(job => !job.controller.disconnected && job.controller.element.isConnected
+            && (job.controller.element.tagName !== 'DETAILS' || job.controller.element.open));
         if (index < 0) return;
 
         const [job] = waiting.splice(index, 1);

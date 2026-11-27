@@ -31,6 +31,7 @@ final class BookshelfReadController extends AbstractController
         BookshelfDirectoryService $directoryService,
         LoggerInterface $logger,
         UserMuteListService $muteList,
+        BookshelfReaderTraversalSigner $signer,
     ): Response {
         $query = trim((string) $request->query->get('q', ''));
         $directoryContext = $this->directoryContext($directoryService);
@@ -50,6 +51,7 @@ final class BookshelfReadController extends AbstractController
             'available' => $source !== null,
             'query' => $query,
             'readerId' => strtolower($id),
+            ...$this->outlineParameters(strtolower($id), [], [], $source, $readerContents, $signer),
         ], new Response(
             status: $source === null ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_OK,
             headers: ['Cache-Control' => 'private, no-store'],
@@ -61,11 +63,62 @@ final class BookshelfReadController extends AbstractController
         string $id,
         Request $request,
         BookshelfReaderContents $readerContents,
-        AsciiDocConverter $converter,
-        LoggerInterface $logger,
         UserMuteListService $muteList,
         BookshelfReaderTraversalSigner $signer,
     ): Response {
+        [$source, $path, $revisions] = $this->requestSource($id, $request, $readerContents, $muteList, $signer);
+
+        return $this->render('bookshelf/_reader_contents.html.twig',
+            $this->outlineParameters(strtolower($id), $path, $revisions, $source, $readerContents, $signer),
+            new Response(headers: ['Cache-Control' => 'private, no-store']),
+        );
+    }
+
+    #[Route('/bookshelf/{id}/chapter/{position}', name: 'bookshelf_reader_chapter', requirements: ['id' => '[a-fA-F0-9]{64}', 'position' => '0|[1-9][0-9]{0,8}'], methods: ['GET'])]
+    #[Route('/bookshelf/{id}/index-body', name: 'bookshelf_reader_index_body', requirements: ['id' => '[a-fA-F0-9]{64}'], defaults: ['position' => -1], methods: ['GET'])]
+    public function chapter(
+        string $id,
+        int $position,
+        Request $request,
+        BookshelfReaderContents $readerContents,
+        UserMuteListService $muteList,
+        BookshelfReaderTraversalSigner $signer,
+        AsciiDocConverter $converter,
+        LoggerInterface $logger,
+    ): Response {
+        [$source, $path] = $this->requestSource($id, $request, $readerContents, $muteList, $signer, $position);
+        $chapter = null;
+        if ($source !== null) {
+            $chapter = $position === -1
+                ? ['id' => $source->id, 'available' => true, 'content' => (string) ($source->content ?? '')]
+                : $readerContents->chapter($source, $position, $this->mutedPubkeys($muteList));
+        }
+        if ($chapter !== null) {
+            try {
+                $chapter['html'] = $converter->convert($chapter['content']);
+            } catch (\Throwable $exception) {
+                $logger->warning('Bookshelf chapter conversion failed.', [
+                    'event_id' => $chapter['id'],
+                    'error' => $exception->getMessage(),
+                ]);
+                $chapter['html'] = '<pre>' . htmlspecialchars($chapter['content'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</pre>';
+            }
+        }
+
+        return $this->render('bookshelf/_reader_chapter.html.twig', [
+            'rootId' => strtolower($id), 'path' => $path, 'position' => $position, 'chapter' => $chapter,
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
+    }
+
+    /** @return array{?object, list<int>, list<string>} */
+    private function requestSource(
+        string $id,
+        Request $request,
+        BookshelfReaderContents $readerContents,
+        UserMuteListService $muteList,
+        BookshelfReaderTraversalSigner $signer,
+        ?int $chapterPosition = null,
+    ): array {
         $rawPath = $request->query->get('path', '');
         $rawPage = $request->query->get('page', '1');
         if (($rawPath !== '' && !preg_match('/^(?:0|[1-9][0-9]{0,8})(?:\.(?:0|[1-9][0-9]{0,8})){0,4}$/D', $rawPath))
@@ -87,48 +140,60 @@ final class BookshelfReadController extends AbstractController
                 throw $this->createNotFoundException();
             }
         }
-        if ($path !== []) {
+        if ($chapterPosition !== null) {
+            if (count($revisions) !== count($path)
+                || !$signer->isValidChapter($id, $path, $revisions, $chapterPosition, $signature)) {
+                throw $this->createNotFoundException();
+            }
+        } elseif ($path !== []) {
             $boundCount = count($revisions);
             if (($boundCount !== count($path) && !($page === 1 && $boundCount === count($path) - 1))
                 || !$signer->isValid($id, $path, $revisions, $signature)) {
                 throw $this->createNotFoundException();
             }
         }
-        if ($path === [] && ($revisions !== [] || $signature !== '')) {
+        if ($chapterPosition === null && $path === [] && ($revisions !== [] || $signature !== '')) {
             throw $this->createNotFoundException();
         }
         $muted = $this->mutedPubkeys($muteList);
         $root = $readerContents->source($id);
         $resolvedRevisions = [];
         $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $muted, $revisions, $resolvedRevisions);
-        $contents = $source === null ? null : $readerContents->childrenPage($source, $muted, $page);
+        return [$source, $path, $resolvedRevisions];
+    }
+
+    /** @param list<int> $path @param list<string> $revisions @return array<string, mixed> */
+    private function outlineParameters(
+        string $id,
+        array $path,
+        array $revisions,
+        ?object $source,
+        BookshelfReaderContents $readerContents,
+        BookshelfReaderTraversalSigner $signer,
+    ): array {
+        $contents = $source === null ? null : $readerContents->outline($source);
         $childSignatures = [];
-        $body = null;
-        $indexMetadata = null;
+        $chapterSignatures = [];
         if ($contents !== null) {
-            $this->renderEntries($contents['entries'], $converter, $logger);
             foreach ($contents['entries'] as $entry) {
                 if ($entry['kind'] === 30040 && !$entry['invalid'] && count($path) < 5) {
-                    $childSignatures[$entry['position']] = $signer->sign($id, [...$path, $entry['position']], $resolvedRevisions);
-                }
-            }
-            if ($path !== [] && $page === 1) {
-                $indexMetadata = $readerContents->indexMetadata($source);
-                if (($source->content ?? '') !== '') {
-                    $entry = [['available' => true, 'content' => $source->content, 'id' => $source->id]];
-                    $this->renderEntries($entry, $converter, $logger);
-                    $body = $entry[0]['html'];
+                    $childSignatures[$entry['position']] = $signer->sign($id, [...$path, $entry['position']], $revisions);
+                } elseif ($entry['kind'] === 30041 && !$entry['invalid']) {
+                    $chapterSignatures[$entry['position']] = $signer->signChapter($id, $path, $revisions, $entry['position']);
                 }
             }
         }
 
-        return $this->render('bookshelf/_reader_contents.html.twig', [
-            'rootId' => $id, 'path' => $path, 'page' => $page,
-            'contents' => $contents, 'indexBody' => $body, 'indexMetadata' => $indexMetadata,
-            'revisions' => $resolvedRevisions,
+        return [
+            'rootId' => $id, 'path' => $path, 'page' => 1,
+            'contents' => $contents,
+            'indexMetadata' => $path === [] || $source === null ? null : $readerContents->indexMetadata($source),
+            'revisions' => $revisions,
             'childSignatures' => $childSignatures,
-            'pageSignature' => $path === [] ? null : $signer->sign($id, $path, $resolvedRevisions),
-        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
+            'chapterSignatures' => $chapterSignatures,
+            'bodySignature' => $path !== [] && ($source->content ?? '') !== ''
+                ? $signer->signChapter($id, $path, $revisions, -1) : null,
+        ];
     }
 
     /** @return list<string> */
@@ -140,35 +205,6 @@ final class BookshelfReadController extends AbstractController
         $pubkey = PublicKey::fromBech32($this->getUser()->getUserIdentifier())?->toHex()
             ?? throw $this->createAccessDeniedException();
         return $muteList->getMutedPubkeysStrict($pubkey);
-    }
-
-    /** @param list<array<string, mixed>> $entries */
-    private function renderEntries(array &$entries, AsciiDocConverter $converter, LoggerInterface $logger): void
-    {
-        $book = ['chapters' => &$entries];
-        $this->renderChapters($book, $converter, $logger);
-    }
-
-    /** @param array<string, mixed> $book */
-    private function renderChapters(array &$book, AsciiDocConverter $asciiDocConverter, LoggerInterface $logger): void
-    {
-        foreach ($book['chapters'] as &$chapter) {
-            if (!is_array($chapter) || !($chapter['available'] ?? false)) {
-                $chapter['html'] = null;
-                continue;
-            }
-
-            try {
-                $chapter['html'] = $asciiDocConverter->convert((string) $chapter['content']);
-            } catch (\Throwable $exception) {
-                $logger->warning('Bookshelf chapter conversion failed.', [
-                    'event_id' => $chapter['id'] ?? null,
-                    'error' => $exception->getMessage(),
-                ]);
-                $chapter['html'] = '<pre>' . htmlspecialchars((string) $chapter['content'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</pre>';
-            }
-        }
-        unset($chapter);
     }
 
     /** @return array{directoryTags: array<int, array<int, string>>, directoryCoordinates: string[], directoryIdentifier: string} */

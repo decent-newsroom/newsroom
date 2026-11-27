@@ -1,0 +1,10 @@
+<turbo-frame id="bookshelf-chapter-{{ rootId }}-{{ path is empty ? 'root' : path|join('-') }}-{{ position }}">
+    {% if chapter is null %}
+        <p class="bookshelf-chapter__missing">{{ 'bookshelf.reader_unavailable'|trans }}</p>
+    {% else %}
+        {% if position != -1 %}
+            <header><h2>{{ chapter.title }}</h2>{% if chapter.summary %}<p>{{ chapter.summary }}</p>{% endif %}</header>
+        {% endif %}
+        <div class="bookshelf-chapter__content" data-controller="utility--katex" data-utility--katex-display-value="true">{{ chapter.html|raw }}</div>
+    {% endif %}
+</turbo-frame>

@@ -135,6 +135,47 @@ final readonly class BookshelfReaderContents
         return ['title' => $this->tag($tags, 'title'), 'summary' => $this->tag($tags, 'summary')];
     }
 
+    /** @return array{entries: list<array<string, mixed>>, hasNext: bool, truncated: bool} */
+    public function outline(object $source): array
+    {
+        $references = $this->references($source);
+        $entries = [];
+        foreach (array_slice($references, 0, self::MAX_ENTRIES) as $reference) {
+            $entries[] = [
+                'position' => $reference['position'],
+                'kind' => $reference['kind'],
+                'title' => $reference['identifier'],
+                'invalid' => $reference['invalid'],
+            ];
+        }
+
+        return ['entries' => $entries, 'hasNext' => false, 'truncated' => count($references) > self::MAX_ENTRIES];
+    }
+
+    /** @param list<string> $muted @return array<string, mixed>|null */
+    public function chapter(object $source, int $position, array $muted): ?array
+    {
+        foreach (array_slice($this->references($source), 0, self::MAX_ENTRIES) as $reference) {
+            if ($reference['position'] !== $position || $reference['kind'] !== 30041 || $reference['invalid']) {
+                continue;
+            }
+            $target = $this->readableTargets($this->targets([$reference]), $muted)[$reference['key']] ?? null;
+            if ($target === null) {
+                return null;
+            }
+
+            return [
+                'id' => $target->id,
+                'available' => true,
+                'title' => $this->tag($target->tags ?? [], 'title') ?? $reference['identifier'],
+                'summary' => $this->tag($target->tags ?? [], 'summary'),
+                'content' => (string) ($target->content ?? ''),
+            ];
+        }
+
+        return null;
+    }
+
     /**
      * Return one bounded page of direct children. Nested index targets are
      * deliberately not fetched until their disclosure is opened.

@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Render book TOCs without fetching chapter bodies, load each chapter independently and automatically, and defer only nested indexes until opened.
 - [Fix] Split Bookshelf tables of contents and nested reader indexes into smaller asynchronous Turbo requests instead of loading their contents with the initial page.
 - [Fix] Align Unfold and vanity-name pricing references in translated promotions and business documentation with the public pricing page.
 - [Fix] Redirect anonymous visitors to login when they open protected pages, while retaining JSON authentication errors for programmatic requests.
