@@ -492,6 +492,9 @@ newsstand:
 # TODO: translate Mercury bookshelf strings
 bookshelf:
     reader_load_index: 'Naloži kazalo'
+    reader_load_chapter: 'Naloži poglavje'
+    reader_loading: 'Nalaganje…'
+    reader_retry: 'Poskusi znova'
     reader_load_more: 'Naloži več vsebine'
     reader_unavailable: 'Ta vsebina ni na voljo.'
     table_of_contents: 'Kazalo'

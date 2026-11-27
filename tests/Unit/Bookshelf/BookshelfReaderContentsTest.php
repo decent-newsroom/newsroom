@@ -659,14 +659,16 @@ final class BookshelfReaderContentsTest extends TestCase
         self::assertSame(['id' => $id, 'path' => '3.7', 'revisions' => $revision, 'signature' => 'child-signature'], $childQuery);
         self::assertSame($child->attr('src'), $child->filter('a')->attr('href'));
         $chapter = $crawler->filter('turbo-frame#bookshelf-chapter-' . $id . '-3-8');
-        parse_str((string) parse_url($chapter->attr('src'), PHP_URL_QUERY), $chapterQuery);
+        $chapterUrl = $chapter->attr('data-bookshelf-chapter-url');
+        parse_str((string) parse_url($chapterUrl, PHP_URL_QUERY), $chapterQuery);
         self::assertSame(['id' => $id, 'position' => '8', 'path' => '3', 'revisions' => $revision, 'signature' => 'chapter-signature'], $chapterQuery);
-        self::assertFalse($chapter->getNode(0)->hasAttribute('loading'));
-        self::assertSame($chapter->attr('src'), $chapter->filter('a')->attr('href'));
+        self::assertFalse($chapter->getNode(0)->hasAttribute('src'));
+        self::assertSame('initial', $chapter->attr('data-ui--bookshelf-chapters-target'));
+        self::assertSame($chapterUrl, $chapter->filter('a')->attr('href'));
         self::assertCount(0, $crawler->filter('details.bookshelf-reader__more'));
     }
 
-    public function testReaderShellRendersTocInlineWithAutomaticChaptersAndOnlyNestedIndexesLazy(): void
+    public function testReaderShellRendersTocInlineAndStartsOnlyTheFirstTwoEntries(): void
     {
         $files = new FilesystemLoader(dirname(__DIR__, 3) . '/templates');
         $files->addPath(dirname(__DIR__, 3) . '/vendor/decent-newsroom/bookshelf-bundle/src/Resources/views', 'Bookshelf');
@@ -688,23 +690,32 @@ final class BookshelfReaderContentsTest extends TestCase
             'book' => $book, 'query' => '', 'contents' => [
                 'entries' => [
                     ['position' => 0, 'kind' => 30041, 'title' => 'First', 'invalid' => false],
-                    ['position' => 1, 'kind' => 30040, 'title' => 'Part', 'invalid' => false],
+                    ['position' => 1, 'kind' => 30041, 'title' => 'Second', 'invalid' => false],
+                    ['position' => 2, 'kind' => 30041, 'title' => 'Third', 'invalid' => false],
+                    ['position' => 3, 'kind' => 30040, 'title' => 'Part', 'invalid' => false],
                 ],
                 'hasNext' => false, 'truncated' => false,
             ],
             'rootId' => $book['id'], 'path' => [], 'page' => 1, 'indexMetadata' => null,
-            'revisions' => [], 'childSignatures' => [1 => 'index-signature'], 'chapterSignatures' => [0 => 'chapter-signature'],
+            'revisions' => [], 'childSignatures' => [3 => 'index-signature'],
+            'chapterSignatures' => array_fill(0, 3, 'chapter-signature'),
             'bodySignature' => null,
         ]);
         $crawler = new Crawler($html);
         self::assertCount(0, $crawler->filter('.bookshelf-chapter__content'));
-        self::assertCount(2, $crawler->filter('.bookshelf-toc li'));
+        self::assertCount(4, $crawler->filter('.bookshelf-toc li'));
         self::assertSame('false', $crawler->filter('.bookshelf-toc li a')->first()->attr('data-turbo'));
         self::assertCount(1, $crawler->filter('details.bookshelf-reader__index:not([open]) turbo-frame[loading="lazy"]'));
         $frame = $crawler->filter('turbo-frame#bookshelf-reader-' . $book['id'] . '-root-1');
         self::assertCount(1, $frame);
         self::assertFalse($frame->getNode(0)->hasAttribute('src'));
-        self::assertCount(1, $crawler->filter('turbo-frame#bookshelf-chapter-' . $book['id'] . '-root-0[src]:not([loading])'));
+        $chapters = $crawler->filter('turbo-frame[data-bookshelf-chapter-url]');
+        self::assertCount(3, $chapters);
+        self::assertCount(0, $crawler->filter('turbo-frame[data-bookshelf-chapter-url][src]'));
+        self::assertSame(['initial', 'initial', 'deferred'], $chapters->each(
+            static fn (Crawler $chapter): ?string => $chapter->attr('data-ui--bookshelf-chapters-target'),
+        ));
+        self::assertCount(3, $crawler->filter('.bookshelf-chapter__skeleton[aria-hidden="true"]'));
     }
 
     public function testMixedReferencesExpandInOrderIncludingDuplicatesAndCycles(): void

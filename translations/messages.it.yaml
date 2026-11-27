@@ -408,6 +408,9 @@ newsstand:
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
     reader_load_index: 'Carica indice'
+    reader_load_chapter: 'Carica capitolo'
+    reader_loading: 'Caricamento…'
+    reader_retry: 'Riprova'
     reader_load_more: 'Carica altri contenuti'
     reader_unavailable: 'Questo contenuto non è disponibile.'
     truncated_description: 'Questo indice supera il limite di 500 voci del lettore.'

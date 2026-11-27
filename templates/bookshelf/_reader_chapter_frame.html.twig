@@ -1,0 +1,16 @@
+<div data-controller="ui--workspace-fragment" data-action="turbo:before-fetch-request->ui--workspace-fragment#beforeRequest">
+    <turbo-frame id="{{ chapterFrameId }}" data-ui--bookshelf-chapters-target="{{ loadMode }}" data-bookshelf-chapter-url="{{ chapterUrl }}">
+        <div class="bookshelf-chapter__placeholder">
+            <div class="bookshelf-chapter__skeleton" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <p class="bookshelf-chapter__loading" role="status">{{ 'bookshelf.reader_loading'|trans }}</p>
+            <p class="bookshelf-chapter__load-error" role="status">{{ 'bookshelf.reader_unavailable'|trans }}</p>
+            <a class="btn btn-secondary btn-sm bookshelf-chapter__load-action" href="{{ chapterUrl }}"
+                data-action="click->ui--bookshelf-chapters#loadRequested">
+                <span class="bookshelf-chapter__load-label">{{ loadLabel|trans }}</span>
+                <span class="bookshelf-chapter__retry-label">{{ 'bookshelf.reader_retry'|trans }}</span>
+            </a>
+        </div>
+    </turbo-frame>
+</div>

@@ -492,6 +492,9 @@ newsstand:
 # TODO: translate Mercury bookshelf strings
 bookshelf:
     reader_load_index: 'Cargar índice'
+    reader_load_chapter: 'Cargar capítulo'
+    reader_loading: 'Cargando…'
+    reader_retry: 'Reintentar'
     reader_load_more: 'Cargar más contenido'
     reader_unavailable: 'Este contenido no está disponible.'
     table_of_contents: 'Índice'

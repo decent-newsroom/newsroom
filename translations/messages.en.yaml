@@ -525,6 +525,9 @@ newsstand:
 # ── Bookshelf page ────────────────────────────────────────────────
 bookshelf:
     reader_load_index: 'Load index'
+    reader_load_chapter: 'Load chapter'
+    reader_loading: 'Loading…'
+    reader_retry: 'Try again'
     reader_load_more: 'Load more contents'
     reader_unavailable: 'This content is unavailable.'
     truncated_description: 'This index exceeds the 500-entry reader limit.'

@@ -87,14 +87,16 @@ or conversion. TOC links are local anchors with Turbo navigation disabled, so
 clicking one scrolls to the existing occurrence rather than requesting the TOC
 again.
 
-Each chapter has an automatically loaded Turbo frame backed by
-`/bookshelf/{id}/chapter/{position}`. A request resolves and converts only that
-chapter. These frames share the workspace's four-request browser concurrency
-limit and do not require a disclosure click. Only nested indexes are collapsed
-and lazy: opening one requests `/bookshelf/{id}/contents` with its signed
-occurrence path, then mounts its own direct TOC and independent chapter frames.
-An index's optional introductory body uses a separate `/index-body` request,
-never conversion inside the TOC request.
+Each chapter uses a Turbo frame backed by `/bookshelf/{id}/chapter/{position}`.
+Only direct chapters among the first two entries in an index start immediately.
+After those requests settle, the reader starts later chapters one at a time as
+their placeholders enter the viewport. Each request resolves and converts one chapter
+and shares the workspace's four-request browser concurrency limit. Placeholders
+show a skeleton while waiting, and failed frame requests offer a retry.
+
+Nested indexes load when opened via `/bookshelf/{id}/contents` with their signed
+occurrence path, then apply the same two-entry starting window. An optional
+introductory body loads in the viewport through its own `/index-body` request.
 
 Chapter signatures bind the exact root, occurrence position, ancestry, and
 resolved ancestor revisions in a separate HMAC domain. Every chapter request

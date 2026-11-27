@@ -576,6 +576,63 @@
     color: var(--color-text-muted);
 }
 
+.bookshelf-chapter__skeleton,
+.bookshelf-chapter__loading,
+.bookshelf-chapter__load-error,
+.bookshelf-chapter__retry-label {
+    display: none;
+}
+
+.bookshelf-chapter__placeholder {
+    padding-block: var(--spacing-4);
+}
+
+.bookshelf-chapter__skeleton {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-3);
+}
+
+.bookshelf-chapter__skeleton span {
+    height: 0.75rem;
+    background: var(--color-border);
+}
+
+.bookshelf-chapter__skeleton span:first-child {
+    width: 42%;
+    height: 1.5rem;
+    margin-bottom: var(--spacing-2);
+}
+
+.bookshelf-chapter__skeleton span:last-child {
+    width: 66%;
+}
+
+:is([data-bookshelf-chapter-state="waiting"], [data-bookshelf-chapter-state="loading"])
+    > .bookshelf-chapter__placeholder .bookshelf-chapter__skeleton {
+    display: grid;
+}
+
+:is([data-bookshelf-chapter-state="waiting"], [data-bookshelf-chapter-state="loading"])
+    > .bookshelf-chapter__placeholder .bookshelf-chapter__load-action,
+[data-bookshelf-chapter-state="failed"] > .bookshelf-chapter__placeholder .bookshelf-chapter__load-label {
+    display: none;
+}
+
+[data-bookshelf-chapter-state="loading"] > .bookshelf-chapter__placeholder .bookshelf-chapter__loading,
+[data-bookshelf-chapter-state="failed"] > .bookshelf-chapter__placeholder .bookshelf-chapter__load-error {
+    display: block;
+    margin-block: var(--spacing-3) 0;
+    color: var(--color-text-muted);
+}
+
+[data-bookshelf-chapter-state="failed"] > .bookshelf-chapter__placeholder .bookshelf-chapter__retry-label {
+    display: inline;
+}
+
+[data-bookshelf-chapter-state="failed"] > .bookshelf-chapter__placeholder .bookshelf-chapter__load-action {
+    margin-top: var(--spacing-3);
+}
+
 .bookshelf-aside {
     display: grid;
     gap: var(--spacing-3);
