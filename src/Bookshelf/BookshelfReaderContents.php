@@ -26,7 +26,6 @@ final readonly class BookshelfReaderContents
     public const PAGE_SIZE = 5;
     public const MAX_PAGES = self::MAX_ENTRIES / self::PAGE_SIZE;
     private const MAX_DEPTH = 6;
-    private const MAX_RELAY_HINTS = 5;
     private const MAX_RELAY_GROUPS = 20;
     private const MAX_API_PASSES = 3;
     private const EXACT_CACHE_TTL = 365 * 86400;
@@ -42,6 +41,7 @@ final readonly class BookshelfReaderContents
         private MercuryApiClientInterface $booksApi,
         #[Autowire(service: 'cache.app')]
         private CacheItemPoolInterface $cache = new NullAdapter(),
+        private ?BookshelfMercuryCoordinates $mercuryCoordinates = null,
     ) {}
 
     public function source(string $id): ?object
@@ -70,14 +70,15 @@ final readonly class BookshelfReaderContents
         }
 
         try {
-            $event = $this->nostr->getEventsByIds([$id])[$id] ?? null;
+            foreach ($this->nostr->getLocalEvents([['kinds' => [30040], 'ids' => [$id], 'limit' => 1]]) as $event) {
+                if (($event->id ?? null) === $id && ($event->kind ?? null) === 30040) {
+                    $this->rememberEvent($event);
+
+                    return $event;
+                }
+            }
         } catch (\Throwable $exception) {
-            $this->logger->warning('Could not read the bookshelf index from relays.', ['exception' => $exception]);
-            return null;
-        }
-        if (is_object($event) && ($event->id ?? null) === $id && ($event->kind ?? null) === 30040) {
-            $this->rememberEvent($event);
-            return $event;
+            $this->logger->warning('Could not read the bookshelf index from the local relay.', ['exception' => $exception]);
         }
 
         return null;
@@ -438,7 +439,7 @@ final readonly class BookshelfReaderContents
     private function targets(array $refs): array
     {
         $result = $uncached = [];
-        $ids = $coordinates = $relays = [];
+        $ids = $coordinates = [];
         foreach ($refs as $ref) {
             if ($ref['invalid']) {
                 continue;
@@ -452,9 +453,6 @@ final readonly class BookshelfReaderContents
                 $ids[$ref['pin']] = true;
             } else {
                 $coordinates[$ref['coordinate']] = true;
-            }
-            if ($ref['relay'] !== null && count($relays) < self::MAX_RELAY_HINTS) {
-                $relays[$ref['relay']] = true;
             }
             $uncached[] = $ref;
         }
@@ -493,9 +491,8 @@ final readonly class BookshelfReaderContents
                 if ($unresolved === []) {
                     break 2;
                 }
-                // The direct Books API guarantees created_at DESC, id ASC.
-                // Mercury's coordinate filter does not guarantee tie ordering,
-                // so its one-result sample is unsafe for unpinned references.
+                // The Books API provides the timestamp and ID ordering. The
+                // separate Mercury coordinate lookup can inspect tied results.
                 $matched = $this->matchTargets($unresolved, $this->apiTargets(
                     $client, $unresolved, $orderedCoordinates,
                 ));
@@ -503,6 +500,18 @@ final readonly class BookshelfReaderContents
                     break;
                 }
                 $result += $matched;
+            }
+        }
+        if ($this->mercuryCoordinates !== null) {
+            $checked = [];
+            foreach ($missing as $ref) {
+                if ($ref['pin'] !== null || isset($result[$ref['key']]) || isset($checked[$ref['coordinate']])) {
+                    continue;
+                }
+                $checked[$ref['coordinate']] = true;
+                $result += $this->matchTargets([$ref], $this->mercuryCoordinates->find(
+                    $ref['kind'], $ref['pubkey'], $ref['identifier'],
+                ));
             }
         }
         $missingIds = $missingCoordinates = [];
@@ -517,33 +526,34 @@ final readonly class BookshelfReaderContents
             }
         }
         $groups = [];
-        $boundedCoordinates = [];
+        $filters = [];
+        $skippedCoordinates = 0;
+        if ($missingIds !== []) {
+            $filters[] = ['kinds' => [30040, 30041], 'ids' => array_keys($missingIds), 'limit' => count($missingIds)];
+        }
         foreach (array_keys($missingCoordinates) as $coordinate) {
-            [$kind, $pubkey] = explode(':', $coordinate, 3);
+            [$kind, $pubkey, $identifier] = explode(':', $coordinate, 3);
             $group = $kind . ':' . $pubkey;
             if (!isset($groups[$group]) && count($groups) >= self::MAX_RELAY_GROUPS) {
+                ++$skippedCoordinates;
                 continue;
             }
-            $groups[$group] = true;
-            $boundedCoordinates[] = $coordinate;
+            $groups[$group][] = $identifier;
         }
-        if (count($boundedCoordinates) < count($missingCoordinates)) {
+        foreach ($groups as $group => $identifiers) {
+            [$kind, $pubkey] = explode(':', $group, 2);
+            $filters[] = ['kinds' => [(int) $kind], 'authors' => [$pubkey], '#d' => $identifiers, 'limit' => count($identifiers)];
+        }
+        if ($skippedCoordinates > 0) {
             $this->logger->warning('Bookshelf relay lookup reached its author and kind limit.', [
-                'remaining_coordinates' => count($missingCoordinates) - count($boundedCoordinates),
+                'remaining_coordinates' => $skippedCoordinates,
             ]);
         }
-        if ($missingIds !== []) {
+        if ($filters !== []) {
             try {
-                $result += $this->matchTargets($missing, array_values($this->nostr->getEventsByIds(array_keys($missingIds), array_keys($relays))));
+                $result += $this->matchTargets($missing, $this->nostr->getLocalEvents($filters));
             } catch (\Throwable $exception) {
-                $this->logger->warning('Could not resolve bookshelf event IDs from relays.', ['exception' => $exception]);
-            }
-        }
-        if ($boundedCoordinates !== []) {
-            try {
-                $result += $this->matchTargets($missing, array_values($this->nostr->getEventsByCoordinates($boundedCoordinates, array_keys($relays))));
-            } catch (\Throwable $exception) {
-                $this->logger->warning('Could not resolve bookshelf coordinates from relays.', ['exception' => $exception]);
+                $this->logger->warning('Could not resolve Bookshelf references from the local relay.', ['exception' => $exception]);
             }
         }
         foreach ($missing as $ref) {

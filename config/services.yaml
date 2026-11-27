@@ -511,27 +511,31 @@ services:
     # BookshelfBundle host integration
     App\Bookshelf\BookshelfReaderContents:
         arguments:
-            $booksApi: '@bookshelf.primary_search_api_client'
+            $booksApi: '@bookshelf.publication_lookup.books_client'
+            $api: '@bookshelf.publication_lookup.mercury_client'
+            $mercuryCoordinates: '@App\Bookshelf\BookshelfMercuryCoordinates'
 
-    bookshelf.my_books.http_options:
+    bookshelf.publication_lookup.http_options:
         class: DecentNewsroom\BookshelfBundle\Service\Mercury\Model\MercuryHttpOptions
         arguments:
+            $timeout: 2.0
+            $maxDuration: 2.0
             $filterTimeout: 2.0
             $filterMaxDuration: 2.0
             $maxAttempts: 1
 
-    bookshelf.my_books.primary_client:
+    bookshelf.publication_lookup.books_client:
         class: DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClient
         arguments:
             $mercuryApiBaseUrl: '%bookshelf.books_api_base_url%'
-            $options: '@bookshelf.my_books.http_options'
+            $options: '@bookshelf.publication_lookup.http_options'
             $apiPathPrefix: '/books/api'
 
-    bookshelf.my_books.mercury_client:
+    bookshelf.publication_lookup.mercury_client:
         class: DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClient
         arguments:
             $mercuryApiBaseUrl: '%bookshelf.mercury_api_base_url%'
-            $options: '@bookshelf.my_books.http_options'
+            $options: '@bookshelf.publication_lookup.http_options'
 
     DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface:
         alias: App\Bookshelf\BookshelfEventStore

@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- [Fix] Bound cold Bookshelf lookups, resolve unpinned nested references through Mercury, and limit relay fallback to local strfry.
 - [Improvement] Read exact Bookshelf revisions from cache first, reuse parsed index references, and batch chapter visibility checks.
 - [Improvement] Paginate My Books and use the Books API, Mercury, and local relay only for unresolved references without refreshing the directory on page load.
 - [Improvement] Release workspace Turbo request slots through frame completion and failure events, avoiding duplicate reads of chapter responses.

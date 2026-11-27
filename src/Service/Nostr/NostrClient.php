@@ -237,6 +237,25 @@ class NostrClient
     }
 
     /**
+     * Send one subscription to the configured local relay with no relay discovery.
+     *
+     * @param list<array<string, mixed>> $filters NIP-01 wire filters
+     * @return list<object>
+     */
+    public function getLocalEvents(array $filters): array
+    {
+        $url = $this->relayRegistry->getLocalRelay();
+        if ($url === null || $filters === []) {
+            return [];
+        }
+
+        $request = new RelayQueryRequest($this->relaySetFactory->fromUrls([$url]), $filters);
+        $request->setTimeout($this->eventLookupDirectTimeout)->setDirectBudget($this->eventLookupDirectTimeout);
+
+        return $this->executor->process($this->executor->execute($request), static fn (object $event): object => $event);
+    }
+
+    /**
      * @throws \Exception
      */
     public function getEventByNaddr(

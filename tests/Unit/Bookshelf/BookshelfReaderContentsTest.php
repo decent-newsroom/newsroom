@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Bookshelf;
 
+use App\Bookshelf\BookshelfMercuryCoordinates;
 use App\Bookshelf\BookshelfReaderContents;
 use App\Bookshelf\BookshelfRelayBookLoader;
 use App\Bookshelf\BookshelfReaderTraversalSigner;
@@ -16,10 +17,13 @@ use App\Service\Reader\ContentAuthorAccessPolicy;
 use AsciiDocConverter;
 use DecentNewsroom\BookshelfBundle\Contract\DirectoryEventStoreInterface;
 use DecentNewsroom\BookshelfBundle\Service\Bookshelf\BookshelfDirectoryService;
+use DecentNewsroom\BookshelfBundle\Service\Mercury\Exception\MercuryApiException;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\MercuryApiClientInterface;
 use DecentNewsroom\BookshelfBundle\Service\Mercury\Model\MercuryEvent;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DomCrawler\Crawler;
@@ -283,7 +287,8 @@ final class BookshelfReaderContentsTest extends TestCase
         $api->expects(self::never())->method('getEventsByIds');
         $api->expects(self::never())->method('getChaptersByAuthors');
         $nostr = $this->createMock(NostrClient::class);
-        $nostr->expects(self::once())->method('getEventsByIds')->with([$id])->willReturn([]);
+        $nostr->expects(self::once())->method('getLocalEvents')
+            ->with([['kinds' => [30040], 'ids' => [$id], 'limit' => 1]])->willReturn([]);
         $nostr->expects(self::never())->method('getEventsByCoordinates');
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())->method('warning')->with('Bookshelf index unavailable; reader can be retried.', ['event_id' => $id]);
@@ -388,9 +393,9 @@ final class BookshelfReaderContentsTest extends TestCase
             },
         );
         $nostr = $this->createMock(NostrClient::class);
-        $nostr->expects(self::once())->method('getEventsByCoordinates')->willReturnCallback(
-            static function (array $coordinates) use ($authors): array {
-                self::assertContains('30041:' . $authors[4] . ':', $coordinates);
+        $nostr->expects(self::once())->method('getLocalEvents')->willReturnCallback(
+            static function (array $filters) use ($authors): array {
+                self::assertContains(['kinds' => [30041], 'authors' => [$authors[4]], '#d' => [''], 'limit' => 1], $filters);
                 return [];
             },
         );
@@ -462,7 +467,7 @@ final class BookshelfReaderContentsTest extends TestCase
     }
 
     /** @dataProvider coordinateKinds */
-    public function testUnavailableBooksApiDoesNotUseUnorderedMercuryCoordinate(int $kind): void
+    public function testTruncatedMercuryTieFallsBackToLocalRelay(int $kind): void
     {
         $pubkey = str_repeat('a', 64);
         $coordinate = "$kind:$pubkey:section";
@@ -474,19 +479,23 @@ final class BookshelfReaderContentsTest extends TestCase
         $books->expects(self::once())->method($method)->willReturn([]);
         $mercury = $this->createMock(MercuryApiClientInterface::class);
         $mercury->expects(self::never())->method($method)->willReturn([$high]);
+        $http = new MockHttpClient(new MockResponse(json_encode(array_fill(0, 16, $high->toArray()), JSON_THROW_ON_ERROR)));
+        $logger = $this->createStub(LoggerInterface::class);
         $nostr = $this->createMock(NostrClient::class);
-        $nostr->expects(self::once())->method('getEventsByCoordinates')->with([$coordinate], [])
-            ->willReturn([$coordinate => (object) $low->toArray()]);
+        $nostr->expects(self::once())->method('getLocalEvents')
+            ->with([['kinds' => [$kind], 'authors' => [$pubkey], '#d' => ['section'], 'limit' => 1]])
+            ->willReturn([(object) $low->toArray()]);
         $reader = new BookshelfReaderContents(
             $mercury, $nostr, $this->events(), $this->createStub(ContentAuthorAccessPolicy::class),
             $this->createStub(HiddenCoordinateRepository::class),
-            $this->createStub(LoggerInterface::class), $books,
+            $logger, $books, mercuryCoordinates: new BookshelfMercuryCoordinates($http, $logger, 'https://mercury.example'),
         );
         if ($kind === 30040) {
             self::assertSame($low->id, $reader->indexAtPath($root, [1])->id);
         } else {
             self::assertSame($low->id, $reader->childrenPage($root, 1)['entries'][0]['id']);
         }
+        self::assertSame(1, $http->getRequestsCount());
     }
 
     public static function coordinateKinds(): iterable
@@ -783,7 +792,8 @@ final class BookshelfReaderContentsTest extends TestCase
         $api = $this->createStub(MercuryApiClientInterface::class);
         $api->method('getPublicationEventsByIds')->willReturn([$wrong]);
         $nostr = $this->createMock(NostrClient::class);
-        $nostr->expects(self::once())->method('getEventsByIds')->with([$pin], [])->willReturn([]);
+        $nostr->expects(self::once())->method('getLocalEvents')
+            ->with([['kinds' => [30040, 30041], 'ids' => [$pin], 'limit' => 1]])->willReturn([]);
         $nostr->expects(self::never())->method('getEventsByCoordinates');
 
         $source = (object) $root->toArray();
@@ -813,7 +823,7 @@ final class BookshelfReaderContentsTest extends TestCase
         self::assertSame('Public title', $result['chapters'][1]['title']);
     }
 
-    public function testNestedIndexesAndChaptersFallBackToRelayHints(): void
+    public function testNestedIndexesAndChaptersFallBackToLocalRelay(): void
     {
         $pubkey = str_repeat('a', 64);
         $root = $this->event('b', $pubkey, 30040, 'book', [['a', "30040:$pubkey:part", 'wss://books.example']]);
@@ -821,13 +831,13 @@ final class BookshelfReaderContentsTest extends TestCase
         $section = $this->event('d', $pubkey, 30041, 'section', [], 'Relay text');
         $api = $this->createStub(MercuryApiClientInterface::class);
         $nostr = $this->createMock(NostrClient::class);
-        $nostr->expects(self::exactly(2))->method('getEventsByCoordinates')->willReturnCallback(
-            static function (array $coordinates, array $relays) use ($pubkey, $part, $section): array {
-                self::assertSame(['wss://books.example'], $relays);
-                return match ($coordinates) {
-                    ["30040:$pubkey:part"] => [(object) $part->toArray()],
-                    ["30041:$pubkey:section"] => [(object) $section->toArray()],
-                    default => self::fail('Unexpected coordinates'),
+        $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $nostr->expects(self::exactly(2))->method('getLocalEvents')->willReturnCallback(
+            static function (array $filters) use ($pubkey, $part, $section): array {
+                return match ($filters) {
+                    [['kinds' => [30040], 'authors' => [$pubkey], '#d' => ['part'], 'limit' => 1]] => [(object) $part->toArray()],
+                    [['kinds' => [30041], 'authors' => [$pubkey], '#d' => ['section'], 'limit' => 1]] => [(object) $section->toArray()],
+                    default => self::fail('Unexpected local filters'),
                 };
             },
         );
@@ -836,6 +846,47 @@ final class BookshelfReaderContentsTest extends TestCase
 
         self::assertSame(['part', 'section'], array_column($result['chapters'], 'identifier'));
         self::assertSame('Relay text', $result['chapters'][1]['content']);
+    }
+
+    public function testColdSeventhOccurrenceUsesExactMercuryFilterWhenBooksApiTimesOut(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $root = $this->event('b', $pubkey, 30040, 'book', [
+            ...array_fill(0, 6, ['t', 'topic']),
+            ['a', "30040:$pubkey:part", 'wss://public.example'],
+        ]);
+        $higherId = $this->event('e', $pubkey, 30040, 'part', [['title', 'Higher ID']]);
+        $winner = $this->event('c', $pubkey, 30040, 'part', [['a', "30041:$pubkey:section"]]);
+        $books = $this->createMock(MercuryApiClientInterface::class);
+        $books->expects(self::once())->method('getPublicationsByAuthors')->with([$pubkey], 1, ['part'])
+            ->willThrowException(new MercuryApiException('Books API timed out'));
+        $logger = $this->createStub(LoggerInterface::class);
+        $http = new MockHttpClient(
+            static function (string $method, string $url, array $options) use ($pubkey, $higherId, $winner): MockResponse {
+                self::assertSame('POST', $method);
+                self::assertSame('https://mercury.example/api/events/filter', $url);
+                self::assertSame(['kinds' => [30040], 'authors' => [$pubkey], '#d' => ['part'], 'limit' => 16], json_decode($options['body'], true));
+                self::assertSame(2.0, $options['max_duration']);
+
+                return new MockResponse(json_encode([
+                    'data' => [$higherId->toArray(), $winner->toArray()],
+                ], JSON_THROW_ON_ERROR));
+            },
+        );
+        $nostr = $this->createMock(NostrClient::class);
+        $nostr->expects(self::never())->method('getLocalEvents');
+        $reader = new BookshelfReaderContents(
+            $this->createStub(MercuryApiClientInterface::class), $nostr, $this->events(),
+            $this->createStub(ContentAuthorAccessPolicy::class), $this->createStub(HiddenCoordinateRepository::class),
+            $logger, $books, mercuryCoordinates: new BookshelfMercuryCoordinates($http, $logger, 'https://mercury.example'),
+        );
+
+        $revisions = [];
+        $source = $reader->indexAtPath((object) $root->toArray(), [7], [], $revisions);
+
+        self::assertSame($winner->id, $source?->id);
+        self::assertSame([$winner->id], $revisions);
+        self::assertSame('section', $reader->outline($source)['entries'][0]['title']);
     }
 
     public function testBooksApiResolvesRootAndNestedContentsBeforeMercuryOrRelays(): void
@@ -1023,7 +1074,7 @@ final class BookshelfReaderContentsTest extends TestCase
         self::assertTrue($result['truncated']);
     }
 
-    public function testRelayFallbackLimitsGroupsAndHintsWithoutHidingReferences(): void
+    public function testLocalRelayFallbackLimitsGroupsWithoutHidingReferences(): void
     {
         $pubkey = str_repeat('a', 64);
         $tags = [];
@@ -1032,10 +1083,9 @@ final class BookshelfReaderContentsTest extends TestCase
         }
         $root = $this->event('b', $pubkey, 30040, 'book', $tags);
         $nostr = $this->createMock(NostrClient::class);
-        $nostr->expects(self::once())->method('getEventsByCoordinates')->willReturnCallback(
-            static function (array $coordinates, array $relays): array {
-                self::assertCount(20, $coordinates);
-                self::assertCount(5, $relays);
+        $nostr->expects(self::once())->method('getLocalEvents')->willReturnCallback(
+            static function (array $filters): array {
+                self::assertCount(20, $filters);
                 return [];
             },
         );

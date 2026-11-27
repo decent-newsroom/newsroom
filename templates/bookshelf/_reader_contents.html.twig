@@ -2,6 +2,9 @@
 <turbo-frame id="{{ frameId }}">
     {% if contents is null %}
         <p class="bookshelf-chapter__missing">{{ 'bookshelf.reader_unavailable'|trans }}</p>
+        {% if retryUrl|default(null) %}
+            <a class="btn btn-secondary btn-sm" href="{{ retryUrl }}">{{ 'bookshelf.reader_retry'|trans }}</a>
+        {% endif %}
     {% else %}
         <div data-controller="ui--bookshelf-chapters"
             data-action="turbo:frame-load->ui--bookshelf-chapters#loaded turbo:before-fetch-response->ui--bookshelf-chapters#response turbo:frame-missing->ui--bookshelf-chapters#failed turbo:fetch-request-error->ui--bookshelf-chapters#failed turbo:before-cache@document->ui--bookshelf-chapters#beforeCache">

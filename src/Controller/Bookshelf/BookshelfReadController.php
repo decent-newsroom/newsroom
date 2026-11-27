@@ -69,10 +69,10 @@ final class BookshelfReadController extends AbstractController
         $revisions = [];
         $source = $root === null ? null : $readerContents->indexAtPath($root, $path, $boundRevisions, $revisions);
 
-        return $this->render('bookshelf/_reader_contents.html.twig',
-            $this->outlineParameters($id, $path, $revisions, $source, $readerContents, $signer),
-            new Response(headers: ['Cache-Control' => 'private, no-store']),
-        );
+        return $this->render('bookshelf/_reader_contents.html.twig', [
+            ...$this->outlineParameters($id, $path, $revisions, $source, $readerContents, $signer),
+            'retryUrl' => $source === null ? $request->getRequestUri() : null,
+        ], new Response(headers: ['Cache-Control' => 'private, no-store']));
     }
 
     #[Route('/bookshelf/{id}/chapter/{position}', name: 'bookshelf_reader_chapter', requirements: ['id' => '[a-fA-F0-9]{64}', 'position' => '0|[1-9][0-9]{0,8}'], methods: ['GET'])]

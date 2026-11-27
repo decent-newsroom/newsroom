@@ -27,9 +27,9 @@ final readonly class BookshelfDirectoryBooks
     private const LOCAL_RELAY_TIMEOUT = 2;
 
     public function __construct(
-        #[Autowire(service: 'bookshelf.my_books.primary_client')]
+        #[Autowire(service: 'bookshelf.publication_lookup.books_client')]
         private MercuryApiClientInterface $booksApi,
-        #[Autowire(service: 'bookshelf.my_books.mercury_client')]
+        #[Autowire(service: 'bookshelf.publication_lookup.mercury_client')]
         private MercuryApiClientInterface $mercury,
         private RelayRegistry $relayRegistry,
         private RelayPoolInterface $relayPool,

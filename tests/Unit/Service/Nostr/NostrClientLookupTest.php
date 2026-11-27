@@ -22,6 +22,31 @@ use Psr\Log\NullLogger;
 
 final class NostrClientLookupTest extends TestCase
 {
+    public function testLocalLookupUsesOneBudgetedSubscriptionWithoutDiscoveringRelays(): void
+    {
+        $url = 'ws://strfry:7777';
+        $filters = [['ids' => [str_repeat('a', 64)]], ['kinds' => [30040], '#d' => ['book']]];
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->expects(self::once())->method('getLocalRelay')->willReturn($url);
+        $factory = $this->createMock(RelaySetFactory::class);
+        $factory->expects(self::once())->method('fromUrls')->with([$url])->willReturn(new RelaySet([new RelayEndpoint($url)]));
+        $factory->expects(self::never())->method('getDefault');
+        $executor = $this->createMock(NostrRequestExecutor::class);
+        $executor->expects(self::once())->method('execute')->with(self::callback(
+            static fn (RelayQueryRequest $request): bool => $request->getRelaySet()->getUrls() === [$url]
+                && $request->getFilters() === $filters && $request->getDirectBudget() === 2,
+        ))->willReturn([]);
+        $relays = $this->createMock(UserRelayListService::class);
+        $relays->expects(self::never())->method('getTopRelaysForAuthor');
+        $client = new NostrClient(
+            new NullLogger(), $registry, $relays, $factory, $executor,
+            $this->createStub(ArticleFetchService::class), $this->createStub(MediaEventService::class),
+            $this->createStub(SocialEventService::class), $this->createStub(UserProfileService::class),
+        );
+
+        self::assertSame([], $client->getLocalEvents($filters));
+    }
+
     /** @dataProvider coordinateRefreshCases */
     public function testCoordinateRefreshChecksAuthorRelaysDespiteLocalHit(bool $refresh, int $timestamp, string $id, bool $replacementWins): void
     {

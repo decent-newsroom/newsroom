@@ -12,6 +12,7 @@ namespace App\Service\Nostr;
 final class RelayQueryRequest
 {
     private int $timeout = 3;
+    private ?int $directBudget = null;
     private int $gatewayTimeout = 3;
     private ?string $stopOnEventId = null;
     private ?string $requestedBy = null;
@@ -50,6 +51,18 @@ final class RelayQueryRequest
     public function getTimeout(): int
     {
         return $this->timeout;
+    }
+
+    public function setDirectBudget(int $seconds): self
+    {
+        $this->directBudget = max(1, $seconds);
+
+        return $this;
+    }
+
+    public function getDirectBudget(): ?int
+    {
+        return $this->directBudget;
     }
 
     public function setGatewayTimeout(int $timeout): self

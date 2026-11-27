@@ -120,7 +120,7 @@ final class BookshelfReaderCacheTest extends TestCase
         $api = $this->createMock(MercuryApiClientInterface::class);
         $api->expects(self::exactly(2))->method('getChaptersByAuthors')->willReturnOnConsecutiveCalls([], [$chapter]);
         $nostr = $this->createMock(NostrClient::class);
-        $nostr->expects(self::once())->method('getEventsByCoordinates')->willReturn([]);
+        $nostr->expects(self::once())->method('getLocalEvents')->willReturn([]);
         $events = $this->createStub(EventRepository::class);
         $events->method('findBookshelfReaderTargets')->willReturn(['coordinates' => [], 'eventIds' => []]);
         $reader = new BookshelfReaderContents(
@@ -176,6 +176,7 @@ final class BookshelfReaderCacheTest extends TestCase
         $nostr = $this->createMock(NostrClient::class);
         $nostr->expects(self::never())->method('getEventsByIds');
         $nostr->expects(self::never())->method('getEventsByCoordinates');
+        $nostr->expects(self::never())->method('getLocalEvents');
 
         return new BookshelfReaderContents(
             $api, $nostr, $events, $this->createStub(ContentAuthorAccessPolicy::class),

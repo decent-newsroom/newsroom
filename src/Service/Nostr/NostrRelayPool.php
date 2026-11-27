@@ -213,6 +213,8 @@ class NostrRelayPool implements RelayPoolInterface
         foreach ($this->getRelays($relayUrls) as $endpoint) {
             $url = $endpoint->getUrl();
             $started = microtime(true);
+            $budget = $request->getDirectBudget();
+            $deadline = $budget === null ? INF : $started + $budget;
             $client = $this->nostrClientFactory->create();
             /** @var Event[] $events */
             $events = [];
@@ -229,7 +231,12 @@ class NostrRelayPool implements RelayPoolInterface
 
             try {
                 $client->setAuthHandler($this->authHandler($url, $request->getRequestedBy(), $client, $relay, $subscriptionId));
-                $client->connect($relay, $this->nostrClientFactory->createDefaultConnectionConfig());
+                $config = $this->nostrClientFactory->createDefaultConnectionConfig();
+                if ($budget !== null) {
+                    $config = $config->withConnectionTimeout(min($budget, $config->getConnectionTimeoutSeconds()))
+                        ->withAutoReconnect(false);
+                }
+                $client->connect($relay, $config);
                 $client->subscribeMultiple(
                     $relay,
                     array_map(static fn (array $filterData): Filter => Filter::fromArray($filterData), $request->getFilters()),
@@ -237,7 +244,8 @@ class NostrRelayPool implements RelayPoolInterface
                     $subscriptionId,
                 );
 
-                while (!$eose && !$closed && microtime(true) - $lastMessage < $request->getTimeout()) {
+                while (!$eose && !$closed && microtime(true) < $deadline
+                    && microtime(true) - $lastMessage < $request->getTimeout()) {
                     $this->ensureSubscriptionAlive($client, $relay, $subscriptionId);
                     delay(0.1);
                 }
@@ -246,7 +254,7 @@ class NostrRelayPool implements RelayPoolInterface
                     $url,
                     $events,
                     $completed,
-                    $completed ? null : ($closeMessage ?? 'Idle timeout before EOSE'),
+                    $completed ? null : ($closeMessage ?? (microtime(true) >= $deadline ? 'Request deadline before EOSE' : 'Idle timeout before EOSE')),
                     (int) ((microtime(true) - $started) * 1000),
                 );
                 if ($completed) {

@@ -48,13 +48,16 @@ cache. Cold exact IDs and unpinned targets can use local storage, the Books API,
 Mercury and the reader's relay fallback. Unpinned API lookups select one exact
 nonblank coordinate per call through the Books API, which orders revisions by
 newest timestamp and then lowest event ID.
-They do not use Mercury's ambiguous equal-time ordering or combine multiple
-authors and identifiers. Exact-ID lookups retain both APIs. Blank identifiers
-bypass APIs that strip them and use exact-coordinate relay lookup, never an
-author-only API query. Metadata-only indexes can still render a reader shell.
-Each level uses at most five relay hints and falls back for at most
-20 distinct author/kind groups; additional unresolved references stay visible
-as unavailable.
+On a Books API miss, Mercury queries the exact kind, author, and identifier.
+It returns a bounded, timestamp-ordered set so the reader can choose the
+lowest event ID among equal-time revisions. A full set whose cutoff is tied
+for newest falls through to the local relay. Exact-ID lookups retain both APIs.
+Each HTTP operation has a two-second budget. Blank identifiers go to the local
+relay so API clients cannot turn them into broad author-only queries.
+Metadata-only indexes can still render a reader shell. The reader sends one
+short local strfry subscription per unresolved lookup, with at most 20 distinct
+author/kind groups, and skips relay discovery and signed relay hints. Additional
+unresolved references stay visible as unavailable.
 
 Each reader index lists up to 500 direct occurrences without fetching child
 events. Traversal is limited to six levels. Cycles are detected on the current
@@ -98,7 +101,8 @@ the chapter response for rendering. Placeholders show a skeleton while waiting,
 and failed frame requests offer a retry.
 
 Nested indexes load when opened via `/bookshelf/{id}/contents` with their signed
-occurrence path, then apply the same two-entry starting window. An optional
+occurrence path, then apply the same two-entry starting window. An unavailable
+index offers a retry against the same signed URL. An optional
 introductory body loads in the viewport through its own `/index-body` request.
 
 Chapter signatures bind the exact root, occurrence position, ancestry, and
